@@ -21,14 +21,14 @@ case "${1:-status}" in
         rssh "mkdir -p $REMOTE_DIR && cat > $REMOTE_DIR/vllm.sh && chmod +x $REMOTE_DIR/vllm.sh" \
             < "$AGENT_ROOT/serve/vllm.sh"
         echo "✓ 已同步 serve/vllm.sh -> $REMOTE_HOST:$REMOTE_DIR/"
-        rssh "cd $REMOTE_DIR && if $pid_alive; then echo '✓ vLLM 已在运行 (pid '\$(cat vllm.pid)')'; exit 0; fi
+        rssh "cd $REMOTE_DIR && if $pid_alive; then echo '✓ vLLM 已在运行（进程号 '\$(cat vllm.pid)'）'; exit 0; fi
               ${REMOTE_ACTIVATE:+$REMOTE_ACTIVATE &&} \
               env MODEL='$REMOTE_MODEL' PORT='$REMOTE_VLLM_PORT' MAX_LEN='${REMOTE_MAX_LEN:-32768}' \
                   GPU_UTIL='${REMOTE_GPU_UTIL:-0.90}' $REMOTE_EXTRA_ENV \
                   setsid nohup ./vllm.sh > vllm.log 2>&1 < /dev/null &
               echo \$! > vllm.pid
-              echo \"✓ vLLM 已启动 (pid \$(cat vllm.pid))，日志 $REMOTE_DIR/vllm.log\""
-        echo "  加载权重需要时间：./remote_vllm.sh wait"
+              echo \"✓ vLLM 已启动（进程号 \$(cat vllm.pid)），日志 $REMOTE_DIR/vllm.log\""
+        echo "  加载模型需要一些时间，可以运行 ./remote_vllm.sh wait 等待"
         ;;
     wait)
         deadline=$((SECONDS + ${WAIT_TIMEOUT:-900}))
@@ -44,9 +44,9 @@ case "${1:-status}" in
         echo "✓ vLLM 就绪      $(served_model)"
         ;;
     status)
-        rssh "cd $REMOTE_DIR 2>/dev/null || { echo '✗ 远端目录不存在，尚未 start'; exit 1; }
-              if $pid_alive; then echo \"✓ vLLM 进程存活 (pid \$(cat vllm.pid))\"; else echo '✗ vLLM 未运行'; fi
-              echo '--- vllm.log (tail) ---'; tail -n 15 vllm.log 2>/dev/null"
+        rssh "cd $REMOTE_DIR 2>/dev/null || { echo '✗ 远端目录不存在，请先运行 ./remote_vllm.sh start'; exit 1; }
+              if $pid_alive; then echo \"✓ vLLM 正在运行（进程号 \$(cat vllm.pid)）\"; else echo '✗ vLLM 未运行'; fi
+              echo '--- vllm.log 最后几行 ---'; tail -n 15 vllm.log 2>/dev/null"
         ;;
     logs)
         rssh "tail -n 50 -f $REMOTE_DIR/vllm.log"
@@ -59,7 +59,7 @@ case "${1:-status}" in
                   for i in \$(seq 30); do $pid_alive || break; sleep 1; done
                   $pid_alive && kill -9 -- -\$(cat vllm.pid) 2>/dev/null
                   echo '✓ vLLM 已停止'
-              else echo 'vLLM 本来就没在运行'; fi; rm -f vllm.pid"
+              else echo 'vLLM 原本就没有运行'; fi; rm -f vllm.pid"
         ;;
     *)
         sed -n '2,9p' "$0"; exit 2 ;;

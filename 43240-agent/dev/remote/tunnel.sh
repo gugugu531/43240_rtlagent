@@ -29,19 +29,19 @@ case "${1:-status}" in
         fi
         ;;
     down)
-        ctl exit && echo "✓ 隧道已关闭" || echo "隧道本来就不在"
+        ctl exit && echo "✓ 隧道已关闭" || echo "隧道原本就没有建立"
         ;;
     status)
         if ctl check; then
-            echo "✓ 隧道存活       127.0.0.1:${LOCAL_VLLM_PORT} -> ${REMOTE_HOST}:${REMOTE_VLLM_PORT}"
+            echo "✓ 隧道正常       127.0.0.1:${LOCAL_VLLM_PORT} -> ${REMOTE_HOST}:${REMOTE_VLLM_PORT}"
         else
             echo "✗ 隧道未建立     ./tunnel.sh up"
             exit 1
         fi
         if m=$(served_model 2>&1); then
-            echo "✓ vLLM 应答      $m"
+            echo "✓ vLLM 响应正常  $m"
         else
-            echo "✗ vLLM 无应答    $m"
+            echo "✗ vLLM 没有响应  $m"
             echo "  远端服务可能还在加载权重，或未启动：./remote_vllm.sh status"
             exit 1
         fi

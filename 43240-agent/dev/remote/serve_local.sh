@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Link B2, server side: start serve/serve_api.py locally, backed by the remote
+# Submission emulation, server side: start serve/serve_api.py locally, backed by the remote
 # vLLM through the tunnel. Runs in the foreground; use a second terminal for
 # ./submit_client.py.
 #

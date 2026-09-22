@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Link B2, client side: play the organisers' submission machine.
+"""Submission emulation, client side: play the organisers' submission machine.
 
     ./submit_client.py [--url URL] [--tasks DIR] [--samples N] [--tag NAME] ...
 
@@ -91,14 +91,14 @@ def check_health(url: str, token: str) -> str:
     if status != 200 or not isinstance(body, dict):
         sys.exit(f"✗ /v1/health 失败：HTTP {status} {body}")
     if body.get("track") != "rtl":
-        sys.exit(f"✗ track 为 {body.get('track')!r}，不是 'rtl'；赛事方会拒投")
+        sys.exit(f"✗ track 为 {body.get('track')!r}，不是 'rtl'，赛事方会拒绝投题")
     if body.get("ready") is not True:
         sys.exit(f"✗ ready 不是 true：{body}")
     log(f"✓ health         model={body.get('model')}  vram_gb={body.get('vram_gb')}")
 
     status, _ = http("GET", url + "/v1/health", None, None, 30)
     if status != 401:
-        log(f"⚠ 不带令牌的请求返回 HTTP {status}，而不是 401；公网上任何人都能调用")
+        log(f"⚠ 不带令牌的请求返回 HTTP {status}，而不是 401，说明没有验证令牌，公网上任何人都能调用")
     return str(body.get("model"))
 
 
@@ -181,7 +181,7 @@ def main() -> int:
     ap.add_argument("--tasks", default=os.path.join(REPO_ROOT, "tasks"))
     ap.add_argument("--modes", default="agent,baseline")
     ap.add_argument("--samples", type=int, default=1)
-    ap.add_argument("--deadline", type=int, default=360, help="deadline_s，单题墙钟上限")
+    ap.add_argument("--deadline", type=int, default=360, help="deadline_s，单题时间上限（秒）")
     ap.add_argument("--concurrency", type=int, default=1)
     ap.add_argument("--limit", type=int, default=0, help="只投前 N 道题")
     ap.add_argument("--tag", default="submit")
@@ -189,7 +189,7 @@ def main() -> int:
     args = ap.parse_args()
     args.url = args.url.rstrip("/")
     if not args.token:
-        sys.exit("✗ 没有令牌：--token 或 remote.env 里的 FPGACHINA_TOKEN")
+        sys.exit("✗ 没有令牌：请用 --token 指定，或在 remote.env 中设置 FPGACHINA_TOKEN")
 
     tasks = list_tasks(args.tasks)[: args.limit or None]
     if not tasks:
@@ -218,8 +218,8 @@ def main() -> int:
                  "transport_errors": sum(1 for i in infos if i["transport_error"])}
     with open(os.path.join(run_dir, "responses.json"), "w", encoding="utf-8") as fh:
         json.dump({"wallclock": wallclock, "samples": infos}, fh, ensure_ascii=False, indent=2)
-    log(f"\n请求墙钟合计 {total}s（不含本地判定），单题最长 {wallclock['max_s']}s，"
-        f"传输失败 {wallclock['transport_errors']} 次（按 L0 计）")
+    log(f"\n请求耗时合计 {total}s（不含本地判定），单题最长 {wallclock['max_s']}s，"
+        f"请求失败 {wallclock['transport_errors']} 次（按 L0 未通过计）")
 
     if args.no_judge:
         return 0

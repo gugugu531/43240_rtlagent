@@ -69,14 +69,14 @@ def write_summary(run_dir: str) -> str | None:
         "| --- | --- |",
         f"| 类型 | {meta['kind']} |",
         f"| 时间 | {meta['started']} |",
-        f"| 提交 | `{meta['commit']}`{'（有未提交改动）' if meta['dirty'] else ''} |",
+        f"| git commit | `{meta['commit']}`{'（有未提交改动）' if meta['dirty'] else ''} |",
         f"| 模型 | {env.get('LLM_MODEL', '?')} |",
         f"| 参数 | `{' '.join(meta['args']) or '（默认）'}` |",
-        f"| 产物 | `dev/runs/{meta['run_id']}/` |",
+        f"| 原始文件 | `dev/runs/{meta['run_id']}/` |",
         "",
         "## 结果",
         "",
-        "| 链路 | 题数 | 题集得分 (pass@1) | pass@5 | 分级分布 | 环境失败 |",
+        "| 模式 | 题数 | 题集得分 (pass@1) | pass@5 | 等级分布 | 环境失败 |",
         "| --- | ---: | ---: | ---: | --- | ---: |",
     ]
     for mode, s in score.get("modes", {}).items():
@@ -88,10 +88,10 @@ def write_summary(run_dir: str) -> str | None:
                      f"（满分线 {score.get('gain_full_mark')} 为占位值）")
     if "wallclock" in score:
         w = score["wallclock"]
-        lines.append(f"客户端请求墙钟：合计 {w['total_s']} s，单题最长 {w['max_s']} s，"
-                     f"传输失败 {w['transport_errors']} 次")
+        lines.append(f"请求耗时（客户端计时）：合计 {w['total_s']} s，单题最长 {w['max_s']} s，"
+                     f"请求失败 {w['transport_errors']} 次")
     lines += ["", "## 改动与假设", "", "TODO：这一轮相对上一轮改了什么、预期效果",
-              "", "## 结论", "", "TODO：结果是否符合预期；失败样本归因见 dev/failures/", ""]
+              "", "## 结论", "", "TODO：结果是否符合预期；失败原因分析写在 dev/failures/", ""]
 
     exp_dir = os.path.join(DEV_ROOT, "experiments")
     os.makedirs(exp_dir, exist_ok=True)

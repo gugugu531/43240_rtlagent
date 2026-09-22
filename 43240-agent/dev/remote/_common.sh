@@ -47,7 +47,7 @@ EOF
 export_llm_env() {
     local model
     model=$(served_model) || {
-        echo "✗ 经隧道访问 $LOCAL_BASE_URL/models 失败。检查：./tunnel.sh status、./remote_vllm.sh status" >&2
+        echo "✗ 通过隧道访问 $LOCAL_BASE_URL/models 失败，请检查：./tunnel.sh status、./remote_vllm.sh status" >&2
         return 1
     }
     export LLM_BACKEND=openai
