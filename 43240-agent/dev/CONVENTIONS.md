@@ -147,16 +147,17 @@ docs(dev): record inference backend requirements
 2. 在分支上修改、提交，可以提交多次，每个提交都要符合 4.1 节的格式
 3. 把分支推送到 GitHub，创建一个 PR，PR 标题也按 4.1 节的格式写
 4. 由另一名队员检查改动，有问题就在分支上继续修改并推送
-5. 检查通过后，在 GitHub 网页上用 **Rebase and merge**（把分支上的提交逐个接到 `main`
-   后面）合并。不要使用 Squash and merge（把多个提交压缩成一个），以保留分支上的每个提交
-6. 合并后删除这个分支，本地切回 `main` 并拉取最新代码
+5. 检查通过后，在 GitHub 网页上用默认的 **Create a merge commit** 合并：分支上的每个
+   提交原样保留，并另外生成一个合并提交。合并提交的标题由 GitHub 自动生成
+   （`Merge pull request #编号 ...`），保持原样即可，不需要符合 4.1 节的格式
+6. 合并后删除这个分支（GitHub 网页上和本地都删），本地切回 `main` 并拉取最新代码
 
 **分支命名：** `<类型>/<简短描述>`。类型沿用 4.1 节的提交类型，描述用英文小写单词加
 连字符，例如 `feat/patch-repair`、`fix/interface-check`、`docs/conventions`。
 
-**分支存在期间 `main` 有了新提交时：** 在分支上执行 `git rebase main`，把分支的提交
-移到最新的 `main` 之后，解决冲突后再推送（此时需要 `git push --force-with-lease`，只能
-用在自己的分支上，不能用在 `main` 上）。
+**分支存在期间 `main` 有了新提交时：** 在 PR 页面点击 Update branch，或者在本地分支上
+执行 `git merge main`，把 `main` 的新提交合并进来，解决冲突后再推送。不要用
+`git rebase` 改写已经推送过的提交。
 
 ---
 
