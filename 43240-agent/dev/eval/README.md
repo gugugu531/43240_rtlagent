@@ -140,10 +140,13 @@ dev/runs/<运行编号>/
 
 ## 题目子集和分类
 
-- `tasksets/exclude.txt`：默认不跑的题，每道写明原因。目前只有 `Prob099_m2014_q6c`
-  （数据集自身的缺陷，见 `selftest/README.md`）
+- `tasksets/exclude.txt`：默认不跑的题，每道写明原因。目前有 4 道：`Prob099_m2014_q6c`
+  （端口名与测试台不一致，见 `selftest/README.md`），以及 `Prob082_lfsr32`、
+  `Prob141_count_clock`、`Prob156_review2015_fancytimer`（测试台自带的仿真时间上限太短，
+  参考实现也只能判到 L1，见 `../experiments/20260923-203605-ref-full.md`）。排除后
+  VerilogEval 剩 152 道
 - `tasksets/smoke.txt`：冒烟测试，3 道示例题加 5 道 VerilogEval 题，只检查流程能否跑通
-- `tasksets/quick.txt`：从 VerilogEval 155 道可用题中按题型等比例、等间隔抽取的 34 道，
+- `tasksets/quick.txt`：从 VerilogEval 可用题中按题型等比例、等间隔抽取的 34 道，
   用于快速迭代。**同一阶段的对比要用同一份子集**
 - `tasksets/categories.tsv`：题目分类，由 `categorize.py` 按题面关键词（状态机、卡诺图、
   波形表、有没有 `clk` 端口等）生成。分得比较粗，只用来看哪类题失败多，可以手工修正；

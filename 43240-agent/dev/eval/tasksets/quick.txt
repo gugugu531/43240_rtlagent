@@ -1,4 +1,4 @@
-# 快速检查用的子集：从 VerilogEval 155 道可用题中按题型等比例、等间隔抽取。
+# 快速检查用的子集：从 VerilogEval 可用题（去掉 tasksets/exclude.txt 中的题）中按题型等比例、等间隔抽取。
 # 由 categories.tsv 生成，改动分类后可以重新抽取，但同一阶段的对比要用同一份子集。
 Prob003_step_one
 Prob008_m2014_q4h
@@ -18,11 +18,11 @@ Prob063_review2015_shiftcount
 Prob069_truthtable1
 Prob071_always_casez
 Prob075_counter_2bc
-Prob082_lfsr32
 Prob087_gates
 Prob095_review2015_fsmshift
 Prob101_circuit4
 Prob104_mt2015_muxdff
+Prob105_rotate100
 Prob106_always_nolatches
 Prob109_fsm1
 Prob115_shift18
