@@ -42,6 +42,8 @@ REPO_ROOT = os.path.dirname(AGENT_ROOT)
 SELFTEST = os.path.join(REPO_ROOT, "selftest")
 
 sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "eval"))
+import analyze  # noqa: E402
 import record  # noqa: E402
 
 _print_lock = threading.Lock()
@@ -234,6 +236,7 @@ def main() -> int:
             json.dump(score, fh, ensure_ascii=False, indent=2)
     except (OSError, ValueError):
         pass
+    analyze.analyze(run_dir)
     record.write_summary(run_dir)
     return 0
 

@@ -1,10 +1,12 @@
 # experiments/
 
-每次跑分一份记录。`remote/remote_selftest.sh` 和 `remote/submit_client.py` 运行结束时
-会自动生成，文件名就是运行编号（`YYYYMMDD-HHMMSS-<标签>.md`）。
+每次跑分一份记录。`eval/run_eval.py`、`remote/remote_selftest.sh` 和
+`remote/submit_client.py` 运行结束时会自动生成，文件名就是运行编号
+（`YYYYMMDD-HHMMSS-<标签>.md`）。
 
 自动填写的内容：git commit 编号（以及当时是否有未提交的改动）、模型、运行参数、各模式
-的得分与等级分布、增益。**需要手动填写**的是「改动与假设」「结论」两节，没有结论的
+的得分与等级分布、增益，以及 `eval/analyze.py` 生成的失败原因分析（见
+[`../eval/README.md`](../eval/README.md)）。**需要手动填写**的是「改动与假设」「结论」两节，没有结论的
 记录用处不大。
 
 原始文件在 `../runs/<运行编号>/`，不提交到 git。
