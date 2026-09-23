@@ -34,10 +34,13 @@ class LLMError(RuntimeError):
 
 
 class LLMResult:
-    def __init__(self, text: str, tokens_in: int = 0, tokens_out: int = 0):
+    def __init__(self, text: str, tokens_in: int = 0, tokens_out: int = 0,
+                 finish: str | None = None):
         self.text = text
         self.tokens_in = tokens_in
         self.tokens_out = tokens_out
+        # "length" means the reply hit max_tokens and was cut off.
+        self.finish = finish
 
 
 class LLM:
@@ -106,6 +109,7 @@ class LLM:
             text=text,
             tokens_in=int(usage.get("prompt_tokens", 0) or 0),
             tokens_out=int(usage.get("completion_tokens", 0) or 0),
+            finish=body["choices"][0].get("finish_reason"),
         )
 
     # ------------------------------------------------------------------ mock
