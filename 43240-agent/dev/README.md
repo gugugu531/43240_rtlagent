@@ -14,7 +14,7 @@
 
 | 路径 | 放什么 | 是否提交到 git |
 | --- | --- | --- |
-| [`CONVENTIONS.md`](CONVENTIONS.md) | 开发规范：目录、文档、提交信息、代码约定 | 是 |
+| [`CONVENTIONS.md`](CONVENTIONS.md) | 开发规范：目录、文档、提交与分支、代码约定 | 是 |
 | [`decisions/`](decisions/README.md) | 重要决策记录，如模型、推理后端、重试策略的选择 | 是 |
 | [`notes/`](notes/README.md) | 开发日志 | 是 |
 | [`experiments/`](experiments/README.md) | 每次跑分一份记录，脚本自动生成 | 是 |
