@@ -1,0 +1,36 @@
+# 快速检查用的子集：从 VerilogEval 155 道可用题中按题型等比例、等间隔抽取。
+# 由 categories.tsv 生成，改动分类后可以重新抽取，但同一阶段的对比要用同一份子集。
+Prob003_step_one
+Prob008_m2014_q4h
+Prob012_xnorgate
+Prob017_mux2to1v
+Prob022_mux2to1
+Prob026_alwaysblock1
+Prob032_vector0
+Prob038_count15
+Prob041_dff8r
+Prob043_vector5
+Prob048_m2014_q4c
+Prob055_conditional
+Prob058_alwaysblock2
+Prob062_bugs_mux2
+Prob063_review2015_shiftcount
+Prob069_truthtable1
+Prob071_always_casez
+Prob075_counter_2bc
+Prob082_lfsr32
+Prob087_gates
+Prob095_review2015_fsmshift
+Prob101_circuit4
+Prob104_mt2015_muxdff
+Prob106_always_nolatches
+Prob109_fsm1
+Prob115_shift18
+Prob121_2014_q3bfsm
+Prob122_kmap4
+Prob123_bugs_addsubz
+Prob131_mt2015_q4
+Prob133_2014_q3fsm
+Prob138_2012_q2fsm
+Prob146_fsm_serialdata
+Prob154_fsm_ps2data

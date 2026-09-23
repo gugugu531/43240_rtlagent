@@ -6,6 +6,7 @@
 meta.json pins what produced a run (commit, dirty flag, model, LLM env, args),
 so a score in experiments/ can always be traced back to the code behind it.
 The experiment note is a skeleton: numbers are filled in, conclusions are not.
+If the run has an analysis.md (dev/eval/analyze.py), it is included.
 """
 
 from __future__ import annotations
@@ -90,6 +91,12 @@ def write_summary(run_dir: str) -> str | None:
         w = score["wallclock"]
         lines.append(f"请求耗时（客户端计时）：合计 {w['total_s']} s，单题最长 {w['max_s']} s，"
                      f"请求失败 {w['transport_errors']} 次")
+    # Failure breakdown from dev/eval/analyze.py, when the run has one.
+    try:
+        with open(os.path.join(run_dir, "analysis.md"), encoding="utf-8") as fh:
+            lines += ["", fh.read().rstrip()]
+    except OSError:
+        pass
     lines += ["", "## 改动与假设", "", "TODO：这一轮相对上一轮改了什么、预期效果",
               "", "## 结论", "", "TODO：结果是否符合预期；失败原因分析写在 dev/failures/", ""]
 

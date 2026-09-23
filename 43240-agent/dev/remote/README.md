@@ -62,7 +62,8 @@ export LLM_MODEL="${LLM_MODEL:-deepseek-chat}"
 ```
 
 除 `--tag` 外，其余参数原样传给 `selftest/run_selftest.sh`，默认题目目录是仓库根目录
-的 `tasks/`。方案（agent）和基线（baseline）在同一次运行中使用同一个推理服务，算出
+的 `tasks/`。需要并行跑分、逐个样本的失败原因时，改用
+`../eval/remote_eval.sh`（见 [`../eval/README.md`](../eval/README.md)）。方案（agent）和基线（baseline）在同一次运行中使用同一个推理服务，算出
 的增益才可信。
 
 ## 模拟评测当天投题

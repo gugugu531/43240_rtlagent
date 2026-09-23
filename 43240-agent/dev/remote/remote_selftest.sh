@@ -52,4 +52,5 @@ echo "✓ 运行目录       dev/runs/$RUN_ID"
 "$SELFTEST_DIR/run_selftest.sh" --agent "$AGENT_ROOT" --out "$RUN_DIR" "${ARGS[@]}" \
     2>&1 | tee "$RUN_DIR/selftest.log"
 
+python3 "$DEV_ROOT/eval/analyze.py" "$RUN_DIR" >/dev/null || true
 python3 "$REMOTE_HERE/record.py" summary "$RUN_DIR"
