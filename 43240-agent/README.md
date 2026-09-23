@@ -129,7 +129,7 @@ prompt.txt ─► 读题 ─► 加载技能包、提示词
 | `agent` | 开始、结束、出错、综合通过、提前停止 | `event`（start / done / error / accept / stop）、模型配置 |
 | `env` | 开始时 | `vivado_available`：本机是否找到 Vivado |
 | `skills` | 加载时、每次注入时 | 加载了哪些技能；本轮注入了哪些 |
-| `llm` | 每次调用模型 | `round`、`tokens_in`、`tokens_out`、`elapsed_s` |
+| `llm` | 每次调用模型 | `round`、`tokens_in`、`tokens_out`、`finish`（模型返回的 `finish_reason`，`length` 表示输出被截断）、`elapsed_s` |
 | `extract` | 回复中没有代码时 | `rc=1` |
 | `check_interface`、`lint`、`synth` | 每次调用工具 | `round`、`rc`（0 为通过）、`excerpt`（日志摘要） |
 | `budget` | 时间不够而停止时 | `reason` |

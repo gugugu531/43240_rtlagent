@@ -157,7 +157,7 @@ def solve_agent(llm: LLM, trace: Trace, prompt: str, interface: str, top: str) -
         trace.write(
             tool="llm", round=rnd,
             tokens_in=result.tokens_in, tokens_out=result.tokens_out,
-            elapsed_s=round(time.time() - t0, 2),
+            finish=result.finish, elapsed_s=round(time.time() - t0, 2),
         )
 
         code = extract_code(result.text)
