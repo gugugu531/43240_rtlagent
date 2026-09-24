@@ -27,8 +27,10 @@ case "${1:-status}" in
               # Redirect the whole group: with REMOTE_ACTIVATE the backgrounded
               # job is 'activate && vllm', and a redirect on vllm alone leaves
               # the job holding ssh's stdout -- ssh then never returns.
+              # exec: the job's pid (\$! below) must be vLLM itself, not a shell
+              # around it, or stop kills the shell and leaves vLLM running.
               { ${REMOTE_ACTIVATE:+$REMOTE_ACTIVATE &&} \
-                env MODEL='$REMOTE_MODEL' PORT='$REMOTE_VLLM_PORT' MAX_LEN='${REMOTE_MAX_LEN:-32768}' \
+                exec env MODEL='$REMOTE_MODEL' PORT='$REMOTE_VLLM_PORT' MAX_LEN='${REMOTE_MAX_LEN:-32768}' \
                     GPU_UTIL='${REMOTE_GPU_UTIL:-0.90}' $REMOTE_EXTRA_ENV \
                     setsid nohup ./vllm.sh; } > vllm.log 2>&1 < /dev/null &
               echo \$! > vllm.pid
@@ -64,7 +66,13 @@ case "${1:-status}" in
                   for i in \$(seq 30); do $pid_alive || break; sleep 1; done
                   $pid_alive && kill -9 -- -\$(cat vllm.pid) 2>/dev/null
                   echo '✓ vLLM 已停止'
-              else echo 'vLLM 原本就没有运行'; fi; rm -f vllm.pid"
+              else echo 'vLLM 原本就没有运行'; fi; rm -f vllm.pid
+              # Fallback: anything still serving this port (e.g. started by an
+              # older version of this script, whose pid file named a shell).
+              if pkill -f '[v]llm.entrypoints.openai.api_server.*--port $REMOTE_VLLM_PORT'; then
+                  sleep 5; pkill -9 -f '[v]llm.entrypoints.openai.api_server.*--port $REMOTE_VLLM_PORT'
+                  echo '✓ 已清理残留的 vLLM 进程'
+              fi; true"
         ;;
     *)
         sed -n '2,9p' "$0"; exit 2 ;;
