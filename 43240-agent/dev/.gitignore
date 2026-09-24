@@ -1,3 +1,5 @@
 # run artefacts and local secrets, never commit
 runs/
 remote/remote.env
+remote/cloud.state
+remote/cloud_known_hosts

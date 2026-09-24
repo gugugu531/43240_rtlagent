@@ -54,6 +54,96 @@ export LLM_MODEL="${LLM_MODEL:-deepseek-chat}"
 远端运行的就是提交方案里的那份 `serve/vllm.sh`，所以测试时的服务配置和
 `MODEL.md` 中声明的一致。
 
+## 使用 AMD Radeon Cloud 实例
+
+GPU 服务器也可以用 AMD Radeon Cloud（比赛的云平台）按需启动的实例。实例**从启动到销毁
+一直计费**，不管有没有在用，所以用 `cloud.py` 通过平台接口（Platform API）自动启动和
+销毁，避免空跑。接口说明见
+<https://amd-aim.github.io/radeon-cloud-docs/api/instances/>。
+
+**一次性准备**（在控制台网页上完成）：
+
+1. 在 Profile 页面设置 SSH 公钥
+2. 新建一个模板：镜像选带 vLLM 的 ROCm 镜像；打开 SSH Access；存储建议选
+   Persistent (PVC)，模型权重放在持久存储里，否则每次启动都要重新下载
+3. 在 `remote.env` 中设置 `REMOTE_HOST=cloud`、`RC_API_BASE`、登录凭据、`RC_TEMPLATE_ID`，
+   `REMOTE_MODEL` 写权重在实例中的路径
+
+```bash
+./cloud.py me           # 检查凭据是否有效、余额、是否设置了 SSH 公钥
+./cloud.py templates    # 查看模板 id
+```
+
+**中国站点与文档不一致的地方**（2026-09-23 实测，文档只描述了 Global 站点）：
+
+| 项 | 文档 | 中国站点实际情况 |
+| --- | --- | --- |
+| 平台接口地址 | `https://radeon-global.anruicloud.com` | `https://developer.amd.com.cn/radeon` |
+| 登录凭据 | API key（`Authorization: Bearer rc-...`） | **不接受 API key**，只认浏览器登录状态，要把 Cookie 复制到 `RC_COOKIE`。API key 只能用于模型接口 |
+| 启动实例 | 直接调用接口 | 可能要求先做邮箱验证（验证码加人机验证），脚本无法完成 |
+
+平台要求验证时，`up` 会停下并提示。这时在控制台网页上启动实例，就绪后用 `--own`
+让脚本接管：
+
+```bash
+./cloud.py up --own                                  # 接管：启动看门狗
+./cloud.py session --own -- <命令>                   # 接管，命令结束后销毁
+```
+
+**推荐用法：一条命令完成「启动 → 跑分 → 销毁」**
+
+```bash
+./cloud.py session -- ../eval/remote_eval.sh --tag veval-s1 --jobs 8
+```
+
+依次执行：启动实例并等待就绪 → `remote_vllm.sh start` → `tunnel.sh up` →
+`remote_vllm.sh wait` → 运行 `--` 后面的命令 → 关闭隧道 → **销毁实例**。命令出错、
+按 Ctrl-C、收到 SIGTERM 时也会销毁。
+
+**需要手动操作时**：
+
+```bash
+./cloud.py up                       # 启动并等待就绪，之后照常使用 remote_vllm.sh、tunnel.sh 等
+./cloud.py status                   # 实例状态、看门狗剩余时间
+./cloud.py down                     # 用完后销毁
+```
+
+防止实例被遗忘的三道保护：
+
+| 保护 | 说明 |
+| --- | --- |
+| `session` 结束时销毁 | 正常结束、出错、Ctrl-C、SIGTERM 都会销毁 |
+| 看门狗 | `up` 会在本机后台启动一个独立进程，`RC_MAX_MINUTES`（默认 180 分钟）后无论实例是否在用都会销毁它。本脚本或终端被关掉也不影响；本机关机或断网时不起作用 |
+| 平台自带的空闲超时和最长运行时间 | 最后的保险，具体时长文档没有给出 |
+
+**实例环境的实测情况**（2026-09-24，模板镜像 `AMD-Stable-GH-Proxy`）：
+
+| 项 | 情况 | 脚本的处理 |
+| --- | --- | --- |
+| GPU | gfx1100（W7900），48 GB 显存。决赛是 32 GB 的 R9700，测试时把 `REMOTE_GPU_UTIL` 设为 0.62 左右，模拟 32 GB 上限 | — |
+| 启动耗时 | 平台就绪约 1 分钟；之后 SSH 服务还要一段时间才能登录 | `up` 会跟踪启动任务，等平台报告的 SSH 阶段完成，并实际登录一次确认 |
+| GPU 资源 | 可能不足，启动任务直接失败（`resource_capacity_insufficient`） | 报错退出，稍后重试 |
+| 外网 | 只能通过平台的出口代理访问，HF 镜像和 ModelScope 下载约 66 MB/s（8B 模型不到 1 分钟），huggingface.co、github.com 不通。代理设置只在 JupyterLab 主进程的环境变量里，SSH 登录后没有 | `up` 把代理、HF 镜像、PyPI 镜像和 `/opt/venv` 写进实例的 `/root/.platform_env`，`remote_vllm.sh` 启动前自动加载 |
+| Python | torch、vLLM 在 `/opt/venv`（vLLM 0.16.1）；镜像自带的 `flash_attn` 是坏的，vLLM 加载 Qwen3 时会报 `No module named 'flash_attn_2_cuda'`，需要先 `pip uninstall -y flash_attn` | 暂未自动处理 |
+| SSH 端口转发 | 被禁用（`AllowTcpForwarding no`），`ssh -L` 隧道不通 | `tunnel.sh` 改用中转模式：本机 socat 监听端口，每个连接开一次普通 SSH 会话转发，每个请求多约 0.7 秒。**本机需要安装 socat** |
+| 存储 | `/workspace` 约 98 GB，实例销毁后清空（持久存储暂不可用） | 每次启动重新下载权重 |
+
+实例的 1 号进程是 JupyterLab，它不回收子进程，崩溃的 vLLM 会变成僵尸进程；`remote_vllm.sh`
+判断进程是否存活时会排除僵尸进程。
+
+注意事项：
+
+- **每个账号同时只能有一个实例。** 已经有实例（例如在网页上手动启动的）时，`up` 和
+  `session` 会直接使用它，但**不会自动销毁**它，也不会为它启动看门狗，除非加 `--own`；
+  否则用完要手动 `./cloud.py down`
+- **启动次数有限制**：大约每分钟 1 次、每 10 分钟 3 次、每小时 5 次。连续跑多组实验时，
+  用一次 `up`，跑完再 `down`，不要每组实验都用 `session`
+- 实例每次启动的 SSH 地址、端口和主机密钥都会变，`_common.sh` 从 `cloud.state` 读取
+  地址，主机密钥单独存放在 `cloud_known_hosts` 中（两个文件都不提交）
+- 看门狗时限要留够：到时会直接销毁，正在跑的实验会中断。时间不够时先
+  `./cloud.py down` 再重新 `up`，或调大 `RC_MAX_MINUTES`
+- API key 和 Cookie 只放在 `remote.env` 中，`cloud.py` 不会把它们打印出来
+
 ## 日常跑分
 
 ```bash
@@ -89,12 +179,16 @@ export LLM_MODEL="${LLM_MODEL:-deepseek-chat}"
 ./remote_vllm.sh stop       # 停止远端 vLLM，释放 GPU
 ```
 
+用的是 AMD Radeon Cloud 实例时，最后再运行 `./cloud.py down` 销毁实例、停止计费
+（用 `session` 时会自动完成）。
+
 ---
 
 ## 脚本一览
 
 | 脚本 | 作用 |
 | --- | --- |
+| `cloud.py` | 通过平台接口启动、查看、销毁 AMD Radeon Cloud 实例：`me` / `templates` / `up` / `status` / `down` / `session` |
 | `remote.env.example` | 配置模板，复制为 `remote.env` 后填写（`remote.env` 不提交到 git） |
 | `remote_vllm.sh` | 在远端启动、查看、停止 vLLM：`start` / `wait` / `status` / `logs` / `stop` |
 | `tunnel.sh` | 建立、查看、关闭 SSH 隧道：`up` / `status` / `down` |
