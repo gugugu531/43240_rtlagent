@@ -2,8 +2,8 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 状态 | 待定（已确认比赛不限定后端，具体用哪个尚未决定） |
-| 记录日期 | 2026-09-22 |
+| 状态 | 待定（已确认比赛不限定后端；vLLM 在验证阶段同代的 W7900 上已跑通，决赛硬件上尚未验证） |
+| 记录日期 | 2026-09-22，2026-09-24 补充实测进展 |
 | 相关文件 | `../../serve/vllm.sh`、`../../manifest.json`、`../../model/MODEL.md`、`../remote/remote_vllm.sh` |
 
 ## 背景
@@ -45,6 +45,23 @@ vLLM、SGLang、llama.cpp 的 `llama-server` 都提供第 1 条要求的接口�
 官方基础镜像发布后实际测试确认。`example/serve/README.md` 的「跨代架构的已知问题」
 一节提到，部分框架在 gfx1201 上存在 FP8 被悄悄转换成 FP32、部分算子库无法使用等
 问题，选型时需要留意。
+
+## 实测进展（2026-09-24）
+
+在 AMD Radeon Cloud 的实例上（W7900，gfx1100，镜像 `AMD-Stable-GH-Proxy` 自带 vLLM 0.16.1）：
+
+- BF16（Qwen3-8B、Qwen2.5-Coder-7B）、AWQ（两个 32B 模型）、GPTQ 4 位 MoE（Qwen3-30B-A3B）
+  都能加载运行
+- 镜像自带的 `flash_attn` 已损坏，需要先卸载，否则 vLLM 加载 Qwen3 时报错
+- **服务参数对基线影响很大**：Qwen3 不加 `--reasoning-parser qwen3` 时，思考内容混进回复
+  正文，`baseline.py` 提取到思考中的草稿；同样 63 题上基线从 0.486 升到 0.695。是否关闭思考
+  （`--default-chat-template-kwargs`）同样改变基线和速度。这些都是规则允许的服务配置，
+  要写进 `model/MODEL.md`
+- 速度：Qwen3-8B BF16 单路约 26 token/秒，MoE 4 位约 79 token/秒；AWQ 在这张卡上很慢
+- 显存：`gpu_memory_utilization` 0.62 时，实际占用 32.2 到 34.1 GB，32B AWQ 模型超过 32 GB
+
+尚未验证：决赛的 R9700（gfx1201）上这些量化格式是否可用，以及速度如何。数据见
+`../notes/2026-09-24-baseline-sweep.md` 和 `../experiments/` 中 2026-09-24 的记录。
 
 ## 对现有远端测试脚本的影响
 
