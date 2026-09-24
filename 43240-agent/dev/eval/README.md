@@ -147,7 +147,9 @@ dev/runs/<运行编号>/
   VerilogEval 剩 152 道
 - `tasksets/smoke.txt`：冒烟测试，3 道示例题加 5 道 VerilogEval 题，只检查流程能否跑通
 - `tasksets/quick.txt`：从 VerilogEval 可用题中按题型等比例、等间隔抽取的 34 道，
-  用于快速迭代。**同一阶段的对比要用同一份子集**
+  用于快速迭代。**同一阶段的对比要用同一份子集**。2026-09-24 实测，quick 子集的 baseline
+  分数比全题集高约 0.06 到 0.08（Qwen3-8B 关思考 0.476 对 0.415，MoE 0.571 对 0.489），
+  适合给模型排序，绝对值要看全题集
 - `tasksets/categories.tsv`：题目分类，由 `categorize.py` 按题面关键词（状态机、卡诺图、
   波形表、有没有 `clk` 端口等）生成。分得比较粗，只用来看哪类题失败多，可以手工修正；
   重新运行 `categorize.py` 会覆盖手工修正
