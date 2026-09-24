@@ -64,8 +64,9 @@ GPU 服务器也可以用 AMD Radeon Cloud（比赛的云平台）按需启动�
 **一次性准备**（在控制台网页上完成）：
 
 1. 在 Profile 页面设置 SSH 公钥
-2. 新建一个模板：镜像选带 vLLM 的 ROCm 镜像；打开 SSH Access；存储建议选
-   Persistent (PVC)，模型权重放在持久存储里，否则每次启动都要重新下载
+2. 新建一个模板：镜像选 `AMD-Stable-GH-Proxy`（自带 vLLM，并且能通过平台代理访问 HF 镜像
+   和 ModelScope）；打开 SSH Access；不要挂载 Model Directory（挂载 Devzone 时启动会报
+   `unsupported launch option`）。持久存储目前不可用，每次启动都要重新下载权重
 3. 在 `remote.env` 中设置 `REMOTE_HOST=cloud`、`RC_API_BASE`、登录凭据、`RC_TEMPLATE_ID`，
    `REMOTE_MODEL` 写权重在实例中的路径
 
@@ -90,22 +91,40 @@ GPU 服务器也可以用 AMD Radeon Cloud（比赛的云平台）按需启动�
 ./cloud.py session --own -- <命令>                   # 接管，命令结束后销毁
 ```
 
-**推荐用法：一条命令完成「启动 → 跑分 → 销毁」**
+**实测可用的流程**（2026-09-24 多次使用）：
 
 ```bash
-./cloud.py session -- ../eval/remote_eval.sh --tag veval-s1 --jobs 8
+./cloud.py me                                   # 1. 确认 Cookie 有效
+systemd-inhibit --what=sleep:idle --mode=block sleep 9000 &   # 2. 阻止本机休眠
+./cloud.py up --max-minutes 130                 # 3. 启动实例，看门狗时限按计划时长设置
+
+# 4. 实例上的准备：卸载坏掉的 flash_attn，下载权重（放到后台，看日志里的完成标记）
+(. ./_common.sh && rssh ". /root/.platform_env; pip uninstall -y flash_attn; \
+    setsid nohup hf download Qwen/Qwen3-8B --local-dir /workspace/models/Qwen3-8B \
+    > /workspace/dl.log 2>&1 < /dev/null &")    # 放在子 shell 里：_common.sh 出错时会 exit
+
+# 5. 启动 vLLM 和中转；换模型时在命令前设置 REMOTE_MODEL 和 REMOTE_EXTRA_ENV
+REMOTE_MODEL=/workspace/models/Qwen3-8B \
+REMOTE_EXTRA_ENV="VLLM_EXTRA_ARGS='--reasoning-parser qwen3'" ./remote_vllm.sh start
+./tunnel.sh up
+./tunnel.sh status                              # 显示「vLLM 响应正常」后再跑分
+
+# 6. 跑分（环境变量指向中转端口）
+LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:18000/v1 LLM_API_KEY=dummy \
+LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../eval/run_eval.py --tag ... --modes baseline
+
+./tunnel.sh down && ./cloud.py down             # 7. 结束后立刻销毁
 ```
 
-依次执行：启动实例并等待就绪 → `remote_vllm.sh start` → `tunnel.sh up` →
-`remote_vllm.sh wait` → 运行 `--` 后面的命令 → 关闭隧道 → **销毁实例**。命令出错、
-按 Ctrl-C、收到 SIGTERM 时也会销毁。
+`cloud.py session -- <命令>` 会自动完成「启动 → 启动 vLLM → 建立连接 → 运行命令 → 销毁」，
+但**目前不会做第 4 步**（卸载 `flash_attn`、下载权重），新实例上直接用会因为没有权重而
+失败。在把第 4 步加进脚本之前，请按上面的流程手动操作。
 
-**需要手动操作时**：
+其他命令：
 
 ```bash
-./cloud.py up                       # 启动并等待就绪，之后照常使用 remote_vllm.sh、tunnel.sh 等
 ./cloud.py status                   # 实例状态、看门狗剩余时间
-./cloud.py down                     # 用完后销毁
+./cloud.py down                     # 销毁
 ```
 
 防止实例被遗忘的三道保护：
@@ -113,7 +132,7 @@ GPU 服务器也可以用 AMD Radeon Cloud（比赛的云平台）按需启动�
 | 保护 | 说明 |
 | --- | --- |
 | `session` 结束时销毁 | 正常结束、出错、Ctrl-C、SIGTERM 都会销毁 |
-| 看门狗 | `up` 会在本机后台启动一个独立进程，`RC_MAX_MINUTES`（默认 180 分钟）后无论实例是否在用都会销毁它。本脚本或终端被关掉也不影响；本机关机或断网时不起作用 |
+| 看门狗 | `up` 会在本机后台启动一个独立进程，`RC_MAX_MINUTES`（默认 180 分钟）后无论实例是否在用都会销毁它。本脚本或终端被关掉也不影响；**本机关机、休眠、断网，或 Cookie 失效时不起作用** |
 | 平台自带的空闲超时和最长运行时间 | 最后的保险，具体时长文档没有给出 |
 
 **实例环境的实测情况**（2026-09-24，模板镜像 `AMD-Stable-GH-Proxy`）：
@@ -123,7 +142,7 @@ GPU 服务器也可以用 AMD Radeon Cloud（比赛的云平台）按需启动�
 | GPU | gfx1100（W7900），48 GB 显存。决赛是 32 GB 的 R9700，测试时把 `REMOTE_GPU_UTIL` 设为 0.62 左右，模拟 32 GB 上限 | — |
 | 启动耗时 | 平台就绪约 1 分钟；之后 SSH 服务还要一段时间才能登录 | `up` 会跟踪启动任务，等平台报告的 SSH 阶段完成，并实际登录一次确认 |
 | GPU 资源 | 可能不足，启动任务直接失败（`resource_capacity_insufficient`） | 报错退出，稍后重试 |
-| 外网 | 只能通过平台的出口代理访问，HF 镜像和 ModelScope 下载约 66 MB/s（8B 模型不到 1 分钟），huggingface.co、github.com 不通。代理设置只在 JupyterLab 主进程的环境变量里，SSH 登录后没有 | `up` 把代理、HF 镜像、PyPI 镜像和 `/opt/venv` 写进实例的 `/root/.platform_env`，`remote_vllm.sh` 启动前自动加载 |
+| 外网 | 只能通过平台的出口代理访问，HF 镜像和 ModelScope 下载速度波动大，实测 12 到 300 MB/s（16 GB 的模型 1 到 20 分钟），偶尔读取超时后自动续传，huggingface.co、github.com 不通。代理设置只在 JupyterLab 主进程的环境变量里，SSH 登录后没有 | `up` 把代理、HF 镜像、PyPI 镜像和 `/opt/venv` 写进实例的 `/root/.platform_env`，`remote_vllm.sh` 启动前自动加载 |
 | Python | torch、vLLM 在 `/opt/venv`（vLLM 0.16.1）；镜像自带的 `flash_attn` 是坏的，vLLM 加载 Qwen3 时会报 `No module named 'flash_attn_2_cuda'`，需要先 `pip uninstall -y flash_attn` | 暂未自动处理 |
 | SSH 端口转发 | 被禁用（`AllowTcpForwarding no`），`ssh -L` 隧道不通 | `tunnel.sh` 改用中转模式：本机 socat 监听端口，每个连接开一次普通 SSH 会话转发，每个请求多约 0.7 秒。**本机需要安装 socat** |
 | 存储 | `/workspace` 约 98 GB，实例销毁后清空（持久存储暂不可用） | 每次启动重新下载权重 |

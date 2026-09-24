@@ -20,7 +20,7 @@
 | [`experiments/`](experiments/README.md) | 每次跑分一份记录，脚本自动生成 | 是 |
 | [`failures/`](failures/README.md) | 失败原因分析 | 是 |
 | [`eval/`](eval/README.md) | 跑分和分析工具：并行跑分、失败原因分类、两次运行对比、题目子集 | 是 |
-| [`remote/`](remote/README.md) | 用远端服务器测试的脚本和说明 | 是（`remote.env` 除外） |
+| [`remote/`](remote/README.md) | 用远端 GPU 测试的脚本和说明，包括自动启动和销毁 AMD Radeon Cloud 实例 | 是（`remote.env`、`cloud.state` 除外） |
 | `runs/` | 跑分生成的原始文件 | 否 |
 
 ## 官方文档索引
