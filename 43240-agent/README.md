@@ -148,6 +148,10 @@ trace 同时用于三件事：工程质量评分、赛事方核对生成结果�
 
 服务只能监听 `127.0.0.1`，不能对外暴露；对外只暴露投题接口的 7860 端口。
 
+`serve/vllm.sh` 通过环境变量设置：`MODEL`（权重路径）、`PORT`、`MAX_LEN`、`GPU_UTIL`，
+以及 `VLLM_EXTRA_ARGS`（额外的 vLLM 参数，默认为空，例如 `--reasoning-parser qwen3`）。
+服务参数同时影响方案和基线，最终采用的参数要写进 `model/MODEL.md`。
+
 ---
 
 ## 6. 环境变量
@@ -198,5 +202,7 @@ trace 同时用于三件事：工程质量评分、赛事方核对生成结果�
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
 | 2026-09-22 | 新增 `dev/`、`.dockerignore` | 团队开发区，不随方案提交；不影响方案行为 |
+| 2026-09-23 | trace 的 `llm` 记录新增 `finish` 字段 | 记录模型返回的 `finish_reason`，用于统计输出截断 |
+| 2026-09-24 | `serve/vllm.sh` 新增 `VLLM_EXTRA_ARGS` | 传入额外的 vLLM 参数，默认为空，不改变原有行为 |
 
 可以用 `diff -r ../example . -x dev -x .dockerignore` 查看完整差异。
