@@ -19,6 +19,10 @@ MODEL="${MODEL:-/models/Qwen3-8B}"     # local path, not a Hub id: the sandbox i
 PORT="${PORT:-8000}"
 MAX_LEN="${MAX_LEN:-32768}"            # declare this in MODEL.md, it is not a free parameter
 GPU_UTIL="${GPU_UTIL:-0.90}"
+# Extra vLLM flags, e.g. "--reasoning-parser qwen3". They change what the
+# baseline sees as well (same service), so whatever is used must be declared
+# in model/MODEL.md.
+VLLM_EXTRA_ARGS="${VLLM_EXTRA_ARGS:-}"
 
 # Single card. Tensor / pipeline parallelism across cards is not usable on
 # gfx1201 (no XGMI, collective comms will not start reliably), and the memory
@@ -32,4 +36,5 @@ exec python3 -m vllm.entrypoints.openai.api_server \
     --port "$PORT" \
     --max-model-len "$MAX_LEN" \
     --gpu-memory-utilization "$GPU_UTIL" \
-    --disable-log-requests
+    --disable-log-requests \
+    $VLLM_EXTRA_ARGS
