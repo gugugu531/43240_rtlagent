@@ -14,7 +14,9 @@
 set -eo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
-pid_alive='[ -f vllm.pid ] && kill -0 "$(cat vllm.pid)" 2>/dev/null'
+# A zombie still answers kill -0. On cloud instances PID 1 is JupyterLab, which
+# never reaps orphans, so a crashed vLLM stays a zombie: check the state too.
+pid_alive='[ -f vllm.pid ] && kill -0 "$(cat vllm.pid)" 2>/dev/null && ! ps -o stat= -p "$(cat vllm.pid)" | grep -q Z'
 
 case "${1:-status}" in
     start)
@@ -22,10 +24,13 @@ case "${1:-status}" in
             < "$AGENT_ROOT/serve/vllm.sh"
         echo "✓ 已同步 serve/vllm.sh -> $REMOTE_HOST:$REMOTE_DIR/"
         rssh "cd $REMOTE_DIR && if $pid_alive; then echo '✓ vLLM 已在运行（进程号 '\$(cat vllm.pid)'）'; exit 0; fi
-              ${REMOTE_ACTIVATE:+$REMOTE_ACTIVATE &&} \
-              env MODEL='$REMOTE_MODEL' PORT='$REMOTE_VLLM_PORT' MAX_LEN='${REMOTE_MAX_LEN:-32768}' \
-                  GPU_UTIL='${REMOTE_GPU_UTIL:-0.90}' $REMOTE_EXTRA_ENV \
-                  setsid nohup ./vllm.sh > vllm.log 2>&1 < /dev/null &
+              # Redirect the whole group: with REMOTE_ACTIVATE the backgrounded
+              # job is 'activate && vllm', and a redirect on vllm alone leaves
+              # the job holding ssh's stdout -- ssh then never returns.
+              { ${REMOTE_ACTIVATE:+$REMOTE_ACTIVATE &&} \
+                env MODEL='$REMOTE_MODEL' PORT='$REMOTE_VLLM_PORT' MAX_LEN='${REMOTE_MAX_LEN:-32768}' \
+                    GPU_UTIL='${REMOTE_GPU_UTIL:-0.90}' $REMOTE_EXTRA_ENV \
+                    setsid nohup ./vllm.sh; } > vllm.log 2>&1 < /dev/null &
               echo \$! > vllm.pid
               echo \"✓ vLLM 已启动（进程号 \$(cat vllm.pid)），日志 $REMOTE_DIR/vllm.log\""
         echo "  加载模型需要一些时间，可以运行 ./remote_vllm.sh wait 等待"
