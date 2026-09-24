@@ -143,6 +143,10 @@ GPU 服务器也可以用 AMD Radeon Cloud（比赛的云平台）按需启动�
 - 看门狗时限要留够：到时会直接销毁，正在跑的实验会中断。时间不够时先
   `./cloud.py down` 再重新 `up`，或调大 `RC_MAX_MINUTES`
 - API key 和 Cookie 只放在 `remote.env` 中，`cloud.py` 不会把它们打印出来
+- **Cookie 大约 4 小时就会失效**（2026-09-24 实测：10:24 填入，14:33 失效）。失效后看门狗
+  也无法销毁实例，所以每批实验应控制在 Cookie 有效期内，开始前先运行 `./cloud.py me` 确认
+- **本机休眠会中断评测**，看门狗也会随本机一起暂停，实例继续计费。长时间运行前用
+  `systemd-inhibit --what=sleep:idle --mode=block sleep <秒数> &` 阻止休眠
 
 ## 日常跑分
 
