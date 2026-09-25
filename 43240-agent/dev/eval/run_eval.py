@@ -45,6 +45,7 @@ TASKSETS = os.path.join(HERE, "tasksets")
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(DEV_ROOT, "remote"))
 import analyze  # noqa: E402
+import metrics  # noqa: E402
 import record  # noqa: E402
 
 _lock = threading.Lock()
@@ -201,6 +202,11 @@ def main() -> int:
     ap.add_argument("--solve-timeout", type=float, default=900, help="单个样本求解的时间上限（秒）")
     ap.add_argument("--judge-timeout", type=float, default=1800)
     ap.add_argument("--no-judge", action="store_true", help="只求解，不判定")
+    ap.add_argument("--metrics-url", default="",
+                    help="推理服务的地址（如 http://127.0.0.1:18000/v1），"
+                         "跑分期间轮询 /metrics 采 KV Cache 使用率；不填则跳过")
+    ap.add_argument("--metrics-interval", type=float, default=5.0,
+                    help="轮询 /metrics 的间隔（秒）")
     args = ap.parse_args()
     args.modes = [m.strip() for m in args.modes.split(",") if m.strip()]
     bad = [m for m in args.modes if m not in ("agent", "baseline", "reference")]
@@ -229,6 +235,12 @@ def main() -> int:
     judge_pool = ThreadPoolExecutor(max_workers=max(1, args.judge_jobs))
     judged = []
 
+    watcher = None
+    if args.metrics_url:
+        watcher = metrics.MetricsWatcher(args.metrics_url, args.metrics_interval)
+        watcher.start()
+        log(f"  指标轮询       {args.metrics_url} 每 {args.metrics_interval:g}s 读一次 /metrics")
+
     def after_solve(mode, task_dir, k, dst):
         tid = os.path.basename(task_dir)
         wall = (analyze._read_json(os.path.join(dst, "solve.json")) or {}).get("wall_s", 0)
@@ -253,6 +265,8 @@ def main() -> int:
     for f in judged:
         f.result()
     judge_pool.shutdown()
+    if watcher:
+        watcher.stop()
     log(f"\n全部完成，用时 {time.time() - t_start:.0f}s")
 
     if args.no_judge:
@@ -270,6 +284,30 @@ def main() -> int:
     summary = analyze.analyze(run_dir)
     if summary:
         print(analyze.render_md(summary))
+
+    # Resource and speed metrics. Written before the experiment note so that
+    # record.write_summary() can fold them into it.
+    m = metrics.run_metrics(run_dir, args.jobs)
+    if watcher:
+        m["server"] = watcher.summary()
+    with open(os.path.join(run_dir, "metrics.json"), "w", encoding="utf-8") as fh:
+        json.dump(m, fh, ensure_ascii=False, indent=2)
+    md = metrics.render_md(m)
+    with open(os.path.join(run_dir, "metrics.md"), "w", encoding="utf-8") as fh:
+        fh.write(md + "\n")
+    print(md)
+
+    # With both modes in one run, what the agent fixed and what it broke is the
+    # number that decides model choice; see dev/failures/agent-repair.md.
+    if "agent" in args.modes and "baseline" in args.modes:
+        jd = metrics.joint_metrics(run_dir)
+        with open(os.path.join(run_dir, "joint.json"), "w", encoding="utf-8") as fh:
+            json.dump(jd, fh, ensure_ascii=False, indent=2)
+        jmd = metrics.render_joint_md(jd)
+        with open(os.path.join(run_dir, "joint.md"), "w", encoding="utf-8") as fh:
+            fh.write(jmd + "\n")
+        print(jmd)
+
     record.write_summary(run_dir)
     return 0
 
