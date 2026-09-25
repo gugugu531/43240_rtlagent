@@ -97,6 +97,37 @@ def write_summary(run_dir: str) -> str | None:
             lines += ["", fh.read().rstrip()]
     except OSError:
         pass
+    # Resource and speed metrics from dev/eval/metrics.py, when the run has them.
+    try:
+        with open(os.path.join(run_dir, "metrics.md"), encoding="utf-8") as fh:
+            lines += ["", fh.read().rstrip()]
+    except OSError:
+        pass
+    # Agent vs baseline comparison, for runs that have both modes.
+    try:
+        with open(os.path.join(run_dir, "joint.md"), encoding="utf-8") as fh:
+            lines += ["", fh.read().rstrip()]
+    except OSError:
+        pass
+    server = None
+    try:
+        with open(os.path.join(run_dir, "metrics.json"), encoding="utf-8") as fh:
+            server = json.load(fh).get("server")
+    except (OSError, ValueError):
+        pass
+    if server:
+        if server.get("available"):
+            lines += ["", "服务端 /metrics（跑分期间轮询）", "",
+                      f"- KV Cache 使用率峰值 {server.get('kv_cache_usage_peak_perc')}、"
+                      f"中位数 {server.get('kv_cache_usage_median_perc')}",
+                      f"- 同时在跑的请求数峰值 {server.get('num_requests_running_max')}",
+                      f"- 服务端计数的生成 token {server.get('generation_tokens_delta')}、"
+                      f"输入 token {server.get('prompt_tokens_delta')}",
+                      f"- 共采样 {server.get('samples')} 次"
+                      + (f"，最后一次出错：{server['last_error']}"
+                         if server.get("last_error") else "")]
+        else:
+            lines += ["", f"服务端 /metrics 不可用：{server.get('error')}"]
     lines += ["", "## 改动与假设", "", "TODO：这一轮相对上一轮改了什么、预期效果",
               "", "## 结论", "", "TODO：结果是否符合预期；失败原因分析写在 dev/failures/", ""]
 

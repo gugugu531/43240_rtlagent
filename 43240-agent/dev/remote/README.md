@@ -109,9 +109,12 @@ REMOTE_EXTRA_ENV="VLLM_EXTRA_ARGS='--reasoning-parser qwen3'" ./remote_vllm.sh s
 ./tunnel.sh up
 ./tunnel.sh status                              # 显示「vLLM 响应正常」后再跑分
 
-# 6. 跑分（环境变量指向中转端口）
+# 5. 起显存采样，再跑分（指标采集见 ../eval/README.md「资源与速度指标」）
+./vram_watch.sh start 2
 LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:18000/v1 LLM_API_KEY=dummy \
-LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../eval/run_eval.py --tag ... --modes baseline
+LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../eval/run_eval.py --tag ... --modes baseline \
+    --metrics-url http://127.0.0.1:18000/v1
+./vram_watch.sh stop && ./vram_watch.sh report   # 停采样并汇总峰值显存
 
 ./tunnel.sh down && ./cloud.py down             # 7. 结束后立刻销毁
 ```
@@ -163,7 +166,9 @@ LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../eval/run_eval.py --tag ... --m
   `./cloud.py down` 再重新 `up`，或调大 `RC_MAX_MINUTES`
 - API key 和 Cookie 只放在 `remote.env` 中，`cloud.py` 不会把它们打印出来
 - **Cookie 大约 4 小时就会失效**（2026-09-24 实测：10:24 填入，14:33 失效）。失效后看门狗
-  也无法销毁实例，所以每批实验应控制在 Cookie 有效期内，开始前先运行 `./cloud.py me` 确认
+  也无法销毁实例，所以每批实验应控制在 Cookie 有效期内，开始前先运行 `./cloud.py me` 确认。
+  **失效后连 `./cloud.py status` 都查不了**（HTTP 401），也就无法确认实例是否还在计费，
+  所以每批实验收工前必须先把实例销毁，不要留到下次处理（2026-09-25 两次会话都踩到这条）
 - **本机休眠会中断评测**，看门狗也会随本机一起暂停，实例继续计费。长时间运行前用
   `systemd-inhibit --what=sleep:idle --mode=block sleep <秒数> &` 阻止休眠
 
@@ -215,6 +220,9 @@ LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../eval/run_eval.py --tag ... --m
 | `remote.env.example` | 配置模板，复制为 `remote.env` 后填写（`remote.env` 不提交到 git） |
 | `remote_vllm.sh` | 在远端启动、查看、停止 vLLM：`start` / `wait` / `status` / `logs` / `stop` |
 | `tunnel.sh` | 建立、查看、关闭 SSH 隧道：`up` / `status` / `down` |
+| `vram_watch.sh` | 在实例上按秒采样显存：`start` / `stop` / `fetch` / `report`；模型筛选时配合跑分使用 |
+| `weights.sh` | 采集权重的 sha256 与上游 commit，确认「两次跑分用的是不是同一份权重」；`joint_run.sh` 会自动调用它 |
+| `joint_run.sh` | 一个模型的联合跑分一条命令跑完：换模型重启 vLLM → 等就绪 → 单路速度探测 → 起显存采样 → `run_eval.py --modes agent,baseline` → 汇总显存 |
 | `remote_selftest.sh` | 日常跑分：调用 `selftest/run_selftest.sh`，结果写入 `../runs/`，并生成 `../experiments/` 中的记录 |
 | `serve_local.sh` | 模拟投题的服务端：在本机启动 `serve/serve_api.py`，推理请求经隧道发往远端 |
 | `submit_client.py` | 模拟投题的客户端：按接口约定逐题投题、计时、判定、打分 |

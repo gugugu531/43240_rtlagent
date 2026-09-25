@@ -20,7 +20,9 @@
 | `run_eval.py` | 跑分入口：求解 → 判定 → 汇总 → 分析 → 生成实验记录 |
 | `remote_eval.sh` | 同上，但模型服务在远端服务器（经 SSH 隧道连接） |
 | `analyze.py` | 给一次运行的每个样本归类失败原因，生成 `analysis.md` 等 |
+| `metrics.py` | 资源与速度指标：显存、KV Cache、tps、单题耗时；生成 `metrics.json` / `metrics.md` |
 | `compare.py` | 逐题对比两次运行 |
+| `overview.py` | 汇总 `dev/runs/` 下**所有**运行，生成全题集 baseline 与联合跑分两张对照表（`dev/notes/2026-09-25-candidate-tables.md`）；排除 smoke/mock，部分运行会标 ⚠ |
 | `categorize.py` | 根据题面关键词给题目分类，重新生成 `tasksets/categories.tsv` |
 | `tasksets/` | 题目子集、排除清单、分类表 |
 
@@ -69,6 +71,8 @@ dev/eval/remote_eval.sh --tag veval-s1 --jobs 8
 | `--samples` | 每题采样次数 | 1 |
 | `--jobs` | 同时求解的样本数 | 4 |
 | `--judge-jobs` | 同时判定的样本数，每个都会启动 Vivado | 4 |
+| `--metrics-url` | 推理服务地址（如 `http://127.0.0.1:18000/v1`），跑分期间轮询它的 `/metrics` 采 KV Cache 使用率；不填则跳过 | 空 |
+| `--metrics-interval` | 轮询 `/metrics` 的间隔（秒） | 5 |
 | `--solve-timeout` | 单个样本求解的时间上限（秒），超时会结束整个进程树，按 L0 计 | 900 |
 | `--no-exclude` | 不跳过 `tasksets/exclude.txt` 中的题 | |
 | `--limit` | 只跑前 N 道题 | |
@@ -80,6 +84,18 @@ dev/eval/remote_eval.sh --tag veval-s1 --jobs 8
 并行时各样本互相影响，所以求解耗时**只能用来相对比较**，不等于赛事方计分的墙钟时间
 （那个要用 `dev/remote/submit_client.py` 在独占环境下测）。
 
+### 汇总所有运行
+
+```bash
+python3 dev/eval/overview.py                       # 打到终端
+python3 dev/eval/overview.py --out dev/notes/2026-09-25-candidate-tables.md   # 更新对照表
+```
+
+只汇总能自动读出来的东西（分数、等级分布、耗时、tps、截断、改坏/修好道数）。
+**并发 1 的速度、显存峰值、KV 池大小不在运行产物里**，要手工记到
+`dev/notes/2026-09-25-screening-results.md`。`smoke` 与 `mock` 运行默认排除——
+8 道题的分数能轻易排到第一，混进对照表会误导选型。
+
 ### 对比两次运行
 
 ```bash
@@ -90,6 +106,44 @@ python3 dev/eval/compare.py <运行A> <运行B> --mode baseline=agent   # 对比
 
 只比较两次运行中都判定过的题。每题只采样一次时，有几道题的等级会因为随机性而变化，
 差别不大时要用 `--samples 3` 以上再确认。
+
+## 资源与速度指标
+
+`analyze.py` 回答「卡在哪个阶段、为什么」，`metrics.py` 回答「用了多少显存、多快」。
+模型选型需要后者：见 [`../notes/2026-09-25-model-screening-plan.md`](../notes/2026-09-25-model-screening-plan.md) 第 5 节。
+
+`run_eval.py` 每次跑完会自动生成 `metrics.json` 与 `metrics.md`，并写进实验记录。
+单独使用：
+
+```bash
+python3 dev/eval/metrics.py run dev/runs/<运行编号> --concurrency 4   # 重新汇总一次运行
+python3 dev/eval/metrics.py joint dev/runs/<运行编号>                 # 对比 agent 与 baseline
+python3 dev/eval/metrics.py probe http://127.0.0.1:18000/v1 --max-tokens 512
+python3 dev/eval/metrics.py scrape http://127.0.0.1:18000/v1
+python3 dev/eval/metrics.py kv Qwen/Qwen3.6-35B-A3B --contexts 8192,32768
+```
+
+| 子命令 | 作用 |
+| --- | --- |
+| `run` | 从 `trace.jsonl` 与 `solve.json` 汇总：单题耗时（均值/中位数/p90/最长）、每次调用的 tps、按题取中位数的 tps、聚合 tps、输入输出 token、轮数、截断率、空回复、请求失败、求解超时 |
+| `joint` | 对比同一次运行的 `agent` 与 `baseline`（`--before` / `--after` 可换）：等级转移矩阵、变好/变差道数、**把本来做对的题改坏了几道**、修好的 L0 落到哪一级（到 L3 才算真做对）、修好的 L1 道数。`run_eval.py` 在同时跑两个模式时会自动生成 |
+| `probe` | **并发 1** 的单次探测，分开测首 token 时间与解码速率。agent 是一条一条请求的，只有这个数代表它的实际速度 |
+| `scrape` | 读服务端 `/metrics` 的 Prometheus 输出：KV Cache 使用率、在跑的请求数、token 计数 |
+| `kv` | 由 `config.json` 算 KV Cache 理论值：区分全注意力、滑动窗口、线性注意力三层 |
+| `vram` | 解析 `rocm-smi --showmeminfo vram --csv` 的采样日志，给出峰值与稳态 |
+
+三条容易搞错的地方，脚本里也写着：
+
+1. **并行跑分测出的 tps 不是单路速率**，只是它的下界。要单路值就用 `probe`。
+2. **KV Cache 必须实测**。滑动窗口层和线性注意力层要服务端认得 `layer_types` 才会按窗口/状态
+   处理；认不出来就按全注意力分配，实际池子可能大 8–30 倍。vLLM 启动日志里的
+   「GPU KV cache size」是最直接的读数，`scrape` 给的是运行时的使用率。
+3. **一次跑分结束后再读 KV 是没用的**（池子已经空了），所以 `--metrics-url` 是在跑分
+   **期间**轮询取峰值。显存同理，要用 `dev/remote/vram_watch.sh` 在远端采样。
+4. **`joint` 的两个读数比总分更重要**（同时跑 `agent,baseline` 时才有）：
+   「改坏了几道本来做对的题」和「修好的 L0 有多少真正到 L3」。
+   前者是纯粹的净损失，后者说明「能编译」离「功能对」还有多远。
+   第 2 条只在 `--samples` 相同时才配对得起来，默认都是 `s1`。
 
 ## 输出
 
@@ -107,6 +161,8 @@ dev/runs/<运行编号>/
 ├── results/<模式>.<题目>.s<k>.json judge.py 的结果
 ├── score.json、score.txt           score.py 汇总
 ├── analysis.json、analysis.md      analyze.py 分析
+├── metrics.json、metrics.md        metrics.py 资源与速度指标（含服务端 /metrics 采样）
+├── joint.json、joint.md            agent 与 baseline 的逐题对比（两个模式都跑时才有）
 └── samples.csv                     每个样本一行，方便用表格软件筛选
 ```
 
