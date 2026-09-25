@@ -63,6 +63,88 @@ vLLM、SGLang、llama.cpp 的 `llama-server` 都提供第 1 条要求的接口�
 尚未验证：决赛的 R9700（gfx1201）上这些量化格式是否可用，以及速度如何。数据见
 `../notes/2026-09-24-baseline-sweep.md` 和 `../experiments/` 中 2026-09-24 的记录。
 
+## 实测进展（2026-09-25）：量化格式的三条硬限制
+
+本次会话在同一台云实例上（模板 4443，W7900，vLLM `0.16.1.dev0+g89a77b108.d20260317`，
+torch 2.9.1+ROCm 7.2）实测了 7 个模型的 baseline，过程中撞到三条会影响选型的限制。
+数据见 `../notes/2026-09-25-screening-results.md`。
+
+### 1. AWQ 必须显式加 `--dtype float16`
+
+`cyankiwi/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit` 的量化分组是 group_size=32。默认 bf16 激活时
+vLLM 找不到可用的 WNA16 线性层实现，直接启动失败：
+
+```
+ValueError: Failed to find a kernel that can implement the WNA16 linear layer. Reasons:
+ ConchLinearKernel ... Group size (32) not supported ... supported group sizes are: [-1, 128]
+ ExllamaLinearKernel ... Exllama only supports float16 activations
+```
+
+加 `--dtype float16` 后选中 `ExllamaLinearKernel`，正常加载。**只改激活精度，不改权重格式**，
+但要写进 `MODEL.md`。这也解释了 `example/serve/README.md` 里说的「部分算子库在 RDNA 4 上
+不工作，须显式关闭」是本赛道的现实问题，不是理论风险。
+
+### 2. 这份 vLLM 不认 2026 年的新架构
+
+vLLM 的架构注册表与 transformers 4.57.6 里都**没有 `qwen3_5` / `qwen3_5_moe`**，
+所以 Qwen3.5／Qwen3.6／Qwen3.8 三个系列的模型在这份镜像上**无法服务**。
+可用的相关架构是 `Qwen3MoeForCausalLM`、`Qwen3ForCausalLM`、`Qwen2ForCausalLM`、
+`GptOssForCausalLM`、`Glm4MoeLiteForCausalLM`。
+
+要测新一代模型，需要换镜像／模板，或在实例上另建环境装更新的 vLLM——两条路都还没验证。
+
+### 3. gpt-oss 系列需要一份必须预置的词表
+
+`openai_harmony` 的分词器（tiktoken-rs）运行时要去
+`https://openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken` 取词表，
+而平台的出口代理对该域名返回 **403**（只放行 HF 与 PyPI 镜像），导致服务启动即失败：
+
+```
+openai_harmony.HarmonyError: error downloading or loading vocab file
+```
+
+**这条是提交层面的硬约束**：决赛沙箱断网，必须在 Dockerfile 里预置该词表
+（放进 `TIKTOKEN_RS_CACHE_DIR`，默认 `tiktoken-rs-cache`），否则 gpt-oss 系列一律按 L0 计。
+
+### 4. 量化精度的收益不是单调的（同一模型的三个精度实测）
+
+| 精度 | 题集得分 | 权重显存 | tps（并发 1） |
+| --- | ---: | ---: | ---: |
+| BF16 | 0.3935 | 7.67 GiB | 52.0 |
+| AWQ 8-bit | 0.3923 | 5.41 GiB | **99.3** |
+| AWQ 4-bit | 0.3432 | 3.45 GiB | 34.7 |
+
+8-bit 质量与 BF16 在噪声内相同且快近一倍；**4-bit 既掉分又更慢**（走的是 fp16 的
+Exllama 路径）。所以 4-bit 只应作为「装不下时的妥协」，不能当默认选择。
+
+### 5. 启动参数必须与镜像里的 vLLM 版本匹配（**提交前必须处理**）
+
+换到 vLLM 0.27.0 的镜像后，`serve/vllm.sh` 里的 `--disable-log-requests` 直接报：
+
+```
+api_server.py: error: unrecognized arguments: --disable-log-requests
+```
+
+0.27 把它改成了 `--enable-log-requests | --no-enable-log-requests`。**这个参数纯粹是日志装饰，
+去掉它没有任何功能损失**，但留着会让服务在决赛镜像上起不来——那是全题 L0。
+本次实验只在远端临时副本上 sed 掉，**没有改仓库里的 `serve/vllm.sh`**；
+改与不改要团队定，因为它属于提交文件（改的话要同步 `MODEL.md` 与 README 第 5 节）。
+
+顺带两条从第二批得到的服务参数经验：
+
+- `gpu_memory_utilization` 要按「权重 + KV + 开销」定：给 8B 模型调的 0.62 用不了 22.41 GiB 的
+  35B MoE，会报 `No available memory for the cache blocks`，实测 0.85 可用。
+- 混合思考模型必须显式关思考：`--default-chat-template-kwargs '{"enable_thinking":false}'`，
+  否则思考内容写进 `content` 并吃掉 `baseline.py` 的 8192 上限，基线会被截断主导
+  （见 [`../failures/thinking-in-content.md`](../failures/thinking-in-content.md)）。
+
+细节见 [`../failures/serving-stack.md`](../failures/serving-stack.md) 第四节。
+
+### 另外：平台计费
+
+1 credit = 1 GPU 小时。本次会话约 3 小时用掉 3 credits（11 → 8）。
+
+
 ## 对现有远端测试脚本的影响
 
 `../remote/remote_vllm.sh` 目前默认使用 vLLM：同步并启动的是 `serve/vllm.sh`，传入
