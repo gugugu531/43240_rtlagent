@@ -49,8 +49,8 @@ Vivado 报错编号（L0 和综合失败的样本）：`VRFC 10-8530` × 34, `VR
 
 ## 改动与假设
 
-多模型 baseline 初筛：Qwen3-30B-A3B-GPTQ-Int4（MoE），关思考，全题集。统一条件见 `../notes/2026-09-24-baseline-sweep.md`。
+多模型 baseline 初筛：Qwen3-30B-A3B-GPTQ-Int4（MoE），关思考，全题集。统一条件见 `../notes/archive/2026-09-24-baseline-sweep.md`。
 
 ## 结论
 
-全题集 0.489；单路约 79 token/秒（Qwen3-8B BF16 约 26）。各模型的对比和选型判断见 `../notes/2026-09-24-baseline-sweep.md`。
+全题集 0.489；单路约 79 token/秒（Qwen3-8B BF16 约 26）。各模型的对比和选型判断见 `../notes/archive/2026-09-24-baseline-sweep.md`。
