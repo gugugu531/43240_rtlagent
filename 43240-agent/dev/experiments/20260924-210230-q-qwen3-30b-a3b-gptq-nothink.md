@@ -48,8 +48,8 @@ Vivado 报错编号（L0 和综合失败的样本）：`VRFC 10-8530` × 8, `VRF
 
 ## 改动与假设
 
-多模型 baseline 初筛：Qwen3-30B-A3B-GPTQ-Int4（MoE），关思考。统一条件见 `../notes/2026-09-24-baseline-sweep.md`。
+多模型 baseline 初筛：Qwen3-30B-A3B-GPTQ-Int4（MoE），关思考。统一条件见 `../notes/archive/2026-09-24-baseline-sweep.md`。
 
 ## 结论
 
-quick 子集 0.571，速度最快（每题约 6 秒）；4 位 MoE 在 gfx1100 上可用。各模型的对比和选型判断见 `../notes/2026-09-24-baseline-sweep.md`。
+quick 子集 0.571，速度最快（每题约 6 秒）；4 位 MoE 在 gfx1100 上可用。各模型的对比和选型判断见 `../notes/archive/2026-09-24-baseline-sweep.md`。

@@ -50,12 +50,49 @@ diff example/baseline.py 43240-agent/baseline.py && diff example/run_baseline.sh
 
 | 目录 | 文件名格式 | 例子 |
 | --- | --- | --- |
-| `decisions/` | `<四位编号>-<主题>.md` | `0002-model-choice.md` |
+| `decisions/` | `<四位编号>-<主题>.md`，**一个决定一篇** | `0002-model-choice.md` |
 | `notes/` | `YYYY-MM-DD-<主题>.md` | `2026-09-25-retry-strategy.md` |
+| `notes/generated/` | 脚本产出，文件名同 `notes/` | `2026-09-25-candidate-tables.md` |
+| `notes/archive/` | 已被取代的旧笔记，只作备查 | `2026-09-24-baseline-sweep.md` |
 | `experiments/` | 脚本自动生成：`YYYYMMDD-HHMMSS-<标签>.md` | `20260925-143000-veval-s5.md` |
-| `failures/` | `<问题类型>.md` | `reset-polarity.md` |
+| `failures/` | `<问题类型>.md`，**一类问题一篇** | `reset-polarity.md` |
 
 主题部分用英文小写单词加连字符。
+
+**生成物与手写物分开**：脚本产出的文件一律放 `notes/generated/`（或由脚本直接生成到
+`experiments/`），抬头写明重跑命令与「不要手改」；要改内容就改生成脚本。
+
+### 2.4 推断类文档的固定结构
+
+三类推断文档有固定骨架，方便横向对比与状态更新：
+
+| 文档 | 结构 |
+| --- | --- |
+| `decisions/<编号>-<主题>.md` | 头部状态表 → **结论（最新）** → **对比表** → 依据（按主题，不按日期）→ 未决问题 → 变更记录 |
+| `failures/<问题类型>.md` | 头部状态表 → 问题 → **已解决**（现象 → 根因 → 具体方案 → 验证）→ **未解决**（分「待解决 / 已确认受限」，写清限制因素与可能的方案）→ 证据 |
+| `failures/README.md` | **问题状态索引表**（问题 / 状态 / 影响 / 最后更新 / 文件）；改动任一失败文档后同步更新它 |
+| `notes/` 里的设计文档 | 只写「打算怎么做」；结果与进展写到同一主题的进展文档里，两者分开 |
+
+**生成块**：手写文档里可以嵌一段由脚本生成的内容，用标记括起来：
+
+```markdown
+<!-- BEGIN:master-table -->
+（脚本生成，勿手改）
+<!-- END:master-table -->
+```
+
+约定：标记之间的内容只由脚本写（例如 `python3 dev/eval/overview.py --inject
+dev/decisions/0002-model-choice.md`）；标记外的内容只由人写。脚本读不到的数据（例如权重显存、
+KV 池、并发 1 的 tps）登记在 `notes/model-metrics-manual.json`，**每项必须带来源**，
+没有实测就留空。
+
+两条硬要求：
+
+1. **只保留最新结论。** 被推翻的说法直接删掉，不要写「以前以为……现在改为……」，也不要
+   留「已被取代，保留备查」的整段——历史在 git 里，需要追溯时在「变更记录」写明旧版本的
+   commit。
+2. **状态变了就更新索引。** `failures/README.md` 的索引与 `decisions/README.md` 的索引
+   必须与文件内容一致；不一致比没有索引更糟。
 
 ---
 
@@ -83,10 +120,11 @@ diff example/baseline.py 43240-agent/baseline.py && diff example/run_baseline.sh
 | `43240-agent/README.md` | 方案现在的结构和行为：模块、流程、运行方式、环境变量、已知局限 | **改了代码结构或行为时，在同一个 commit 中更新** |
 | `43240-agent/REPORT.md` | 为什么这样设计、实测效果、失败分析 | 阶段性节点；目前暂不编写 |
 | `43240-agent/model/MODEL.md`、`manifest.json` | 模型、量化、上下文、推理服务的声明 | 模型或服务配置变化时，两者同时更新 |
-| `dev/decisions/` | 重要决定及理由 | 做出或推翻决定时 |
-| `dev/notes/` | 开发过程记录 | 随时 |
-| `dev/experiments/` | 跑分记录 | 每次跑分后补写结论 |
-| `dev/failures/` | 失败原因分析 | 分析完一类失败时 |
+| `dev/README.md` | 目录说明 + **现状速览（5 分钟）**：在做什么、测到什么程度、当前建议、问题状态、待办、风险 | 里程碑或结论变化时 |
+| `dev/decisions/` | 重要决定：结论、横向对比表、依据、未决问题 | 做出或推翻决定时 |
+| `dev/notes/` | 设计与进展（两类分开写）；生成物放 `notes/generated/` | 随时 |
+| `dev/experiments/` | 跑分记录 | 每次跑分后补写「改动与假设」「结论」 |
+| `dev/failures/` | 失败原因分析（问题 → 已解决 / 未解决） | 分析完一类失败、或某个问题的状态变化时 |
 
 README 描述的是「现在」，REPORT 解释的是「为什么」和「效果如何」，同一内容不要两边
 都写一遍，需要时互相引用。
