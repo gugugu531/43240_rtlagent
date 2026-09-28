@@ -109,6 +109,11 @@ REMOTE_EXTRA_ENV="VLLM_EXTRA_ARGS='--reasoning-parser qwen3'" ./remote_vllm.sh s
 ./tunnel.sh up
 ./tunnel.sh status                              # 显示「vLLM 响应正常」后再跑分
 
+# 若云端镜像的 vLLM 不再接受提交脚本里的某个参数，服务会直接起不来。
+# 2026-09-25 实测：vLLM 0.27.0 移除了 --disable-log-requests，报 unrecognized arguments。
+# 在 remote.env 里写 REMOTE_STRIP_ARGS=--disable-log-requests，remote_vllm.sh 只会在
+# **远端副本**上剥掉它，仓库里的 serve/vllm.sh 保持不变（改提交文件是另一个决定）。
+
 # 5. 起显存采样，再跑分（指标采集见 ../eval/README.md「资源与速度指标」）
 ./vram_watch.sh start 2
 LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:18000/v1 LLM_API_KEY=dummy \
@@ -167,6 +172,17 @@ LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../eval/run_eval.py --tag ... --m
 - API key 和 Cookie 只放在 `remote.env` 中，`cloud.py` 不会把它们打印出来
 - **Cookie 大约 4 小时就会失效**（2026-09-24 实测：10:24 填入，14:33 失效）。失效后看门狗
   也无法销毁实例，所以每批实验应控制在 Cookie 有效期内，开始前先运行 `./cloud.py me` 确认。
+- **要起实例的脚本不能先 `source _common.sh`**：没有实例时它检查 `cloud.state` 会直接退出，
+  脚本会在 `cloud.py up` 之前就死掉（2026-09-27 踩过两次）。正确顺序是先 `./cloud.py up`，
+  实例就绪后再 `. ./_common.sh`。同理，参数校验也放在 `source` 之前。
+- **以命令前缀传的 `REMOTE_*` 变量会被 `remote.env` 覆盖**：`remote_vllm.sh` 会先
+  `source _common.sh`，而它从 `remote.env` 读取这些值，所以
+  `REMOTE_GPU_UTIL=0.80 ./remote_vllm.sh start` **不生效**，vLLM 拿到的仍是文件里的值。
+  2026-09-27 因为这个连挂四次：文件里留着给 8B 模型的 `REMOTE_GPU_UTIL=0.62`，
+  装不下 22.41 GiB 的 35B MoE，日志里 `Available KV cache memory: -0.47 GiB`。
+  要临时改就直接传 `serve/vllm.sh` 读的那个变量，例如
+  `REMOTE_EXTRA_ENV="GPU_UTIL=0.9"`。**排查这类问题先看日志里打印的实际值**
+  （`--gpu-memory-utilization=…`），不要假设前缀生效。
   **失效后连 `./cloud.py status` 都查不了**（HTTP 401），也就无法确认实例是否还在计费，
   所以每批实验收工前必须先把实例销毁，不要留到下次处理（2026-09-25 两次会话都踩到这条）
 - **本机休眠会中断评测**，看门狗也会随本机一起暂停，实例继续计费。长时间运行前用

@@ -49,9 +49,13 @@ RUN_EVAL="$AGENT_ROOT/dev/eval/run_eval.py"
 METRICS="$AGENT_ROOT/dev/eval/metrics.py"
 
 wait_ready() {
-    local i
+    local i body
     for i in $(seq 1 40); do
-        if curl -s -m 8 "$LOCAL_BASE_URL/models" | grep -q '"id"'; then
+        # 不能用 `curl ... | grep -q`：本脚本开了 pipefail，而 grep -q 命中后立即退出会让 curl
+        # 收到 SIGPIPE（退出码 23），整条管道因此判为失败——服务已经就绪也会一直等到超时。
+        # 所以先把响应收下来，再用不带 -q 的 grep（它会读完输入，不会让上游 SIGPIPE）。
+        body=$(curl -s -m 8 "$LOCAL_BASE_URL/models" || true)
+        if printf '%s' "$body" | grep '"id"' >/dev/null 2>&1; then
             echo "✓ 服务就绪（等了 $((i * 15))s）"
             return 0
         fi

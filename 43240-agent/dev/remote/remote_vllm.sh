@@ -23,6 +23,16 @@ case "${1:-status}" in
         rssh "mkdir -p $REMOTE_DIR && cat > $REMOTE_DIR/vllm.sh && chmod +x $REMOTE_DIR/vllm.sh" \
             < "$AGENT_ROOT/serve/vllm.sh"
         echo "✓ 已同步 serve/vllm.sh -> $REMOTE_HOST:$REMOTE_DIR/"
+        # 云端镜像里的 vLLM 可能不再接受提交脚本里的某些启动参数，那样服务根本起不来。
+        # 2026-09-25 实测：vLLM 0.27.0 移除了 --disable-log-requests，报
+        # "unrecognized arguments"。这里只在**远端副本**上把它剥掉，提交文件保持不变，
+        # 因为改 serve/vllm.sh 属于提交层面的决定。见 dev/remote/README.md。
+        if [ -n "${REMOTE_STRIP_ARGS:-}" ]; then
+            for arg in $REMOTE_STRIP_ARGS; do
+                rssh "cd $REMOTE_DIR && sed -i 's# $arg##g' vllm.sh"
+            done
+            echo "✓ 已在远端副本上剥离参数：$REMOTE_STRIP_ARGS（仓库里的 serve/vllm.sh 未改动）"
+        fi
         rssh "cd $REMOTE_DIR && if $pid_alive; then echo '✓ vLLM 已在运行（进程号 '\$(cat vllm.pid)'）'; exit 0; fi
               # Redirect the whole group: with REMOTE_ACTIVATE the backgrounded
               # job is 'activate && vllm', and a redirect on vllm alone leaves
