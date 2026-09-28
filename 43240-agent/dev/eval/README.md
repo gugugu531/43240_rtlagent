@@ -22,7 +22,7 @@
 | `analyze.py` | 给一次运行的每个样本归类失败原因，生成 `analysis.md` 等 |
 | `metrics.py` | 资源与速度指标：显存、KV Cache、tps、单题耗时；生成 `metrics.json` / `metrics.md` |
 | `compare.py` | 逐题对比两次运行 |
-| `overview.py` | 汇总 `dev/runs/` 下**所有**运行，生成全题集 baseline 与联合跑分两张对照表（`dev/notes/2026-09-25-candidate-tables.md`）；排除 smoke/mock，部分运行会标 ⚠ |
+| `overview.py` | 汇总 `dev/runs/` 下**所有**运行，生成四张对照表：全题集 baseline 分数、联合跑分、**错因分布**、**按题型通过率**（`dev/notes/generated/2026-09-25-candidate-tables.md`）；排除 smoke/mock，题量不足的运行标 ⚠ |
 | `categorize.py` | 根据题面关键词给题目分类，重新生成 `tasksets/categories.tsv` |
 | `tasksets/` | 题目子集、排除清单、分类表 |
 
@@ -88,10 +88,10 @@ dev/eval/remote_eval.sh --tag veval-s1 --jobs 8
 
 ```bash
 python3 dev/eval/overview.py                       # 打到终端
-python3 dev/eval/overview.py --out dev/notes/2026-09-25-candidate-tables.md   # 更新对照表
+python3 dev/eval/overview.py --out dev/notes/generated/2026-09-25-candidate-tables.md   # 更新对照表
 ```
 
-只汇总能自动读出来的东西（分数、等级分布、耗时、tps、截断、改坏/修好道数）。
+只汇总能自动读出来的东西（分数、等级分布、错因、按题型通过率、耗时、tps、截断、改坏/修好道数）。
 **并发 1 的速度、显存峰值、KV 池大小不在运行产物里**，要手工记到
 `dev/notes/2026-09-25-screening-results.md`。`smoke` 与 `mock` 运行默认排除——
 8 道题的分数能轻易排到第一，混进对照表会误导选型。
@@ -211,4 +211,4 @@ dev/runs/<运行编号>/
   重新运行 `categorize.py` 会覆盖手工修正
 
 留出集（只用于检查、不用于调参的题目）还没有：VerilogEval 可能已在模型训练数据中，
-需要另找其他来源的题目，见 `../notes/2026-09-23-plan-review.md`。
+需要另找其他来源的题目，见 `../notes/archive/2026-09-23-plan-review.md`。
