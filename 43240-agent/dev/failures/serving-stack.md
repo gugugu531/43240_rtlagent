@@ -1,14 +1,34 @@
 # 服务栈起不来（量化格式、模型架构、词表）
 
-这三条都不是「模型答得不好」，而是**服务本身跑不起来**。在评测口径下它们等价于全部 L0，
-所以它们比任何一道题的失败都严重。三条都已在
-[`../decisions/0001-inference-backend.md`](../decisions/0001-inference-backend.md) 里记了结论，
-这里按失败分析的格式再记一遍，便于 `REPORT.md` 引用。
+| 项 | 内容 |
+| --- | --- |
+| 状态 | **部分解决**——已解决 5 条，待解决 2 条，已确认受限 2 条 |
+| 影响 | 候选可用性：服务起不来在评测口径下等价于**全题 L0**，比任何一道题失败都严重；提交面还会直接决定评测当天能不能跑 |
+| 最后更新 | 2026-09-28 |
+| 相关决策 | [`../decisions/0001-inference-backend.md`](../decisions/0001-inference-backend.md) |
+| 相关结果 | [`../notes/2026-09-25-screening-results.md`](../notes/2026-09-25-screening-results.md) |
+| 关键运行 | `20260925-154115`（AWQ 首次跑通）、`20260925-194130`（新一代 Qwen 首次跑通）、`20260927-152225`（gpt-oss 跑通） |
 
-环境：AMD Radeon Cloud 实例，模板 `gh-rtl-agent`（id 4443），W7900（gfx1100），
-vLLM `0.16.1.dev0+g89a77b108.d20260317`，torch 2.9.1+ROCm 7.2，transformers 4.57.6。
+## 问题
 
-## 一、AWQ 不加 `--dtype float16` 就找不到 WNA16 线性层
+这一份记录「服务本身跑不起来」的全部问题。它们分三类来源：
+
+1. **量化格式**：权重格式与这张卡（gfx1100，ROCm）上的内核不匹配；
+2. **模型架构**：镜像里的 vLLM / transformers 太旧或不兼容，认不出模型；
+3. **运行环境**：分词器、词表、启动参数这类与模型无关但与镜像强相关的东西。
+
+用的两个镜像（本文件里区分标注）：
+
+| 镜像 | 怎么用 | vLLM | transformers |
+| --- | --- | --- | --- |
+| 模板 `gh-rtl-agent`（id 4443） | 最早一批实验 | `0.16.1.dev0+g89a77b108.d20260317` | 4.57.6 |
+| 模板 `qwen`（id 4477，平台标为 `Qwen3.8-27B`） | 2026-09-25 之后全部实验 | **0.27.0**（源码构建，见 S2 末尾的提醒） | **5.15.0** |
+
+硬件：AMD Radeon Cloud 单实例，W7900（gfx1100，48 GiB），torch 2.9.1+ROCm 7.2。
+
+## 已解决
+
+### S1. AWQ 不加 `--dtype float16` 会找不到 WNA16 线性层
 
 **现象**：`cyankiwi/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit` 默认（bf16 激活）启动即失败：
 
@@ -19,60 +39,43 @@ ValueError: Failed to find a kernel that can implement the WNA16 linear layer. R
  ExllamaLinearKernel cannot implement due to: Exllama only supports float16 activations
 ```
 
-**原因**：这份量化权重的分组是 group_size=32，而 Conch 内核只支持 -1/128；
-唯一剩下的 Exllama 路径要求 fp16 激活，而 vLLM 默认按模型 config 取 bf16。
+**原因**：这份权重的分组是 group_size=32，而 Conch 内核只支持 -1/128；唯一剩下的
+Exllama 路径要求 fp16 激活，而 vLLM 默认按模型 config 取 bf16。
 
-**尝试过的办法**：加 `--dtype float16` 后选中 `ExllamaLinearKernel`，正常加载并跑完全题集。
-**只改激活精度，不改权重格式**，但要在 `MODEL.md` 里写明。
+**方案**：启动时加 `--dtype float16`（只改激活精度，不改权重格式）。加完选中
+`ExllamaLinearKernel`，正常加载并跑完全题集 155 题（运行 `20260925-154115`）。
 
-**遗留风险**：换一个 group_size=128 的 AWQ 权重就能走 Conch 路径，**本批没有做这个对照**，
-所以还不知道 fp16 激活本身对分数有多大影响。这是 `decisions/0002` 里「同一模型、
-不同量化档」那一组要补的实验。
+**注意适用范围**：这是**针对 WNA16 内核路径的补丁，不是 AWQ 的通用开关**——
+MLA 类模型加了反而起不来，见 S5。
 
-## 二、这份 vLLM 不认 `qwen3_5` / `qwen3_5_moe`
+### S2. 旧镜像不认 `qwen3_5` 架构 → 换模板后解决
 
-**现象**：Qwen3.5、Qwen3.6、Qwen3.8 三个系列（计划里的 A1、A2、A9，以及 Qwen3.5-9B）
-在这份镜像上**无法服务**。vLLM 架构注册表与 transformers 4.57.6 里都没有这两个架构名。
+**现象**：Qwen3.5 / 3.6 / 3.8 三个系列（`Qwen3.6-35B-A3B`、`Qwen3.5-35B-A3B`、
+`Qwen3.8-27B`、`Qwen3.5-9B`）在模板 `gh-rtl-agent` 上**无法服务**：
+vLLM 架构注册表与 transformers 4.57.6 里都没有这两个架构名。
 
-**原因**：模型比镜像新。这份 vLLM 构建于 2026-03-17，而 `qwen3_5_moe` 是之后才进入
+**原因**：模型比镜像新。那份 vLLM 构建于 2026-03-17，而 `qwen3_5_moe` 是之后才进入
 transformers 与 vLLM 的。
 
-**可用的相关架构**：`Qwen3MoeForCausalLM`、`Qwen3ForCausalLM`、`Qwen2ForCausalLM`、
-`GptOssForCausalLM`、`Glm4MoeLiteForCausalLM`。
+**方案**：换用模板 `qwen`（id 4477）。它的 vLLM 是 0.27.0、transformers 5.15.0，
+注册表 375 项里**有** `Qwen3_5ForCausalLM`、`Qwen3_5MoeForCausalLM`（以及
+`…ForConditionalGeneration` 与 MTP 变体）。换完立刻测通：
+`Qwen3.6-35B-A3B` 全题集 **0.610**（运行 `20260925-194130`）。
 
-**尝试过的办法**：只做了确认（查注册表与源码），**没有**尝试升级 vLLM。
+**当时查过但不必要的三条信息**（留作背景，不必再查）：
 
-### 后续查到的关键信息（2026-09-25 补）
+- vLLM 主库注册 text-only 架构的 [PR #48081](https://github.com/vllm-project/vllm/pull/48081)
+  API 返回 `"merged": false`，2026-07-29 关闭——所以**光升级 vLLM 不一定能解锁**。
+- 社区有一份纯 Python 补丁（`bjk110/…` 的 `vllm_patches/patch_qwen35_moe_text.py`）给
+  `registry.py` 注册 text-only shim；它写死了 `/usr/local/lib/...` 路径，要用得先改。
+- PyPI 上 vLLM 已到 0.30.0，但 wheel 是 CUDA 版；平台代理只放行 HF 与 PyPI 镜像，
+  在实例上 pip 装新版「很可能走不通」。
 
-1. **vLLM 主库里注册 text-only 架构的 PR 被关掉且没有合并。**
-   [PR #48081](https://github.com/vllm-project/vllm/pull/48081)
-   「Register Qwen3_5ForCausalLM and Qwen3_5MoeForCausalLM with IsHybrid support」
-   的 API 返回值是 `"merged": false`、`"merged_at": null`，2026-07-29 关闭。
-   也就是说 **光升级 vLLM 不一定能解锁这几个模型**——缺的正是把 text-only 权重
-   接到推理路径上的那一步注册。
-2. **但新一点的 vLLM 确实带了 `qwen3_5` 的模型代码**，只是走多模态包装
-   （`Qwen3_5MoeForConditionalGeneration`）。社区为此发布了一个**纯 Python 的补丁**：
-   [`bjk110/Qwen3.5-122B-A10B-abliterated-AWQ` 的 `vllm_patches/patch_qwen35_moe_text.py`](https://huggingface.co/bjk110/Qwen3.5-122B-A10B-abliterated-AWQ/raw/main/vllm_patches/patch_qwen35_moe_text.py)，
-   它给 `registry.py` 注册 `Qwen3_5MoeForCausalLM -> Qwen3_5MoeTextOnlyShim`，
-   再往 `qwen3_5.py` 里加一个跳过视觉编码器的子类。**HF 在实例上可达**，所以这份补丁能取到。
-   注意它的路径写死成 `/usr/local/lib/python3.12/dist-packages/`，而本镜像的 vLLM 在
-   `/opt/venv/lib/python3.12/site-packages/`，要用得先改路径。
-3. PyPI 上 vLLM 已经到 **0.30.0**，而本镜像是 0.16.1.dev0（2026-03-17）。
-   PyPI 的 `vllm` wheel 是 CUDA 版，ROCm 要用单独的 wheel 源；平台的代理只放行
-   HF 与 PyPI 镜像，所以「在实例上 pip 装新版 vLLM」这条路**很可能走不通**，
-   优先考虑换镜像／模板。
+**一条要记住的提醒**：模板 `qwen` 里的 vLLM 是**源码构建**（import 路径是
+`/home/zihaomu/bigssd/Muse_Glimmer_30B/vllm_test/build/vllm-src/vllm`），不属于我们，
+镜像一变就没了。它能说明「换个镜像确实能解决架构问题」，但**不能作为提交方案的一部分**。
 
-### 下一步（按性价比排序）
-
-1. 找一个自带更新 vLLM 的镜像——平台列表里有一个 `Qwen3.8-27B` 的镜像，
-   能跑 Qwen3.8 就说明它的 vLLM 至少带了 `qwen3_5`，先查它的版本与架构注册表。
-2. 若该镜像只缺 text-only 注册，就把上面那份社区补丁按本镜像的路径改写后应用。
-3. 若两条都不成，本批就只能在旧一代模型里选型，并在报告里如实写明原因。
-
-**影响**：本批筛掉了四个 A 层候选，其中 A1（Qwen3.6-35B-A3B）按速度与代数是最有希望的一个。
-在解决之前，选型只能在旧一代模型里做。
-
-## 三、gpt-oss 系列缺一份必须在镜像里预置的词表
+### S3. gpt-oss 缺词表 → 已解决，断网可用
 
 **现象**：`openai/gpt-oss-20b` 权重能加载（14.3 GiB，KV 池 284,400 token），但服务启动失败：
 
@@ -82,72 +85,155 @@ openai_harmony.HarmonyError: error downloading or loading vocab file
 
 **原因**：`openai_harmony` 的 Rust 分词器（tiktoken-rs）在**运行时**要去
 `https://openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken` 取词表
-（sha256 `446a9538...`），而平台出口代理对该域名返回 **403**，只放行 HF 与 PyPI 镜像。
-镜像里没有预置这份词表，HF 的 `openai/gpt-oss-20b` 仓库里也没有这个文件。
+（sha256 `446a9538…b1a2d`），而平台出口代理对该域名返回 **403**（只放行 HF 与 PyPI 镜像）。
+镜像里没有预置，HF 的 `openai/gpt-oss-20b` 仓库里也没有这个文件。
 
-**尝试过的办法**：查过 `TIKTOKEN_CACHE_DIR`、`TIKTOKEN_RS_CACHE_DIR`、
-`TIKTOKEN_ENCODINGS_BASE` 三个开关，并在实例上全盘搜索过该文件——都没有。本次没有解决。
+**方案（已实测可复现）**：从 `openai_harmony` 的编译产物里挖出它用的缓存约定：
 
-**为什么这条必须优先处理**：决赛沙箱**断网**，这个下载在评测当天一定会失败。
-必须在 `Dockerfile` 里把词表放进 `TIKTOKEN_RS_CACHE_DIR`（默认目录名 `tiktoken-rs-cache`），
-否则 gpt-oss 系列一律按 L0 计。**这是提交层面的问题，不是「能不能测」的问题。**
-
-## 参考
-
-- 数据与上下文：`../notes/2026-09-25-screening-results.md`
-- 结论与计费：`../decisions/0001-inference-backend.md`「实测进展（2026-09-25）」
-- 原始日志：`../runs/20260925-*/`（远端 `~/fpgachina2026-remote/vllm.log`，实例已销毁）
-
-## 四、换到模板 `qwen`（vLLM 0.27.0）之后新遇到的三件事
-
-背景：旧镜像的 vLLM 是 `0.16.1.dev0`（2026-03-17），不认 `qwen3_5`。换成用户新建的模板
-`qwen`（id 4477，镜像 `work@sha256:1c264b1f…`，平台里标为 `Qwen3.8-27B`）后，
-vLLM 是 **0.27.0**、transformers **5.15.0**，架构注册表 375 项里**有**
-`Qwen3_5ForCausalLM`、`Qwen3_5MoeForCausalLM`（还有 `…ForConditionalGeneration` 与 MTP 变体），
-`qwen3_5.py` 也在。**架构这道坎过了。**
-
-顺带三个新的坑：
-
-### 1. `--disable-log-requests` 在 0.27 上不存在了
-
-```
-api_server.py: error: unrecognized arguments: --disable-log-requests
+```bash
+strings /opt/venv/lib/python3.12/site-packages/openai_harmony/openai_harmony.abi3.so \
+  | grep -iE 'tiktoken|blob\.core|CACHE_DIR'
+# TIKTOKEN_RS_CACHE_DIR / tiktoken-rs-cache / https://openaipublic.blob.core.windows.net/encodings/
 ```
 
-0.27 改成了 `--enable-log-requests | --no-enable-log-requests`。
-**我们的 `serve/vllm.sh` 里写死了 `--disable-log-requests`**，所以在这份镜像上直接起不来。
-本次实验的做法是只在远端的临时副本上 `sed` 掉这个参数，**没有改仓库里的 `serve/vllm.sh`**。
+即在 `TIKTOKEN_RS_CACHE_DIR` 下**以词表 URL 的 sha1 为文件名**放词表
+（`sha1(url)` = `fb374d419588a4632f3f557e76b4b70aebbca790`），它还会校验文件哈希。
+HF 上有可达副本，完整步骤如下：
 
-这条要记进 `decisions/0001`：`serve/vllm.sh` 的启动参数必须与最终镜像的 vLLM 版本匹配，
-否则提交当天服务起不来就是全题 L0。纯装饰性的参数（这个就是）不如直接去掉。
-
-### 2. 给 8B 模型定的 `GPU_UTIL=0.62` 对 35B 级模型不够
-
-```
-ValueError: No available memory for the cache blocks.
-```
-
-Qwen3.6-35B-A3B 的 AWQ 权重实测占 **22.41 GiB**，而 `0.62 × 47.98 GiB = 29.7 GiB` 的预算
-减去权重与开销后没有 KV 块可用。改成 `GPU_UTIL=0.85` 后正常，KV 池 **474,273 token**
-（32k 上下文下 14.47 倍并发）。
-
-教训：`gpu_memory_utilization` 要按「权重 + KV + 开销」算，不能沿用为小模型调的 0.62。
-按 32 GiB 单卡折算，这个模型需要 `0.9` 左右才装得下（权重 22.41 + 单序列 KV 约 0.64 GiB + 开销）。
-
-### 3. 权重被解析成多模态包装，会白加载一个视觉塔
-
-日志里是：
-
-```
-Resolved architecture: Qwen3_5MoeForConditionalGeneration
+```bash
+hf download baseten/o200k-base-tiktoken --local-dir /workspace/tiktoken
+sha256sum /workspace/tiktoken/o200k_base.tiktoken
+# 446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d
+mkdir -p /workspace/tiktoken-cache
+cp /workspace/tiktoken/o200k_base.tiktoken \
+   /workspace/tiktoken-cache/fb374d419588a4632f3f557e76b4b70aebbca790
+env -u http_proxy -u https_proxy TIKTOKEN_RS_CACHE_DIR=/workspace/tiktoken-cache \
+    /opt/venv/bin/python -c "from openai_harmony import load_harmony_encoding, HarmonyEncodingName; \
+        load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS); print('ok')"
 ```
 
-也就是说 checkpoint 的 config 声明的是多模态架构，vLLM 会连视觉部分一起加载
-（22.41 GiB 里有一部分是它）。同一份注册表里其实**也有 text-only 的
-`Qwen3_5MoeForCausalLM`**，用 `--hf-overrides` 把 `architectures` 改成它有可能省下这块显存——
-**本次没有验证**，留作后续优化项（对 32 GiB 单卡很关键）。
+**验证**：清掉代理后仍能加载（说明不依赖网络）；随后 `gpt-oss-20b` 跑通全题集
+**0.689**（运行 `20260927-152225`）。**文件名必须是 URL 的 sha1**，只放文件本身不够。
 
-另外注意：这个镜像的 vLLM 是**源码构建**（import 路径是
-`/home/zihaomu/bigssd/Muse_Glimmer_30B/vllm_test/build/vllm-src/vllm`），不是 `/opt/venv` 里的
-独立安装。`/opt/venv/bin/python3` 能 import 到它，但这条路径不属于我们，镜像一变就没了，
-所以**不能把它当成提交方案的一部分**，只能用来说明「换个镜像确实能解决架构问题」。
+> 提交层面还有一步没做（把这段操作写进 `Dockerfile`），见未解决 **P2**。
+
+### S4. 换到模板 `qwen` 后立刻踩到的两个坑
+
+| 坑 | 现象 | 方案 |
+| --- | --- | --- |
+| `--disable-log-requests` 在 0.27 上被移除 | `api_server.py: error: unrecognized arguments: --disable-log-requests`（我们的 `serve/vllm.sh` 里写死了它，服务直接起不来） | 实验期只在**远端临时副本**上 sed 掉；规范做法见未解决 **P2** |
+| 给 8B 调的 `GPU_UTIL=0.62` 装不下 35B 级权重 | `ValueError: No available memory for the cache blocks`（22.41 GiB 权重撞上 `0.62 × 47.98 = 29.7 GiB` 预算） | 改 `GPU_UTIL=0.85`，KV 池 474,273 token；`gpu_memory_utilization` 要按「权重 + KV + 开销」算 |
+
+**顺带发现**：权重被解析成多模态包装（日志里 `Resolved architecture:
+Qwen3_5MoeForConditionalGeneration`），vision 部分占了一部分显存。注册表里也有 text-only 的
+`Qwen3_5MoeForCausalLM`，用 `--hf-overrides` 改 `architectures` 可能省下这块——
+**没有验证**，对 32 GiB 单卡可能有用。
+
+### S5. MLA 类模型不能强制 `--dtype float16`
+
+**现象**：`cyankiwi/GLM-4.7-Flash-AWQ-4bit` 权重完整（19 GiB、4 个分片），加了
+`--dtype float16` 起服务失败：
+
+```
+ValueError: No valid MLA prefill backend found with MLAPrefillSelectorConfig(
+    dtype=torch.float16, mla_dimensions=(qk_nope_head_dim=192, qk_rope_head_dim=64, …))
+```
+
+**原因**：GLM-4.7-Flash 用 **MLA（多头潜在注意力）**，MLA 预填充内核在 fp16 下没有实现。
+而我把 `--dtype float16` 从 S1 那条经验条件反射式带了过来——它只适用于 AWQ 的 WNA16 路径。
+
+**方案（dtype 对照表）**：
+
+| 模型类型 | dtype 怎么给 |
+| --- | --- |
+| 普通 AWQ（WNA16 路径，如 `Qwen3-30B-A3B-Instruct-2507` 的 AWQ） | 需要 `--dtype float16`，否则报 S1 的错 |
+| **MLA 类（如 GLM-4.7-Flash）** | **不要强加 fp16**，用默认 |
+| BF16 原版权重 | 不要加，保持 bf16 |
+
+**教训**：`--dtype float16` 是针对特定内核路径的补丁，换模型族（尤其换注意力结构）
+就要重新判断。这条只解决「参数给错」，GLM 本身仍不可服务，原因见 **P4**。
+
+## 未解决
+
+### P1（待解决）. WNA16 路径下 fp16 激活对分数的影响未做对照
+
+- **现状**：S1 的解法只改激活精度、不改权重格式，但**没有做对照**——换一个 group_size=128
+  的 AWQ 权重就能走 Conch 路径（原生支持），从而排除「fp16 激活是否影响分数」这个变量。
+- **限制**：需要找到同模型、group_size=128 的 AWQ 权重；不一定存在。
+- **下一步**：在「同一模型不同量化档」那组实验里补一个 group_size=128 的点。
+
+### P2（待解决，提交层面）. 决赛断网要求把词表与启动参数打进镜像
+
+还没做，必须在提交前完成：
+
+1. 按 S3 的命令把词表**和它的 sha1 文件名**写进 `Dockerfile`，并设好 `TIKTOKEN_RS_CACHE_DIR`；
+2. 处理 `serve/vllm.sh` 里 0.27 已移除的 `--disable-log-requests`（纯装饰性参数，去掉无损失；
+   它是提交文件，需要团队确认后改）；
+3. 确认 `serve/vllm.sh` 的其余启动参数与最终镜像的 vLLM 版本匹配——**这一步没做对，
+   评测当天服务起不来就是全题 L0**。
+
+### P3（已确认受限）. MoE + 不对称量化 / 组大小 16 → North-Mini-Code 系列不可服务
+
+`cyankiwi/North-Mini-Code-1.0-AWQ-INT4` 能加载权重，但引擎初始化失败：
+
+```
+AssertionError: Only symmetric quantization is supported for MoE
+```
+
+**已得到的可判定规则**（实测对比，均取自各自仓库的 `config.json`）：
+
+| 权重仓库 | 位宽 | 对称 | 组大小 | 结果 |
+| --- | ---: | --- | ---: | --- |
+| `cyankiwi/North-Mini-Code-1.0-AWQ-INT4` | 4-bit | **False** | 32 | 引擎初始化失败（MoE 拒绝） |
+| `FenomAI/North-Mini-Code-1.0-AWQ-INT4` | 4-bit | **False** | 32 | 同上 |
+| `cyankiwi/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit` | 4-bit | **True** | 32 | 正常，跑完 155 题 |
+| `CohereLabs/North-Mini-Code-1.0-w4a16`（官方） | 4-bit | **True** | 16 | 组大小 16 被判成 NVFP4：`NotImplementedError: No NvFp4 MoE backend supports the deployment configuration` |
+| `thoratsr7/North-Mini-Code-1.0-w4a16` | 4-bit | True | 16 | 格式直接标着 `nvfp4-pack-quantized` |
+| `LeaderboardModel1/…-AutoRound-W4A16-Tuning` | 4-bit | — | — | `quant_method: auto-round` 未注册；强制 `--quantization inc` 被拒：`inc quantization is currently not supported in rocm` |
+
+**结论**：MoE 模型要**同时**满足「`symmetric: true`」且「组大小 ≠ 16」才可能在这张卡上跑起来。
+North-Mini-Code 试过五个版本都不满足，**已确认受限、不再尝试**（换镜像或换服务栈才可能解除）。
+官方 `-fp8` 版本是 30 GB 且 FP8 在 gfx1100 上不是原生支持，同样不可行。
+
+**提前判断的方法**：起服务前看权重仓库 `config.json` 的 `quantization_config`——
+`compressed-tensors` 看 `config_groups.*.weights.symmetric`，AWQ 看有没有 `zero_point`；
+组大小 16 一律先怀疑是 NVFP4。
+
+### P4（已确认受限）. 自带分词器代码与 transformers 5.15 不兼容 → 两个模型不可服务
+
+**通用规则**：模板 `qwen` 里是 transformers **5.15**，而**凡是自带分词器实现、且那份实现按
+transformers 4.x 写的模型，都会在加载阶段失败**。已确认命中两个：
+
+| 模型 | 权重 | 根因 |
+| --- | --- | --- |
+| `GLM-4.7-Flash`（AWQ 4-bit） | 19 GiB、4 个分片，完整 | `ImportError: cannot import name 'bytes_to_unicode' from 'transformers.models.gpt2.tokenization_gpt2'` |
+| `Kimi-Linear-48B-A3B-Instruct`（AWQ 4-bit） | 27 GiB、7 个分片，完整 | 同上，逐字相同 |
+
+**影响**：`GLM-4.7-Flash` 是候选里唯一的「非 Qwen 家族 MoE」，`Kimi-Linear-48B` 是唯一的
+「线性注意力」样本，这两个覆盖缺口暂时都补不上。
+
+**提前判断**：下载前先看 HF 仓库文件列表里有没有 `.py`（尤其 `tokenization_*.py`、
+`modeling_*.py`）。**有自定义代码的仓库都要先怀疑**——但不是所有自定义代码都有问题：
+`Ministral-3-14B`、`Devstral-Small-2-24B`、`gemma-4-12B-it` 都能正常加载。
+
+**若将来确要测，两条路都不轻**：① 给镜像装兼容的旧版 transformers（会牵连其它模型，不建议）；
+② 在权重目录里替换那份自带代码（等于维护一个 fork，提交时要额外说明）。
+**建议先换候选**——非 Qwen 家族的 dense 已有两个实测点（`Ministral-3-14B` 0.476、
+`gemma-4-12B-it` 0.679）。
+
+## 排查这类问题的方法（本次总结）
+
+1. **看 traceback 末端，不要只看开头**：真正的异常行在最后，用
+   `grep -nE '(Error|Exception|error):' vllm.log | tail -3`，而不是 `tail` 或只抓前几条 ERROR。
+2. **先看日志里打印的实际值**：例如 `--gpu-memory-utilization=0.6200`——我们曾以为
+   命令行前缀生效了，实际被配置文件覆盖（见 [`../remote/README.md`](../remote/README.md)）。
+3. **架构与内核能力可以直接查源码**：vLLM 的注册表
+   （`vllm/model_executor/models/registry.py`）与平台能力
+   （`vllm/platforms/rocm.py` 里 `supports_fp8()` 只在 CDNA 或 gfx12x 为真）都能读，
+   比反复试快得多。
+
+## 证据
+
+- 原始日志：各运行目录 `../runs/<运行编号>/`；远端 `~/fpgachina2026-remote/vllm.log`（实例已销毁）
+- 数据与上下文：[`../notes/2026-09-25-screening-results.md`](../notes/2026-09-25-screening-results.md)
+- 结论与计费：[`../decisions/0001-inference-backend.md`](../decisions/0001-inference-backend.md)
