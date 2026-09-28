@@ -5,10 +5,10 @@
 | 状态 | **计划已确认，待执行**（2026-09-25 审阅后按团队意见修订） |
 | 已确认的决定 | ① 候选模型按 §3 的清单；② 指标以 §5 为准（tps、单题耗时、显存、KV Cache、baseline 得分与停留阶段、主要错因）；③ **筛选阶段只跑 baseline，不做 probe agent**，模型入围后再做 agent + baseline 联合跑分；④ 量化对照放在入围之后 |
 | 目的 | 决定 `../decisions/0002-model-choice.md`：选哪个模型、哪个量化精度 |
-| 相关文件 | `2026-09-24-baseline-sweep.md`（已测的 6 个配置）、`../decisions/0002-model-choice.md`、`../eval/README.md`、`../remote/README.md` |
+| 相关文件 | `archive/2026-09-24-baseline-sweep.md`（已测的 6 个配置）、`../decisions/0002-model-choice.md`、`../eval/README.md`、`../remote/README.md` |
 | 依据 | 仓库根目录的 `SCORING.md`、`docs/FAQ.md`、`example/baseline.py`，以及外部资料（文中给链接） |
 
-已测过 6 个配置的 baseline（见 `2026-09-24-baseline-sweep.md`）。本文回答两个问题：
+已测过 6 个配置的 baseline（见 `archive/2026-09-24-baseline-sweep.md`）。本文回答两个问题：
 **还有哪些模型值得测**，以及**同一个模型的不同量化精度怎么测**。
 
 ---
@@ -101,7 +101,7 @@ M（满分线倍数）赛前才公布，`SCORING.md` 第 4.3 节的示例用 2.5
 | 速度够快 | agent 每题要调好几次模型；模型慢会直接吃掉轮数和墙钟分 |
 | 许可证 | 须能公开下载与再分发；注意部分「非商用」许可 |
 
-另外三条来自已有实测（`2026-09-24-baseline-sweep.md`）：
+另外三条来自已有实测（`archive/2026-09-24-baseline-sweep.md`）：
 
 - 32B AWQ 模型实测显存 33.7–34.1 GB，**已超 32 GB**，除非量化档位降下来，否则出局
 - 这张卡上 AWQ 很慢（约 4 token/秒/路），GPTQ 与 MoE 反而快
@@ -148,26 +148,26 @@ Q5_K_M/Q6_K 比 Q3_K_S 更适合 RDNA4。但它只能作为兜底，**方案和�
 
 「已核验」= 我打开过对应页面确认仓库存在；「待核验」= 只有二手来源，跑之前先打开仓库确认。
 
-### A 层：必测
+### 必测候选
 
-| # | 模型（HF 仓库） | 结构 / 参数量 | 许可 | 可用量化 | 估计显存（权重） | 为什么测 |
-| --- | --- | --- | --- | --- | --- | --- |
-| A1 | `Qwen/Qwen3.6-35B-A3B`（基座已核验，35.95B，MoE）；官方有 `-FP8`（36 GB，**装不下**），4-bit 用 `QuantTrio/Qwen3.6-35B-A3B-AWQ` | MoE 35.95B / 3B 激活 | Apache-2.0 | AWQ / GPTQ 4-bit | ~20 GB | 最新一代，只有 3B 激活 → 速度最快的一档，agent 能多跑几轮 |
-| A2 | `Qwen/Qwen3.5-35B-A3B`（已核验，35.95B）；4-bit 用 `QuantTrio/Qwen3.5-35B-A3B-AWQ` | MoE 35.95B / 3B 激活 | Apache-2.0 | AWQ 4-bit（官方 FP8 36 GB 装不下） | ~20 GB | 上一代，与 A1 对照，看换代的收益 |
-| A3 | `CohereLabs/North-Mini-Code-1.0`、`-1.0-fp8` | MoE 30B / 3B 激活 | Apache-2.0 | 官方 BF16、FP8 | FP8 ~30 GB（偏紧） | 专为 agentic coding 训练，官方称 Coding Index 33.4 超过 Qwen3.5-35B-A3B（<https://huggingface.co/blog/CohereLabs/introducing-north-mini-code>）；修复类任务可能特别合适 |
-| A4 | `Qwen/Qwen3-Coder-30B-A3B-Instruct`（已核验，30.53B；官方有 `-FP8`；4-bit 用 `cyankiwi/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit`） | MoE 30.53B / 3.3B 激活 | Apache-2.0 | AWQ 4-bit | ~17 GB | 代码专用、上一代；格式遵循可能比 A1 稳 |
-| A5 | `Qwen/Qwen3-30B-A3B-Instruct-2507`（已核验，30.53B；官方有 `-FP8`） | MoE 30.53B / 3.3B 激活 | Apache-2.0 | AWQ 4-bit | ~17 GB | 已测版本（基线 0.489）的改进版，用最低成本看「同族升级」值多少 |
-| A6 | `Qwen/Qwen3.5-9B`（9.65B）、`Qwen/Qwen3.5-4B`（4.66B） | dense | Apache-2.0 | BF16 直接装得下 | 19.3 GB / 9.3 GB | **直接检验第 1.2 节的低基线路线**：基线可能低到 0.2–0.3，只要 agent 抬得动就赢 |
-| A7 | `zhuyaoyu/CodeV-R1-RL-Qwen-7B`（Apache-2.0，完整 safetensors，社区有 GGUF；`CodeV-R1-Qwen-7B` 是它的跳转名） | dense 7B，Verilog 专用（基座 Qwen2.5-Coder-7B） | Apache-2.0 | BF16、GGUF | ~15 GB | **对照组**：验证第 1.2 节的判断。模型卡报告 VerilogEval v2 spec-to-RTL pass@1 **68.8%**（论文 68.6%），RTLLM v1.1 72.9%——但它的评测用了 **16384 的生成长度**并要求特定的 `<think>/<answer>` 提示词格式，而赛事方的基线提示词固定、不给这个格式，所以它的实际 `S_b` 很可能远低于论文值。这本身就是值得测的问题 |
-| A8 | `openai/gpt-oss-20b`（已核验，20.91B，原生 MXFP4）；AMD 官方重整版 `amd/gpt-oss-20b-MoE-Quant-W-MXFP4-A-FP8-KV-FP8` | MoE 20.91B / ~3.6B 激活 | Apache-2.0 | 原生 MXFP4 | ~12 GB | 显存最宽裕、激活最少；用来测第 1.4 节「基线自毁」的风险到底有多大 |
-| A9 | `Qwen/Qwen3.8-27B`（已核验，27.78B；官方 `-FP8` 27.8 GB 太紧） | dense 27.78B | Apache-2.0 | INT4 ~15 GB | 最新一代 dense | 作为「dense 旗舰」与 MoE 路线对照。**两个要先确认的点**：它的架构写的是 `Qwen3_5ForConditionalGeneration`（多模态包装），要先确认有纯文本推理路径；dense 27B 在这张卡上可能很慢（32B AWQ 实测每题约 38 秒） |
+| 模型（HF 仓库） | 结构 / 参数量 | 许可 | 可用量化 | 估计显存（权重） | 为什么测 |
+| --- | --- | --- | --- | --- | --- |
+| `Qwen/Qwen3.6-35B-A3B`（基座已核验，35.95B，MoE）；官方有 `-FP8`（36 GB，**装不下**），4-bit 用 `QuantTrio/Qwen3.6-35B-A3B-AWQ` | MoE 35.95B / 3B 激活 | Apache-2.0 | AWQ / GPTQ 4-bit | ~20 GB | 最新一代，只有 3B 激活 → 速度最快的一档，agent 能多跑几轮 |
+| `Qwen/Qwen3.5-35B-A3B`（已核验，35.95B）；4-bit 用 `QuantTrio/Qwen3.5-35B-A3B-AWQ` | MoE 35.95B / 3B 激活 | Apache-2.0 | AWQ 4-bit（官方 FP8 36 GB 装不下） | ~20 GB | 上一代，与 `Qwen3.6-35B-A3B`（AWQ-4bit） 对照，看换代的收益 |
+| `CohereLabs/North-Mini-Code-1.0`、`-1.0-fp8` | MoE 30B / 3B 激活 | Apache-2.0 | 官方 BF16、FP8 | FP8 ~30 GB（偏紧） | 专为 agentic coding 训练，官方称 Coding Index 33.4 超过 Qwen3.5-35B-A3B（<https://huggingface.co/blog/CohereLabs/introducing-north-mini-code>）；修复类任务可能特别合适 |
+| `Qwen/Qwen3-Coder-30B-A3B-Instruct`（已核验，30.53B；官方有 `-FP8`；4-bit 用 `cyankiwi/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit`） | MoE 30.53B / 3.3B 激活 | Apache-2.0 | AWQ 4-bit | ~17 GB | 代码专用、上一代；格式遵循可能比 `Qwen3.6-35B-A3B`（AWQ-4bit） 稳 |
+| `Qwen/Qwen3-30B-A3B-Instruct-2507`（已核验，30.53B；官方有 `-FP8`） | MoE 30.53B / 3.3B 激活 | Apache-2.0 | AWQ 4-bit | ~17 GB | 已测版本（基线 0.489）的改进版，用最低成本看「同族升级」值多少 |
+| `Qwen/Qwen3.5-9B`（9.65B）、`Qwen/Qwen3.5-4B`（4.66B） | dense | Apache-2.0 | BF16 直接装得下 | 19.3 GB / 9.3 GB | **直接检验第 1.2 节的低基线路线**：基线可能低到 0.2–0.3，只要 agent 抬得动就赢 |
+| `zhuyaoyu/CodeV-R1-RL-Qwen-7B`（Apache-2.0，完整 safetensors，社区有 GGUF；`CodeV-R1-Qwen-7B` 是它的跳转名） | dense 7B，Verilog 专用（基座 Qwen2.5-Coder-7B） | Apache-2.0 | BF16、GGUF | ~15 GB | **对照组**：验证第 1.2 节的判断。模型卡报告 VerilogEval v2 spec-to-RTL pass@1 **68.8%**（论文 68.6%），RTLLM v1.1 72.9%——但它的评测用了 **16384 的生成长度**并要求特定的 `<think>/<answer>` 提示词格式，而赛事方的基线提示词固定、不给这个格式，所以它的实际 `S_b` 很可能远低于论文值。这本身就是值得测的问题 |
+| `openai/gpt-oss-20b`（已核验，20.91B，原生 MXFP4）；AMD 官方重整版 `amd/gpt-oss-20b-MoE-Quant-W-MXFP4-A-FP8-KV-FP8` | MoE 20.91B / ~3.6B 激活 | Apache-2.0 | 原生 MXFP4 | ~12 GB | 显存最宽裕、激活最少；用来测第 1.4 节「基线自毁」的风险到底有多大 |
+| `Qwen/Qwen3.8-27B`（已核验，27.78B；官方 `-FP8` 27.8 GB 太紧） | dense 27.78B | Apache-2.0 | INT4 ~15 GB | 最新一代 dense | 作为「dense 旗舰」与 MoE 路线对照。**两个要先确认的点**：它的架构写的是 `Qwen3_5ForConditionalGeneration`（多模态包装），要先确认有纯文本推理路径；dense 27B 在这张卡上可能很慢（32B AWQ 实测每题约 38 秒） |
 
-> 一次云会话现实只够测 4–6 个模型（下载占大头，见 §7.1），所以 A 层按编号顺序跑，
-> 跑不完的顺延到下一批。A9 可以换成 B 层里任何一个。
+> 一次云会话现实只够测 4–6 个模型（下载占大头，见 §7.1），所以按上表顺序跑，
+> 跑不完的顺延到下一批；排在最后的 `Qwen3.8-27B` 可以换成备选候选里的任何一个。
 
 **RTL 专用模型的调研结论**（避免重复劳动，这里把整类模型一次说清）：
 
-- **值得占一个槽位的只有两个**：A7 的 `CodeV-R1-RL-Qwen-7B`（唯一在 VerilogEval v2
+- **值得占一个槽位的只有两个**：`CodeV-R1-RL-Qwen-7B`（唯一在 VerilogEval v2
   spec-to-RTL 上有大分差、且版本口径明确的模型，Apache-2.0、完整权重），以及
   `nyu-dice-lab/VeriThoughts-Reasoning-14B`（VerilogEval-Human **v1** pass@1 只有 43.7%，
   但训练数据来源最透明；只在将来需要自己微调时才优先考虑）。
@@ -197,9 +197,9 @@ Q5_K_M/Q6_K 比 Q3_K_S 更适合 RDNA4。但它只能作为兜底，**方案和�
   断网沙箱里没有网页可点，这类权重要么提前下好，要么别选。Gemma 4 已经改成普通的
   Apache-2.0，没有这个问题。
 
-### B 层：有余力再测
+### 备选候选（有余力再测）
 
-| 模型（HF 仓库） | 结构 | 为什么放 B 层 |
+| 模型（HF 仓库） | 结构 | 为什么留在备选 |
 | --- | --- | --- |
 | `zai-org/GLM-4.7-Flash`（31.22B，MoE-lite，MIT） | MoE | 非 Qwen 家族里唯一成本合适的选项，MIT 许可干净；社区有 AWQ |
 | `QuantTrio/Qwen3.6-27B-AWQ`、`-AWQ-6Bit` | dense 27B | 6-bit 是 32 GB 内少见的「中间档」，适合做 §4 的量化实验 |
@@ -212,7 +212,7 @@ Q5_K_M/Q6_K 比 Q3_K_S 更适合 RDNA4。但它只能作为兜底，**方案和�
 | `deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct`（15.71B / 2.4B 激活） | MoE | 代码专用、激活少、速度快；代际老一代 |
 | `Qwen/Qwen2.5-Coder-7B-Instruct` | dense 7B | 只补跑全题集（quick 已有 0.512），成本很低 |
 
-### C 层：明确不测
+### 不测候选（明确排除）
 
 | 不测的东西 | 理由 |
 | --- | --- |
@@ -261,14 +261,14 @@ Q5_K_M/Q6_K 比 Q3_K_S 更适合 RDNA4。但它只能作为兜底，**方案和�
 
 | 组 | 模型 | 档位 | 想隔离的变量 |
 | --- | --- | --- | --- |
-| Q1（干净对照） | `CodeV-R1-RL-Qwen-7B` 或 `Qwen3.5-9B`（BF16 装得下） | BF16 vs AWQ-4bit | 纯量化影响。同一模型、同一尺寸，只有精度变 |
-| Q2（实际可用档） | `Qwen3.6-35B-A3B`（BF16 装不下） | AWQ-4bit vs GPTQ-4bit | 32 GB 下真实可选的档位之间差多少。按 §4.1 的证据，预期 AWQ 更快也更稳，GPTQ 要实测 |
-| Q3（中间档） | `Qwen3.6-27B` | AWQ-4bit vs AWQ-6bit | 「降参数量」和「降精度」谁更划算 |
+| 量化对照组 1（干净对照） | `CodeV-R1-RL-Qwen-7B` 或 `Qwen3.5-9B`（BF16 装得下） | BF16 vs AWQ-4bit | 纯量化影响。同一模型、同一尺寸，只有精度变 |
+| 量化对照组 2（实际可用档） | `Qwen3.6-35B-A3B`（BF16 装不下） | AWQ-4bit vs GPTQ-4bit | 32 GB 下真实可选的档位之间差多少。按 §4.1 的证据，预期 AWQ 更快也更稳，GPTQ 要实测 |
+| 量化对照组 3（中间档） | `Qwen3.6-27B` | AWQ-4bit vs AWQ-6bit | 「降参数量」和「降精度」谁更划算 |
 
 **FP8 这一档在验证阶段做不了**：W7900 上 `supports_fp8()` 为假（§2.1），只能在拿到 R9700
 之后再补。所以本轮的量化结论要写成「W7900 上得到什么、哪些必须在目标卡上复验」两部分。
 
-可选补充：对 Q1 里的 7B 模型，用 llama.cpp 走 GGUF（Q4_K_M / Q6_K / Q8_0）与 vLLM 的
+可选补充：对 量化对照组 1 里的 7B 模型，用 llama.cpp 走 GGUF（Q4_K_M / Q6_K / Q8_0）与 vLLM 的
 AWQ 对比。注意后端不同会同时改变速度和数值行为，只能作为参考，不能和 vLLM 的结果混在一张表里比。
 
 ### 4.3 每一档都要记录的字段
@@ -493,15 +493,15 @@ top_p 1.0、max_tokens 8192、单次、不重试），我们动不了；而 agen
 | 步骤 | 内容 | 产出 |
 | --- | --- | --- |
 | **第 0 步**（不占 GPU） | 补采集脚本：现在 `run_eval.py` 不采显存、KV、tps，要先加上；再用 `LLM_BACKEND=mock` 验证链路 | 测量工具本身可信 |
-| **第 1 步**（一次会话） | A1–A5 只跑 `--modes baseline` × **全题集**，同时采 §5 的全部指标 | 5 个模型的一行汇总数据 |
-| **第 2 步**（一次会话） | A6–A9 同上（A6 的 9B 与 4B 各算一个） | 再补 4–5 行 |
+| **第 1 步**（一次会话） | `Qwen3.6-35B-A3B`（AWQ-4bit）–`Qwen3-30B-A3B-Instruct-2507`（AWQ-4bit） 只跑 `--modes baseline` × **全题集**，同时采 §5 的全部指标 | 5 个模型的一行汇总数据 |
+| **第 2 步**（一次会话） | `Qwen3-4B-Instruct-2507`（BF16）–`Qwen3.8-27B` 同上（`Qwen3-4B-Instruct-2507`（BF16） 的 9B 与 4B 各算一个） | 再补 4–5 行 |
 | **第 3 步**（不占 GPU） | 按 §5.9 的「上限分 + 可修错因占比」排序，**选 4–5 个入围** | 入围名单 |
 | **第 4 步**（一次会话） | 入围模型跑 `--modes agent,baseline` × `quick` 34 题 | 第一次拿到 `S_a`，检验代理变量是否可靠 |
 | **第 5 步** | 前 2–3 名跑 `agent,baseline` × 全题集 | 可用于决策的 `S_b` / `S_a` / 可计算分 |
 | **第 6 步** | 对最终候选做 §4.2 的量化矩阵 | 定权重与精度 |
 | **第 7 步** | `submit_client.py` 独占测墙钟（§6.4）+ 目标卡 gfx1201 复验（§2.1） | 决赛配置闭环 |
 
-每完成一步，把结果补进 `2026-09-24-baseline-sweep.md` 那张表（改成
+每完成一步，把结果补进 `archive/2026-09-24-baseline-sweep.md` 那张表（改成
 「`S_b` / 可综合率 / 功能正确率 / 主要错因 / tps / 单题耗时 / 显存 / KV」等多列），
 阶段性结论写进 `../decisions/0002-model-choice.md`。
 
@@ -524,7 +524,7 @@ top_p 1.0、max_tokens 8192、单次、不重试），我们动不了；而 agen
 | 事项 | 我的建议 | 理由 |
 | --- | --- | --- |
 | 筛选用全题集还是 `quick` | **全题集** | 筛选阶段每题只有一次模型调用，GPU 成本是几分钟；而 `quick` 分数虚高 0.06–0.08，全题集直接给出可决策的绝对值 |
-| 量化对照什么时候做 | **入围之后**，但可以顺手对 A1 多测一个档 | 量化同时改变分子分母，只有拿到 agent 结果才能判净效果；顺手多测一档的成本只是一次下载 |
+| 量化对照什么时候做 | **入围之后**，但可以顺手对 `Qwen3.6-35B-A3B`（AWQ-4bit） 多测一个档 | 量化同时改变分子分母，只有拿到 agent 结果才能判净效果；顺手多测一档的成本只是一次下载 |
 | 要不要跑 pass@5 | **暂不跑**，只对最终 1–2 个模型做 | 5 倍成本、只作诊断、不计入总分，而现在连 `pass@1` 都还没有 |
 | 是否保留 probe agent | **不保留**（按你的决定） | 代价是筛选阶段没有 `S_a`，用 §5.9 的代理变量兜，见 §6.3 |
 | 「服务默认关思考、agent 单独开思考」 | **两边一致，默认关，并在 `MODEL.md` 与报告里如实写明** | 规则固定的是 `baseline.py` 的提示词与采样参数，服务配置归我们；但让 agent 单独开思考会把分子分母的差距人为拉大，风险大于收益 |
@@ -532,7 +532,9 @@ top_p 1.0、max_tokens 8192、单次、不重试），我们动不了；而 agen
 | 优先用谁发布的量化版本 | **优先 HF 上 `amd/` 作者下的版本** | 那是 AMD 自己为 ROCm 出的重整版，最可能在这张卡上直接跑通 |
 | 目标卡（gfx1201）复验 | **不可省，放在最后一批** | RDNA4 上的 MoE 没有任何人验证过（§2.1），开发卡的结果不能外推 |
 
-## 9. 还缺的信息与未验证项- **平台 Cookie 已失效**，需要重新从浏览器取（`RC_COOKIE`）。
+## 9. 还缺的信息与未验证项
+
+- **平台 Cookie 已失效**，需要重新从浏览器取（`RC_COOKIE`）。
 - **是否有 R9700（gfx1201）实例可用**；这决定了 §2.1 里那批「只能在目标卡上验证」的项目
   能不能闭环。没有的话，决赛配置只能靠推理加小规模验证。
 - **`M`（满分线倍数）**赛前才公布，所以用 §1.5 的敏感性分析代替。
@@ -547,58 +549,9 @@ top_p 1.0、max_tokens 8192、单次、不重试），我们动不了；而 agen
   跑之前要打开 `chat_template` 看一眼。
 
 ---
+---
 
-## 10. 执行进展（2026-09-25 补记）
-
-### 第 0 步已完成
-
-指标采集补齐了，并且验证过：`dev/eval/metrics.py`（`run` / `joint` / `probe` / `scrape` /
-`kv` / `vram`）、`dev/remote/vram_watch.sh`（远端显存采样）、
-`dev/remote/joint_run.sh`（一个模型一条命令跑完联合跑分）。
-`run_eval.py` 在同时跑 `agent,baseline` 时会自动生成 `joint.json` / `joint.md`，
-`record.py` 会把它写进实验记录。
-
-### 第 1–5 步的执行情况
-
-| 候选 | 筛选（全题集 baseline） | 联合（quick 34，agent+baseline） |
-| --- | --- | --- |
-| A4 `Qwen3-Coder-30B-A3B` AWQ-4bit | ✅ `S_b` 0.564 | 未测（备选） |
-| A5 `Qwen3-30B-A3B-Instruct-2507` AWQ-4bit | ✅ `S_b` 0.588 | ✅ `S_a` 0.700，增益 1.178 |
-| A6 `Qwen3-4B-Instruct-2507` BF16 | ✅ `S_b` 0.394 | ✅ `S_a` 0.518，增益 1.397 |
-| A7 `CodeV-R1-RL-Qwen-7B` BF16（对照） | ✅ `S_b` 0.665 | ✅ `S_a` 0.765，增益 1.066 |
-| Q1a/1b 同 A6 的 AWQ-4bit / AWQ-8bit | ✅ 0.343 / 0.392 | Q1a ✅ 增益 1.143；Q1b 未测 |
-| A1 `Qwen3.6-35B-A3B` AWQ-4bit | ✅ `S_b` **0.610**（换镜像后） | 未测（按团队要求先只跑 baseline） |
-| A2 `Qwen3.5-35B-A3B` AWQ-4bit | ✅ `S_b` **0.605**（换镜像后） | 未测（同上） |
-| A3′ `Qwen3.6-27B` AWQ-4bit（dense，A9 的替代） | ✅ `S_b` 0.610，但单路仅 4.9 token/s | 未测（dense 已判死） |
-| A9 `Qwen3.8-27B` | ❌ HF 上没有 4-bit 量化，FP8 放不进 32 GiB | ❌ 不可候选 |
-| Qwen3.5-9B | 未测（第二批已用同代 35B/27B 代表） | — |
-| A8 `gpt-oss-20b` | ❌ `openai_harmony` 取词表被代理 403 | ❌ |
-| A3 `North-Mini-Code-1.0` | ⏳ **可测但未测**：架构 `Cohere2MoeForCausalLM` 在 vLLM 0.27 的注册表里（已核对源码），4-bit 权重用 `cyankiwi/North-Mini-Code-1.0-AWQ-INT4` | 未测（只差预算授权） |
-
-数据在 `2026-09-25-screening-results.md` 与 `2026-09-25-joint-first-results.md`；
-横向对照表由 `dev/eval/overview.py` 生成，见 `2026-09-25-candidate-tables.md`。
-
-### 三条与计划预期不符、需要记住的结论
-
-1. **§1.3 那张「低基线 → 高增益」的估算过于乐观。** 实测里 L0 修好后只有 25%–67% 真正到 L3，
-   其余停在 L1（系数 0.2），所以小模型的增益没有算出来的那么高。详见
-   [`../failures/sim-mismatch.md`](../failures/sim-mismatch.md)。
-2. **agent 会把本来做对的题改坏**（每个候选 2–3 道），这是纯粹的净损失，而且与模型无关。
-   详见 [`../failures/agent-repair.md`](../failures/agent-repair.md)。
-3. **4-bit 伤的是修复能力而不是生成能力**，所以 §4.1 的 H2 成立、H1 与 H3 不成立。
-
-### 目前的选择：未定
-
-**模型选型不做结论，由团队评判。** 我的建议与定量依据写在
-[`../decisions/0002-model-choice.md`](../decisions/0002-model-choice.md) 的「建议（供评判）」一节，
-要点是：首选 A6（低基线、BF16、风险最小），唯一值得花一次实验验证的挑战者是 A1
-（它需要在 `S_a` 上比 A6 高约 0.21–0.26 才能反超，而同类 30B MoE 已知高出 0.18，正好在临界点上）。
-
-### 卡住的地方（已解决一个）
-
-- ~~**A1/A2 受镜像限制**~~ **已解决**：用户新建模板 `qwen`（id 4477），
-  里面的 vLLM 是 0.27.0，架构注册表带 `Qwen3_5MoeForCausalLM`，A1/A2 已测。
-  经过见 [`../failures/serving-stack.md`](../failures/serving-stack.md) 第四节。
-- **A9 不可候选**：HF 上没有 4-bit 量化版本，FP8 装不进 32 GiB 单卡。
-- **A8（gpt-oss）未解决**：`openai_harmony` 的词表必须在镜像里预置，否则决赛断网一律 L0。
-- **平台 Cookie 约 4 小时失效**：失效后连实例状态都查不了，所以每批实验收工前必须先销毁实例。
+> **执行进展、待办实验与备选候选的可行性核实另见
+> [`2026-09-25-screening-progress.md`](2026-09-25-screening-progress.md)。**
+> 本文只放设计与口径（第 1–9 节）：它们稳定、改动少；进展是滚动更新的，分开放，
+> 更新进展时不必动本文。

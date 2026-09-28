@@ -27,7 +27,7 @@
 
 每条记录的详细数据和分析见对应文件。所有云端运行都在 AMD Radeon Cloud 的 W7900（gfx1100）
 上完成，`gpu_memory_utilization` 0.62 模拟 32 GB。汇总和对比见
-`../notes/2026-09-24-baseline-sweep.md`，选型讨论见 `../decisions/0002-model-choice.md`。
+`../notes/archive/2026-09-24-baseline-sweep.md`，选型讨论见 `../decisions/0002-model-choice.md`。
 
 | 运行编号 | 内容 | 主要结论 |
 | --- | --- | --- |
