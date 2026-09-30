@@ -36,7 +36,8 @@ import re
 import sys
 import time
 
-from .llm import LLM, LLMError, extract_code
+from .extraction import extract_code
+from .llm import LLM, LLMError
 from .skills import load_skills, select
 from .tools import RtlToolchain, check_interface
 
