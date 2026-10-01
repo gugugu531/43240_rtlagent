@@ -20,7 +20,7 @@
 | `agent/main.py` | 智能体主流程：多轮「生成 → 检查 → 修改」循环、时间控制、记录 trace |
 | `agent/llm.py` | 调用大模型，校验配置并标准化返回结果或异常 |
 | `agent/extraction.py` | 从模型回复中提取 Verilog / SystemVerilog 代码 |
-| `agent/tools.py` | 三个检查工具：接口检查、lint（语法与连接检查）、综合 |
+| `agent/tools.py` | 接口检查，以及带进程组清理和结构化结果的 lint、综合工具 |
 | `agent/skills.py` | 加载技能包，按工具报错挑选相关技能 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
 | `skill/` | 技能包，每条技能一个目录，格式见 `skill/README.md` |
@@ -119,8 +119,14 @@ prompt.txt ─► 读题 ─► 加载技能包、提示词
   没有 `interface.txt`，这时从题面的端口清单（`- input clk` 这种格式）解析出接口，
   但只作为提示：不一致时不拦截，而是把差异附在后续的报错里带给下一轮。原因是题面
   是自然语言，本身可能写错。
-- **没有 Vivado 时**：lint 和综合都返回 -1，接口检查通过后直接输出代码，不会假装
-  检查过。
+- **没有 Vivado 时**：lint 和综合都返回 `status=unavailable`（`rc=-1`），接口检查通过后
+  直接输出代码，不会假装检查过。
+- **工具运行**：每次 lint、综合都使用独立的本地临时目录和进程组，返回统一的
+  `ToolResult`。状态明确区分 `ok`、`failed`、`timeout` 和 `unavailable`；超时时先结束
+  整个进程组，短暂等待后仍未退出则强制结束，避免残留 Vivado 子进程。顶层模块名在写入
+  Tcl 前会按 Verilog 标识符规则校验。
+- **工具日志**：模型仍只接收有限长度的摘要。设置 `AGENT_KEEP_WORK=1` 时保留每次调用的
+  独立工作目录和 `lint.full.log` / `synth.full.log` 完整日志；默认在调用结束后删除工作目录。
 - **时间控制**：每轮开始、lint 和综合之前，检查剩余时间（`AGENT_DEADLINE_S` 减去已用
   时间和 `AGENT_RESERVE_S` 余量），不够就停止。模型调用出错时也会停止。
 - **最终输出**：综合通过时输出该轮代码；否则输出最后一次提取到的代码，即使它没有通过
@@ -183,7 +189,7 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 | `AGENT_DEADLINE_S` | `360` | 单题时间预算（秒），通过 HTTP 接口运行时由请求中的 `deadline_s` 覆盖 |
 | `AGENT_RESERVE_S` | `20` | 为写出结果预留的时间（秒） |
 | `AGENT_TMP` | 依次取 `EDA_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
-| `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留 Vivado 临时目录，排查问题用 |
+| `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留每次 Vivado 调用的独立目录和完整日志，排查问题用 |
 | `RTL_PART` | `xczu3eg-sbva484-1-e` | 综合用的器件 |
 | `RTL_TOP` | `TopModule` | 顶层模块名；未设置时从 `interface.txt` 中推断，推断不出则用 `TopModule` |
 | `FPGACHINA_TOKEN` | 无 | 投题接口的令牌，`serve_api.py` 必须设置 |
@@ -227,5 +233,6 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 | 2026-09-24 | `serve/vllm.sh` 新增 `VLLM_EXTRA_ARGS` | 传入额外的 vLLM 参数，默认为空，不改变原有行为 |
 | 2026-09-28 | 重构模型客户端 | 校验配置，统一模型结果与异常，支持单次调用参数覆盖；不自动重试 |
 | 2026-09-30 | 固定 `run.sh` 相对路径语义 | 切换到方案目录前固定输入输出路径，支持从任意当前目录调用 |
+| 2026-09-30 | 加固 Vivado 工具运行 | 统一工具结果，超时清理整个进程组，分离日志摘要与调试完整日志 |
 
 可以用 `diff -r ../example . -x dev -x .dockerignore` 查看完整差异。
