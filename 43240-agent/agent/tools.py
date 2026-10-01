@@ -66,11 +66,6 @@ class ToolResult:
     full_log_path: str | None = None
     work_dir: str | None = None
 
-    def __iter__(self):
-        """Keep the previous ``rc, summary = result`` call shape working."""
-        yield self.rc
-        yield self.summary
-
     def trace_dict(self) -> dict[str, object]:
         fields: dict[str, object] = {
             "tool": self.tool,

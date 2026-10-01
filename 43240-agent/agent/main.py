@@ -35,11 +35,13 @@ import os
 import sys
 import time
 
-from .extraction import extract_code
-from .interface import parse_expected_interface
+from .artifacts import ArtifactStore
+from .candidate import Candidate, CandidateFactory
+from .extraction import extract_result
+from .interface import check_interface_result, parse_expected_interface
 from .llm import LLM, LLMError
 from .skills import load_skills, select
-from .tools import RtlToolchain, check_interface
+from .tools import RtlToolchain
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -110,7 +112,8 @@ def _with_note(note: str, log: str) -> str:
 # 基线由赛事方的 ../baseline.py 实现，不在此处。
 
 
-def solve_agent(llm: LLM, trace: Trace, prompt: str, interface: str, top: str) -> str:
+def solve_agent(llm: LLM, trace: Trace, artifacts: ArtifactStore,
+                prompt: str, interface: str, top: str) -> Candidate | None:
     rtl = RtlToolchain()
     trace.write(tool="env", vivado_available=rtl.available, reason=rtl.reason or None)
 
@@ -121,7 +124,8 @@ def solve_agent(llm: LLM, trace: Trace, prompt: str, interface: str, top: str) -
     repair_tpl = read_prompt_file("repair.md")
 
     started = time.time()
-    best = ""
+    factory = CandidateFactory()
+    best: Candidate | None = None
     last_log = ""
 
     for rnd in range(1, MAX_ROUNDS + 1):
@@ -145,7 +149,7 @@ def solve_agent(llm: LLM, trace: Trace, prompt: str, interface: str, top: str) -
         user = build_task_block(prompt, interface)
         if last_log:
             user += "\n\n" + repair_tpl.replace("{{LOG}}", last_log) \
-                                       .replace("{{CODE}}", best)
+                                       .replace("{{CODE}}", best.code if best else "")
 
         messages.append({"role": "user", "content": user})
 
@@ -161,56 +165,102 @@ def solve_agent(llm: LLM, trace: Trace, prompt: str, interface: str, top: str) -
             finish=result.finish, elapsed_s=round(time.time() - t0, 2),
         )
 
-        code = extract_code(result.text)
+        extraction = extract_result(result.text, target_module=top)
+        trace.write(tool="extract", round=rnd, **extraction.trace_dict())
+        code = extraction.code
         if not code:
-            trace.write(tool="extract", round=rnd, rc=1,
-                        excerpt="no code block in reply")
-            last_log = "上一轮回复中没有找到代码块。只输出一个 ```verilog 代码块，不要加解释。"
+            detail = "; ".join(extraction.diagnostics)
+            last_log = (
+                "上一轮回复没有包含完整的 Verilog 模块。"
+                f"解析结果：{detail}。"
+                "只输出一个包含完整 module/endmodule 的 ```verilog 代码块。"
+            )
             continue
 
-        best = code
+        candidate = factory.create(
+            code,
+            source_stage="repair" if best else "generate",
+            round=rnd,
+            parent_id=best.id if best else None,
+            finish_reason=result.finish_reason,
+            extraction_status=extraction.status,
+        )
+        artifacts.save_candidate(candidate)
+        trace.write(tool="candidate", event="create", **candidate.trace_dict())
+
+        # Preserve the existing selection policy: the latest successfully
+        # extracted candidate becomes the fallback answer immediately.
+        artifacts.select(candidate, reason="latest_extracted")
+        trace.write(
+            tool="candidate",
+            event="select",
+            candidate_id=candidate.id,
+            code_hash=candidate.code_hash,
+            reason="latest_extracted",
+        )
+        best = candidate
 
         # --- cheapest check first: no tools needed, and it catches the L0 class
-        rc, msg = check_interface(code, interface, prompt)
-        trace.write(tool="check_interface", round=rnd, rc=rc, excerpt=msg[:500])
-        if rc != 0:
-            last_log = msg
+        interface_result = check_interface_result(code, interface, prompt)
+        trace.write(
+            tool="check_interface", round=rnd, candidate_id=candidate.id,
+            code_hash=candidate.code_hash, **interface_result.trace_dict(),
+        )
+        if interface_result.blocking:
+            last_log = interface_result.summary
             continue
         # 评测题集的 interface 是空串，此时上面那步改用题面的端口清单，且只作
         # 提示不拦截（题面是散文，可能与参考实现不符）。提示仍要带进下一轮，
         # 否则等于没查。见 docs/API_CONTRACT.md「interface 在 RTL 评测题集下是空串」。
-        interface_note = msg if msg.startswith("⚠") else ""
+        interface_note = (
+            interface_result.summary
+            if interface_result.status == "advisory" else ""
+        )
 
         remaining = DEADLINE_S - (time.time() - started) - RESERVE_S
         if remaining <= 0:
             trace.write(tool="budget", event="stop", round=rnd, reason="deadline")
             break
 
-        rc, log = rtl.lint(code, top, timeout_s=min(remaining, 300))
-        trace.write(tool="lint", round=rnd, rc=rc, excerpt=log[:2000])
-        if rc > 0:
-            last_log = _with_note(interface_note, log)
+        lint_result = rtl.lint(code, top, timeout_s=min(remaining, 300))
+        trace.write(
+            round=rnd, candidate_id=candidate.id,
+            code_hash=candidate.code_hash, **lint_result.trace_dict(),
+        )
+        if lint_result.status in ("failed", "timeout"):
+            last_log = _with_note(interface_note, lint_result.summary)
             continue
-        if rc < 0:
+        if lint_result.status == "unavailable":
             # No toolchain. We cannot verify further, so do not burn rounds
             # pretending we can.
             trace.write(tool="agent", event="stop", round=rnd,
                         reason="no verification available")
-            return code
+            return candidate
 
         remaining = DEADLINE_S - (time.time() - started) - RESERVE_S
         if remaining <= 0:
             break
 
-        rc, log = rtl.synth(code, top, timeout_s=remaining)
-        trace.write(tool="synth", round=rnd, rc=rc, excerpt=log[:2000])
-        if rc == 0:
-            trace.write(tool="agent", event="accept", round=rnd)
-            return code
-        if rc < 0:
-            return code
+        synth_result = rtl.synth(code, top, timeout_s=remaining)
+        trace.write(
+            round=rnd, candidate_id=candidate.id,
+            code_hash=candidate.code_hash, **synth_result.trace_dict(),
+        )
+        if synth_result.status == "ok":
+            artifacts.select(candidate, reason="synth_passed")
+            trace.write(
+                tool="candidate", event="select", candidate_id=candidate.id,
+                code_hash=candidate.code_hash, reason="synth_passed",
+            )
+            trace.write(
+                tool="agent", event="accept", round=rnd,
+                candidate_id=candidate.id,
+            )
+            return candidate
+        if synth_result.status == "unavailable":
+            return candidate
 
-        last_log = _with_note(interface_note, log)
+        last_log = _with_note(interface_note, synth_result.summary)
 
     return best
 
@@ -224,10 +274,13 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     os.makedirs(args.output, exist_ok=True)
-    sol_path = os.path.join(args.output, "solution.v")
+    artifacts = ArtifactStore(
+        args.output,
+        save_candidates=os.environ.get("AGENT_SAVE_CANDIDATES") == "1",
+    )
     trace = Trace(os.path.join(args.output, "trace.jsonl"))
 
-    code = ""
+    best: Candidate | None = None
     try:
         prompt, interface = read_task(args.input)
         llm = LLM()
@@ -235,14 +288,19 @@ def main(argv: list[str] | None = None) -> int:
                     llm=llm.describe(), deadline_s=DEADLINE_S)
 
         top = args.top or infer_top(interface, prompt)
-        code = solve_agent(llm, trace, prompt, interface, top)
+        best = solve_agent(llm, trace, artifacts, prompt, interface, top)
     except Exception as exc:  # noqa: BLE001 -- never fail loudly, see run.sh
         trace.write(tool="agent", event="error", excerpt=f"{type(exc).__name__}: {exc}"[:500])
         print(f"agent: {type(exc).__name__}: {exc}", file=sys.stderr)
     finally:
-        with open(sol_path, "w", encoding="utf-8") as fh:
-            fh.write(code or "")
-        trace.write(tool="agent", event="done", bytes=len(code or ""))
+        selected = artifacts.selected or best
+        trace.write(
+            tool="agent",
+            event="done",
+            candidate_id=selected.id if selected else None,
+            code_hash=selected.code_hash if selected else None,
+            bytes=len(selected.code.encode("utf-8")) if selected else 0,
+        )
         trace.close()
 
     return 0
