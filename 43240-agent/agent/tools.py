@@ -37,6 +37,12 @@ import textwrap
 import time
 from typing import Literal, Sequence
 
+from .interface import (
+    check_interface_result,
+    parse_module_interface,
+    parse_prompt_interface,
+)
+
 PART = os.environ.get("RTL_PART", "xczu3eg-sbva484-1-e")
 TOOL_SUMMARY_LIMIT = 2000
 ToolStatus = Literal["ok", "failed", "timeout", "unavailable"]
@@ -197,108 +203,29 @@ class RtlToolchain:
 
 # ------------------------------------------------------- interface checking
 
-_MODULE_RE = re.compile(
-    r"module\s+(\w+)\s*(?:#\s*\([^)]*\)\s*)?\((.*?)\)\s*;", re.DOTALL
-)
-_PROMPT_PORT_RE = re.compile(
-    r"^\s*-\s*(input|output|inout)\s+([A-Za-z_]\w*)\s*,?"
-    r"\s*(?:\(\s*(\d+)\s*(?:bits?|位)\s*\))?\s*$",
-    re.MULTILINE,
-)
-
 def ports_from_prompt(prompt: str) -> tuple[str | None, list[tuple[str, int, str]]]:
-    """Restore the module name and simple port table from a task prompt."""
-    text = prompt or ""
+    """Compatibility wrapper used by the mock model client."""
+    spec = parse_prompt_interface(prompt)
     ports = [
-        (direction, int(width) if width else 1, name)
-        for direction, name, width in _PROMPT_PORT_RE.findall(text)
+        (port.direction, port.width or 1, port.name) for port in spec.ports
     ]
-    if not ports:
-        return None, []
-    match = re.search(r"module\s+named\s+(\w+)", text)
-    return (match.group(1) if match else "TopModule"), ports
+    return spec.module_name, ports
 
 
 def check_interface(source: str, interface: str,
                     prompt: str = "") -> tuple[int, str]:
-    """Compare a generated module header with the declared interface."""
-    want_name, want_ports = _ports(interface)
-    advisory = False
-    if want_name is None:
-        want_name, want_ports = ports_from_prompt(prompt)
-        advisory = want_name is not None
-    got_name, got_ports = _ports(source)
-
-    if want_name is None:
-        return 0, "接口既不在 interface 里，也没能从题面解析出端口表，本次跳过检查"
-    if got_name is None:
-        return 1, "no module declaration found in the generated code"
-
-    problems = []
-    if got_name != want_name:
-        problems.append(f"module name is '{got_name}', must be '{want_name}'")
-
-    want_map = {name: (direction, width) for direction, width, name in want_ports}
-    got_map = {name: (direction, width) for direction, width, name in got_ports}
-    for name in want_map:
-        if name not in got_map:
-            problems.append(f"missing port '{name}'")
-    for name in got_map:
-        if name not in want_map:
-            problems.append(f"extra port '{name}' not in the declared interface")
-    for name in want_map.keys() & got_map.keys():
-        want_direction, want_width = want_map[name]
-        got_direction, got_width = got_map[name]
-        if want_direction != got_direction:
-            problems.append(
-                f"port '{name}' is {got_direction}, must be {want_direction}"
-            )
-        if want_width != got_width:
-            problems.append(
-                f"port '{name}' is {got_width} bits, must be {want_width}"
-            )
-
-    if not problems:
-        return 0, (
-            "interface matches the declaration" if not advisory
-            else "interface matches the port list read from the prompt"
-        )
-    if advisory:
-        return 0, (
-            "⚠ 与题面端口清单不符（题面为散文，仅供参考，未拦截）: "
-            + "; ".join(problems)
-        )
-    return 1, "interface mismatch: " + "; ".join(problems)
+    """Compatibility wrapper returning the previous ``(rc, summary)`` shape."""
+    result = check_interface_result(source, interface, prompt)
+    return result.rc, result.summary
 
 
 def _ports(text: str) -> tuple[str | None, list[tuple[str, int, str]]]:
-    stripped = re.sub(r"//[^\n]*", "", text)
-    stripped = re.sub(r"/\*.*?\*/", "", stripped, flags=re.DOTALL)
-    match = _MODULE_RE.search(stripped)
-    if not match:
-        return None, []
-
-    ports: list[tuple[str, int, str]] = []
-    direction = None
-    for declaration in match.group(2).split(","):
-        declaration = declaration.strip()
-        if not declaration:
-            continue
-        found_direction = re.match(r"\b(input|output|inout)\b", declaration)
-        if found_direction:
-            direction = found_direction.group(1)
-        if direction is None:
-            continue
-        found_range = re.search(
-            r"\[\s*(\d+)\s*:\s*(\d+)\s*\]", declaration
-        )
-        width = (
-            abs(int(found_range.group(1)) - int(found_range.group(2))) + 1
-            if found_range else 1
-        )
-        name = re.sub(r"\[[^\]]*\]", " ", declaration).split()[-1]
-        ports.append((direction, width, name))
-    return match.group(1), ports
+    """Legacy tuple view for older internal callers."""
+    spec = parse_module_interface(text)
+    ports = [
+        (port.direction, port.width or 1, port.name) for port in spec.ports
+    ]
+    return spec.module_name, ports
 
 
 # --------------------------------------------------------------------- utils

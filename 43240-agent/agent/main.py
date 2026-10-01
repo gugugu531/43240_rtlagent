@@ -32,11 +32,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 import time
 
 from .extraction import extract_code
+from .interface import parse_expected_interface
 from .llm import LLM, LLMError
 from .skills import load_skills, select
 from .tools import RtlToolchain, check_interface
@@ -234,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
         trace.write(tool="agent", event="start", mode="agent",
                     llm=llm.describe(), deadline_s=DEADLINE_S)
 
-        top = args.top or infer_top(interface)
+        top = args.top or infer_top(interface, prompt)
         code = solve_agent(llm, trace, prompt, interface, top)
     except Exception as exc:  # noqa: BLE001 -- never fail loudly, see run.sh
         trace.write(tool="agent", event="error", excerpt=f"{type(exc).__name__}: {exc}"[:500])
@@ -248,10 +248,10 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def infer_top(interface: str) -> str:
-    """Best-effort top module name from the declared interface."""
-    m = re.search(r"\bmodule\s+(\w+)", interface or "")
-    return m.group(1) if m else "TopModule"
+def infer_top(interface: str, prompt: str = "") -> str:
+    """Use the same structured interface source as the deterministic check."""
+    spec = parse_expected_interface(interface, prompt)
+    return spec.module_name or "TopModule"
 
 
 if __name__ == "__main__":
