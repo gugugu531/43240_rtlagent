@@ -12,15 +12,28 @@
 # broken" must stay distinguishable at the protocol level, so a failed run still
 # produces an empty solution.v and exits 0.
 
+set -eo pipefail
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IN="${1:?usage: run.sh <input_dir> <output_dir>}"
 OUT="${2:?usage: run.sh <input_dir> <output_dir>}"
 
+# The script changes to its own directory before importing agent. Preserve the
+# caller's meaning for relative task/output paths before doing that.
+case "$IN" in
+    /*) ;;
+    *) IN="$PWD/$IN" ;;
+esac
+case "$OUT" in
+    /*) ;;
+    *) OUT="$PWD/$OUT" ;;
+esac
+
 mkdir -p "$OUT"
 
 cd "$HERE"
-python3 -m agent.main --input "$IN" --output "$OUT"
-rc=$?
+rc=0
+python3 -m agent.main --input "$IN" --output "$OUT" || rc=$?
 
 # Safety net: the harness expects these two files to exist no matter what.
 [ -f "$OUT/solution.v" ] || : > "$OUT/solution.v"
