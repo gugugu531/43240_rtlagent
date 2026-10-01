@@ -19,21 +19,75 @@ link" middle ground the way there is in C++. A deterministic textual check
 against the declared interface costs nothing and removes the entire failure
 class -- which is also a demonstration that a skill need not involve a model.
 
-If Vivado is not installed, lint() and synth() degrade to rc=-1 with a clear
-reason and the agent falls back to fewer rounds. check_interface() still works.
-They never pretend to have checked something they did not.
+If Vivado is not installed, lint() and synth() return status=unavailable with a
+clear reason and the agent falls back to fewer rounds. check_interface() still
+works. They never pretend to have checked something they did not.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import os
 import re
+import signal
 import shutil
 import subprocess
 import tempfile
 import textwrap
+import time
+from typing import Literal, Sequence
 
 PART = os.environ.get("RTL_PART", "xczu3eg-sbva484-1-e")
+TOOL_SUMMARY_LIMIT = 2000
+ToolStatus = Literal["ok", "failed", "timeout", "unavailable"]
+
+
+@dataclass(frozen=True)
+class ToolResult:
+    """Standard result of one logical RTL tool step.
+
+    ``command`` is nested because lint consists of xvlog followed by xelab.
+    Full logs stay out of this object and trace; in debug mode the path points
+    to a file in the retained work directory.
+    """
+
+    tool: str
+    command: tuple[tuple[str, ...], ...]
+    rc: int
+    status: ToolStatus
+    elapsed_s: float
+    summary: str
+    full_log_path: str | None = None
+    work_dir: str | None = None
+
+    def __iter__(self):
+        """Keep the previous ``rc, summary = result`` call shape working."""
+        yield self.rc
+        yield self.summary
+
+    def trace_dict(self) -> dict[str, object]:
+        fields: dict[str, object] = {
+            "tool": self.tool,
+            "command": [list(command) for command in self.command],
+            "rc": self.rc,
+            "status": self.status,
+            "elapsed_s": round(self.elapsed_s, 3),
+            "excerpt": self.summary[:TOOL_SUMMARY_LIMIT],
+        }
+        if self.full_log_path is not None:
+            fields["full_log_path"] = self.full_log_path
+        if self.work_dir is not None:
+            fields["work_dir"] = self.work_dir
+        return fields
+
+
+@dataclass(frozen=True)
+class _CommandOutcome:
+    command: tuple[str, ...]
+    rc: int
+    status: ToolStatus
+    elapsed_s: float
+    output: str
 
 
 class RtlToolchain:
@@ -54,43 +108,64 @@ class RtlToolchain:
 
     # ------------------------------------------------------------------ lint
 
-    def lint(self, source: str, top: str, timeout_s: float = 300.0) -> tuple[int, str]:
+    def lint(self, source: str, top: str,
+             timeout_s: float = 300.0) -> ToolResult:
         """Analyze and elaborate the DUT on its own.
 
-        rc =  0  the module analyzes and elaborates
-        rc =  1  the tools ran and rejected it
-        rc = -1  the tools could not be run
+        The timeout covers the whole logical lint step. Work package B will
+        supply it from one shared deadline without changing this interface.
         """
         if not self.available:
-            return -1, f"vivado unavailable: {self.reason}"
+            return _unavailable("lint", f"vivado unavailable: {self.reason}")
+        invalid = _validate_top(top, "lint")
+        if invalid is not None:
+            return invalid
 
-        work = tempfile.mkdtemp(prefix="agent_lint_", dir=_scratch_dir())
+        try:
+            work = _make_work_dir("agent_lint_")
+        except OSError as exc:
+            return _unavailable("lint", f"could not create work directory: {exc}")
+        keep_work = os.environ.get("AGENT_KEEP_WORK") == "1"
         try:
             src = os.path.join(work, "solution.sv")
-            with open(src, "w") as fh:
+            with open(src, "w", encoding="utf-8") as fh:
                 fh.write(source)
 
-            rc, out = _run([self.xvlog or "xvlog", "--sv", "solution.sv"], work, timeout_s)
-            if rc != 0:
-                return 1, summarize_log(out)
-
-            rc, out2 = _run([self.xelab or "xelab", top, "-s", "dutsim"], work, timeout_s)
-            return (0 if rc == 0 else 1), summarize_log(out + "\n" + out2)
+            commands = [
+                [self.xvlog or "xvlog", "--sv", "solution.sv"],
+                [self.xelab or "xelab", top, "-s", "dutsim"],
+            ]
+            started = time.monotonic()
+            outcomes = [_run_command(commands[0], work, timeout_s)]
+            if outcomes[0].status == "ok":
+                remaining = max(0.0, timeout_s - (time.monotonic() - started))
+                outcomes.append(_run_command(commands[1], work, remaining))
+            return _build_result("lint", outcomes, work, keep_work)
+        except OSError as exc:
+            return _unavailable("lint", f"could not prepare lint input: {exc}")
         finally:
-            if os.environ.get("AGENT_KEEP_WORK") != "1":
+            if not keep_work:
                 shutil.rmtree(work, ignore_errors=True)
 
     # ----------------------------------------------------------------- synth
 
-    def synth(self, source: str, top: str, timeout_s: float = 900.0) -> tuple[int, str]:
+    def synth(self, source: str, top: str,
+              timeout_s: float = 900.0) -> ToolResult:
         if not self.available:
-            return -1, f"vivado unavailable: {self.reason}"
+            return _unavailable("synth", f"vivado unavailable: {self.reason}")
+        invalid = _validate_top(top, "synth")
+        if invalid is not None:
+            return invalid
 
-        work = tempfile.mkdtemp(prefix="agent_synth_", dir=_scratch_dir())
         try:
-            with open(os.path.join(work, "solution.sv"), "w") as fh:
+            work = _make_work_dir("agent_synth_")
+        except OSError as exc:
+            return _unavailable("synth", f"could not create work directory: {exc}")
+        keep_work = os.environ.get("AGENT_KEEP_WORK") == "1"
+        try:
+            with open(os.path.join(work, "solution.sv"), "w", encoding="utf-8") as fh:
                 fh.write(source)
-            with open(os.path.join(work, "synth.tcl"), "w") as fh:
+            with open(os.path.join(work, "synth.tcl"), "w", encoding="utf-8") as fh:
                 fh.write(
                     textwrap.dedent(
                         f"""\
@@ -99,80 +174,55 @@ class RtlToolchain:
                         """
                     )
                 )
-            rc, out = _run(
+            outcome = _run_command(
                 [self.vivado or "vivado", "-mode", "batch", "-source", "synth.tcl",
                  "-nojournal", "-log", "synth.log"],
                 work, timeout_s,
             )
-            ok = rc == 0 and "Synthesis finished" in out
-            return (0 if ok else 1), summarize_log(out)
+            if outcome.status == "ok" and "Synthesis finished" not in outcome.output:
+                outcome = _CommandOutcome(
+                    command=outcome.command,
+                    rc=1,
+                    status="failed",
+                    elapsed_s=outcome.elapsed_s,
+                    output=outcome.output + "\n[agent] synthesis success marker missing",
+                )
+            return _build_result("synth", [outcome], work, keep_work)
+        except OSError as exc:
+            return _unavailable("synth", f"could not prepare synthesis input: {exc}")
         finally:
-            if os.environ.get("AGENT_KEEP_WORK") != "1":
+            if not keep_work:
                 shutil.rmtree(work, ignore_errors=True)
 
 
 # ------------------------------------------------------- interface checking
 
-_MODULE_RE = re.compile(r"module\s+(\w+)\s*(?:#\s*\([^)]*\)\s*)?\((.*?)\)\s*;", re.DOTALL)
-
-
-# 题面里的端口清单。VerilogEval 的 spec-to-rtl 题面长这样：
-#
-#     I would like you to implement a module named TopModule with the following
-#     interface. All input and output ports are one bit unless otherwise specified.
-#
-#      - input  clk
-#      - input  d   (8 bits)
-#      - output q   (8 bits)
-#
-# 实测 152 道题里 149 道是这个格式（位宽可缺省、括号内可有多余空格、端口名后
-# 可带逗号），其余 3 道直接在题面里贴完整的 module 声明，由 _ports() 兜住。
-# 位宽单位兼容中英文：评测题集（VerilogEval）是英文的 `(8 bits)`，本仓库的示例题
-# 是中文的 `(8 位)`。只认一种的话，带位宽的端口会被整行丢掉 —— 不是报错，是静默
-# 少几个端口，比不解析更糟。
+_MODULE_RE = re.compile(
+    r"module\s+(\w+)\s*(?:#\s*\([^)]*\)\s*)?\((.*?)\)\s*;", re.DOTALL
+)
 _PROMPT_PORT_RE = re.compile(
     r"^\s*-\s*(input|output|inout)\s+([A-Za-z_]\w*)\s*,?"
     r"\s*(?:\(\s*(\d+)\s*(?:bits?|位)\s*\))?\s*$",
-    re.MULTILINE)
-
+    re.MULTILINE,
+)
 
 def ports_from_prompt(prompt: str) -> tuple[str | None, list[tuple[str, int, str]]]:
-    """从题面还原模块名与端口表。
-
-    **评测题集的 `interface` 是空串** —— 接口信息写在题面里，不另出一份
-    （见 docs/API_CONTRACT.md）。不从题面取的话，check_interface 在评测当天会
-    静默失效：输入为空、检查照常返回「通过」，而 trace 里看不出区别。
-    而接口写错在本 track 判 L0，是全表最重的惩罚，这个检查恰恰最不该失效。
-    """
+    """Restore the module name and simple port table from a task prompt."""
     text = prompt or ""
-    ports = [(d, int(w) if w else 1, n)
-             for d, n, w in _PROMPT_PORT_RE.findall(text)]
+    ports = [
+        (direction, int(width) if width else 1, name)
+        for direction, name, width in _PROMPT_PORT_RE.findall(text)
+    ]
     if not ports:
-        # 注意这里**不能**回退到解析题面里的 module 声明。bugs_* 那一类题面贴的
-        # 正是「有 bug 的模块」，其端口本身就是要改的东西（实测 Prob062_bugs_mux2
-        # 的题面把 8 位的 out 写成 1 位，找出它正是题目要求）。把它当规格会让
-        # 智能体把 bug 改回去。解析不出就如实返回空。
         return None, []
-    m = re.search(r"module\s+named\s+(\w+)", text)
-    return (m.group(1) if m else "TopModule"), ports
+    match = re.search(r"module\s+named\s+(\w+)", text)
+    return (match.group(1) if match else "TopModule"), ports
 
 
 def check_interface(source: str, interface: str,
                     prompt: str = "") -> tuple[int, str]:
-    """Compare the generated module header against the declared one.
-
-    Deterministic, no tools, no model. Returns (0, "ok") or (1, <diagnosis>).
-
-    `interface` 为空时从 `prompt` 取端口表 —— 评测题集就是这种情况。
-
-    Compares the module name and the ordered list of (direction, width, name).
-    Whitespace, comments, and `wire`/`reg`/`logic` keywords are ignored -- those
-    do not affect elaboration. Everything that does affect it is compared.
-    """
+    """Compare a generated module header with the declared interface."""
     want_name, want_ports = _ports(interface)
-    # interface 是权威来源，不符即判失败；题面是散文，推出来的只作提示。
-    # 依据：Prob031_dff 的题面把输出 q 误写成 `- input q`，而模型三次都正确
-    # 忽略了它并判到 L3 —— 拿题面硬比对会把这种正确答案改坏。
     advisory = False
     if want_name is None:
         want_name, want_ports = ports_from_prompt(prompt)
@@ -188,9 +238,8 @@ def check_interface(source: str, interface: str,
     if got_name != want_name:
         problems.append(f"module name is '{got_name}', must be '{want_name}'")
 
-    want_map = {n: (d, w) for d, w, n in want_ports}
-    got_map = {n: (d, w) for d, w, n in got_ports}
-
+    want_map = {name: (direction, width) for direction, width, name in want_ports}
+    got_map = {name: (direction, width) for direction, width, name in got_ports}
     for name in want_map:
         if name not in got_map:
             problems.append(f"missing port '{name}'")
@@ -198,65 +247,221 @@ def check_interface(source: str, interface: str,
         if name not in want_map:
             problems.append(f"extra port '{name}' not in the declared interface")
     for name in want_map.keys() & got_map.keys():
-        wd, ww = want_map[name]
-        gd, gw = got_map[name]
-        if wd != gd:
-            problems.append(f"port '{name}' is {gd}, must be {wd}")
-        if ww != gw:
-            problems.append(f"port '{name}' is {gw} bits, must be {ww}")
+        want_direction, want_width = want_map[name]
+        got_direction, got_width = got_map[name]
+        if want_direction != got_direction:
+            problems.append(
+                f"port '{name}' is {got_direction}, must be {want_direction}"
+            )
+        if want_width != got_width:
+            problems.append(
+                f"port '{name}' is {got_width} bits, must be {want_width}"
+            )
 
     if not problems:
-        return 0, ("interface matches the declaration" if not advisory
-                   else "interface matches the port list read from the prompt")
+        return 0, (
+            "interface matches the declaration" if not advisory
+            else "interface matches the port list read from the prompt"
+        )
     if advisory:
-        # 题面推出来的规格只作提示：rc=0 让流程继续，但把差异写进 trace，
-        # 由调用方决定要不要喂给下一轮。硬判会把 Prob031_dff 那种
-        # 「题面写错、模型写对」的正确答案改坏。
-        return 0, ("⚠ 与题面端口清单不符（题面为散文，仅供参考，未拦截）: "
-                   + "; ".join(problems))
+        return 0, (
+            "⚠ 与题面端口清单不符（题面为散文，仅供参考，未拦截）: "
+            + "; ".join(problems)
+        )
     return 1, "interface mismatch: " + "; ".join(problems)
 
 
 def _ports(text: str) -> tuple[str | None, list[tuple[str, int, str]]]:
     stripped = re.sub(r"//[^\n]*", "", text)
     stripped = re.sub(r"/\*.*?\*/", "", stripped, flags=re.DOTALL)
-    m = _MODULE_RE.search(stripped)
-    if not m:
+    match = _MODULE_RE.search(stripped)
+    if not match:
         return None, []
 
     ports: list[tuple[str, int, str]] = []
     direction = None
-    for decl in m.group(2).split(","):
-        decl = decl.strip()
-        if not decl:
+    for declaration in match.group(2).split(","):
+        declaration = declaration.strip()
+        if not declaration:
             continue
-        d = re.match(r"\b(input|output|inout)\b", decl)
-        if d:
-            direction = d.group(1)
+        found_direction = re.match(r"\b(input|output|inout)\b", declaration)
+        if found_direction:
+            direction = found_direction.group(1)
         if direction is None:
-            continue          # ANSI list with a leading type-only entry
-        rng = re.search(r"\[\s*(\d+)\s*:\s*(\d+)\s*\]", decl)
-        width = abs(int(rng.group(1)) - int(rng.group(2))) + 1 if rng else 1
-        name = re.sub(r"\[[^\]]*\]", " ", decl).split()[-1]
+            continue
+        found_range = re.search(
+            r"\[\s*(\d+)\s*:\s*(\d+)\s*\]", declaration
+        )
+        width = (
+            abs(int(found_range.group(1)) - int(found_range.group(2))) + 1
+            if found_range else 1
+        )
+        name = re.sub(r"\[[^\]]*\]", " ", declaration).split()[-1]
         ports.append((direction, width, name))
-    return m.group(1), ports
+    return match.group(1), ports
 
 
 # --------------------------------------------------------------------- utils
 
 
-def _run(cmd: list[str], cwd: str, timeout_s: float) -> tuple[int, str]:
+def run_command(tool: str, cmd: Sequence[str], cwd: str,
+                timeout_s: float, full_log_path: str | None = None,
+                terminate_grace_s: float = 1.0) -> ToolResult:
+    """Run one command in its own process group and return a public result."""
+    outcome = _run_command(cmd, cwd, timeout_s, terminate_grace_s)
+    if full_log_path is not None:
+        try:
+            _write_full_log(full_log_path, [outcome])
+        except OSError:
+            full_log_path = None
+    return ToolResult(
+        tool=tool,
+        command=(outcome.command,),
+        rc=outcome.rc,
+        status=outcome.status,
+        elapsed_s=outcome.elapsed_s,
+        summary=summarize_log(outcome.output),
+        full_log_path=full_log_path,
+        work_dir=cwd if full_log_path is not None else None,
+    )
+
+
+def _run_command(cmd: Sequence[str], cwd: str, timeout_s: float,
+                 terminate_grace_s: float = 1.0) -> _CommandOutcome:
+    command = tuple(str(part) for part in cmd)
+    started = time.monotonic()
+    if not command:
+        return _CommandOutcome(command, -1, "unavailable", 0.0,
+                               "[agent] empty command")
+    if timeout_s <= 0:
+        return _CommandOutcome(
+            command, 124, "timeout", 0.0,
+            f"[agent] {command[0]} has no time remaining",
+        )
+
     try:
-        proc = subprocess.run(
-            cmd, cwd=cwd, timeout=timeout_s,
+        proc = subprocess.Popen(
+            command, cwd=cwd, start_new_session=True,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
             errors="replace",
         )
-        return proc.returncode, proc.stdout
-    except subprocess.TimeoutExpired:
-        return 124, f"[agent] {cmd[0]} timed out after {timeout_s:.0f}s"
     except OSError as exc:
-        return -1, f"[agent] could not launch {cmd[0]}: {exc}"
+        return _CommandOutcome(
+            command, -1, "unavailable", time.monotonic() - started,
+            f"[agent] could not launch {command[0]}: {exc}",
+        )
+
+    try:
+        output, _ = proc.communicate(timeout=timeout_s)
+        status: ToolStatus = "ok" if proc.returncode == 0 else "failed"
+        return _CommandOutcome(
+            command, proc.returncode, status,
+            time.monotonic() - started, output or "",
+        )
+    except subprocess.TimeoutExpired as exc:
+        partial = _timeout_output(exc)
+        _terminate_process_group(proc, terminate_grace_s)
+        tail, _ = proc.communicate()
+        output = partial
+        if tail and tail not in output:
+            output += tail
+        output += f"\n[agent] {command[0]} timed out after {timeout_s:.3f}s"
+        return _CommandOutcome(
+            command, 124, "timeout", time.monotonic() - started, output,
+        )
+
+
+def _terminate_process_group(proc: subprocess.Popen[str], grace_s: float) -> None:
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    deadline = time.monotonic() + max(0.0, grace_s)
+    while time.monotonic() < deadline:
+        if not _process_group_exists(proc.pid):
+            break
+        time.sleep(min(0.02, max(0.0, deadline - time.monotonic())))
+    try:
+        if _process_group_exists(proc.pid):
+            os.killpg(proc.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    proc.wait()
+
+
+def _process_group_exists(pgid: int) -> bool:
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def _timeout_output(exc: subprocess.TimeoutExpired) -> str:
+    output = exc.output or ""
+    if isinstance(output, bytes):
+        return output.decode(errors="replace")
+    return output
+
+
+def _build_result(tool: str, outcomes: Sequence[_CommandOutcome],
+                  work: str, keep_work: bool) -> ToolResult:
+    commands = tuple(outcome.command for outcome in outcomes)
+    final = outcomes[-1]
+    full_output = "\n".join(outcome.output for outcome in outcomes)
+    full_log_path = os.path.join(work, f"{tool}.full.log") if keep_work else None
+    if full_log_path is not None:
+        try:
+            _write_full_log(full_log_path, outcomes)
+        except OSError:
+            full_log_path = None
+    return ToolResult(
+        tool=tool,
+        command=commands,
+        rc=final.rc,
+        status=final.status,
+        elapsed_s=sum(outcome.elapsed_s for outcome in outcomes),
+        summary=summarize_log(full_output),
+        full_log_path=full_log_path,
+        work_dir=work if keep_work else None,
+    )
+
+
+def _write_full_log(path: str, outcomes: Sequence[_CommandOutcome]) -> None:
+    with open(path, "w", encoding="utf-8") as fh:
+        for index, outcome in enumerate(outcomes):
+            if index:
+                fh.write("\n")
+            fh.write("$ " + " ".join(outcome.command) + "\n")
+            fh.write(outcome.output)
+            if outcome.output and not outcome.output.endswith("\n"):
+                fh.write("\n")
+
+
+def _unavailable(tool: str, reason: str) -> ToolResult:
+    return ToolResult(tool, (), -1, "unavailable", 0.0, reason)
+
+
+_VERILOG_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
+
+
+def _validate_top(top: str, tool: str) -> ToolResult | None:
+    if _VERILOG_IDENTIFIER_RE.fullmatch(top):
+        return None
+    return ToolResult(
+        tool=tool,
+        command=(),
+        rc=2,
+        status="failed",
+        elapsed_s=0.0,
+        summary=f"invalid top module name: {top!r}",
+    )
+
+
+def _make_work_dir(prefix: str) -> str:
+    scratch = _scratch_dir()
+    os.makedirs(scratch, exist_ok=True)
+    return tempfile.mkdtemp(prefix=prefix, dir=scratch)
 
 
 def _scratch_dir() -> str:
