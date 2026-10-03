@@ -30,7 +30,6 @@ What is worth improving, roughly in order of payoff:
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 import time
@@ -42,6 +41,7 @@ from .interface import check_interface_result, parse_expected_interface
 from .llm import LLM, LLMError
 from .skills import load_skills, select
 from .tools import RtlToolchain
+from .trace import Trace, git_metadata, runtime_metadata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -52,28 +52,6 @@ MAX_ROUNDS = int(os.environ.get("AGENT_MAX_ROUNDS", "3"))
 DEADLINE_S = float(os.environ.get("AGENT_DEADLINE_S", "360"))
 # 为写出结果预留的余量。
 RESERVE_S = float(os.environ.get("AGENT_RESERVE_S", "20"))
-
-
-class Trace:
-    """Append-only record of every model and tool call.
-
-    评分所需，非可选项。
-    """
-
-    def __init__(self, path: str):
-        self.path = path
-        self._fh = open(path, "w", encoding="utf-8")
-
-    def write(self, **fields) -> None:
-        fields.setdefault("ts", round(time.time(), 3))
-        self._fh.write(json.dumps(fields, ensure_ascii=False) + "\n")
-        self._fh.flush()
-
-    def close(self) -> None:
-        try:
-            self._fh.close()
-        except OSError:
-            pass
 
 
 def read_prompt_file(name: str) -> str:
@@ -283,11 +261,31 @@ def main(argv: list[str] | None = None) -> int:
     best: Candidate | None = None
     try:
         prompt, interface = read_task(args.input)
+        top = args.top or infer_top(interface, prompt)
+        save_candidates = os.environ.get("AGENT_SAVE_CANDIDATES") == "1"
+        trace.write(
+            tool="run",
+            event="metadata",
+            mode="agent",
+            task_id=os.path.basename(os.path.normpath(args.input)),
+            config=runtime_metadata(
+                max_rounds=MAX_ROUNDS,
+                deadline_s=DEADLINE_S,
+                reserve_s=RESERVE_S,
+                resolved_top=top,
+                save_candidates=save_candidates,
+                keep_work=os.environ.get("AGENT_KEEP_WORK") == "1",
+                agent_tmp=(os.environ.get("AGENT_TMP")
+                           or os.environ.get("EDA_TMP")
+                           or os.environ.get("TRACK_TMP")
+                           or "/tmp"),
+            ),
+            git=git_metadata(ROOT),
+        )
         llm = LLM()
         trace.write(tool="agent", event="start", mode="agent",
                     llm=llm.describe(), deadline_s=DEADLINE_S)
 
-        top = args.top or infer_top(interface, prompt)
         best = solve_agent(llm, trace, artifacts, prompt, interface, top)
     except Exception as exc:  # noqa: BLE001 -- never fail loudly, see run.sh
         trace.write(tool="agent", event="error", excerpt=f"{type(exc).__name__}: {exc}"[:500])
