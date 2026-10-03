@@ -98,9 +98,14 @@ def read_trace(path: str) -> list[dict]:
 
 def trace_stats(events: list[dict]) -> dict:
     llm = [e for e in events if e.get("tool") == "llm"]
+    metadata = next(
+        (e for e in events
+         if e.get("tool") == "run" and e.get("event") == "metadata"),
+        {},
+    )
     tools = Counter(e.get("tool") for e in events
                     if e.get("tool") not in ("llm", "agent", "baseline_meta",
-                                             "env", "skills", "budget", None))
+                                             "run", "env", "skills", "budget", None))
     finishes = [e.get("finish") for e in llm if e.get("finish")]
     return {
         "llm_calls": len(llm),
@@ -116,6 +121,9 @@ def trace_stats(events: list[dict]) -> dict:
                            for e in events),
         "deadline_stop": any(e.get("tool") == "budget" and e.get("event") == "stop"
                              for e in events),
+        "trace_schema_version": metadata.get("schema_version"),
+        "trace_run_id": metadata.get("run_id"),
+        "trace_git_commit": (metadata.get("git") or {}).get("commit"),
     }
 
 
@@ -338,7 +346,7 @@ def write_csv(rows: list[dict], path: str) -> None:
     cols = ["mode", "task_id", "sample", "category", "level", "coefficient", "reason",
             "mismatches", "sim_samples", "solve_s", "judge_s", "llm_calls", "llm_errors",
             "tokens_in", "tokens_out", "llm_s", "truncated", "rounds", "solution_bytes",
-            "error_ids"]
+            "trace_schema_version", "trace_run_id", "trace_git_commit", "error_ids"]
     with open(path, "w", encoding="utf-8", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=cols, extrasaction="ignore")
         w.writeheader()

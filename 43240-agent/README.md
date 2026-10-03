@@ -5,8 +5,8 @@
 最后输出 `solution.v`。
 
 > **当前状态：** 智能体仍沿用主办方示例方案的三轮生成主流程，但已经拆出模型客户端、
-> 代码提取、接口解析、候选数据、产物保存和工具运行模块，并为模型异常、路径契约、
-> 候选落盘及子进程清理增加了测试。
+> 代码提取、接口解析、候选数据、产物保存、工具运行和 trace 模块，并为模型异常、路径契约、
+> 候选落盘、子进程清理及秘密过滤增加了测试。
 > 模型和推理后端尚未最终确定，候选模型的 baseline 实测见
 > `dev/notes/2026-09-24-baseline-sweep.md`。本文描述的是现有代码的实际行为；改进计划见
 > 「已知局限」。
@@ -26,6 +26,7 @@
 | `agent/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
 | `agent/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
 | `agent/tools.py` | 接口检查，以及带进程组清理和结构化结果的 lint、综合工具 |
+| `agent/trace.py` | 写入带版本的 trace，记录公开运行配置并统一隐藏秘密 |
 | `agent/skills.py` | 加载技能包，按工具报错挑选相关技能 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
 | `skill/` | 技能包，每条技能一个目录，格式见 `skill/README.md` |
@@ -150,10 +151,21 @@ prompt.txt ─► 读题 ─► 加载技能包、提示词
 
 ## 4. trace.jsonl 记录的内容
 
-每行一个 JSON 对象，都带有时间戳 `ts`。`tool` 字段表示记录类型：
+Agent trace 当前使用 schema version 1。每行一个 JSON 对象，并自动带有以下公共字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `schema_version` | trace 格式版本，当前为 `1` |
+| `run_id` | 本次 Agent 运行的标识，同一文件内保持一致 |
+| `seq` | 从 1 开始连续递增的事件编号 |
+| `ts` | 写入事件时的 Unix 时间戳 |
+| `tool` | 事件来源或类别 |
+
+各类事件自己的字段如下：
 
 | `tool` | 何时写入 | 主要字段 |
 | --- | --- | --- |
+| `run` | 第一条事件 | `event=metadata`、题目 ID、公开配置、模型请求配置、Git commit 与 dirty 状态 |
 | `agent` | 开始、结束、出错、综合通过、提前停止 | `event`（start / done / error / accept / stop）、模型配置 |
 | `env` | 开始时 | `vivado_available`：本机是否找到 Vivado |
 | `skills` | 加载时、每次注入时 | 加载了哪些技能；本轮注入了哪些 |
@@ -164,8 +176,13 @@ prompt.txt ─► 读题 ─► 加载技能包、提示词
 | `lint`、`synth` | 每次调用 Vivado 工具 | `round`、`candidate_id`、`code_hash`、`command`、`status`、`rc`、`elapsed_s`、`excerpt`；调试保留目录时还有完整日志和工作目录路径 |
 | `budget` | 时间不够而停止时 | `reason` |
 
-trace 同时用于三件事：工程质量评分、赛事方核对生成结果是否确实来自模型、团队自己的
-失败分析，所以是必需的。
+`agent/trace.py` 只记录白名单配置，不读取完整环境变量；API key、Cookie、Authorization、
+token 和其他已知秘密在写入前统一替换为 `[redacted]`。`dev/eval/analyze.py` 同时兼容没有
+版本字段的旧 trace 和 version 1，并且不会把 `run` 元数据误算成工具调用。完整格式和升级
+规则见 `dev/trace_schema.md`。
+
+trace 同时用于三件事：工程质量评分、赛事方核对生成结果是否确实来自模型、团队自己的失败
+分析，所以是必需的。主办方 baseline 文件保持不变，其 trace 继续按官方原格式输出。
 
 ---
 
@@ -206,6 +223,9 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 | `AGENT_TMP` | 依次取 `EDA_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
 | `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留每次 Vivado 调用的独立目录和完整日志，排查问题用 |
 | `AGENT_SAVE_CANDIDATES` | 未设置 | 设为 `1` 时保存每个候选及 `selection.json`，只用于开发分析 |
+| `AGENT_RUN_ID` | 自动生成 | 手工指定本次运行标识，只接受字母、数字、点、下划线和连字符 |
+| `AGENT_GIT_COMMIT` | 自动读取 | 镜像中没有 `.git` 时，由构建过程注入源码 commit |
+| `AGENT_GIT_DIRTY` | 未知 | 与 `AGENT_GIT_COMMIT` 一起注入源码是否含未提交修改 |
 | `RTL_PART` | `xczu3eg-sbva484-1-e` | 综合用的器件 |
 | `RTL_TOP` | `TopModule` | 顶层模块名；未设置时从 `interface.txt` 中推断，推断不出则用 `TopModule` |
 | `FPGACHINA_TOKEN` | 无 | 投题接口的令牌，`serve_api.py` 必须设置 |
@@ -251,5 +271,6 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 | 2026-09-30 | 增加候选与原子落盘 | 记录候选谱系和代码哈希，开发模式保存全部候选，异常时保留已有答案 |
 | 2026-09-30 | 加固 Vivado 工具运行 | 统一工具结果，超时清理整个进程组，分离日志摘要与调试完整日志 |
 | 2026-09-30 | 结构化代码和接口解析 | 报告截断与多草稿，解析 ANSI 和非 ANSI 端口，区分权威接口、题面提示和 bugfix 源码 |
+| 2026-10-03 | 固定 trace version 1 | 增加公共事件字段、公开配置与 Git 元数据，统一隐藏秘密并兼容旧分析数据 |
 
 可以用 `diff -r ../example . -x dev -x .dockerignore` 查看完整差异。
