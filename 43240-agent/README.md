@@ -8,7 +8,8 @@
 > 默认 Workflow 为 `single_generate`，采用近似 baseline 的单次生成策略，不加载技能或执行工具。
 > `repair_loop` 提供可选的多轮检查与修复，按证据选择答案、区分失败原因并限制重试。
 > 正式入口使用独立 Worker 和 Supervisor 管理时间、信号与工具进程，支持中断恢复。
-> 模型与推理服务仍未最终确定，真实模型测评和统一实验入口尚未完成。
+> 已提供 YAML 配置与统一实验入口，支持指定单题、重复采样、独立并发和可选判定指标。
+> 真实模型小规模验证已完成；模型与服务仍未最终确定，全量收益和历史重放尚未验证。
 > 设计与进展见 [框架文档](dev/docs/readme.md)。
 
 ---
@@ -19,7 +20,10 @@
 | --- | --- |
 | `run.sh` | 单题入口：从任意当前目录读取一道题，输出代码和工具调用记录 |
 | `run_baseline.sh`、`baseline.py` | 基线入口，赛事方提供，**不得修改** |
-| `agent/main.py` | 单题参数解析与已注册 Workflow 选择 |
+| `agent/main.py` | 单题参数解析、配置装配与已注册 Workflow 选择 |
+| `config/default.yaml` | 默认单题运行条件，组件参数由 Python Workflow 定义 |
+| `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
+| `dev/tools/run.py` | 开发侧统一任务选择、采样调度与可选指标入口 |
 | `agent/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
 | `agent/policies/` | 可替换的选择策略、失败策略和保守诊断分类 |
 | `agent/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
@@ -34,7 +38,7 @@
 | `agent/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
 | `agent/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
 | `agent/tools.py` | 接口检查，以及带进程组清理和结构化结果的 lint、综合工具 |
-| `agent/recording/` | 保存完整模型证据、关联提取结果、写入 trace 并统一脱敏 |
+| `agent/recording/` | 保存模型与动作证据、trace、脱敏及通用运行/模型统计 |
 | `agent/skills.py` | 加载技能包，按工具报错挑选相关技能 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
 | `skill/` | 技能包，每条技能一个目录，格式见 `skill/README.md` |
@@ -257,6 +261,24 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 
 ---
 
+## 配置与开发实验
+
+默认使用 `config/default.yaml`，可通过 `AGENT_CONFIG` 或 run.sh 的附加 `--config` 参数选择。
+配置只选择 Workflow、外部服务和运行条件；采样与组件策略保留在 Python。
+生效顺序为内置默认、YAML、支持的环境变量、CLI，输出 `config.json` 记录来源。
+
+```bash
+# 指定单题、重复采样，只收集模型和运行指标
+python3 dev/tools/run.py --config dev/configs/smoke.yaml --task ex03_lfsr8 --samples 3
+
+# 已连接真实模型服务后，同时运行 Agent 与原始 baseline 并进行官方判定
+python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
+```
+
+指标选项为 runtime、model、judge；未选 judge 不启动判定。参考答案与判定结果不进入 Agent。
+原始实验产物在 dev/runs/，新实验笔记集中放 dev/docs/experiments/。
+配置字段、公开接口、产物和边界见[配置与实验说明](dev/docs/design/configuration-and-experiments.md)。
+
 ## 6. 环境变量
 
 | 变量 | 默认值 | 说明 |
@@ -266,8 +288,10 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 | `LLM_API_KEY` | 空 | 本地推理服务可以随便填 |
 | `LLM_MODEL` | `mock-model` | 请求中使用的模型名 |
 | `LLM_TIMEOUT_S` | `180` | 单次模型调用超时（秒） |
+| `AGENT_CONFIG` | `config/default.yaml` | YAML 配置路径；相对路径按调用者当前目录解析 |
+| `VIVADO_BIN` | PATH | 显式 Vivado 可执行文件目录 |
 | `AGENT_WORKFLOW` | `single_generate` | 已注册 Workflow 名称 |
-| `AGENT_DEADLINE_S` | `360` | 单题时间预算（秒），通过 HTTP 接口运行时由请求中的 `deadline_s` 覆盖 |
+| `AGENT_DEADLINE_S` | `360` | 单题时间预算（秒），HTTP 请求中的 `deadline_s` 只能缩小实际预算 |
 | `AGENT_RESERVE_S` | `20` | 为清理和写出结果预留的时间（秒）；预算小于此值时直接停止 |
 | `AGENT_TMP` | 依次取 `EDA_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
 | `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留每次 Vivado 调用的独立目录和完整日志，排查问题用 |

@@ -103,3 +103,27 @@ def _positive_float(name: str, value: float | None, default: float) -> float:
     return number
 
 
+@dataclass(frozen=True)
+class ToolConfig:
+    part: str = 'xczu3eg-sbva484-1-e'
+    bin_dir: str | None = None
+    temp_dir: str = '/tmp'
+    keep_work: bool = False
+
+    def __post_init__(self):
+        import re
+        if not isinstance(self.part, str) or not re.fullmatch(r'[A-Za-z0-9_-]+', self.part):
+            raise ValueError('tools.part must be a device identifier')
+        if type(self.keep_work) is not bool:
+            raise ValueError('tools.keep_work must be boolean')
+
+    @classmethod
+    def from_env(cls, env=None):
+        values = os.environ if env is None else env
+        return cls(part=values.get('RTL_PART', cls.part), bin_dir=values.get('VIVADO_BIN') or None,
+                   temp_dir=values.get('AGENT_TMP') or values.get('EDA_TMP') or values.get('TRACK_TMP') or '/tmp',
+                   keep_work=values.get('AGENT_KEEP_WORK') == '1')
+
+    def public_dict(self):
+        from dataclasses import asdict
+        return asdict(self)

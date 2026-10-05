@@ -20,7 +20,7 @@
 | **最终由谁定** | 团队评判——决策文档只给建议与依据 | 同上 |
 | **有哪些已知问题** | 5 个问题：2 个已解决、1 个部分解决、2 个未解决（含 2 条「已确认受限」） | [`failures/README.md`](failures/README.md) 的状态索引 |
 | **接下来做什么** | 联合阶段测门槛最低的两个候选；提交前必须处理 `serve/vllm.sh` 的参数与 gpt-oss 词表 | [`notes/2026-09-25-screening-progress.md`](notes/2026-09-25-screening-progress.md) |
-| **Agent 框架讨论** | 审查已完成；Python Workflow、Node 注册、精简目录与统一指标方向已记录；已实现模型证据记录、Python Workflow、候选策略、失败分类、检查复用与独立进程监督；默认单次生成，统一实验入口待实现 | [审查记录](notes/2026-10-05-agent-review.md)、[设计方案](notes/2026-10-05-agent-redesign-plan.md)、[第一阶段进展](docs/notes/2026-10-05-stage1-progress.md)、[第二阶段进展](docs/notes/2026-10-05-stage2-progress.md)、[第三阶段进展](docs/notes/2026-10-05-stage3-progress.md) |
+| **Agent 框架讨论** | 审查已完成；Python Workflow、Node 注册、精简目录与统一指标方向已记录；已实现模型证据记录、Python Workflow、候选策略、失败分类、检查复用与独立进程监督；默认单次生成；真实 Vivado、HTTP 与真实模型小规模验证完成，GPU 阻塞本轮未复现，具体根因未确认；已提供 YAML 配置、统一单题/采样入口与 runtime/model/judge 可选指标，历史重放待实现 | [审查记录](notes/2026-10-05-agent-review.md)、[设计方案](notes/2026-10-05-agent-redesign-plan.md)、[第一阶段进展](docs/notes/2026-10-05-stage1-progress.md)、[第二阶段进展](docs/notes/2026-10-05-stage2-progress.md)、[第三阶段进展](docs/notes/2026-10-05-stage3-progress.md)、[后续验证](docs/notes/2026-10-05-stage3-remote-validation.md)、[GPU 与模型验证](docs/notes/2026-10-05-gpu-diagnosis-and-model-validation.md)、[配置与实验](docs/design/configuration-and-experiments.md)、[第四阶段进展](docs/notes/2026-10-05-stage4-progress.md) |
 | **风险** | `M`（满分线倍数）未知；决赛硬件 R9700（gfx1201）当前拿不到、未验证 | [`decisions/0002`](decisions/0002-model-choice.md) 的「未决问题」 |
 
 **三层阅读路径**：① 本节的速览 → ② [`decisions/`](decisions/README.md)（结论与横向对比）+
@@ -37,6 +37,7 @@
 | [`notes/`](notes/README.md) | 设计与进展笔记；`notes/generated/` 是脚本生成的对照表（不要手改），`notes/archive/` 是旧笔记 | 是 |
 | [`experiments/`](experiments/README.md) | 每次跑分一份记录，脚本自动生成（需补写「改动与假设」「结论」） | 是 |
 | [`failures/`](failures/README.md) | 失败原因分析：问题状态索引 + 每类问题一篇（问题 → 已解决 / 未解决） | 是 |
+| `tools/`、`configs/` | 新的统一实验入口、指标适配器与精简实验配置 | 是 |
 | [`eval/`](eval/README.md) | 跑分和分析工具：并行跑分、失败原因分类、两次运行对比、汇总对照表 | 是 |
 | [`remote/`](remote/README.md) | 用远端 GPU 测试的脚本和说明，包括自动启动和销毁 AMD Radeon Cloud 实例 | 是（`remote.env`、`cloud.state` 除外） |
 | `runs/` | 跑分生成的原始文件（`score.json`、`metrics.json`、`samples.csv`、日志） | 否 |

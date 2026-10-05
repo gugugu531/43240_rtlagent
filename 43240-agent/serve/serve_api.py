@@ -29,6 +29,7 @@ import time
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 from agent.services.processes import ProcessExecutor, ProcessRequest
+from agent.core.configuration import load_config, resolve_config
 
 app = FastAPI(title="rtlagent2026 submission endpoint")
 
@@ -60,10 +61,14 @@ def _check_token(authorization: str | None) -> None:
 @app.get("/v1/health")
 def health(authorization: str | None = Header(default=None)):
     _check_token(authorization)
+    try:
+        config = resolve_config(load_config(os.environ.get("AGENT_CONFIG")), env=os.environ)
+    except Exception:
+        raise HTTPException(status_code=503, detail="agent configuration unavailable") from None
     return {
         "ready": True,
         "track": TRACK,          # mismatched track => the organisers refuse to submit
-        "model": MODEL_NAME,
+        "model": os.environ.get("MODEL_NAME") or config.agent.services.model.model,
         "vram_gb": _vram_gb(),
     }
 
@@ -89,13 +94,15 @@ def solve(req: SolveRequest, authorization: str | None = Header(default=None)):
 
         remaining = max(0.0, started + req.deadline_s - time.monotonic())
         return_reserve = min(0.25, req.deadline_s * 0.1)
-        env = dict(os.environ, AGENT_DEADLINE_S=str(max(0.001, remaining - return_reserve)),
-                   AGENT_TASK_ID=req.task_id)
+        env = dict(os.environ, AGENT_TASK_ID=req.task_id)
+        command = (os.path.join(ROOT, script), in_dir, out_dir)
+        if req.mode != "baseline":
+            command += ("--hard-deadline-s", str(max(0.001, remaining - return_reserve)))
         # Includes preparation, execution and group cleanup; tiny deadlines have
         # no artificial five-second floor. Baseline only receives supervision.
         if remaining > return_reserve:
             executor = ProcessExecutor()
-            executor.run(ProcessRequest((os.path.join(ROOT, script), in_dir, out_dir), ROOT,
+            executor.run(ProcessRequest(command, ROOT,
                          remaining - return_reserve, env,
                          terminate_grace_s=min(0.6, remaining - return_reserve)))
 

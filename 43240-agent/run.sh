@@ -29,6 +29,10 @@ case "$OUT" in
     *) OUT="$PWD/$OUT" ;;
 esac
 
+if [ -n "${AGENT_CONFIG:-}" ]; then
+    case "$AGENT_CONFIG" in /*) ;; *) export AGENT_CONFIG="$PWD/$AGENT_CONFIG" ;; esac
+fi
+export AGENT_CALLER_CWD="$PWD"
 mkdir -p "$OUT"
 
 cd "$HERE"
@@ -43,7 +47,7 @@ stop_agent() {
 }
 
 rc=0
-python3 -m agent.main --input "$IN" --output "$OUT" &
+python3 -m agent.main --input "$IN" --output "$OUT" "${@:3}" &
 agent_pid=$!
 trap stop_agent TERM INT
 wait "$agent_pid" || rc=$?

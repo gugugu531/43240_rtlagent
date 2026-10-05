@@ -58,5 +58,5 @@ cmp example/run_baseline.sh 43240-agent/run_baseline.sh
 - 客户端结束不证明共享模型服务已取消推理，明确记录 backend_inference_cancelled=unknown。
 - 诊断只确认有限的代码错误形式，未知失败保留日志并停止。工具检查重试、其他选择策略可以通过
   自定义 Workflow / policy 做实验，当前没有自动猜测修复原因。
-- 尚未提供 YAML 配置加载、统一实验入口、测评指标、历史重放；这些需在下一阶段先交用户审阅计划。
+- YAML 配置、统一实验入口与测评指标已在经审阅的[第四阶段](2026-10-05-stage4-progress.md)完成；历史重放仍待实现。
 - 当前阶段完成后只作本地独立 commit，暂不推送或创建 PR。用户已有实验笔记不纳入本阶段提交。
