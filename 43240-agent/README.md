@@ -1,12 +1,13 @@
 # 43240-agent — RTL 赛道参赛方案
 
 本目录是队伍 43240 的参赛方案，也是最终提交给赛事方的目录。方案读入一道题的题面，
-调用本地部署的大模型生成 Verilog / SystemVerilog 代码，再用 Vivado 检查并反复修改，
+调用本地部署的大模型生成 Verilog / SystemVerilog 代码，可选用 Vivado 检查并反复修改，
 最后输出 `solution.v`。
 
 > **当前状态：** 已建立 Registry、Python Workflow、Node、逐题运行上下文和运行器。
 > 默认 Workflow 为 `single_generate`，采用近似 baseline 的单次生成策略，不加载技能或执行工具。
-> `repair_loop` 提供可选的多轮检查与修复。模型、动作、候选和检查都有来源记录。
+> `repair_loop` 提供可选的多轮检查与修复，按证据选择答案、区分失败原因并限制重试。
+> 正式入口使用独立 Worker 和 Supervisor 管理时间、信号与工具进程，支持中断恢复。
 > 模型与推理服务仍未最终确定，真实模型测评和统一实验入口尚未完成。
 > 设计与进展见 [框架文档](dev/docs/readme.md)。
 
@@ -19,13 +20,15 @@
 | `run.sh` | 单题入口：从任意当前目录读取一道题，输出代码和工具调用记录 |
 | `run_baseline.sh`、`baseline.py` | 基线入口，赛事方提供，**不得修改** |
 | `agent/main.py` | 单题参数解析与已注册 Workflow 选择 |
+| `agent/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
+| `agent/policies/` | 可替换的选择策略、失败策略和保守诊断分类 |
 | `agent/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
 | `agent/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
 | `agent/workflows/` | 默认单次生成、可选修复循环及用户实验 Workflow |
 | `agent/nodes/` | 生成、提取、接口、lint 与综合动作 |
 | `agent/prompting.py` | 组装直接生成或修复提示，以及可选技能注入 |
 | `agent/core/` | 模型、任务、组件、检查与结果契约，以及注册表、预算和运行元数据 |
-| `agent/services/` | 模型与工具服务；模型不自动重试，工具按需初始化 |
+| `agent/services/` | 模型、工具、检查缓存和进程服务；模型不自动重试，工具按需初始化 |
 | `agent/extraction.py` | 结构化提取代码，识别目标模块、多草稿与截断回复 |
 | `agent/interface.py` | 结构化解析 ANSI、非 ANSI 接口并输出逐字段差异 |
 | `agent/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
@@ -61,7 +64,7 @@
 | `<输出目录>/trace.jsonl` | 工具调用记录，每行一个 JSON 对象，见第 4 节 |
 | `<输出目录>/records/<run_id>/` | 默认完整模型记录；也可以配置到独立根目录 |
 | `<输出目录>/candidates/` | 开发模式下每个候选的代码和元数据 |
-| `<输出目录>/selection.json` | 开发模式下当前选择的候选、哈希和选择原因 |
+| `<输出目录>/selection.json` | 恢复检查点，包含候选正文、来源、哈希和选择原因，所有模式均写入 |
 
 `run.sh` 无论成功失败都以退出码 0 结束，并保证两个输出文件存在。这样「没做出来」
 （空文件）和已有答案能够区分开，错误类别另记入 trace。`solution.v` 在运行开始时即创建为空文件，之后通过
@@ -78,7 +81,9 @@ export FPGACHINA_TOKEN=<令牌>
 uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
 ```
 
-HTTP 外层为 `run.sh` 设置超时并读取已写出的答案。当前对整个子进程树的统一取消仍待实现。
+HTTP 时间从请求处理开始计算，覆盖输入准备、执行、进程清理与结果读取，不再使用 5 秒超时下限。
+Agent 的 Supervisor 管理 Worker 与通过公开服务启动的工具进程；shell 转发 SIGTERM。baseline
+只增加外部进程组监督，原始脚本、模型提示和 trace 不变。
 
 ### 调用大模型
 
@@ -111,13 +116,17 @@ candidates/c001/{solution.v,metadata.json}
 checks/k001/result.json
 task.json
 selection.json
+supervision.json
+tool_logs/*.log       # 完整逻辑检查日志，不依赖保留临时工作目录
+process_logs/*.log    # Supervisor 保存的进程输出，中断时也可保留
 ```
 
 设 `AGENT_RECORD_ROOT=/绝对路径` 可将记录保存到输出目录以外。HTTP 服务也继承此设置；
 因此请求临时目录被删除后，记录仍然保留。HTTP 默认不持久保存临时目录中的完整记录。
 设 `AGENT_RECORD_LEVEL=basic` 只写必要 trace。直接运行 Python 入口也可以使用
 `--record-root` 和 `--record-level`；这两个选项不改变 `run.sh` 的两个位置参数。
-所有记录均使用脱敏后的副本，模型实际收到的请求和用于提取的回复不受修改。
+trace、详细证据和工具日志使用脱敏副本，模型实际收到的请求和用于提取的回复不受修改。
+输出目录的 `solution.v` 和恢复检查点保存实际代码，供中断恢复；它们不属于脱敏证据副本。
 
 ---
 
@@ -136,12 +145,18 @@ selection.json
 可选 `repair_loop`：
 
 ```text
-生成 → 提取 → 保存并选择候选 → 接口检查 → lint → 综合
- ↑                         检查失败时携带诊断与上一份代码返回
+生成 → 提取 → 保存候选 → 接口检查 → lint → 综合
+ ↑             每步按已有证据更新选择；明确代码错误时反馈修复
 ```
 
-该 Workflow 默认最多 3 轮、温度 `0.2`、输出上限 `4096`；反馈中的技能选择、提示和候选选择
-沿用拆分前的策略，工具不可用或模型失败时停止。它仍选择最新提取候选，候选质量排序留待下一阶段。
+该 Workflow 默认最多 3 轮、温度 `0.2`、输出上限 `4096`，每个请求最多重试 1 次、模型调用
+总数最多 4 次。只有允许重试的模型连接、超时或 HTTP 错误才重试相同消息；服务本身仍只调用一次。
+明确代码错误才进入修复，超时、环境故障和未知错误默认停止，避免把基础设施问题当成 RTL 缺陷。
+
+最新候选、修复对象与最终答案分别管理。确认有代码或权威接口错误的候选不作为答案；其余候选
+按真实综合、lint 和接口通过证据比较，同等证据保留已有选择。未知检查不当成通过；综合通过不代表
+功能正确。相同源码与任务、配置、工具身份的确定性检查可在本题复用，记录引用来源而不重复调用工具。
+自定义 Workflow 可显式传入其他策略对象，开展不同选择或失败处理实验。
 
 选择流程：
 
@@ -166,18 +181,23 @@ python3 -m agent.main --input <task_dir> --output <out_dir> \
 运行器支持 Workflow 工厂，在每题调用工厂创建新实例。构造参数、实现路径与实际执行动作自动记录。
 完整接口和扩展示例见 [Python Workflow 接口](dev/docs/design/python-workflows.md)。
 
-预算使用单调时钟，模型与工具调用获得剩余时间内的超时上限。它是合作式时间控制，尚不能终止
-任意 Python 阻塞操作。未处理的普通异常会记录并保留已选答案；必要 trace 写入失败仍明确报错。
+预算使用单调时钟，动作可设置最少启动时间，并为清理和写出结果预留时间。正式入口在独立 Worker
+中运行 Python Workflow，Supervisor 在预算结束或收到信号时先 TERM、再 KILL 并回收受管理进程。
+自定义外部动作使用 `ctx.processes.run(ProcessRequest(...))`；自行创建并脱离进程组的子进程不在保证范围。
+
+选择先提交包含代码和哈希的原子检查点，再替换 `solution.v`；中断后校验并恢复。Supervisor 只在
+Worker 停止后追加记录，不伪造模型或 Node 的结束。关闭模型连接不证明共享服务已停止推理，记录为 unknown。
+用于依赖注入和单元测试的进程内 Runner 仍是合作式预算，不提供任意 Python 阻塞的硬停止。
 
 ---
 
 ## 4. trace.jsonl 记录的内容
 
-Agent trace 当前使用 schema version 3。每行一个 JSON 对象，并自动带有以下公共字段：
+Agent trace 当前使用 schema version 4。每行一个 JSON 对象，并自动带有以下公共字段：
 
 | 字段 | 含义 |
 | --- | --- |
-| `schema_version` | trace 格式版本，当前为 `3` |
+| `schema_version` | trace 格式版本，当前为 `4` |
 | `run_id` | 本次 Agent 运行的标识，同一文件内保持一致 |
 | `seq` | 从 1 开始连续递增的事件编号 |
 | `ts` | 写入事件时的 Unix 时间戳 |
@@ -198,6 +218,8 @@ Agent trace 当前使用 schema version 3。每行一个 JSON 对象，并自动
 | `candidate` | 候选创建和选择时 | `candidate_id`、`source_call_id`、`parent_id`、`code_hash`、`reason` |
 | `check_interface` | 每次检查接口 | `check_id`、`candidate_id`、统一状态、`blocking`、接口详情与摘要 |
 | `lint`、`synth` | 每次调用 Vivado 工具 | `check_id`、`candidate_id`、`command`、统一状态、`rc`、耗时、摘要及可用日志路径 |
+| `process` | 自定义外部动作的开始与结束 | `process_id`、命令、超时、状态与耗时 |
+| `supervisor` | Worker 停止并清理后 | 停止原因、退出码、选择恢复、未回收进程、后端推理取消状态 |
 | `budget` | 时间不够而停止时 | `reason` |
 
 `agent/recording/` 在写入前统一隐藏 API key、Cookie、Authorization、已知秘密与 URL
@@ -206,7 +228,8 @@ Agent trace 当前使用 schema version 3。每行一个 JSON 对象，并自动
 结果或错误。进程中途退出时只保留实际已发生的事件，不伪造调用结束。
 
 `dev/eval/analyze.py` 按调用结束事件统计模型耗时、按调用 ID 统计调用次数，避免把开始和
-结束重复计数；主办方 baseline 的 trace 仍可分析。未知用量的汇总只代表已知用量之和。
+结束重复计数；检查开始与结束按 ID 合并，复用检查另计，只有开始事件的工具仍计为一次尝试。
+主办方 baseline 的 trace 仍可分析。未知用量的汇总只代表已知用量之和。
 格式见 [记录格式](dev/docs/design/trace-schema.md)。
 
 trace 同时用于三件事：工程质量评分、赛事方核对生成结果是否确实来自模型、团队自己的失败
@@ -245,10 +268,10 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 | `LLM_TIMEOUT_S` | `180` | 单次模型调用超时（秒） |
 | `AGENT_WORKFLOW` | `single_generate` | 已注册 Workflow 名称 |
 | `AGENT_DEADLINE_S` | `360` | 单题时间预算（秒），通过 HTTP 接口运行时由请求中的 `deadline_s` 覆盖 |
-| `AGENT_RESERVE_S` | `20` | 为写出结果预留的时间（秒） |
+| `AGENT_RESERVE_S` | `20` | 为清理和写出结果预留的时间（秒）；预算小于此值时直接停止 |
 | `AGENT_TMP` | 依次取 `EDA_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
 | `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留每次 Vivado 调用的独立目录和完整日志，排查问题用 |
-| `AGENT_SAVE_CANDIDATES` | 未设置 | 设为 `1` 时保存每个候选及 `selection.json`，只用于开发分析 |
+| `AGENT_SAVE_CANDIDATES` | 未设置 | 设为 `1` 时额外保存每个候选；恢复检查点不受此开关影响 |
 | `AGENT_RECORD_LEVEL` | `full` | `full` 保存详细证据；`basic` 只保留必要 trace |
 | `AGENT_RECORD_ROOT` | 输出目录下 `records/` | 独立记录根目录；HTTP 开发实验应设置到请求临时目录以外 |
 | `AGENT_GIT_COMMIT` | 自动读取 | 镜像中没有 `.git` 时，由构建过程注入源码 commit |
@@ -266,11 +289,11 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 ## 7. 已知局限
 
 1. 默认单次生成不验证代码，也不判断功能正确性；可选 lint、综合通过仅表示内部检查通过。
-2. `repair_loop` 仍选择最新提取候选，尚无质量排序、重复检查复用或模型错误重试策略。
+2. 工具诊断只识别少数明确的代码错误，未知错误默认停止；完整日志支持继续分析。
 3. 修复仍返回完整文件，技能按日志字符串匹配，工具摘要仍较粗糙。
-4. 预算尚无外层统一监督；HTTP 超时的子进程树回收与后端推理取消尚未完成。
+4. 硬监督依赖 Linux；自由启动的脱离进程组子进程不受保证。共享模型服务的推理取消没有协议支持。
 5. 未实现 YAML 加载、统一实验入口、指标收集与历史重放。当前可以按注册名称运行单题流程。
-6. 详细记录没有自动清理策略，且部分工具完整日志仍依赖 `AGENT_KEEP_WORK=1`。
+6. 详细记录没有自动清理策略。强制中断可能没有完整的逻辑检查结论或留下临时工作目录，但保留已写的进程输出。
 7. 模型与服务尚未最终确定；混合思考模型需要合适的服务端正文与 reasoning 分离配置。
 
 ---
@@ -279,6 +302,7 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
+| 2026-10-05 | 候选保护、失败处理、检查复用与独立监督 | 保留较强证据的答案；回收受管理进程；恢复中断选择和记录 |
 | 2026-10-05 | Python Workflow、Node、Registry 与运行上下文 | 默认单次生成；可选修复流程；记录动作与构造参数 |
 | 2026-09-22 | 新增 `dev/`、`.dockerignore` | 团队开发区，不随方案提交；不影响方案行为 |
 | 2026-09-23 | trace 的 `llm` 记录新增 `finish` 字段 | 记录模型返回的 `finish_reason`，用于统计输出截断 |

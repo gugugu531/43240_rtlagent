@@ -21,15 +21,17 @@ class InterfaceNode(Component):
 @dataclass(frozen=True)
 class LintNode(Component):
     timeout_s: float = 300.0
+    minimum_s: float = 0.0
 
     def run(self, ctx, input: CheckInput) -> CheckResult:
-        return ctx.tools.lint(input.candidate, ctx.task.top, timeout_s=self.timeout_s)
+        return ctx.tools.lint(input.candidate, ctx.task.top, timeout_s=ctx.budget.timeout_s(self.timeout_s, self.minimum_s))
 
 
 @NODE_REGISTRY.register('vivado_synth')
 @dataclass(frozen=True)
 class SynthNode(Component):
     timeout_s: float = 900.0
+    minimum_s: float = 0.0
 
     def run(self, ctx, input: CheckInput) -> CheckResult:
-        return ctx.tools.synth(input.candidate, ctx.task.top, timeout_s=self.timeout_s)
+        return ctx.tools.synth(input.candidate, ctx.task.top, timeout_s=ctx.budget.timeout_s(self.timeout_s, self.minimum_s))

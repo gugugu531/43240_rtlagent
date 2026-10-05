@@ -65,6 +65,7 @@ class ToolResult:
     summary: str
     full_log_path: str | None = None
     work_dir: str | None = None
+    failure_kind: str = "unknown"
 
     def trace_dict(self) -> dict[str, object]:
         fields: dict[str, object] = {
@@ -92,7 +93,8 @@ class _CommandOutcome:
 
 
 class RtlToolchain:
-    def __init__(self) -> None:
+    def __init__(self, *, executor=None, log_dir=None, redactor=None) -> None:
+        self.executor, self.log_dir, self.redactor = executor, log_dir, redactor
         self.xvlog = shutil.which("xvlog")
         self.xelab = shutil.which("xelab")
         self.vivado = shutil.which("vivado")
@@ -102,6 +104,25 @@ class RtlToolchain:
         if missing:
             self.reason = (f"not on PATH: {', '.join(missing)}; "
                            "source your Vivado settings64.sh")
+
+    def fingerprint(self):
+        import hashlib
+        from pathlib import Path
+        paths = [self.xvlog, self.xelab, self.vivado]
+        if any(path is None for path in paths):
+            return None
+        try:
+            identity = [(p, os.stat(p).st_size, os.stat(p).st_mtime_ns) for p in paths]
+            return hashlib.sha256(repr((identity, PART, sorted(os.environ.items()), Path(__file__).read_bytes())).encode()).hexdigest()
+        except OSError:
+            return None
+
+    def _command(self, cmd, cwd, timeout_s):
+        if self.executor is None:
+            return _run_command(cmd, cwd, timeout_s)
+        from .services.processes import ProcessRequest
+        result = self.executor.run(ProcessRequest(tuple(cmd), cwd, timeout_s))
+        return _CommandOutcome(tuple(cmd), result.rc, result.status, result.elapsed_s, result.output)
 
     @property
     def available(self) -> bool:
@@ -137,11 +158,11 @@ class RtlToolchain:
                 [self.xelab or "xelab", top, "-s", "dutsim"],
             ]
             started = time.monotonic()
-            outcomes = [_run_command(commands[0], work, timeout_s)]
+            outcomes = [self._command(commands[0], work, timeout_s)]
             if outcomes[0].status == "ok":
                 remaining = max(0.0, timeout_s - (time.monotonic() - started))
-                outcomes.append(_run_command(commands[1], work, remaining))
-            return _build_result("lint", outcomes, work, keep_work)
+                outcomes.append(self._command(commands[1], work, remaining))
+            return _build_result("lint", outcomes, work, keep_work, self.log_dir, self.redactor)
         except OSError as exc:
             return _unavailable("lint", f"could not prepare lint input: {exc}")
         finally:
@@ -175,7 +196,7 @@ class RtlToolchain:
                         """
                     )
                 )
-            outcome = _run_command(
+            outcome = self._command(
                 [self.vivado or "vivado", "-mode", "batch", "-source", "synth.tcl",
                  "-nojournal", "-log", "synth.log"],
                 work, timeout_s,
@@ -188,7 +209,7 @@ class RtlToolchain:
                     elapsed_s=outcome.elapsed_s,
                     output=outcome.output + "\n[agent] synthesis success marker missing",
                 )
-            return _build_result("synth", [outcome], work, keep_work)
+            return _build_result("synth", [outcome], work, keep_work, self.log_dir, self.redactor)
         except OSError as exc:
             return _unavailable("synth", f"could not prepare synthesis input: {exc}")
         finally:
@@ -327,14 +348,20 @@ def _timeout_output(exc: subprocess.TimeoutExpired) -> str:
 
 
 def _build_result(tool: str, outcomes: Sequence[_CommandOutcome],
-                  work: str, keep_work: bool) -> ToolResult:
+                  work: str, keep_work: bool, log_dir=None, redactor=None) -> ToolResult:
     commands = tuple(outcome.command for outcome in outcomes)
     final = outcomes[-1]
     full_output = "\n".join(outcome.output for outcome in outcomes)
     full_log_path = os.path.join(work, f"{tool}.full.log") if keep_work else None
+    if log_dir is not None:
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+            full_log_path = os.path.join(log_dir, os.path.basename(work) + '.log')
+        except OSError:
+            full_log_path = None
     if full_log_path is not None:
         try:
-            _write_full_log(full_log_path, outcomes)
+            _write_full_log(full_log_path, outcomes, redactor)
         except OSError:
             full_log_path = None
     return ToolResult(
@@ -346,16 +373,20 @@ def _build_result(tool: str, outcomes: Sequence[_CommandOutcome],
         summary=summarize_log(full_output),
         full_log_path=full_log_path,
         work_dir=work if keep_work else None,
+        failure_kind=classify_tool_failure(full_output) if final.status == "failed" else "unknown",
     )
 
 
-def _write_full_log(path: str, outcomes: Sequence[_CommandOutcome]) -> None:
+def _write_full_log(path: str, outcomes: Sequence[_CommandOutcome], redactor=None) -> None:
+    if redactor is None:
+        from .recording.redaction import Redactor
+        redactor = Redactor()
     with open(path, "w", encoding="utf-8") as fh:
         for index, outcome in enumerate(outcomes):
             if index:
                 fh.write("\n")
-            fh.write("$ " + " ".join(outcome.command) + "\n")
-            fh.write(outcome.output)
+            fh.write(redactor.copy("$ " + " ".join(outcome.command) + "\n"))
+            fh.write(redactor.copy(outcome.output))
             if outcome.output and not outcome.output.endswith("\n"):
                 fh.write("\n")
 
@@ -427,3 +458,19 @@ def summarize_log(log: str, budget: int = 2000) -> str:
     if len(text) > budget:
         text = text[:budget] + f"\n... [truncated, {len(text) - budget} more chars]"
     return text
+
+
+def classify_tool_failure(output: str) -> str:
+    """Only well identified compiler errors are treated as source defects."""
+    low = output.lower()
+    if (any(text in low for text in ('permission denied', 'no space left',
+                                    'out of memory', 'cannot open shared object'))
+            or re.search(r'(?:license[^\n]*(?:failed|expired|error|unavailable)|(?:failed|unable|cannot)[^\n]*license|no valid license)', low)):
+        return 'environment'
+    if re.search(r'ERROR: \[VRFC [^\]]+\].*(?:syntax error|cannot find port|not declared|not found|type mismatch)',
+                 output, re.IGNORECASE):
+        return 'code'
+    if re.search(r'ERROR: \[Synth [^\]]+\].*(?:syntax error|multi-driven|multiple drivers|latch)',
+                 output, re.IGNORECASE):
+        return 'code'
+    return 'unknown'

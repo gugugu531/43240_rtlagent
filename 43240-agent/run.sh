@@ -32,12 +32,22 @@ esac
 mkdir -p "$OUT"
 
 cd "$HERE"
-rc=0
-python3 -m agent.main --input "$IN" --output "$OUT" || rc=$?
-
-# Safety net: the harness expects these two files to exist no matter what.
+# Create protocol files before starting the supervised process.
 [ -f "$OUT/solution.v" ] || : > "$OUT/solution.v"
-[ -f "$OUT/trace.jsonl" ]  || : > "$OUT/trace.jsonl"
+[ -f "$OUT/trace.jsonl" ] || : > "$OUT/trace.jsonl"
+
+stop_agent() {
+    kill -TERM "$agent_pid" 2>/dev/null || true
+    wait "$agent_pid" || true
+    exit 0
+}
+
+rc=0
+python3 -m agent.main --input "$IN" --output "$OUT" &
+agent_pid=$!
+trap stop_agent TERM INT
+wait "$agent_pid" || rc=$?
+trap - TERM INT
 
 if [ $rc -ne 0 ]; then
     echo "run.sh: agent exited with $rc, emitted empty solution" >&2

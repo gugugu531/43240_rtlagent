@@ -109,8 +109,21 @@ def trace_stats(events: list[dict]) -> dict:
         {},
     )
     # Count recorded checks, not extraction, selection or framework lifecycle events.
-    tools = Counter(e.get("tool") for e in events
-                    if e.get("check_id") or e.get("tool") in ("check_interface", "lint", "synth"))
+    check_events = [e for e in events if e.get("check_id") or e.get("tool") in ("check_interface", "lint", "synth")]
+    tools = Counter()
+    seen_checks = set()
+    reused_checks = 0
+    for e in reversed(check_events):
+        identity = e.get("check_id")
+        if identity and identity in seen_checks:
+            continue
+        if identity:
+            seen_checks.add(identity)
+        if (e.get("details") or {}).get("executed") is False:
+            reused_checks += 1
+            continue
+        name = e.get("kind", e.get("tool"))
+        tools['check_interface' if name == 'interface' else name] += 1
     finishes = [e.get("finish_reason", e.get("finish")) for e in llm]
     return {
         "llm_calls": len(llm) + len(unfinished),
@@ -122,9 +135,11 @@ def trace_stats(events: list[dict]) -> dict:
         "empty_reply": sum(1 for e in llm if e.get("empty_content")),
         "rounds": max([int(e.get("round") or 0) for e in events] or [0]),
         "tool_calls": dict(tools),
+        "reused_checks": reused_checks,
         "agent_error": any(e.get("tool") == "agent" and e.get("event") == "error"
                            for e in events),
-        "deadline_stop": any(e.get("tool") == "budget" and e.get("event") == "stop"
+        "deadline_stop": any((e.get("tool") == "budget" and e.get("event") == "stop") or
+                             (e.get("tool") == "supervisor" and e.get("stop_reason") == "deadline")
                              for e in events),
         "trace_schema_version": metadata.get("schema_version"),
         "trace_run_id": metadata.get("run_id"),

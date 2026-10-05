@@ -31,22 +31,30 @@ class RunOptions:
 
 class Runner:
     def __init__(self, model_config: ModelConfig | None = None, *,
-                 backend_factory=make_backend, toolchain_factory=RtlToolchain):
+                 backend_factory=make_backend, toolchain_factory=RtlToolchain, process_executor=None):
         self._config = model_config
+        self._process_executor = process_executor
         self._backend_factory, self._toolchain_factory = backend_factory, toolchain_factory
 
     def run(self, task: TaskSpec, workflow: Workflow | Callable[[], Workflow], *,
-            options: RunOptions) -> WorkflowResult:
-        started_at = time.monotonic()
+            options: RunOptions, started_at: float | None = None) -> WorkflowResult:
+        started_at = time.monotonic() if started_at is None else started_at
         artifacts = ArtifactStore(options.output_dir, save_candidates=options.save_candidates)
         recorder = RunRecorder(options.output_dir, options.recording)
+        if callable(getattr(self._process_executor, "set_recorder", None)):
+            self._process_executor.set_recorder(recorder)
         ctx = None
         result = None
         try:
             budget = Budget(options.deadline_s, options.reserve_s, started_at=started_at)
             config = self._config or ModelConfig.from_env()
             llm = ModelService(self._backend_factory(config), recorder, timeout_limit_s=config.timeout_s)
-            ctx = RunContext(task, llm, budget, artifacts, recorder, toolchain_factory=self._toolchain_factory)
+            factory = self._toolchain_factory
+            if factory is RtlToolchain:
+                factory = lambda: RtlToolchain(executor=self._process_executor,
+                    log_dir=recorder.run_dir / 'tool_logs' if options.recording.level == 'full' else None,
+                    redactor=recorder.redactor)
+            ctx = RunContext(task, llm, budget, artifacts, recorder, toolchain_factory=factory, process_executor=self._process_executor)
             # A factory creates fresh workflow/node instances for each task and is
             # invoked after artifacts exist, so constructor failures are recorded.
             instance = workflow if not inspect.isclass(workflow) and callable(getattr(workflow, 'run', None)) else workflow()
