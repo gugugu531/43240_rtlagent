@@ -4,7 +4,7 @@
 调用本地部署的大模型生成 Verilog / SystemVerilog 代码，再用 Vivado 检查并反复修改，
 最后输出 `solution.v`。
 
-> **当前状态：** 智能体仍沿用主办方示例方案的三轮生成主流程，但已经拆出模型客户端、
+> **当前状态：** 智能体仍沿用主办方示例方案的三轮生成主流程，但已经拆出模型服务与独立记录层、
 > 代码提取、接口解析、候选数据、产物保存、工具运行和 trace 模块，并为模型异常、路径契约、
 > 候选落盘、子进程清理及秘密过滤增加了测试。
 > 模型和推理后端尚未最终确定，候选模型的 baseline 实测见
@@ -20,13 +20,14 @@
 | `run.sh` | 单题入口：从任意当前目录读取一道题，输出代码和工具调用记录 |
 | `run_baseline.sh`、`baseline.py` | 基线入口，赛事方提供，**不得修改** |
 | `agent/main.py` | 智能体主流程：多轮「生成 → 检查 → 修改」循环、时间控制、记录 trace |
-| `agent/llm.py` | 调用大模型，校验配置并标准化返回结果或异常 |
+| `agent/core/` | 模型请求、回复、错误、服务配置与运行元数据 |
+| `agent/services/` | 模型服务、HTTP 传输与 mock 后端；单次调用不自动重试 |
 | `agent/extraction.py` | 结构化提取代码，识别目标模块、多草稿与截断回复 |
 | `agent/interface.py` | 结构化解析 ANSI、非 ANSI 接口并输出逐字段差异 |
 | `agent/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
 | `agent/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
 | `agent/tools.py` | 接口检查，以及带进程组清理和结构化结果的 lint、综合工具 |
-| `agent/trace.py` | 写入带版本的 trace，记录公开运行配置并统一隐藏秘密 |
+| `agent/recording/` | 保存完整模型证据、关联提取结果、写入 trace 并统一脱敏 |
 | `agent/skills.py` | 加载技能包，按工具报错挑选相关技能 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
 | `skill/` | 技能包，每条技能一个目录，格式见 `skill/README.md` |
@@ -54,6 +55,7 @@
 | `<题目目录>/interface.txt` | 模块声明。**评测题集不提供**，读不到时按空处理 |
 | `<输出目录>/solution.v` | 生成的代码。做不出来时是空文件 |
 | `<输出目录>/trace.jsonl` | 工具调用记录，每行一个 JSON 对象，见第 4 节 |
+| `<输出目录>/records/<run_id>/` | 默认完整模型记录；也可以配置到独立根目录 |
 | `<输出目录>/candidates/` | 开发模式下每个候选的代码和元数据 |
 | `<输出目录>/selection.json` | 开发模式下当前选择的候选、哈希和选择原因 |
 
@@ -77,18 +79,36 @@ uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
 
 ### 调用大模型
 
-`agent/llm.py` 支持两种后端，由环境变量 `LLM_BACKEND` 选择：
+`agent/services/model.py` 支持两种后端，由环境变量 `LLM_BACKEND` 选择：
 
 - `mock`：不联网的假模型，按题面端口生成一个输出恒为 0 的空模块，只用来检查流程是否
   跑得通
 - `openai`：任何 OpenAI 兼容的 `/chat/completions` 接口，开发时可以是商用 API，
   提交时必须是本地推理服务
 
-模型客户端会校验环境配置，把超时、连接失败、HTTP 错误和响应格式错误统一转换成
-`LLMError` 子类，并返回正文、token、`finish_reason`、模型名、请求 ID 和耗时等标准字段。
-客户端本身不自动重试：它不知道本题还剩多少时间、是否已有可用候选，重试决策应由 Agent
-控制流负责。`chat()` 支持为单次调用覆盖超时、输出 token 上限和温度，当前控制流仍使用
-环境变量中的默认值。
+模型服务用 `ModelRequest` 接收 messages、输出上限、温度、超时和用途，返回 `ModelReply`。
+超时、连接失败、HTTP 错误、非法 JSON 与响应格式错误通过 `ModelCallError.kind` 区分。
+每次调用分配 `m001` 形式的 ID，未知 token 用量为 `null`，mock 不伪造 HTTP 响应或用量。
+服务不自动重试。当前循环将单次调用超时限制为服务配置与剩余解题时间中的较小值。
+
+开发记录默认使用 `full`。每次运行在 `<输出目录>/records/<run_id>/` 中创建独立记录：
+
+```text
+run.json
+calls/m001/
+  request.json       # 请求 messages、实际参数与公开服务配置
+  response.txt       # 原始 HTTP 响应文本（脱敏后；mock、无响应时不生成）
+  response.json      # 可解析的完整 JSON，包括 reasoning 和服务扩展字段
+  content.txt        # 供代码提取使用的正文
+  result.json        # 标准回复或分类错误
+  extraction.json    # 提取状态、诊断与候选 ID
+```
+
+设 `AGENT_RECORD_ROOT=/绝对路径` 可将记录保存到输出目录以外。HTTP 服务也继承此设置；
+因此请求临时目录被删除后，记录仍然保留。HTTP 默认不持久保存临时目录中的完整记录。
+设 `AGENT_RECORD_LEVEL=basic` 只写必要 trace。直接运行 Python 入口也可以使用
+`--record-root` 和 `--record-level`；这两个选项不改变 `run.sh` 的两个位置参数。
+所有记录均使用脱敏后的副本，模型实际收到的请求和用于提取的回复不受修改。
 
 ---
 
@@ -125,7 +145,7 @@ prompt.txt ─► 读题 ─► 加载技能包、提示词
 - **提取代码**：识别 `verilog`、`systemverilog`、`sv` 等代码围栏和无围栏模块，优先选择
   包含目标顶层模块的完整代码，同时保留同一代码块中的辅助模块。提取结果会明确记录模块名、
   多代码块、冲突草稿和疑似截断；没有完整 `module ... endmodule` 时不创建候选。
-- **候选记录**：每次成功提取都分配 `c001` 形式的 ID，记录轮次、来源、父候选和 SHA-256
+- **候选记录**：每次成功提取都分配 `c001` 形式的 ID，记录轮次、来源调用 `source_call_id`、父候选和 SHA-256
   代码哈希。当前仍采用原有策略：最后一次成功提取的代码立即成为兜底答案；综合通过时把选择
   原因更新为 `synth_passed`。设 `AGENT_SAVE_CANDIDATES=1` 会额外保存全部候选。
 - **接口检查**：ANSI 与非 ANSI 模块声明统一解析为 `InterfaceSpec`，记录来源、置信度、端口
@@ -151,11 +171,11 @@ prompt.txt ─► 读题 ─► 加载技能包、提示词
 
 ## 4. trace.jsonl 记录的内容
 
-Agent trace 当前使用 schema version 1。每行一个 JSON 对象，并自动带有以下公共字段：
+Agent trace 当前使用 schema version 2。每行一个 JSON 对象，并自动带有以下公共字段：
 
 | 字段 | 含义 |
 | --- | --- |
-| `schema_version` | trace 格式版本，当前为 `1` |
+| `schema_version` | trace 格式版本，当前为 `2` |
 | `run_id` | 本次 Agent 运行的标识，同一文件内保持一致 |
 | `seq` | 从 1 开始连续递增的事件编号 |
 | `ts` | 写入事件时的 Unix 时间戳 |
@@ -165,21 +185,25 @@ Agent trace 当前使用 schema version 1。每行一个 JSON 对象，并自动
 
 | `tool` | 何时写入 | 主要字段 |
 | --- | --- | --- |
-| `run` | 第一条事件 | `event=metadata`、题目 ID、公开配置、模型请求配置、Git commit 与 dirty 状态 |
+| `run` | 记录初始化与运行元数据 | `event=metadata`、题目 ID、公开配置、模型请求配置、Git commit 与 dirty 状态 |
 | `agent` | 开始、结束、出错、综合通过、提前停止 | `event`（start / done / error / accept / stop）、模型配置 |
 | `env` | 开始时 | `vivado_available`：本机是否找到 Vivado |
 | `skills` | 加载时、每次注入时 | 加载了哪些技能；本轮注入了哪些 |
-| `llm` | 每次调用模型 | `round`、`tokens_in`、`tokens_out`、`finish`（模型返回的 `finish_reason`，`length` 表示输出被截断）、`elapsed_s` |
+| `llm` | 调用开始与结束 | `event=started/succeeded/failed`、`call_id`、`purpose`、`tokens_in`、`tokens_out`、`finish_reason`、`elapsed_s`、错误分类与证据引用 |
 | `extract` | 每次解析模型回复 | `status`、`complete`、`target_module_found`、`module_names`、`multiple_blocks`、`suspected_truncation`、`diagnostics`；不记录代码正文 |
-| `candidate` | 候选创建和选择时 | `candidate_id`、`parent_id`、`code_hash`、`reason` |
+| `candidate` | 候选创建和选择时 | `candidate_id`、`source_call_id`、`parent_id`、`code_hash`、`reason` |
 | `check_interface` | 每次检查接口 | `round`、`candidate_id`、`code_hash`、`status`、`blocking`、接口来源与置信度、逐字段 `differences`、`excerpt` |
 | `lint`、`synth` | 每次调用 Vivado 工具 | `round`、`candidate_id`、`code_hash`、`command`、`status`、`rc`、`elapsed_s`、`excerpt`；调试保留目录时还有完整日志和工作目录路径 |
 | `budget` | 时间不够而停止时 | `reason` |
 
-`agent/trace.py` 只记录白名单配置，不读取完整环境变量；API key、Cookie、Authorization、
-token 和其他已知秘密在写入前统一替换为 `[redacted]`。`dev/eval/analyze.py` 同时兼容没有
-版本字段的旧 trace 和 version 1，并且不会把 `run` 元数据误算成工具调用。完整格式和升级
-规则见 `dev/trace_schema.md`。
+`agent/recording/` 在写入前统一隐藏 API key、Cookie、Authorization、已知秘密与 URL
+中的凭据。原始正文保存在详细记录中，trace 只保存摘要与引用；必要 trace 写入失败视为
+基础设施错误。详细文件写入失败只发出警告并标记 `recording_incomplete`，不会替换原有模型
+结果或错误。进程中途退出时只保留实际已发生的事件，不伪造调用结束。
+
+`dev/eval/analyze.py` 按调用结束事件统计模型耗时、按调用 ID 统计调用次数，避免把开始和
+结束重复计数；主办方 baseline 的 trace 仍可分析。未知用量的汇总只代表已知用量之和。
+格式见 [记录格式](dev/docs/design/trace-schema.md)。
 
 trace 同时用于三件事：工程质量评分、赛事方核对生成结果是否确实来自模型、团队自己的失败
 分析，所以是必需的。主办方 baseline 文件保持不变，其 trace 继续按官方原格式输出。
@@ -223,7 +247,8 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 | `AGENT_TMP` | 依次取 `EDA_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
 | `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留每次 Vivado 调用的独立目录和完整日志，排查问题用 |
 | `AGENT_SAVE_CANDIDATES` | 未设置 | 设为 `1` 时保存每个候选及 `selection.json`，只用于开发分析 |
-| `AGENT_RUN_ID` | 自动生成 | 手工指定本次运行标识，只接受字母、数字、点、下划线和连字符 |
+| `AGENT_RECORD_LEVEL` | `full` | `full` 保存详细证据；`basic` 只保留必要 trace |
+| `AGENT_RECORD_ROOT` | 输出目录下 `records/` | 独立记录根目录；HTTP 开发实验应设置到请求临时目录以外 |
 | `AGENT_GIT_COMMIT` | 自动读取 | 镜像中没有 `.git` 时，由构建过程注入源码 commit |
 | `AGENT_GIT_DIRTY` | 未知 | 与 `AGENT_GIT_COMMIT` 一起注入源码是否含未提交修改 |
 | `RTL_PART` | `xczu3eg-sbva484-1-e` | 综合用的器件 |

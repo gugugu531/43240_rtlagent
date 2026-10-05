@@ -4,6 +4,9 @@ import json
 import os
 from pathlib import Path
 import stat
+import shutil
+import sys
+from unittest.mock import patch
 import subprocess
 import tempfile
 import unittest
@@ -11,6 +14,8 @@ import unittest
 
 AGENT_ROOT = Path(__file__).resolve().parents[2]
 RUN_SH = AGENT_ROOT / "run.sh"
+sys.path.insert(0, str(AGENT_ROOT))
+from serve import serve_api
 
 
 class RunContractTests(unittest.TestCase):
@@ -34,6 +39,11 @@ class RunContractTests(unittest.TestCase):
             self.assertTrue(trace.is_file())
             self.assertIn("module TopModule", solution.read_text(encoding="utf-8"))
             self._assert_jsonl(trace)
+            records = list((cwd / "result" / "records").iterdir())
+            self.assertEqual(len(records), 1)
+            self.assertTrue((records[0] / "calls/m001/content.txt").is_file())
+            extraction = json.loads((records[0] / "calls/m001/extraction.json").read_text())
+            self.assertEqual(extraction["candidate_id"], "c001")
             self.assertFalse((AGENT_ROOT / "result").exists())
 
     def test_agent_process_failure_still_creates_contract_files(self):
@@ -60,8 +70,44 @@ class RunContractTests(unittest.TestCase):
             self.assertEqual((cwd / "result" / "trace.jsonl").read_text(), "")
             self.assertIn("agent exited with 7", result.stderr)
 
+    def isolated_path(self, cwd):
+        bin_dir = cwd / "isolated_bin"
+        bin_dir.mkdir(exist_ok=True)
+        for command in ("bash", "dirname", "mkdir", "python3"):
+            (bin_dir / command).symlink_to(shutil.which(command))
+        return str(bin_dir)
+
+    def test_http_preserves_records_outside_request_temporary_directory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            records = root / "records"
+            env = dict(LLM_BACKEND="mock", AGENT_RECORD_ROOT=str(records),
+                       AGENT_RECORD_LEVEL="full", PATH=self.isolated_path(root))
+            request = serve_api.SolveRequest(task_id="single-test", prompt=
+                "I would like you to implement a module named TopModule with "
+                "the following interface.\n - input a\n - output q\n")
+            with patch.dict(os.environ, env), patch.object(serve_api, "TOKEN", "test-token"), \
+                    patch.object(serve_api, "SCRATCH", str(root)):
+                result = serve_api.solve(request, authorization="Bearer test-token")
+            self.assertEqual(set(result), {"task_id", "solution", "trace", "elapsed_s"})
+            self.assertIn("module TopModule", result["solution"])
+            manifests = list(records.glob('*/run.json'))
+            self.assertEqual(len(manifests), 1)
+            manifest = json.loads(manifests[0].read_text())
+            self.assertEqual(manifest['metadata']['task_id'], 'single-test')
+            self.assertEqual(manifest['calls']['m001']['status'], 'succeeded')
+            self.assertTrue((manifests[0].parent/'calls/m001/content.txt').is_file())
+            self.assertEqual(set(root.iterdir()), {records, root / "isolated_bin"})
+            events = [json.loads(line) for line in result['trace'].splitlines()]
+            self.assertTrue(any(e.get('candidate_id') == 'c001' and e.get('source_call_id') == 'm001'
+                                for e in events))
+
     def _run(self, args, *, cwd: Path, env=None):
         run_env = dict(os.environ) if env is None else env
+        if env is None:
+            run_env["PATH"] = self.isolated_path(cwd)
+        run_env.pop("AGENT_RECORD_ROOT", None)
+        run_env["AGENT_RECORD_LEVEL"] = "full"
         run_env["LLM_BACKEND"] = "mock"
         return subprocess.run(
             [str(RUN_SH), *args],

@@ -12,28 +12,36 @@ AGENT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENT_ROOT))
 
 from agent.artifacts import ArtifactStore  # noqa: E402
-from agent.llm import LLMResult, LLMTimeoutError  # noqa: E402
-from agent.main import Trace, solve_agent  # noqa: E402
+from agent.core.model import ModelReply, ModelCallError, BackendResponse
+from agent.services.model import ModelService
+from agent.core.config import ModelConfig  # noqa: E402
+from agent.main import solve_agent
+from agent.recording.recorder import RunRecorder  # noqa: E402
 from agent.tools import ToolResult  # noqa: E402
 
 
-def reply(code: str) -> LLMResult:
-    return LLMResult(
-        text=f"```verilog\n{code}```\n",
+def reply(code: str) -> ModelReply:
+    return ModelReply(
+        call_id="m001", content=f"```verilog\n{code}```\n",
         finish_reason="stop",
         model="fake-model",
     )
 
 
-class FakeLLM:
+class FakeBackend:
     def __init__(self, outcomes):
         self.outcomes = iter(outcomes)
 
-    def chat(self, messages):
+    def describe(self):
+        return dict(backend="test", model="fake-model")
+
+    def complete(self, request):
         outcome = next(self.outcomes)
         if isinstance(outcome, BaseException):
             raise outcome
-        return outcome
+        return BackendResponse(0.01, 200, json.dumps(dict(
+            model=outcome.model, choices=[dict(message=dict(content=outcome.content),
+                                             finish_reason=outcome.finish_reason)])))
 
 
 class FakeToolchain:
@@ -58,9 +66,9 @@ def tool_result(tool: str, status: str, summary: str) -> ToolResult:
 
 class CandidateFlowTests(unittest.TestCase):
     def test_incomplete_extraction_is_explicitly_traced(self):
-        llm = FakeLLM([
-            LLMResult(
-                text="```verilog\nmodule TopModule(input a, output q);\n```",
+        llm = FakeBackend([
+            ModelReply(
+                call_id="m001", content="```verilog\nmodule TopModule(input a, output q);\n```",
                 finish_reason="length",
                 model="fake-model",
             )
@@ -70,12 +78,12 @@ class CandidateFlowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             store = ArtifactStore(temp, save_candidates=True)
             trace_path = Path(temp, "trace.jsonl")
-            trace = Trace(str(trace_path))
+            trace = RunRecorder(temp)
             with patch("agent.main.RtlToolchain", return_value=tools), \
                     patch("agent.main.load_skills", return_value=[]), \
                     patch("agent.main.MAX_ROUNDS", 1):
                 selected = solve_agent(
-                    llm, trace, store, "Implement TopModule.", "", "TopModule"
+                    ModelService(llm, trace), trace, ModelConfig(), store, "Implement TopModule.", "", "TopModule"
                 )
             trace.close()
             events = [
@@ -92,9 +100,9 @@ class CandidateFlowTests(unittest.TestCase):
 
     def test_second_model_failure_preserves_first_candidate(self):
         first_code = "module TopModule; endmodule\n"
-        llm = FakeLLM([
+        llm = FakeBackend([
             reply(first_code),
-            LLMTimeoutError("request timed out"),
+            ModelCallError("request timed out", kind="timeout"),
         ])
         tools = FakeToolchain(
             lint_results=[tool_result("lint", "failed", "lint failed")]
@@ -102,11 +110,11 @@ class CandidateFlowTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp:
             store = ArtifactStore(temp, save_candidates=True)
-            trace = Trace(str(Path(temp, "trace.jsonl")))
+            trace = RunRecorder(temp)
             with patch("agent.main.RtlToolchain", return_value=tools), \
                     patch("agent.main.load_skills", return_value=[]):
                 selected = solve_agent(
-                    llm, trace, store, "Implement TopModule.", "", "TopModule"
+                    ModelService(llm, trace), trace, ModelConfig(), store, "Implement TopModule.", "", "TopModule"
                 )
             trace.close()
 
@@ -118,7 +126,7 @@ class CandidateFlowTests(unittest.TestCase):
     def test_candidate_history_reconstructs_repairs_and_final_selection(self):
         first_code = "module TopModule; endmodule\n"
         second_code = "module TopModule; wire fixed; endmodule\n"
-        llm = FakeLLM([reply(first_code), reply(second_code)])
+        llm = FakeBackend([reply(first_code), reply(second_code)])
         tools = FakeToolchain(
             lint_results=[
                 tool_result("lint", "failed", "lint failed"),
@@ -132,11 +140,11 @@ class CandidateFlowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             store = ArtifactStore(temp, save_candidates=True)
             trace_path = Path(temp, "trace.jsonl")
-            trace = Trace(str(trace_path))
+            trace = RunRecorder(temp)
             with patch("agent.main.RtlToolchain", return_value=tools), \
                     patch("agent.main.load_skills", return_value=[]):
                 selected = solve_agent(
-                    llm, trace, store, "Implement TopModule.", "", "TopModule"
+                    ModelService(llm, trace), trace, ModelConfig(), store, "Implement TopModule.", "", "TopModule"
                 )
             trace.close()
 
@@ -151,6 +159,8 @@ class CandidateFlowTests(unittest.TestCase):
             self.assertEqual(first["extraction_status"], "ok")
             self.assertIsNone(first["parent_id"])
             self.assertEqual(second["source_stage"], "repair")
+            self.assertEqual(first["source_call_id"], "m001")
+            self.assertEqual(second["source_call_id"], "m002")
             self.assertEqual(second["parent_id"], "c001")
             self.assertEqual(selected.id, "c002")
             self.assertEqual(selection["candidate_id"], "c002")

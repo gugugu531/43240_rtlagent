@@ -97,7 +97,12 @@ def read_trace(path: str) -> list[dict]:
 
 
 def trace_stats(events: list[dict]) -> dict:
-    llm = [e for e in events if e.get("tool") == "llm"]
+    llm_events = [e for e in events if e.get("tool") == "llm"]
+    llm = [e for e in llm_events if e.get("event") != "started"]
+    # A terminated call has only its start; count that attempt exactly once.
+    ended_ids = {e.get("call_id") for e in llm if e.get("call_id")}
+    unfinished = [e for e in llm_events
+                  if e.get("event") == "started" and e.get("call_id") not in ended_ids]
     metadata = next(
         (e for e in events
          if e.get("tool") == "run" and e.get("event") == "metadata"),
@@ -105,10 +110,10 @@ def trace_stats(events: list[dict]) -> dict:
     )
     tools = Counter(e.get("tool") for e in events
                     if e.get("tool") not in ("llm", "agent", "baseline_meta",
-                                             "run", "env", "skills", "budget", None))
-    finishes = [e.get("finish") for e in llm if e.get("finish")]
+                                             "run", "env", "skills", "budget", "recording", None))
+    finishes = [e.get("finish_reason", e.get("finish")) for e in llm]
     return {
-        "llm_calls": len(llm),
+        "llm_calls": len(llm) + len(unfinished),
         "llm_errors": sum(1 for e in llm if e.get("error") or e.get("rc") == 1),
         "tokens_in": sum(int(e.get("tokens_in") or 0) for e in llm),
         "tokens_out": sum(int(e.get("tokens_out") or 0) for e in llm),

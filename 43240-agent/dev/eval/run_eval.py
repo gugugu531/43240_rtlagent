@@ -107,7 +107,7 @@ def check_env(args) -> None:
                  "或用 --no-judge 只求解不判定")
     backend = os.environ.get("LLM_BACKEND", "mock")
     if "baseline" in args.modes and backend == "mock" and not args.force_baseline:
-        # Same reasoning as run_selftest.sh: mock only applies to agent/llm.py,
+        # Same reasoning as run_selftest.sh: mock only applies to agent/services/model.py,
         # baseline.py would still hit LLM_BASE_URL -- a gain between two
         # different models is meaningless and looks normal.
         args.modes.remove("baseline")
