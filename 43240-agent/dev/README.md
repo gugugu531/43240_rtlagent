@@ -1,7 +1,6 @@
 # 团队开发区
 
-本目录不随方案提交；原始产物和参考答案只能留在开发区。完整规范、设计、决策、失败分析和
-实验记录统一从 [docs/readme.md](docs/readme.md) 查阅。
+本目录不随方案提交；原始产物和参考答案只能留在开发区。先读[简洁使用手册](docs/guide.md)，接口与架构查[详细参考](docs/reference.md)。完整规范与保留的历史证据统一从[文档索引](docs/readme.md)进入。
 
 当前框架已具备 Python Workflow/Node、完整模型证据、候选保护、预算与进程监督、YAML 配置和
 统一单题/批量实验入口。默认 single_generate 近似 baseline；可选 repair_loop 的全量收益仍待验证。

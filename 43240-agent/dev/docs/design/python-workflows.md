@@ -1,5 +1,7 @@
 # Python Workflow 与 Node 接口
 
+本文是当前接口的专题参考；完整索引见[详细参考](../reference.md)。
+
 本文描述当前提供的接口。默认流程是 `single_generate`：一次直接生成、提取和选择。
 可选 `repair_loop` 包含多轮接口检查、lint 与综合反馈。官方 baseline 文件保持原样。
 
@@ -52,7 +54,7 @@ class Workflow(Protocol):
     def describe(self) -> ComponentSpec: ...
 ```
 
-本阶段同步执行 Node，不提供并行调度器。输入输出可以是不同的类型；内置动作使用明确的
+当前同步执行 Node，不提供并行调度器。输入输出可以是不同的类型；内置动作使用明确的
 dataclass（数据类）。默认 Node 为生成、提取、接口检查、lint 和综合。
 生成 Node 不重试，提取 Node 注册候选但不选择答案，检查 Node 只返回检查证据。
 

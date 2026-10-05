@@ -1,6 +1,6 @@
-# 第三阶段：候选、失败处理与运行监督设计
+# 候选、失败处理与运行监督
 
-本阶段按用户审阅的计划完善可靠运行。默认 single_generate 保持单次生成，不添加检查、技能或重试。
+本文是当前可靠运行接口的专题参考；总览见[详细参考](../reference.md)。默认 single_generate 保持单次生成，不添加检查、技能或重试。
 实现与验证结果单独写入[阶段进展](../notes/2026-10-05-stage3-progress.md)。
 
 ## 架构分工
@@ -90,7 +90,7 @@ ctx.processes.run(request: ProcessRequest) -> ProcessResult
 ```
 
 RunSpec 是可重建的生产输入：TaskSpec、注册名称、JSON 可序列化参数、扩展模块、RunOptions、
-开始时刻和可选 ModelConfig；不接受 Workflow 闭包或正在使用的 Node 实例。
+开始时刻、模型与工具配置及配置来源；不接受 Workflow 闭包或正在使用的 Node 实例。
 RunOptions 保存输出、总预算、清理预留和记录设置。模型和工具按实际剩余时间封顶；Node 可以
 声明 minimum_s。预算小于预留时间时不启动求解。
 
@@ -112,4 +112,4 @@ Worker 是唯一 trace 写入者。Supervisor 确认 Worker 停止后接管，�
 正在执行的模型、Node 或工具保留开始状态，不编造结束事件。详细目录在 full 模式保存工具
 完整日志和监督结果；最后一行中断的 trace 片段单独保存。
 
-本阶段不增加 YAML 加载、统一实验入口、测评指标或重放机制。这些仍需在后续阶段审阅计划。
+YAML 配置、统一实验入口与可选指标已实现，见[配置专题](configuration-and-experiments.md)。历史重放与自动消融仍未实现。

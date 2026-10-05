@@ -1,70 +1,67 @@
 # 团队开发文档
 
-所有团队文档统一存放在此处。[开发规范](conventions.md)定义目录、依赖、测试、文档和 Git 约定。
-主办方原始文档、方案 README、模型声明和技能说明继续保留规定位置。
+当前框架的两个入口：
 
-## 当前框架
+- **[使用手册](guide.md)**：运行、配置、单题实验、自定义 Workflow 和查看原始回复。
+- **[详细参考](reference.md)**：架构、接口、完整配置、策略、证据格式、实验与限制。
 
-默认 single_generate 近似 baseline；Python Workflow/Node、完整证据、候选保护、进程监督、
-YAML 配置与统一实验已实现。历史重放和新的实验比较暂缓。各阶段实施与验证范围见下面的记录，
-模型与服务尚未最终确定，单题验证不代表整体增益。
+代码核对版本：`6700ded`（2026-10-05）。[开发规范](conventions.md)独立维护协作规则。
+归档只调整文档状态与入口，所有实验、验证、决策和原始资源数据保留；历史结论不自动成为当前行为。
 
-## 设计与工具
+## 当前专题参考
 
-- [Python Workflow 与 Node 接口](design/python-workflows.md)
-- [配置与统一实验](design/configuration-and-experiments.md)
-- [运行记录格式](design/trace-schema.md)
-- [候选、失败处理与监督](design/runtime-reliability.md)
-- [目录组织与提交检查](design/layout-and-submission.md)
-- [远端管理](design/remote-tools.md)
-- [历史实验分析](design/historical-analysis.md)
-
-## 阶段记录
-
-- [第五阶段：目录与提交检查](notes/2026-10-05-stage5-progress.md)
-
-- [2026-10-05-gpu-diagnosis-and-model-validation](notes/2026-10-05-gpu-diagnosis-and-model-validation.md)
-- [2026-10-05-stage1-progress](notes/2026-10-05-stage1-progress.md)
-- [2026-10-05-stage2-progress](notes/2026-10-05-stage2-progress.md)
-- [2026-10-05-stage3-progress](notes/2026-10-05-stage3-progress.md)
-- [2026-10-05-stage3-remote-validation](notes/2026-10-05-stage3-remote-validation.md)
-- [2026-10-05-stage4-progress](notes/2026-10-05-stage4-progress.md)
-
-## 模型决策与失败分析
-
-历史模型选型和失败分析均保留，内容与实测来源见各篇；目录迁移不表示结论已重新验证。
-
-| 文档 | 性质 |
+| 文档 | 内容 |
 | --- | --- |
-| [0001：推理后端](notes/0001-inference-backend.md) | 决策，最终选择待定 |
-| [0002：模型选择](notes/0002-model-choice.md) | 决策，建议与证据，待团队确定 |
-| [服务栈](notes/serving-stack.md) | 服务与硬件限制分析 |
-| [功能失配](notes/sim-mismatch.md) | 仿真失败分析 |
-| [修复收益](notes/agent-repair.md) | 历史 Agent 策略分析 |
-| [thinking 正文](notes/thinking-in-content.md) | 服务回复分析 |
-| [L0 错误码](notes/l0-error-codes.md) | 工具报错分析 |
+| [Python Workflow](design/python-workflows.md) | 注册、组件和上下文 |
+| [配置与实验](design/configuration-and-experiments.md) | YAML、统一入口与指标 |
+| [记录格式](design/trace-schema.md) | trace 与完整模型证据 |
+| [可靠运行](design/runtime-reliability.md) | 选择、诊断、缓存、预算与监督 |
+| [目录与提交](design/layout-and-submission.md) | 文件组织和独立打包检查 |
+| [远端管理](design/remote-tools.md) | 脚本使用，平台细节带历史实测范围 |
+| [历史分析工具](design/historical-analysis.md) | 保留的旧格式统计工具 |
 
-## 其他笔记
+当前文档维护记录见[本轮整理记录](notes/2026-10-05-documentation-progress.md)。
 
-- [2026-09-23-plan-review](notes/2026-09-23-plan-review.md)
-- [2026-09-24-baseline-sweep](notes/2026-09-24-baseline-sweep.md)
-- [2026-09-25-candidate-tables](notes/2026-09-25-candidate-tables.md)
-- [2026-09-25-joint-first-results](notes/2026-09-25-joint-first-results.md)
-- [2026-09-25-model-fingerprints](notes/2026-09-25-model-fingerprints.md)
-- [2026-09-25-model-screening-plan](notes/2026-09-25-model-screening-plan.md)
-- [2026-09-25-screening-progress](notes/2026-09-25-screening-progress.md)
-- [2026-09-25-screening-results](notes/2026-09-25-screening-results.md)
-- [2026-10-05-agent-redesign-plan](notes/2026-10-05-agent-redesign-plan.md)
-- [2026-10-05-agent-review](notes/2026-10-05-agent-review.md)
+## 归档笔记与验证证据
 
-人工模型资源数据见 [model-metrics-manual.json](notes/model-metrics-manual.json)，每项保留来源。
+以下是当时的审查、计划、决策与验证记录。查当前接口用上面的指南；查“为什么”和实验依据用这些记录。
 
-## 实验记录
+| 记录 | 归档性质 |
+| --- | --- |
+| [0001-inference-backend](notes/0001-inference-backend.md) | 历史选型决策：尚未定稿，不作为当前服务配置 |
+| [0002-model-choice](notes/0002-model-choice.md) | 历史选型决策：尚未定稿，不作为当前服务配置 |
+| [2026-09-23-plan-review](notes/2026-09-23-plan-review.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [2026-09-24-baseline-sweep](notes/2026-09-24-baseline-sweep.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [2026-09-25-candidate-tables](notes/2026-09-25-candidate-tables.md) | 历史生成表：保留原文与测量值 |
+| [2026-09-25-joint-first-results](notes/2026-09-25-joint-first-results.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [2026-09-25-model-fingerprints](notes/2026-09-25-model-fingerprints.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [2026-09-25-model-screening-plan](notes/2026-09-25-model-screening-plan.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [2026-09-25-screening-progress](notes/2026-09-25-screening-progress.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [2026-09-25-screening-results](notes/2026-09-25-screening-results.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [2026-10-05-agent-redesign-plan](notes/2026-10-05-agent-redesign-plan.md) | 归档设计讨论：含已实施和未实施设想 |
+| [2026-10-05-agent-review](notes/2026-10-05-agent-review.md) | 归档审查：问题针对表中历史源码版本 |
+| [2026-10-05-gpu-diagnosis-and-model-validation](notes/2026-10-05-gpu-diagnosis-and-model-validation.md) | 归档验证记录：只说明该次版本和测试范围 |
+| [2026-10-05-stage1-progress](notes/2026-10-05-stage1-progress.md) | 归档验证记录：只说明该次版本和测试范围 |
+| [2026-10-05-stage2-progress](notes/2026-10-05-stage2-progress.md) | 归档验证记录：只说明该次版本和测试范围 |
+| [2026-10-05-stage3-progress](notes/2026-10-05-stage3-progress.md) | 归档验证记录：只说明该次版本和测试范围 |
+| [2026-10-05-stage3-remote-validation](notes/2026-10-05-stage3-remote-validation.md) | 归档验证记录：只说明该次版本和测试范围 |
+| [2026-10-05-stage4-progress](notes/2026-10-05-stage4-progress.md) | 归档验证记录：只说明该次版本和测试范围 |
+| [2026-10-05-stage5-progress](notes/2026-10-05-stage5-progress.md) | 归档验证记录：只说明该次版本和测试范围 |
+| [agent-repair](notes/agent-repair.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [l0-error-codes](notes/l0-error-codes.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [serving-stack](notes/serving-stack.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [sim-mismatch](notes/sim-mismatch.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
+| [thinking-in-content](notes/thinking-in-content.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
 
-- [第五阶段迁移 smoke](experiments/20261005-201406-stage5-mock-9f5cfd91.md)
+[模型资源人工数据](notes/model-metrics-manual.json)保留每项来源，不因归档改变值。
 
-新旧实验笔记集中在 experiments/；原始数据仍在 dev/runs/，格式以各次记录为准。
+## 实验记录（全部保留）
 
+笔记保存于 experiments/，原始数据仍在 dev/runs/；生成块不手改，人工假设与结论在块外。
+旧格式与新格式以各次记录为准。用户已有的一份未提交笔记仍在原路径，未修改、未移动：
+`dev/experiments/20261004-212040-joint-cur-qwen3-8b-quick.md`（仅本地存在，不在 Git 中）。
+
+- [20261005-201406-stage5-mock-9f5cfd91](experiments/20261005-201406-stage5-mock-9f5cfd91.md)
 - [20261005-193024-stage4-real-single-ff1050ad](experiments/20261005-193024-stage4-real-single-ff1050ad.md)
 - [20261005-191812-stage4-vivado-smoke-1b9df732](experiments/20261005-191812-stage4-vivado-smoke-1b9df732.md)
 - [20261005-191114-stage4-mock-6e70ebfb](experiments/20261005-191114-stage4-mock-6e70ebfb.md)
