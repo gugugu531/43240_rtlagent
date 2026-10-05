@@ -20,7 +20,7 @@
 | **最终由谁定** | 团队评判——决策文档只给建议与依据 | 同上 |
 | **有哪些已知问题** | 5 个问题：2 个已解决、1 个部分解决、2 个未解决（含 2 条「已确认受限」） | [`failures/README.md`](failures/README.md) 的状态索引 |
 | **接下来做什么** | 联合阶段测门槛最低的两个候选；提交前必须处理 `serve/vllm.sh` 的参数与 gpt-oss 词表 | [`notes/2026-09-25-screening-progress.md`](notes/2026-09-25-screening-progress.md) |
-| **Agent 框架讨论** | 审查已完成；Python Workflow、Node 注册、精简目录与统一指标方向已记录；第一阶段已实现模型原始响应与提取证据记录，Workflow 与 Node 尚未实现 | [审查记录](notes/2026-10-05-agent-review.md)、[设计方案](notes/2026-10-05-agent-redesign-plan.md)、[第一阶段进展](docs/notes/2026-10-05-stage1-progress.md) |
+| **Agent 框架讨论** | 审查已完成；Python Workflow、Node 注册、精简目录与统一指标方向已记录；已实现模型证据记录、Registry、Node 与 Python Workflow；默认单次生成，统一实验入口待实现 | [审查记录](notes/2026-10-05-agent-review.md)、[设计方案](notes/2026-10-05-agent-redesign-plan.md)、[第一阶段进展](docs/notes/2026-10-05-stage1-progress.md)、[第二阶段进展](docs/notes/2026-10-05-stage2-progress.md) |
 | **风险** | `M`（满分线倍数）未知；决赛硬件 R9700（gfx1201）当前拿不到、未验证 | [`decisions/0002`](decisions/0002-model-choice.md) 的「未决问题」 |
 
 **三层阅读路径**：① 本节的速览 → ② [`decisions/`](decisions/README.md)（结论与横向对比）+

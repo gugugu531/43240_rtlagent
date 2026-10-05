@@ -17,13 +17,29 @@ class Redactor:
     def add_secrets(self, secrets):
         self.secrets.update(v for v in secrets if v)
 
-    def copy(self, value, key=None):
+    def _collect(self, value, key=None):
+        if key and key.lower().replace('-', '_') in SENSITIVE and isinstance(value, str):
+            self.add_secrets([value])
+            if key.lower() == 'authorization' and value.lower().startswith('bearer '):
+                self.add_secrets([value[7:]])
+        if isinstance(value, Mapping):
+            for k, v in value.items():
+                self._collect(v, str(k))
+        elif isinstance(value, (tuple, list)):
+            for item in value:
+                self._collect(item)
+
+    def copy(self, value):
+        self._collect(value)
+        return self._copy(value)
+
+    def _copy(self, value, key=None):
         if key and key.lower().replace('-', '_') in SENSITIVE:
             return '[redacted]'
         if isinstance(value, Mapping):
-            return {str(k): self.copy(v, str(k)) for k, v in value.items()}
+            return {str(k): self._copy(v, str(k)) for k, v in value.items()}
         if isinstance(value, (list, tuple)):
-            return [self.copy(v) for v in value]
+            return [self._copy(v) for v in value]
         if isinstance(value, str):
             for secret in sorted(self.secrets, key=len, reverse=True):
                 value = value.replace(secret, '[redacted]')

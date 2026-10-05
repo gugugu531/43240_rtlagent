@@ -108,9 +108,9 @@ def trace_stats(events: list[dict]) -> dict:
          if e.get("tool") == "run" and e.get("event") == "metadata"),
         {},
     )
+    # Count recorded checks, not extraction, selection or framework lifecycle events.
     tools = Counter(e.get("tool") for e in events
-                    if e.get("tool") not in ("llm", "agent", "baseline_meta",
-                                             "run", "env", "skills", "budget", "recording", None))
+                    if e.get("check_id") or e.get("tool") in ("check_interface", "lint", "synth"))
     finishes = [e.get("finish_reason", e.get("finish")) for e in llm]
     return {
         "llm_calls": len(llm) + len(unfinished),

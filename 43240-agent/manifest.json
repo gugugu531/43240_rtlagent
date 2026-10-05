@@ -12,7 +12,7 @@
   },
   "context": {
     "max_model_len": 32768,
-    "max_output_tokens": 4096,
+    "max_output_tokens": 8192,
     "rope_scaling": null
   },
   "serving": {
@@ -27,14 +27,14 @@
     "http_port": 7860
   },
   "agent": {
-    "max_rounds": 3,
-    "tools": [
-      "check_interface",
-      "lint",
-      "synth"
-    ],
-    "skills": [
-      "rtl-module-interface-contract"
+    "workflow": "single_generate",
+    "max_rounds": 1,
+    "temperature": 0.0,
+    "tools": [],
+    "skills": [],
+    "available_workflows": [
+      "single_generate",
+      "repair_loop"
     ]
   }
 }

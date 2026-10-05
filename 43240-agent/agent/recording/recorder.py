@@ -1,6 +1,8 @@
 """Run-local evidence and mandatory competition JSONL trace."""
 from __future__ import annotations
 from dataclasses import dataclass
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 import json
 import os
@@ -11,6 +13,9 @@ import warnings
 from typing import Literal
 from ..core.model import ArtifactRef, ModelCallError
 from .redaction import Redactor
+
+
+TRACE_SCHEMA_VERSION = 3
 
 
 class RecordingError(OSError):
@@ -42,12 +47,13 @@ class RunRecorder:
         self._incomplete = False
         self._closed = False
         self._calls = {}
+        self._execution = ContextVar('node_execution', default=None)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         # Failure here is an infrastructure error, never a silent optional failure.
         self._trace = (self.output_dir / 'trace.jsonl').open('w', encoding='utf-8')
         self.run_dir = (Path(self.config.root) if self.config.root else self.output_dir / 'records') / self.run_id
-        self._run = dict(run_id=self.run_id, level=self.config.level, status='started',
+        self._run = dict(schema_version=TRACE_SCHEMA_VERSION, run_id=self.run_id, level=self.config.level, status='started',
                          started_at=time.time(), recording_incomplete=False, calls=self._calls)
         self.write_event('run', 'recording', level=self.config.level,
                          record_dir=str(self.run_dir) if self.config.level == 'full' else None)
@@ -55,10 +61,13 @@ class RunRecorder:
 
     def write_event(self, tool: str, event: str = 'result', **fields):
         self._seq += 1
+        execution_id = self._execution.get()
+        if execution_id:
+            fields['execution_id'] = execution_id
         data = self.redactor.copy(fields)
         if 'excerpt' in data:
             data['excerpt'] = str(data['excerpt'])[:2000]
-        data.update(schema_version=2, run_id=self.run_id, seq=self._seq,
+        data.update(schema_version=TRACE_SCHEMA_VERSION, run_id=self.run_id, seq=self._seq,
                     ts=round(time.time(), 3), tool=tool, event=event)
         try:
             self._trace.write(json.dumps(data, ensure_ascii=False) + '\n')
@@ -110,11 +119,11 @@ class RunRecorder:
     def begin_call(self, request, service_info):
         self._call_seq += 1
         call = CallHandle(f'm{self._call_seq:03d}', self.run_id)
-        self._calls[call.call_id] = dict(status='started', purpose=request.purpose)
+        self._calls[call.call_id] = dict(status='started', purpose=request.purpose, execution_id=self._execution.get())
         self.write_event('llm', 'started', call_id=call.call_id, purpose=request.purpose,
                          service=service_info)
         self._artifact(f'calls/{call.call_id}/request.json',
-                       dict(service=service_info, request=request.public_dict()))
+                       dict(service=service_info, request=request.public_dict(), execution_id=self._execution.get()))
         self._save_run()
         return call
 
@@ -130,6 +139,7 @@ class RunRecorder:
     def finish_call(self, call, result):
         failed = isinstance(result, ModelCallError)
         data = result.public_dict()
+        data['execution_id'] = self._calls[call.call_id]['execution_id']
         data.setdefault('status_code', self._calls[call.call_id].get('status_code'))
         self._calls[call.call_id].update(status='failed' if failed else 'succeeded', **data)
         if not failed:
@@ -142,6 +152,49 @@ class RunRecorder:
         data = dict(call_id=call_id, candidate_id=candidate_id, **extraction.trace_dict())
         self._artifact(f'calls/{call_id}/extraction.json', data)
         self.write_event('extract', 'result', **data)
+
+    @contextmanager
+    def execution_scope(self, execution_id):
+        token = self._execution.set(execution_id)
+        try:
+            yield
+        finally:
+            self._execution.reset(token)
+
+    def record_task(self, task):
+        self._artifact('task.json', dict(**task.public_dict(), prompt=task.prompt, interface=task.interface))
+
+    def record_node(self, execution):
+        data = dict(execution_id=execution.id, parent_execution_id=execution.parent_id,
+                    component=dict(execution.component), status=execution.status,
+                    elapsed_s=execution.elapsed_s, input=execution.input,
+                    output=execution.output, error_type=execution.error_type, error_message=execution.error_message)
+        self._run.setdefault('nodes', {})[execution.id] = data
+        self.write_event('node', execution.status, **data)
+        self._artifact(f'nodes/{execution.id}/execution.json', data)
+        self._save_run()
+
+    def record_candidate(self, candidate):
+        self._artifact(f'candidates/{candidate.id}/solution.v', candidate.code, text=True)
+        self._artifact(f'candidates/{candidate.id}/metadata.json', candidate.public_dict())
+        self.write_event('candidate', 'create', **candidate.trace_dict())
+
+    def record_selection(self, candidate, *, reason):
+        data = dict(candidate_id=candidate.id, code_hash=candidate.code_hash,
+                    source_call_id=candidate.source_call_id, reason=reason)
+        self._artifact('selection.json', data)
+        self.write_event('candidate', 'select', **data)
+
+    def record_result(self, result):
+        if result is not None:
+            self._run['result'] = dict(status=result.status, stop_reason=result.stop_reason,
+                                       selected_candidate_id=result.selected_candidate.id if result.selected_candidate else None)
+            self._save_run()
+
+    def record_check(self, result):
+        data = result.public_dict()
+        self._artifact(f'checks/{result.id}/result.json', data)
+        self.write_event('check_interface' if result.kind == 'interface' else result.kind, 'result', **data)
 
     def close(self):
         if self._closed:

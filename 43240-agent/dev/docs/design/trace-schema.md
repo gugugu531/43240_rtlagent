@@ -4,8 +4,11 @@
 
 ## 对外 trace
 
-`trace.jsonl` 必须存在，每行一个 JSON 对象。版本为 `schema_version=2`，公共字段包括
+`trace.jsonl` 必须存在，每行一个 JSON 对象。版本为 `schema_version=3`，公共字段包括
 `run_id`、递增的 `seq`、Unix 时间戳 `ts`、事件类别 `tool` 和动作 `event`。
+
+版本 3 增加统一动作契约与检查状态，运行元数据分别描述 Workflow、服务和预算。
+检查状态使用 `passed/failed/timeout/unavailable/error/skipped`。
 
 模型调用分为三个事件：
 
@@ -18,11 +21,14 @@
 开始事件和结束事件属于同一次调用。进程被终止时允许只有开始事件。未知 token 用量是
 `null`，实际的零是 `0`。mock 明确标记为 mock，不生成 HTTP 响应文件或假用量。
 
+`node/started/succeeded/failed` 保存执行 ID、父执行、组件参数、摘要、耗时与错误。
+模型调用、提取、候选与工具事件附带所属 `execution_id`，嵌套动作结束后恢复父动作关联。
+
 `extract/result` 记录调用 ID、候选 ID（没有候选时为 `null`）、完整性、模块名、多草稿、
 截断标记和诊断。`candidate/create` 记录 `source_call_id`，可从最终选择追溯生成来源。
 工具事件继续记录命令、状态、返回码、耗时与摘要。模型正文不内联到 trace；摘要最多 2000 字符。
 
-`run/recording` 记录等级和详细目录，`run/metadata` 记录题目 ID、公开运行配置与 Git 信息。
+`run/recording` 记录等级和详细目录，`run/metadata` 记录题目 ID、Workflow 类型与参数、公开服务配置、运行预算与 Git 信息。
 Git 不可用时记录未知，也可以通过构建环境注入 commit 和 dirty 状态。
 
 ## 详细文件
@@ -30,7 +36,12 @@ Git 不可用时记录未知，也可以通过构建环境注入 commit 和 dirt
 `RecordingConfig(level="full", root=...)` 开启完整记录；默认是 full。未指定 root 时放在
 `<输出目录>/records/<run_id>/`，指定 root 时放在 `<root>/<run_id>/`。
 
-- `run.json`：等级、时间、运行元数据、调用状态和 `recording_incomplete`。
+- `run.json`：格式版本、等级、时间、元数据、调用与动作状态、最终结果和 `recording_incomplete`。
+- `task.json`：本题允许提供的题面、接口及解析来源。
+- `nodes/e001/execution.json`：动作类型、参数、输入输出摘要、父执行、耗时与错误详情。
+- `candidates/c001/solution.v` 与 `metadata.json`：候选正文及来源。
+- `checks/k001/result.json`：统一检查证据。
+- `selection.json`：已选择候选及原因。
 - `calls/m001/request.json`：实际消息与请求参数，以及公开服务配置。HTTP 身份验证头不写入。
 - `response.txt`：收到的原始 HTTP 响应文本，写入前脱敏。
 - `response.json`：可解析的完整 JSON；保留 reasoning、其他 choices 与供应方字段。
