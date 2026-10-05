@@ -2,6 +2,8 @@
 from __future__ import annotations
 import json
 import time
+from dataclasses import replace
+import math
 from collections.abc import Mapping
 from ..core.config import ModelConfig
 from ..core.model import (BackendResponse, ModelBackend, ModelCallError, ModelReply,
@@ -88,7 +90,11 @@ def _parse_reply(body, call_id, response, artifact):
 
 
 class ModelService:
-    def __init__(self, backend: ModelBackend, recorder: RunRecorder):
+    def __init__(self, backend: ModelBackend, recorder: RunRecorder, *,
+                 timeout_limit_s: float | None = None):
+        if timeout_limit_s is not None and (not math.isfinite(timeout_limit_s) or timeout_limit_s <= 0):
+            raise ValueError('service timeout limit must be positive and finite')
+        self.timeout_limit_s = timeout_limit_s
         self.backend, self.recorder = backend, recorder
         # Programmatic configurations may use secrets absent from the environment.
         config = getattr(backend, 'config', None)
@@ -96,6 +102,8 @@ class ModelService:
             recorder.redactor.add_secrets([config.api_key])
 
     def chat(self, request: ModelRequest) -> ModelReply:
+        if self.timeout_limit_s is not None:
+            request = replace(request, timeout_s=min(request.timeout_s, self.timeout_limit_s))
         call = self.recorder.begin_call(request, self.backend.describe())
         artifact = None
         response = None

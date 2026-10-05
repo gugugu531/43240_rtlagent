@@ -5,6 +5,8 @@
 - [总体设计与配置方案](../notes/2026-10-05-agent-redesign-plan.md)
 - [框架审查](../notes/2026-10-05-agent-review.md)
 - [运行记录格式](design/trace-schema.md)
+- [Python Workflow 接口](design/python-workflows.md)
+- [第二阶段进展](notes/2026-10-05-stage2-progress.md)
 - [第一阶段进展](notes/2026-10-05-stage1-progress.md)
 
 `design/` 描述接口和架构；`notes/` 记录实施、验证与问题；后续实验文档放 `experiments/`。

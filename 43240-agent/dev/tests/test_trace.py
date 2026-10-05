@@ -12,7 +12,9 @@ AGENT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENT_ROOT))
 sys.path.insert(0, str(AGENT_ROOT / "dev" / "eval"))
 
-from agent.core.metadata import git_metadata, runtime_metadata
+from agent.core.metadata import git_metadata
+from agent.core.config import ModelConfig, ModelConfigError
+from agent.recording.redaction import Redactor
 from agent.recording.recorder import RunRecorder
 
 class TraceEventTests(unittest.TestCase):
@@ -29,7 +31,7 @@ class TraceEventTests(unittest.TestCase):
         self.assertEqual([event["seq"] for event in events], [1, 2, 3])
         self.assertTrue(all(event["run_id"] == trace.run_id for event in events))
         self.assertTrue(all(
-            event["schema_version"] == 2 for event in events
+            event["schema_version"] == 3 for event in events
         ))
         self.assertTrue(all(isinstance(event["ts"], float) for event in events))
         self.assertEqual(events[1]["tool"], "agent")
@@ -69,52 +71,20 @@ class TraceEventTests(unittest.TestCase):
 
 
 class MetadataTests(unittest.TestCase):
-    def test_runtime_metadata_uses_a_public_allowlist(self):
-        metadata = runtime_metadata(
-            max_rounds=3,
-            deadline_s=360,
-            reserve_s=20,
-            resolved_top="TopModule",
-            save_candidates=True,
-            keep_work=False,
-            agent_tmp="/tmp",
-            env={
-                "LLM_BACKEND": "openai",
-                "LLM_MODEL": "test-model",
-                "LLM_BASE_URL": "http://127.0.0.1:8000/v1?ignored=yes",
-                "LLM_API_KEY": "must-not-appear",
-                "RC_COOKIE": "must-not-appear-either",
-            },
-        )
-
-        encoded = json.dumps(metadata)
-        self.assertEqual(metadata["model_request"]["model"], "test-model")
-        self.assertEqual(
-            metadata["model_request"]["base_url"],
-            "http://127.0.0.1:8000/v1",
-        )
-        self.assertNotIn("must-not-appear", encoded)
-        self.assertNotIn("api_key", encoded.lower())
-        self.assertNotIn("cookie", encoded.lower())
+    def test_service_metadata_uses_a_public_allowlist(self):
+        config = ModelConfig(backend="openai", model="test-model", base_url="http://localhost/v1", api_key="secret-value")
+        encoded = json.dumps(config.public_dict())
+        self.assertNotIn("secret-value", encoded)
+        self.assertNotIn("api_key", encoded)
+        self.assertNotIn("temperature", encoded)
+        self.assertNotIn("max_tokens", encoded)
 
     def test_credentials_embedded_in_base_url_are_not_recorded(self):
-        metadata = runtime_metadata(
-            max_rounds=3,
-            deadline_s=360,
-            reserve_s=20,
-            resolved_top="TopModule",
-            save_candidates=False,
-            keep_work=False,
-            agent_tmp="/tmp",
-            env={"LLM_BASE_URL": "https://user:password@example.com/v1"},
-        )
-
-        encoded = json.dumps(metadata)
-        self.assertNotIn("user", encoded)
-        self.assertNotIn("password", encoded)
-        self.assertEqual(
-            metadata["model_request"]["base_url"], "[redacted-invalid-url]"
-        )
+        with self.assertRaises(ModelConfigError):
+            ModelConfig(backend="openai", base_url="https://user:password@example.com/v1")
+        public = Redactor().copy("https://user:password@example.com/v1?token=value")
+        self.assertNotIn("user:password", public)
+        self.assertNotIn("token=value", public)
 
     def test_git_metadata_accepts_build_time_injection(self):
         metadata = git_metadata(
@@ -141,6 +111,9 @@ class LifecycleStatisticsTests(unittest.TestCase):
             dict(tool='llm', event='failed', call_id='m002', rc=1, elapsed_s=0.2),
             dict(tool='llm', event='started', call_id='m003'),
             dict(tool='recording', event='warning', rc=1),
+            dict(tool='node', event='succeeded'),
+            dict(tool='extract', event='result'),
+            dict(tool='candidate', event='select'),
         ])
         self.assertEqual(stats['llm_calls'], 3)
         self.assertEqual(stats['llm_errors'], 1)

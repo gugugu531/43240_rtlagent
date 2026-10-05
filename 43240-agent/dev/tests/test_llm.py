@@ -173,11 +173,12 @@ class ModelTests(unittest.TestCase):
     def test_configuration_validation(self):
         self.assertEqual(ModelConfig.from_env({}).backend, 'mock')
         for env in [dict(LLM_BACKEND='unknown'), dict(LLM_BACKEND='openai'),
-                    dict(LLM_MAX_TOKENS='0'), dict(LLM_TIMEOUT_S='nan'), dict(LLM_TEMPERATURE='-1')]:
+                    dict(LLM_TIMEOUT_S='nan'), dict(LLM_TIMEOUT_S='0')]:
             with self.assertRaises(ModelConfigError):
                 ModelConfig.from_env(env)
-        with self.assertRaises(ModelCallError):
-            ModelRequest([], timeout_s=0)
+        for values in [dict(timeout_s=0), dict(max_tokens=0), dict(temperature=-1)]:
+            with self.assertRaises(ModelCallError):
+                ModelRequest([], **values)
 
 
 class RecordingIsolationTests(unittest.TestCase):

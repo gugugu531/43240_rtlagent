@@ -81,7 +81,7 @@ class RunContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             records = root / "records"
-            env = dict(LLM_BACKEND="mock", AGENT_RECORD_ROOT=str(records),
+            env = dict(LLM_BACKEND="mock", AGENT_WORKFLOW="single_generate", AGENT_RECORD_ROOT=str(records),
                        AGENT_RECORD_LEVEL="full", PATH=self.isolated_path(root))
             request = serve_api.SolveRequest(task_id="single-test", prompt=
                 "I would like you to implement a module named TopModule with "
@@ -96,6 +96,8 @@ class RunContractTests(unittest.TestCase):
             manifest = json.loads(manifests[0].read_text())
             self.assertEqual(manifest['metadata']['task_id'], 'single-test')
             self.assertEqual(manifest['calls']['m001']['status'], 'succeeded')
+            self.assertEqual(manifest['result']['selected_candidate_id'], 'c001')
+            self.assertEqual(manifest['result']['stop_reason'], 'completed')
             self.assertTrue((manifests[0].parent/'calls/m001/content.txt').is_file())
             self.assertEqual(set(root.iterdir()), {records, root / "isolated_bin"})
             events = [json.loads(line) for line in result['trace'].splitlines()]
@@ -109,6 +111,7 @@ class RunContractTests(unittest.TestCase):
         run_env.pop("AGENT_RECORD_ROOT", None)
         run_env["AGENT_RECORD_LEVEL"] = "full"
         run_env["LLM_BACKEND"] = "mock"
+        run_env["AGENT_WORKFLOW"] = "single_generate"
         return subprocess.run(
             [str(RUN_SH), *args],
             cwd=cwd,

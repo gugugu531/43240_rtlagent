@@ -15,7 +15,10 @@ from agent.interface import (  # noqa: E402
     parse_prompt_interface,
 )
 from agent.tools import check_interface, ports_from_prompt  # noqa: E402
-from agent.main import infer_top  # noqa: E402
+from agent.core.task import TaskSpec
+
+def infer_top(interface, prompt=""):
+    return TaskSpec.from_text("test", prompt, interface).top  # noqa: E402
 
 
 class ModuleInterfaceParserTests(unittest.TestCase):
