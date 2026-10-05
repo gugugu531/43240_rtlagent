@@ -20,16 +20,20 @@ class Budget:
         self._clock = clock
         self._deadline = (clock() if started_at is None else started_at) + deadline_s
 
-    def remaining_s(self) -> float:
-        return max(0.0, self._deadline - self._clock() - self.reserve_s)
+    def remaining_s(self, include_reserve: bool = False) -> float:
+        return max(0.0, self._deadline - self._clock() - (0.0 if include_reserve else self.reserve_s))
 
     def can_start(self, minimum_s: float = 0.0) -> bool:
+        if not math.isfinite(minimum_s) or minimum_s < 0:
+            raise ValueError('minimum_s must be finite and nonnegative')
         return self.remaining_s() > max(0.0, minimum_s)
 
-    def timeout_s(self, limit_s: float) -> float:
+    def timeout_s(self, limit_s: float, minimum_s: float = 0.0) -> float:
         if not math.isfinite(limit_s) or limit_s <= 0:
             raise ValueError('action timeout must be positive and finite')
+        if not math.isfinite(minimum_s) or minimum_s < 0:
+            raise ValueError('minimum_s must be finite and nonnegative')
         timeout = min(limit_s, self.remaining_s())
-        if timeout <= 0:
+        if timeout <= max(0.0, minimum_s):
             raise BudgetExhausted('solve budget exhausted')
         return timeout

@@ -27,7 +27,8 @@ import tempfile
 import time
 
 from fastapi import FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from agent.services.processes import ProcessExecutor, ProcessRequest
 
 app = FastAPI(title="rtlagent2026 submission endpoint")
 
@@ -46,7 +47,7 @@ class SolveRequest(BaseModel):
     mode: str = "agent"           # "agent" or "baseline"
     prompt: str
     interface: str = ""
-    deadline_s: int = 360
+    deadline_s: int = Field(default=360, gt=0)
 
 
 def _check_token(authorization: str | None) -> None:
@@ -69,6 +70,7 @@ def health(authorization: str | None = Header(default=None)):
 
 @app.post("/v1/solve")
 def solve(req: SolveRequest, authorization: str | None = Header(default=None)):
+    started = time.monotonic()
     _check_token(authorization)
 
     script = "run.sh" if req.mode != "baseline" else "run_baseline.sh"
@@ -85,20 +87,17 @@ def solve(req: SolveRequest, authorization: str | None = Header(default=None)):
         with open(os.path.join(in_dir, "interface.txt"), "w", encoding="utf-8") as fh:
             fh.write(req.interface)
 
-        env = dict(os.environ, AGENT_DEADLINE_S=str(req.deadline_s),
+        remaining = max(0.0, started + req.deadline_s - time.monotonic())
+        return_reserve = min(0.25, req.deadline_s * 0.1)
+        env = dict(os.environ, AGENT_DEADLINE_S=str(max(0.001, remaining - return_reserve)),
                    AGENT_TASK_ID=req.task_id)
-        try:
-            subprocess.run(
-                [os.path.join(ROOT, script), in_dir, out_dir],
-                cwd=ROOT,
-                env=env,
-                # 在赛事方超时之前自行停止并返回已有结果。
-                timeout=max(req.deadline_s - 5, 5),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except subprocess.TimeoutExpired:
-            pass  # fall through and return whatever the agent managed to write
+        # Includes preparation, execution and group cleanup; tiny deadlines have
+        # no artificial five-second floor. Baseline only receives supervision.
+        if remaining > return_reserve:
+            executor = ProcessExecutor()
+            executor.run(ProcessRequest((os.path.join(ROOT, script), in_dir, out_dir), ROOT,
+                         remaining - return_reserve, env,
+                         terminate_grace_s=min(0.6, remaining - return_reserve)))
 
         solution = _read(os.path.join(out_dir, "solution.v"))
         trace = _read(os.path.join(out_dir, "trace.jsonl"))

@@ -90,7 +90,7 @@ class ArtifactStoreTests(unittest.TestCase):
 
             self.assertEqual(Path(temp, "solution.v").read_text(), candidate.code)
             self.assertFalse(Path(temp, "candidates").exists())
-            self.assertFalse(Path(temp, "selection.json").exists())
+            self.assertTrue(Path(temp, "selection.json").exists())
 
     def test_failed_replace_keeps_previous_complete_file(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -1,5 +1,6 @@
 """Single generation action; retry decisions belong to workflows."""
 from dataclasses import dataclass
+import math
 from ..candidate import Candidate
 from ..core.components import Component
 from ..core.model import ModelRequest, ModelReply
@@ -24,9 +25,12 @@ class GenerateNode(Component):
     timeout_s: float = 300.0
     prompt_style: str = 'direct'
     use_skills: bool = False
+    minimum_s: float = 0.0
 
     def __post_init__(self):
         ModelRequest([], max_tokens=self.max_tokens, temperature=self.temperature, timeout_s=self.timeout_s)
+        if not math.isfinite(self.minimum_s) or self.minimum_s < 0:
+            raise ValueError('minimum_s must be finite and nonnegative')
         if self.prompt_style not in ('direct', 'repair'):
             raise ValueError('prompt_style must be direct or repair')
 
@@ -37,5 +41,5 @@ class GenerateNode(Component):
         ctx.emit('prompt_resources', round=input.round, **resources)
         return ctx.llm.chat(ModelRequest(messages, max_tokens=self.max_tokens,
                                         temperature=self.temperature,
-                                        timeout_s=ctx.budget.timeout_s(self.timeout_s),
+                                        timeout_s=ctx.budget.timeout_s(self.timeout_s, self.minimum_s),
                                         purpose='repair' if input.parent else 'generate'))

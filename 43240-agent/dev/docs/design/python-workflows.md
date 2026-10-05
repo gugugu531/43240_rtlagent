@@ -1,12 +1,12 @@
 # Python Workflow 与 Node 接口
 
-本文描述第二阶段已经提供的接口。默认流程是 `single_generate`：一次直接生成、提取和选择。
+本文描述当前提供的接口。默认流程是 `single_generate`：一次直接生成、提取和选择。
 可选 `repair_loop` 包含多轮接口检查、lint 与综合反馈。官方 baseline 文件保持原样。
 
 ## 组织与依赖
 
 ```text
-入口 → Runner → Workflow → ctx.execute(Node, input)
+入口 → Supervisor → Worker 内 Runner → Workflow → ctx.execute(Node, input)
                                ↓
                        模型、工具、预算、候选与事件接口
 ```
@@ -68,6 +68,9 @@ dataclass（数据类）。默认 Node 为生成、提取、接口检查、lint 
 | `ctx.llm.chat(request)` | 单次模型调用与完整响应记录 |
 | `ctx.tools.check_interface(task, candidate)` | 确定性接口检查与证据记录 |
 | `ctx.tools.lint/synth(candidate, top, timeout_s=...)` | 工具检查，实际调用时才初始化工具链 |
+| `ctx.processes.run(ProcessRequest)` | 自定义外部动作，由 Supervisor 启动进程、保存日志并管理进程组 |
+| `ctx.cancellation.cancel/raise_if_cancelled` | 进程内合作式取消；硬停止由外部监督提供 |
+| `ctx.apply_selection(decision)` | 执行策略决定，保留或更新答案，必要时清除已确认无效的选择 |
 | `ctx.budget.remaining_s/can_start/timeout_s` | 剩余时间、动作启动判断与超时上限 |
 | `ctx.state` | 候选、检查、动作、当前选择与停止原因的只读快照 |
 | `ctx.create_candidate(...)` | 分配本题候选 ID，登记来源并保存候选 |
@@ -154,6 +157,13 @@ Node 执行使用 `e001` 等 ID；调用、候选和检查记录关联执行 ID�
 统一检查状态为 `passed/failed/timeout/unavailable/error/skipped`；接口检查另外保存 blocking 和
 来源详情。提示推断的接口差异可以是不阻断的 failed，不能标成检查通过。
 
-预算采用单调时钟，超时取 Node 上限、服务上限与剩余预算中的较小值。它不能强行打断自由 Python
-循环、文件 IO 或模型服务内部推理。统一取消、进程监督、候选保护、重试和检查缓存属于下一阶段。
+预算采用单调时钟，超时取 Node 上限、服务上限与剩余预算中的较小值。`remaining_s(include_reserve=True)`
+可查看包括清理预留时间的剩余量；`timeout_s(limit_s, minimum_s)` 不满足动作最低时间时抛 BudgetExhausted。
+生成、lint 与综合 Node 允许设置 minimum_s。
+
+生产入口使用 `Supervisor.run(RunSpec)`。RunSpec 保存任务、已注册 Workflow 名称和可序列化 Python
+参数、扩展模块、运行选项及可选模型服务配置；Worker 内重建组件，不向生产边界传入闭包或实例。
+Supervisor 强制停止阻塞 Worker 并管理公开进程服务；进程内 Runner 仍适合依赖注入和单元测试。
+候选策略、失败策略和缓存的接口见 [可靠运行设计](runtime-reliability.md)。共享模型服务的内部推理
+不在进程监督范围，自行脱离受管理进程组的子进程也不在保证范围。
 YAML 加载、统一实验工具、可选测评指标与重放尚未实现。

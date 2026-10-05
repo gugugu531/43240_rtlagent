@@ -286,7 +286,7 @@ class EvidenceTests(unittest.TestCase):
             result = Runner(ModelConfig(), backend_factory=lambda cfg: backend,
                             toolchain_factory=broken).run(
                 TASK, lambda: build_workflow('repair_loop', use_skills=False), options=RunOptions(Path(temp)))
-            self.assertEqual(result.status, 'error')
+            self.assertEqual(result.status, 'stopped')
             self.assertEqual(Path(temp, 'solution.v').read_text(), CODE)
             check = next(e for e in events(temp) if e['tool']=='lint')
             self.assertEqual(check['status'], 'error')

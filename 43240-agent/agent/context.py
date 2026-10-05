@@ -8,6 +8,7 @@ from typing import TypeVar
 from .artifacts import ArtifactStore
 from .candidate import Candidate, CandidateFactory
 from .core.budget import Budget
+from .core.cancellation import CancellationToken
 from .core.components import Node, ComponentSpec, describe_component
 from .core.model import ModelReply
 from .core.state import CheckResult, NodeExecution, RunStateView, WorkflowResult
@@ -49,8 +50,9 @@ def summarize(value):
 class RunContext:
     def __init__(self, task: TaskSpec, llm: ModelService, budget: Budget,
                  artifacts: ArtifactStore, recorder: RunRecorder, *,
-                 toolchain_factory=RtlToolchain):
+                 toolchain_factory=RtlToolchain, process_executor=None):
         self.task, self.llm, self.budget = task, llm, budget
+        self.cancellation = CancellationToken()
         self._artifacts, self._recorder = artifacts, recorder
         self._candidates: dict[str, Candidate] = {}
         self._checks: list[CheckResult] = []
@@ -58,9 +60,13 @@ class RunContext:
         self._stack: list[str] = []
         self._check_sequence = 0
         self._stop_reason = None
+        self._selection_reason = None
         self._candidate_factory = CandidateFactory()
+        from .services.processes import ProcessService, ProcessExecutor
+        self.processes = ProcessService(budget, process_executor or ProcessExecutor(), self.cancellation,
+            lambda event, **fields: recorder.write_event('process', event, **fields))
         self.tools = ToolService(budget, self.new_check_id, self.record_check,
-                                 toolchain_factory=toolchain_factory)
+                                 toolchain_factory=toolchain_factory, task=task, emit=self.emit)
 
     @property
     def state(self) -> RunStateView:
@@ -70,6 +76,7 @@ class RunContext:
                             self._stop_reason)
 
     def execute(self, node: Node[I, O], input: I) -> O:
+        self.cancellation.raise_if_cancelled()
         spec = describe_component(node)
         if not isinstance(spec, ComponentSpec):
             raise TypeError('node.describe() must return ComponentSpec')
@@ -137,7 +144,20 @@ class RunContext:
     def select_candidate(self, candidate_id: str, *, reason: str) -> None:
         candidate = self._candidates[candidate_id]
         self._artifacts.select(candidate, reason=reason)
+        self._selection_reason = reason
         self._recorder.record_selection(candidate, reason=reason)
+
+    def apply_selection(self, decision) -> None:
+        self.emit('selection_decision', candidate_id=decision.candidate_id,
+                  changed=decision.changed, reason=decision.reason,
+                  evidence_ids=decision.evidence_ids)
+        if decision.changed or (decision.candidate_id and decision.reason != self._selection_reason):
+            if decision.candidate_id is None:
+                self._artifacts.clear_selection(reason=decision.reason)
+                self._selection_reason = None
+                self.emit('selection_cleared', reason=decision.reason)
+            else:
+                self.select_candidate(decision.candidate_id, reason=decision.reason)
 
     def emit(self, event: str, **fields) -> None:
         self._recorder.write_event('workflow', event, **fields)

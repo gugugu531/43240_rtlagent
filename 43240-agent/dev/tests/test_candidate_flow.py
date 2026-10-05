@@ -52,7 +52,8 @@ class FakeToolchain:
 
 def tool_result(tool, status, summary):
     rc = {'ok': 0, 'failed': 1, 'timeout': 124, 'unavailable': -1}[status]
-    return ToolResult(tool, ((tool,),), rc, status, 0.01, summary)
+    return ToolResult(tool, ((tool,),), rc, status, 0.01, summary,
+                      failure_kind='code' if status == 'failed' else 'unknown')
 
 
 def events(temp):
@@ -79,15 +80,15 @@ class CandidateFlowTests(unittest.TestCase):
             self.assertEqual(extracted[0]['call_id'], 'm001')
             self.assertEqual(len(backend.requests), 1)
 
-    def test_second_model_failure_preserves_first_candidate(self):
+    def test_second_model_failure_does_not_restore_confirmed_invalid_candidate(self):
         code = 'module TopModule; endmodule\n'
         backend = FakeBackend([reply(code), ModelCallError('request timed out', kind='timeout')])
         tools = FakeToolchain([tool_result('lint', 'failed', 'lint failed')])
         with tempfile.TemporaryDirectory() as temp:
             result = run_repair(temp, backend, tools)
-            self.assertEqual(result.selected_candidate.id, 'c001')
+            self.assertIsNone(result.selected_candidate)
             self.assertEqual(result.stop_reason, 'model_timeout')
-            self.assertEqual(Path(temp, 'solution.v').read_text(), code)
+            self.assertEqual(Path(temp, 'solution.v').read_text(), '')
             self.assertEqual(Path(temp, 'candidates/c001.v').read_text(), code)
             self.assertEqual(len(backend.requests), 2)
             self.assertIn('lint failed', backend.requests[1].messages[-1]['content'])

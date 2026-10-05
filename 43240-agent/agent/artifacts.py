@@ -31,6 +31,7 @@ class ArtifactStore:
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         atomic_write_text(self.solution_path, "")
+        atomic_write_json(self.selection_path, {"candidate_id": None})
         if self.save_candidates:
             self.candidate_dir.mkdir(parents=True, exist_ok=True)
 
@@ -45,18 +46,20 @@ class ArtifactStore:
 
     def select(self, candidate: Candidate, *, reason: str) -> None:
         """Atomically make candidate the answer available to the harness."""
+        # Commit the authoritative checkpoint first. Recovery can complete the
+        # answer replacement if the worker stops between these two writes.
+        atomic_write_json(self.selection_path, {
+            "candidate": candidate.public_dict(), "candidate_id": candidate.id,
+            "code": candidate.code, "code_hash": candidate.code_hash,
+            "reason": reason, "selected_at": round(time.time(), 6),
+        })
         atomic_write_text(self.solution_path, candidate.code)
         self.selected = candidate
-        if self.save_candidates:
-            atomic_write_json(
-                self.selection_path,
-                {
-                    "candidate_id": candidate.id,
-                    "code_hash": candidate.code_hash,
-                    "reason": reason,
-                    "selected_at": round(time.time(), 6),
-                },
-            )
+
+    def clear_selection(self, *, reason: str) -> None:
+        atomic_write_json(self.selection_path, {"candidate_id": None, "reason": reason})
+        atomic_write_text(self.solution_path, "")
+        self.selected = None
 
 
 def atomic_write_json(path: str | os.PathLike[str], value: Any) -> None:

@@ -4,10 +4,10 @@
 
 ## 对外 trace
 
-`trace.jsonl` 必须存在，每行一个 JSON 对象。版本为 `schema_version=3`，公共字段包括
+`trace.jsonl` 必须存在，每行一个 JSON 对象。版本为 `schema_version=4`，公共字段包括
 `run_id`、递增的 `seq`、Unix 时间戳 `ts`、事件类别 `tool` 和动作 `event`。
 
-版本 3 增加统一动作契约与检查状态，运行元数据分别描述 Workflow、服务和预算。
+版本 4 增加选择决策、检查复用、外部动作与独立监督证据，运行元数据分别描述 Workflow、服务和预算。
 检查状态使用 `passed/failed/timeout/unavailable/error/skipped`。
 
 模型调用分为三个事件：
@@ -26,7 +26,9 @@
 
 `extract/result` 记录调用 ID、候选 ID（没有候选时为 `null`）、完整性、模块名、多草稿、
 截断标记和诊断。`candidate/create` 记录 `source_call_id`，可从最终选择追溯生成来源。
-工具事件继续记录命令、状态、返回码、耗时与摘要。模型正文不内联到 trace；摘要最多 2000 字符。
+工具事件记录命令、状态、返回码、耗时与摘要。检查的 `details.executed=false` 表示复用，
+`reused_from_check_id` 指向原检查；不计为新工具执行。`workflow/check_started` 与完成结果按 check ID 合并，
+只有开始事件时记为未完成尝试。模型正文不内联到 trace；摘要最多 2000 字符。
 
 `run/recording` 记录等级和详细目录，`run/metadata` 记录题目 ID、Workflow 类型与参数、公开服务配置、运行预算与 Git 信息。
 Git 不可用时记录未知，也可以通过构建环境注入 commit 和 dirty 状态。
@@ -42,6 +44,9 @@ Git 不可用时记录未知，也可以通过构建环境注入 commit 和 dirt
 - `candidates/c001/solution.v` 与 `metadata.json`：候选正文及来源。
 - `checks/k001/result.json`：统一检查证据。
 - `selection.json`：已选择候选及原因。
+- `supervision.json`：真实中断原因、Worker 退出码、选择恢复、清理状态与后端取消状态。
+- `tool_logs/`：完整逻辑工具日志，独立于临时工作目录。
+- `process_logs/`：Supervisor 持有的进程输出，强制中断时仍可保留。
 - `calls/m001/request.json`：实际消息与请求参数，以及公开服务配置。HTTP 身份验证头不写入。
 - `response.txt`：收到的原始 HTTP 响应文本，写入前脱敏。
 - `response.json`：可解析的完整 JSON；保留 reasoning、其他 choices 与供应方字段。
@@ -58,11 +63,18 @@ HTTP 设置独立记录根目录后，请求临时目录清理不影响这些文
 这不会修改发送给模型的请求，也不会修改用于提取的正文。文件写入采用同目录临时文件和原子替换。
 
 先保存响应文本，再尝试 JSON 与协议解析，因此 HTTP 错误、非 JSON 和响应字段错误仍有证据。
-连接失败或超时未收到响应时，不创建虚构响应文件。可重试标记供将来的 Workflow 判断，服务本身不重试。
+连接失败或超时未收到响应时，不创建虚构响应文件。可重试标记供 Workflow 的 FailurePolicy 判断，服务本身不重试。
 
 详细文件不可写时，发出 `recording/warning`，并尽可能在 run.json 标记记录不完整。
 原模型结果和错误保持原样。必要 trace 不可写则抛出 `RecordingError`，按基础设施故障处理。
-强制终止时不保证 run.json 已关闭；`started` 调用必须按未完成处理。
+Supervisor 只在 Worker 停止后接管记录，追加 `supervisor/result` 并将 run.json 标为 interrupted。
+已有调用和 Node 的 started 状态保持原样，不能用监督结果伪造调用结束。最后一行若被打断，原始
+片段另存为输出目录的 `trace_partial.txt`，返回 trace 保持有效 JSONL。
+`backend_inference_cancelled=unknown` 明确表示只确认客户端结束，不能确认共享服务已取消推理。
+
+输出目录中的 `selection.json` 是必须写入的恢复检查点，包含实际候选代码、来源、哈希和原因。
+先原子提交检查点，再更新 solution；Supervisor 校验哈希后完成必要的恢复。检查点与实际答案不做
+证据脱敏。`run_locator.json` 只定位本次 run ID 和记录目录，供监督进程交接。
 
 当前分析工具读取新版调用生命周期，并保留官方 baseline 分析。汇总 token 数只表示已知部分；
 统一指标、回放和完整目录迁移属于后续阶段。

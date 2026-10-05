@@ -31,7 +31,7 @@ class TraceEventTests(unittest.TestCase):
         self.assertEqual([event["seq"] for event in events], [1, 2, 3])
         self.assertTrue(all(event["run_id"] == trace.run_id for event in events))
         self.assertTrue(all(
-            event["schema_version"] == 3 for event in events
+            event["schema_version"] == 4 for event in events
         ))
         self.assertTrue(all(isinstance(event["ts"], float) for event in events))
         self.assertEqual(events[1]["tool"], "agent")
