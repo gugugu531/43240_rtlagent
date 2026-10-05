@@ -10,7 +10,7 @@
 > 正式入口使用独立 Worker 和 Supervisor 管理时间、信号与工具进程，支持中断恢复。
 > 已提供 YAML 配置与统一实验入口，支持指定单题、重复采样、独立并发和可选判定指标。
 > 真实模型小规模验证已完成；模型与服务仍未最终确定，全量收益和历史重放尚未验证。
-> 设计与进展见 [框架文档](dev/docs/readme.md)。
+> 使用见[简洁手册](dev/docs/guide.md)，接口与架构见[详细参考](dev/docs/reference.md)，历史证据见[文档索引](dev/docs/readme.md)。
 
 ---
 
@@ -294,7 +294,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 | `AGENT_WORKFLOW` | `single_generate` | 已注册 Workflow 名称 |
 | `AGENT_DEADLINE_S` | `360` | 单题时间预算（秒），HTTP 请求中的 `deadline_s` 只能缩小实际预算 |
 | `AGENT_RESERVE_S` | `20` | 为清理和写出结果预留的时间（秒）；预算小于此值时直接停止 |
-| `AGENT_TMP` | 依次取 `EDA_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
+| `AGENT_TMP` | 依次取 `EDA_TMP`、`TRACK_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
 | `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留每次 Vivado 调用的独立目录和完整日志，排查问题用 |
 | `AGENT_SAVE_CANDIDATES` | 未设置 | 设为 `1` 时额外保存每个候选；恢复检查点不受此开关影响 |
 | `AGENT_RECORD_LEVEL` | `full` | `full` 保存详细证据；`basic` 只保留必要 trace |
@@ -304,7 +304,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 | `RTL_PART` | `xczu3eg-sbva484-1-e` | 综合用的器件 |
 | `RTL_TOP` | `TopModule` | 顶层模块名；未设置时从 `interface.txt` 中推断，推断不出则用 `TopModule` |
 | `FPGACHINA_TOKEN` | 无 | 投题接口的令牌，`serve_api.py` 必须设置 |
-| `MODEL_NAME` | 取 `LLM_MODEL` | 健康检查接口返回的模型名 |
+| `MODEL_NAME` | 取生效配置的模型名 | 健康检查接口返回的模型名 |
 
 温度、输出上限与轮数通过 Workflow 的 Python 构造参数设置；旧的 `LLM_MAX_TOKENS`、
 `LLM_TEMPERATURE` 和 `AGENT_MAX_ROUNDS` 不再读取。正式提交时同步采样与模型声明。

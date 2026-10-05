@@ -1,6 +1,6 @@
 # 配置与统一实验入口
 
-本文描述第四阶段提供的接口。流程、Node 及动作参数仍由 Python 定义；YAML 选择 Workflow、
+本文是当前配置与实验的专题参考；总览见[详细参考](../reference.md)。流程、Node 及动作参数仍由 Python 定义；YAML 选择 Workflow、
 外部服务、运行条件与开发实验。没有 YAML 流程图、bindings 或 Node 装配清单。
 
 ## 运行与配置
@@ -17,7 +17,7 @@ python3 43240-agent/dev/tools/run.py \
   --config 43240-agent/dev/configs/smoke.yaml --task ex03_lfsr8
 ```
 
-首版配置示例：
+以下示例保存为 `dev/configs/my-experiment.yaml` 时，其相对路径有效：
 
 ```yaml
 schema_version: 1
@@ -175,5 +175,4 @@ runs/<experiment_id>/
 当前不保存依赖安装包，也不锁定模型权重；Git 版本和源码快照不足以保证模型推理完全一致。
 自动实验笔记放 `dev/docs/experiments/`，生成块与人工假设/结论分开。
 
-本阶段不迁移全部旧 eval/remote 工具，不兼容旧运行目录，也不实现历史回复重放、选择重放
-或自动消融比较。旧运行产物保留，下一阶段仍先审阅计划。
+开发工具与文档已集中迁移；旧实验产物保留，历史分析继续读取原格式。本框架没有旧内部路径兼容层；历史回复重放、选择重放和自动消融比较尚未实现。
