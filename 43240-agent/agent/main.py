@@ -4,9 +4,9 @@ import argparse
 import os
 import time
 from pathlib import Path
-from .core.task import TaskSpec
-from .core.configuration import load_config, resolve_config, build_run_spec, RunOverrides, ConfigError
-from .supervision import Supervisor
+from agent.core.task import TaskSpec
+from agent.core.configuration import load_config, resolve_config, build_run_spec, RunOverrides, ConfigError
+from agent.core.supervision import Supervisor
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -45,15 +45,15 @@ def main(argv: list[str] | None = None) -> int:
             spec.configuration['parent_config'] = str(args.config_parent.resolve())
     except Exception as exc:
         # No user values or parser exception strings enter the mandatory failure trace.
-        from .artifacts import atomic_write_text, atomic_write_json
-        from .recording.recorder import RunRecorder
+        from agent.recording.artifacts import atomic_write_text, atomic_write_json
+        from agent.recording.recorder import RunRecorder
         atomic_write_text(args.output / 'solution.v', '')
         atomic_write_json(args.output / 'selection.json', {'candidate_id': None})
         recorder = RunRecorder(args.output)
         try:
             recorder.write_event('agent', 'error', error_type=type(exc).__name__, reason='configuration_or_entry_error',
                                  excerpt=str(exc) if isinstance(exc, ConfigError) else 'entry preparation failed')
-            from .core.state import WorkflowResult
+            from agent.core.state import WorkflowResult
             recorder.record_result(WorkflowResult(recorder.run_id, None, 'configuration_or_entry_error', 'error'))
         finally:
             recorder.close()

@@ -1,5 +1,5 @@
-# run artefacts and local secrets, never commit
+# Run artefacts and local secrets, never commit.
 runs/
-remote/remote.env
-remote/cloud.state
-remote/cloud_known_hosts
+tools/remote/remote.env
+tools/remote/cloud.state
+tools/remote/cloud_known_hosts

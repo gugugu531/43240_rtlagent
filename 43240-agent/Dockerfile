@@ -22,11 +22,12 @@ WORKDIR /opt/agent
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
+COPY config/ config/
 COPY agent/  agent/
 COPY skill/  skill/
 COPY serve/  serve/
 COPY model/  model/
-COPY run.sh run_baseline.sh manifest.json REPORT.md ./
+COPY run.sh run_baseline.sh baseline.py manifest.json REPORT.md ./
 RUN chmod +x run.sh run_baseline.sh serve/vllm.sh
 
 # Model weights. Copy them in, or bind-mount at run time -- but they must be on

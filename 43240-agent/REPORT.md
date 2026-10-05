@@ -40,7 +40,7 @@
 
 ### 2.1 最终选用
 
-见 [model/MODEL.md](./model/MODEL.md)，本节数据须与之一致。
+见 [model/MODEL.md](model/MODEL.md)，本节数据须与之一致。
 
 | 项           | 内容        |
 | ------------ | ----------- |

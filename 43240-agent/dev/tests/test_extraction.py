@@ -8,7 +8,7 @@ import unittest
 AGENT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENT_ROOT))
 
-from agent.extraction import extract_code, extract_result  # noqa: E402
+from agent.nodes.extraction import extract_code, extract_result  # noqa: E402
 
 
 class ExtractionTests(unittest.TestCase):

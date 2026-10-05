@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal, Any
-from ..candidate import Candidate
-from .model import _freeze, _thaw
+from agent.core.candidate import Candidate
+from agent.core.model import _freeze, _thaw
 
 CheckStatus = Literal['passed', 'failed', 'timeout', 'unavailable', 'error', 'skipped']
 

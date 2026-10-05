@@ -16,7 +16,7 @@
 
 ## GPU 诊断
 
-原始证据：[诊断目录](../../runs/20261005-gpu-root-diagnosis/)、
+原始证据：[诊断目录](../../runs/20261005-gpu-root-diagnosis)、
 [诊断日志](../../runs/20261005-gpu-root-diagnosis/diagnosis.log)、
 [环境登记](../../runs/20261005-gpu-root-diagnosis/environment.json)。
 
@@ -64,9 +64,9 @@ Agent 与 baseline 在每组对照中连接同一模型服务。
 
 | 测试 | 题目与结果 | 原始记录 |
 | --- | --- | --- |
-| single_generate，开启思考 | ex01、ex03 双方 L3；ex02 双方 L0 | [第一组](../../runs/20261005-183124-stage3-real-default-smoke/) |
-| single_generate，关闭思考 | ex01、ex03 双方 L3；ex02 双方 L1 | [第二组](../../runs/20261005-184027-stage3-real-nothink-smoke/) |
-| repair_loop，只跑指定单题 | ex03_lfsr8 为 L3 | [单题记录](../../runs/20261005-184136-stage3-real-repair-single/) |
+| single_generate，开启思考 | ex01、ex03 双方 L3；ex02 双方 L0 | [第一组](../../runs/20261005-183124-stage3-real-default-smoke) |
+| single_generate，关闭思考 | ex01、ex03 双方 L3；ex02 双方 L1 | [第二组](../../runs/20261005-184027-stage3-real-nothink-smoke) |
+| repair_loop，只跑指定单题 | ex03_lfsr8 为 L3 | [单题记录](../../runs/20261005-184136-stage3-real-repair-single) |
 
 L3 表示仿真正确且可综合；L1 表示仿真结果不一致。上述判定均未报告工具环境错误。
 题目分别为 ex01_popcount8、ex02_detect_1101、ex03_lfsr8。开发判定器可以读取参考答案，

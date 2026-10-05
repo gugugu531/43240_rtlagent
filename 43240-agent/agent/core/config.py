@@ -6,7 +6,7 @@ from typing import Any
 import math
 from urllib.parse import urlsplit
 import os
-from .model import ModelCallError
+from agent.core.model import ModelCallError
 
 class ModelConfigError(ModelCallError):
     def __init__(self, message):

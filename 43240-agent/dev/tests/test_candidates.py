@@ -12,8 +12,8 @@ from unittest.mock import patch
 AGENT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENT_ROOT))
 
-from agent.artifacts import ArtifactStore, atomic_write_text  # noqa: E402
-from agent.candidate import CandidateFactory  # noqa: E402
+from agent.recording.artifacts import ArtifactStore, atomic_write_text  # noqa: E402
+from agent.core.candidate import CandidateFactory  # noqa: E402
 
 
 class CandidateTests(unittest.TestCase):
@@ -97,7 +97,7 @@ class ArtifactStoreTests(unittest.TestCase):
             target = Path(temp, "solution.v")
             atomic_write_text(target, "old complete answer\n")
 
-            with patch("agent.artifacts.os.replace", side_effect=OSError("boom")):
+            with patch("agent.recording.artifacts.os.replace", side_effect=OSError("boom")):
                 with self.assertRaises(OSError):
                     atomic_write_text(target, "new answer\n")
 

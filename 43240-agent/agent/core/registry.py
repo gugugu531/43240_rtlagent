@@ -5,7 +5,7 @@ import importlib
 import inspect
 import re
 from typing import Generic, TypeVar
-from .components import Component, ComponentSpec, Node, Workflow, describe_value
+from agent.core.components import Component, ComponentSpec, Node, Workflow, describe_value
 
 T = TypeVar('T')
 

@@ -1,14 +1,14 @@
 """Optional repair workflow with independent evidence and failure policies."""
-from ..core.budget import BudgetExhausted
-from ..core.components import Component, describe_value
-from ..core.model import ModelCallError
-from ..core.registry import WORKFLOW_REGISTRY, build_node
-from ..nodes.generate import GenerateInput
-from ..nodes.extract import ExtractInput
-from ..nodes.check import CheckInput
-from ..policies.selection import SelectionPolicy
-from ..policies.failure import FailurePolicy, AttemptState
-from ..policies.diagnostics import Diagnostic, classify_check, classify_model_error
+from agent.core.budget import BudgetExhausted
+from agent.core.components import Component, describe_value
+from agent.core.model import ModelCallError
+from agent.core.registry import WORKFLOW_REGISTRY, build_node
+from agent.nodes.generate import GenerateInput
+from agent.nodes.extract import ExtractInput
+from agent.nodes.check import CheckInput
+from agent.policies.selection import SelectionPolicy
+from agent.policies.failure import FailurePolicy, AttemptState
+from agent.policies.diagnostics import Diagnostic, classify_check, classify_model_error
 
 
 @WORKFLOW_REGISTRY.register('repair_loop')

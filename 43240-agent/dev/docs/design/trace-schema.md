@@ -77,4 +77,4 @@ Supervisor 只在 Worker 停止后接管记录，追加 `supervisor/result` 并�
 证据脱敏。`run_locator.json` 只定位本次 run ID 和记录目录，供监督进程交接。
 
 当前分析工具读取新版调用生命周期，并保留官方 baseline 分析。汇总 token 数只表示已知部分；
-统一指标、回放和完整目录迁移属于后续阶段。
+统一指标与目录迁移已完成；回放暂缓。

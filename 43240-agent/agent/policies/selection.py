@@ -1,10 +1,10 @@
 """Compare real evidence without turning unknown checks into passes."""
 from dataclasses import dataclass
 from collections.abc import Mapping, Sequence
-from ..candidate import Candidate
-from ..core.state import CheckResult
-from ..core.components import Component
-from .diagnostics import classify_check
+from agent.core.candidate import Candidate
+from agent.core.state import CheckResult
+from agent.core.components import Component
+from agent.policies.diagnostics import classify_check
 
 
 @dataclass(frozen=True)

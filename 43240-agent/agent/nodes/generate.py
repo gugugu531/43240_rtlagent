@@ -1,12 +1,12 @@
 """Single generation action; retry decisions belong to workflows."""
 from dataclasses import dataclass
 import math
-from ..candidate import Candidate
-from ..core.components import Component
-from ..core.model import ModelRequest, ModelReply
-from ..core.registry import NODE_REGISTRY
-from ..core.task import TaskSpec
-from ..prompting import assemble_messages
+from agent.core.candidate import Candidate
+from agent.core.components import Component
+from agent.core.model import ModelRequest, ModelReply
+from agent.core.registry import NODE_REGISTRY
+from agent.core.task import TaskSpec
+from agent.prompts.builder import assemble_messages
 
 
 @dataclass(frozen=True)

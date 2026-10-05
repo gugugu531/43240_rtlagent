@@ -1,8 +1,8 @@
 """Replaceable bounded retry/repair decisions, owned by the workflow."""
 from dataclasses import dataclass
 import math
-from .diagnostics import Diagnostic
-from ..core.components import Component
+from agent.policies.diagnostics import Diagnostic
+from agent.core.components import Component
 
 
 @dataclass(frozen=True)

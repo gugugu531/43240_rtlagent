@@ -24,7 +24,7 @@ GPU 健康、真实 Vivado 集成和真实 HTTP 请求，不能把 mock 结果�
 
 | 项目 | 结果 | 证据 |
 | --- | --- | --- |
-| 本机参考判定 | 三道示例题全部 L3，无环境失败 | [自动实验记录](../../experiments/20261005-175329-stage3-reference-smoke.md)、[判定数据](../../runs/20261005-175329-stage3-reference-smoke/score.json) |
+| 本机参考判定 | 三道示例题全部 L3，无环境失败 | [自动实验记录](../experiments/20261005-175329-stage3-reference-smoke.md)、[判定数据](../../runs/20261005-175329-stage3-reference-smoke/score.json) |
 | Agent 与真实 Vivado 集成 | mock 生成一次，接口、lint、综合均 passed；选择恢复验证通过，无未回收进程 | [trace](../../runs/20261005-stage3-real-vivado-smoke/trace.jsonl) |
 | 真实 Vivado 综合中发送 SIGTERM | shell 退出码 0，信号后 0.064 秒退出；保留 c001，受管理进程组终止，无未回收进程 | [观察数据](../../runs/20261005-stage3-real-vivado-cancel/cancel_observation.json) |
 | 真实 HTTP 鉴权与单题请求 | 未授权 health 返回 401；授权 health 返回 rtl；solve 固定四个字段，task_id 原样返回 | [观察数据](../../runs/20261005-stage3-http-smoke/observations.json) |

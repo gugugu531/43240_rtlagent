@@ -1,6 +1,6 @@
 """Run-local reuse with exact task/source/configuration/tool identity."""
 from dataclasses import dataclass
-from ..policies.diagnostics import classify_check
+from agent.policies.diagnostics import classify_check
 
 
 @dataclass(frozen=True)
