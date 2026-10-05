@@ -13,7 +13,7 @@ import time
 from .artifacts import atomic_write_json, atomic_write_text
 from .candidate import Candidate
 from .core.state import WorkflowResult
-from .core.config import ModelConfig
+from .core.config import ModelConfig, ToolConfig
 from .core.task import TaskSpec
 from .runner import Runner, RunOptions
 from .services.processes import ProcessExecutor, RemoteProcessExecutor, ProcessResult
@@ -28,6 +28,8 @@ class RunSpec:
     import_modules: tuple[str, ...] = ()
     started_at: float | None = None
     model_config: ModelConfig | None = None
+    tool_config: ToolConfig | None = None
+    configuration: dict = field(default_factory=dict)
 
     def __post_init__(self):
         # Production boundaries carry data, never a closure or live component.
@@ -48,7 +50,8 @@ def _worker(connection, spec):
         return build_workflow(spec.workflow_name, **spec.workflow_parameters)
 
     try:
-        runner = Runner(spec.model_config, process_executor=executor)
+        runner = Runner(spec.model_config, process_executor=executor, tool_config=spec.tool_config,
+                        configuration=spec.configuration)
         result = runner.run(spec.task, workflow, options=spec.options, started_at=spec.started_at)
         connection.send(('result', result))
     except BaseException as exc:
@@ -75,6 +78,8 @@ class Supervisor:
         # Contract files exist even if input/configuration/worker startup fails.
         atomic_write_text(out / 'solution.v', '')
         atomic_write_text(out / 'trace.jsonl', '')
+        if spec.configuration:
+            atomic_write_json(out / 'config.json', spec.configuration)
         atomic_write_json(out / 'selection.json', {'candidate_id': None})
         locator = out / 'run_locator.json'
         locator.unlink(missing_ok=True)

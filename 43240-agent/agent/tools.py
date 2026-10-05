@@ -93,11 +93,14 @@ class _CommandOutcome:
 
 
 class RtlToolchain:
-    def __init__(self, *, executor=None, log_dir=None, redactor=None) -> None:
+    def __init__(self, *, config=None, executor=None, log_dir=None, redactor=None) -> None:
+        from .core.config import ToolConfig
+        self.config = config or ToolConfig.from_env()
         self.executor, self.log_dir, self.redactor = executor, log_dir, redactor
-        self.xvlog = shutil.which("xvlog")
-        self.xelab = shutil.which("xelab")
-        self.vivado = shutil.which("vivado")
+        search = self.config.bin_dir if self.config.bin_dir is not None else os.environ.get("PATH", "")
+        self.xvlog = shutil.which("xvlog", path=search)
+        self.xelab = shutil.which("xelab", path=search)
+        self.vivado = shutil.which("vivado", path=search)
         self.reason = ""
         missing = [n for n, p in (("xvlog", self.xvlog), ("xelab", self.xelab),
                                   ("vivado", self.vivado)) if not p]
@@ -113,7 +116,7 @@ class RtlToolchain:
             return None
         try:
             identity = [(p, os.stat(p).st_size, os.stat(p).st_mtime_ns) for p in paths]
-            return hashlib.sha256(repr((identity, PART, sorted(os.environ.items()), Path(__file__).read_bytes())).encode()).hexdigest()
+            return hashlib.sha256(repr((identity, self.config.public_dict(), sorted(os.environ.items()), Path(__file__).read_bytes())).encode()).hexdigest()
         except OSError:
             return None
 
@@ -144,10 +147,10 @@ class RtlToolchain:
             return invalid
 
         try:
-            work = _make_work_dir("agent_lint_")
+            work = _make_work_dir("agent_lint_", self.config.temp_dir)
         except OSError as exc:
             return _unavailable("lint", f"could not create work directory: {exc}")
-        keep_work = os.environ.get("AGENT_KEEP_WORK") == "1"
+        keep_work = self.config.keep_work
         try:
             src = os.path.join(work, "solution.sv")
             with open(src, "w", encoding="utf-8") as fh:
@@ -180,10 +183,10 @@ class RtlToolchain:
             return invalid
 
         try:
-            work = _make_work_dir("agent_synth_")
+            work = _make_work_dir("agent_synth_", self.config.temp_dir)
         except OSError as exc:
             return _unavailable("synth", f"could not create work directory: {exc}")
-        keep_work = os.environ.get("AGENT_KEEP_WORK") == "1"
+        keep_work = self.config.keep_work
         try:
             with open(os.path.join(work, "solution.sv"), "w", encoding="utf-8") as fh:
                 fh.write(source)
@@ -192,7 +195,7 @@ class RtlToolchain:
                     textwrap.dedent(
                         f"""\
                         read_verilog -sv solution.sv
-                        synth_design -top {top} -part {PART} -mode out_of_context
+                        synth_design -top {top} -part {self.config.part} -mode out_of_context
                         """
                     )
                 )
@@ -411,8 +414,8 @@ def _validate_top(top: str, tool: str) -> ToolResult | None:
     )
 
 
-def _make_work_dir(prefix: str) -> str:
-    scratch = _scratch_dir()
+def _make_work_dir(prefix: str, scratch: str | None = None) -> str:
+    scratch = scratch or _scratch_dir()
     os.makedirs(scratch, exist_ok=True)
     return tempfile.mkdtemp(prefix=prefix, dir=scratch)
 

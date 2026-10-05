@@ -9,7 +9,7 @@ from .artifacts import ArtifactStore
 from .context import RunContext
 from .core.budget import Budget
 from .core.components import Workflow, describe_component
-from .core.config import ModelConfig
+from .core.config import ModelConfig, ToolConfig
 from .core.metadata import git_metadata
 from .core.state import WorkflowResult
 from .core.task import TaskSpec
@@ -31,8 +31,10 @@ class RunOptions:
 
 class Runner:
     def __init__(self, model_config: ModelConfig | None = None, *,
-                 backend_factory=make_backend, toolchain_factory=RtlToolchain, process_executor=None):
+                 backend_factory=make_backend, toolchain_factory=RtlToolchain, process_executor=None, tool_config=None, configuration=None):
         self._config = model_config
+        self._tool_config = tool_config
+        self._configuration = configuration or {}
         self._process_executor = process_executor
         self._backend_factory, self._toolchain_factory = backend_factory, toolchain_factory
 
@@ -51,7 +53,7 @@ class Runner:
             llm = ModelService(self._backend_factory(config), recorder, timeout_limit_s=config.timeout_s)
             factory = self._toolchain_factory
             if factory is RtlToolchain:
-                factory = lambda: RtlToolchain(executor=self._process_executor,
+                factory = lambda: RtlToolchain(config=self._tool_config, executor=self._process_executor,
                     log_dir=recorder.run_dir / 'tool_logs' if options.recording.level == 'full' else None,
                     redactor=recorder.redactor)
             ctx = RunContext(task, llm, budget, artifacts, recorder, toolchain_factory=factory, process_executor=self._process_executor)
@@ -63,7 +65,8 @@ class Runner:
                                      workflow=spec.public_dict(), model=config.public_dict(),
                                      runtime=dict(deadline_s=options.deadline_s, reserve_s=options.reserve_s,
                                                   save_candidates=options.save_candidates),
-                                     git=git_metadata(str(ROOT)))
+                                     git=git_metadata(str(ROOT)), configuration=self._configuration,
+                                     tools=(self._tool_config or ToolConfig.from_env()).public_dict())
             recorder.record_task(task)
             recorder.write_event('agent', 'start', workflow=spec.public_dict())
             result = instance.run(ctx)
