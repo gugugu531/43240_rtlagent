@@ -46,8 +46,10 @@ cmp example/run_baseline.sh 43240-agent/run_baseline.sh
 监督记录没有未回收进程。两个 baseline 文件与 example 逐字节相同，git diff --check 通过。
 
 测试中的模型、编译器输出是假数据，进程、信号和本地 HTTP 生命周期是真实执行。
-未启动云端实例，未使用真实模型或 Vivado；这些验证不能证明代码功能正确、得分改善或真实工具
-诊断覆盖充分。
+上述提交前验收未启动云端实例，未使用真实模型或 Vivado；这些验证不能证明代码功能正确、
+得分改善或真实工具诊断覆盖充分。用户随后授权的真实 Vivado、HTTP 与云端尝试见
+[后续验证](2026-10-05-stage3-remote-validation.md)：本机工具通过；首次云端尝试阻塞后，重新启动的 GPU 诊断与真实模型小规模测试已完成，
+见[最新验证](2026-10-05-gpu-diagnosis-and-model-validation.md)。具体 GPU 故障根因仍未确认。
 
 ## 当前边界与后续
 
