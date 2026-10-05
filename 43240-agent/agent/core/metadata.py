@@ -1,76 +1,9 @@
-"""Versioned, append-only trace events and reproducibility metadata."""
-
 from __future__ import annotations
-
-from collections.abc import Iterable, Mapping, Sequence
-import json
-import os
-import re
-import subprocess
-import time
-import uuid
+from collections.abc import Mapping
 from typing import Any
+import os
+import subprocess
 from urllib.parse import urlsplit, urlunsplit
-
-
-TRACE_SCHEMA_VERSION = 1
-
-_RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
-_SENSITIVE_FIELDS = {
-    "api_key",
-    "authorization",
-    "cookie",
-    "password",
-    "secret",
-    "access_token",
-    "refresh_token",
-    "rc_cookie",
-    "rc_api_key",
-    "fpgachina_token",
-}
-_SECRET_ENV_KEYS = (
-    "LLM_API_KEY",
-    "FPGACHINA_TOKEN",
-    "RC_COOKIE",
-    "RC_API_KEY",
-    "GH_TOKEN",
-    "GITHUB_TOKEN",
-    "HF_TOKEN",
-    "HUGGING_FACE_HUB_TOKEN",
-)
-
-
-class Trace:
-    """Write JSONL events with stable common fields and secret redaction."""
-
-    def __init__(self, path: str, *, run_id: str | None = None,
-                 secrets: Iterable[str] | None = None):
-        self.path = path
-        self.run_id = _run_id(run_id or os.environ.get("AGENT_RUN_ID", ""))
-        self._seq = 0
-        self._secrets = _known_secrets(secrets)
-        self._fh = open(path, "w", encoding="utf-8")
-
-    def write(self, *, tool: str, **fields: Any) -> None:
-        """Append one event; callers cannot override the common fields."""
-        self._seq += 1
-        event = _redact(fields, self._secrets)
-        event.update({
-            "schema_version": TRACE_SCHEMA_VERSION,
-            "run_id": self.run_id,
-            "seq": self._seq,
-            "ts": round(time.time(), 3),
-            "tool": str(tool),
-        })
-        self._fh.write(json.dumps(event, ensure_ascii=False) + "\n")
-        self._fh.flush()
-
-    def close(self) -> None:
-        try:
-            self._fh.close()
-        except OSError:
-            pass
-
 
 def runtime_metadata(*, max_rounds: int, deadline_s: float, reserve_s: float,
                      resolved_top: str, save_candidates: bool,
@@ -148,11 +81,6 @@ def _git(root: str, *args: str) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
-def _run_id(value: str) -> str:
-    candidate = value.strip()
-    return candidate if _RUN_ID_RE.fullmatch(candidate) else uuid.uuid4().hex
-
-
 def _public_url(value: str) -> str | None:
     if not value:
         return None
@@ -167,30 +95,3 @@ def _public_url(value: str) -> str | None:
     return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
 
 
-def _known_secrets(extra: Iterable[str] | None) -> tuple[str, ...]:
-    values = [os.environ.get(name, "") for name in _SECRET_ENV_KEYS]
-    if extra is not None:
-        values.extend(str(value) for value in extra)
-    # Very short values cause accidental replacements in ordinary messages.
-    return tuple(sorted({value for value in values if len(value) >= 6}, key=len,
-                        reverse=True))
-
-
-def _redact(value: Any, secrets: Sequence[str], *, key: str | None = None) -> Any:
-    if key is not None and key.lower().replace("-", "_") in _SENSITIVE_FIELDS:
-        return "[redacted]"
-    if isinstance(value, str):
-        redacted = value
-        for secret in secrets:
-            redacted = redacted.replace(secret, "[redacted]")
-        return redacted
-    if isinstance(value, Mapping):
-        return {
-            str(item_key): _redact(item_value, secrets, key=str(item_key))
-            for item_key, item_value in value.items()
-        }
-    if isinstance(value, tuple):
-        return [_redact(item, secrets) for item in value]
-    if isinstance(value, list):
-        return [_redact(item, secrets) for item in value]
-    return value

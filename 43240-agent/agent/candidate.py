@@ -21,12 +21,14 @@ class Candidate:
     extraction_status: str
     created_at: float
     code_hash: str
+    source_call_id: str | None = None
 
     def public_dict(self) -> dict[str, Any]:
         """Metadata safe for trace and development artifacts; excludes code."""
         return {
             "id": self.id,
             "source_stage": self.source_stage,
+            "source_call_id": self.source_call_id,
             "round": self.round,
             "parent_id": self.parent_id,
             "finish_reason": self.finish_reason,
@@ -53,7 +55,8 @@ class CandidateFactory:
     def create(self, code: str, *, source_stage: str, round: int,
                parent_id: str | None = None,
                finish_reason: str | None = None,
-               extraction_status: str = "complete") -> Candidate:
+               extraction_status: str = "complete",
+               source_call_id: str | None = None) -> Candidate:
         if not code:
             raise ValueError("candidate code must not be empty")
         candidate_id = f"c{self._next:03d}"
@@ -61,6 +64,7 @@ class CandidateFactory:
         return Candidate(
             id=candidate_id,
             code=code,
+            source_call_id=source_call_id,
             source_stage=source_stage,
             round=round,
             parent_id=parent_id,

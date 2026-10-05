@@ -85,7 +85,8 @@ def solve(req: SolveRequest, authorization: str | None = Header(default=None)):
         with open(os.path.join(in_dir, "interface.txt"), "w", encoding="utf-8") as fh:
             fh.write(req.interface)
 
-        env = dict(os.environ, AGENT_DEADLINE_S=str(req.deadline_s))
+        env = dict(os.environ, AGENT_DEADLINE_S=str(req.deadline_s),
+                   AGENT_TASK_ID=req.task_id)
         try:
             subprocess.run(
                 [os.path.join(ROOT, script), in_dir, out_dir],

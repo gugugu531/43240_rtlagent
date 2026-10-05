@@ -1,242 +1,232 @@
-from __future__ import annotations
-
-from pathlib import Path
+"""Model evidence tests use fake HTTP responses, never a paid service."""
+import json
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
-
 import requests
 
-
-AGENT_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(AGENT_ROOT))
-
-from agent.llm import (  # noqa: E402
-    LLM,
-    LLMConfig,
-    LLMConfigError,
-    LLMConnectionError,
-    LLMHTTPError,
-    LLMResponseError,
-    LLMTimeoutError,
-)
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from agent.core.config import ModelConfig, ModelConfigError
+from agent.core.model import ModelRequest, ModelCallError
+from agent.services.model import ModelService, HttpBackend, MockBackend
+from agent.recording.recorder import RunRecorder, RecordingConfig, RecordingError
+from agent.extraction import extract_result
 
 
-class FakeResponse:
-    def __init__(self, status_code=200, body=None, text="", json_error=None):
-        self.status_code = status_code
-        self._body = body
-        self.text = text
-        self._json_error = json_error
-
-    def json(self):
-        if self._json_error is not None:
-            raise self._json_error
-        return self._body
+def config():
+    return ModelConfig(backend='openai', model='test-model', base_url='http://localhost:8000/v1',
+                       api_key='explicit-test-secret')
 
 
-def openai_config(**overrides):
-    values = {
-        "backend": "openai",
-        "model": "test-model",
-        "base_url": "http://127.0.0.1:8000/v1",
-        "api_key": "",
-        "max_tokens": 4096,
-        "temperature": 0.2,
-        "timeout_s": 180.0,
-    }
-    values.update(overrides)
-    return LLMConfig(**values)
+def body(content='module TopModule; endmodule'):
+    return dict(id='request-id', model='served-model',
+                choices=[dict(message=dict(content=content, reasoning_content='reasoning evidence'),
+                              finish_reason='stop')], provider_extra=dict(example=True))
 
 
-def success_body(content="module TopModule; endmodule", **overrides):
-    body = {
-        "id": "chatcmpl-test",
-        "model": "served-model",
-        "choices": [{
-            "message": {"role": "assistant", "content": content},
-            "finish_reason": "stop",
-        }],
-        "usage": {"prompt_tokens": 12, "completion_tokens": 7},
-    }
-    body.update(overrides)
-    return body
+class ModelTests(unittest.TestCase):
+    def invoke(self, recorder, *, text=None, status=200, error=None, request=None):
+        service = ModelService(HttpBackend(config()), recorder)
+        response = SimpleNamespace(status_code=status, text=text if text is not None else json.dumps(body()))
+        with patch('requests.post', return_value=response, side_effect=error) as post:
+            reply = service.chat(request or ModelRequest([dict(role='user', content='task')]))
+        return reply, post
 
+    def events(self, temp):
+        return [json.loads(line) for line in Path(temp, 'trace.jsonl').read_text().splitlines()]
 
-class LLMConfigTests(unittest.TestCase):
-    def test_mock_defaults(self):
-        config = LLMConfig.from_env({})
-        self.assertEqual(config.backend, "mock")
-        self.assertEqual(config.model, "mock-model")
-        self.assertEqual(config.max_tokens, 4096)
-        self.assertEqual(config.timeout_s, 180.0)
+    def test_full_response_and_request_are_preserved(self):
+        with TemporaryDirectory() as temp:
+            recorder = RunRecorder(temp)
+            request = ModelRequest([dict(role='user', content='explicit-test-secret')],
+                                   max_tokens=101, temperature=0.7, timeout_s=2, purpose='repair')
+            reply, post = self.invoke(recorder, request=request)
+            recorder.close()
+            call = recorder.run_dir / 'calls/m001'
+            parsed = json.loads((call / 'response.json').read_text())
+            self.assertEqual(parsed, body())
+            self.assertIn('reasoning evidence', (call / 'response.txt').read_text())
+            self.assertEqual(reply.request_id, 'request-id')
+            self.assertIsNone(reply.usage.tokens_in)
+            self.assertIsNone(reply.usage.tokens_out)
+            self.assertEqual(post.call_count, 1)
+            self.assertEqual(post.call_args.kwargs['json']['max_tokens'], 101)
+            self.assertEqual(post.call_args.kwargs['timeout'], 2)
+            self.assertEqual(reply.response_artifact.path, 'calls/m001/response.txt')
+            self.assertEqual(request.messages[0]['content'], 'explicit-test-secret')
+            self.assertNotIn('explicit-test-secret', (call / 'request.json').read_text())
+            self.assertEqual([e['event'] for e in self.events(temp) if e['tool']=='llm'], ['started', 'succeeded'])
 
-    def test_openai_requires_absolute_http_url(self):
-        with self.assertRaises(LLMConfigError):
-            LLMConfig.from_env({"LLM_BACKEND": "openai"})
-        with self.assertRaises(LLMConfigError):
-            LLMConfig.from_env({
-                "LLM_BACKEND": "openai",
-                "LLM_BASE_URL": "127.0.0.1:8000/v1",
-            })
-
-    def test_numeric_configuration_is_validated(self):
-        with self.assertRaises(LLMConfigError):
-            LLMConfig.from_env({"LLM_MAX_TOKENS": "0"})
-        with self.assertRaises(LLMConfigError):
-            LLMConfig.from_env({"LLM_TIMEOUT_S": "nan"})
-        with self.assertRaises(LLMConfigError):
-            LLMConfig.from_env({"LLM_TEMPERATURE": "-1"})
-
-    def test_api_key_is_not_public(self):
-        config = openai_config(api_key="top-secret")
-        self.assertNotIn("top-secret", repr(config))
-        self.assertNotIn("api_key", config.public_dict())
-        self.assertNotIn("top-secret", str(LLM(config).describe()))
-
-
-class LLMOpenAITests(unittest.TestCase):
-    def test_successful_request_and_result(self):
-        response = FakeResponse(body=success_body())
-        client = LLM(openai_config(api_key="secret"))
-        messages = [{"role": "user", "content": "write RTL"}]
-
-        with patch("requests.post", return_value=response) as post:
-            result = client.chat(
-                messages,
-                timeout_s=12,
-                max_tokens=123,
-                temperature=0.0,
-            )
-
-        post.assert_called_once()
-        kwargs = post.call_args.kwargs
-        self.assertEqual(
-            post.call_args.args[0],
-            "http://127.0.0.1:8000/v1/chat/completions",
-        )
-        self.assertEqual(kwargs["timeout"], 12.0)
-        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer secret")
-        self.assertEqual(kwargs["json"]["messages"], messages)
-        self.assertEqual(kwargs["json"]["max_tokens"], 123)
-        self.assertEqual(kwargs["json"]["temperature"], 0.0)
-        self.assertFalse(kwargs["json"]["stream"])
-
-        self.assertEqual(result.text, "module TopModule; endmodule")
-        self.assertEqual(result.tokens_in, 12)
-        self.assertEqual(result.tokens_out, 7)
-        self.assertEqual(result.finish_reason, "stop")
-        self.assertEqual(result.finish, "stop")
-        self.assertEqual(result.model, "served-model")
-        self.assertEqual(result.request_id, "chatcmpl-test")
-        self.assertFalse(result.empty_content)
-        self.assertGreaterEqual(result.elapsed_s, 0.0)
-
-    def test_authorization_header_is_omitted_without_key(self):
-        client = LLM(openai_config())
-        with patch("requests.post", return_value=FakeResponse(body=success_body())) as post:
-            client.chat([{"role": "user", "content": "x"}])
-        self.assertNotIn("Authorization", post.call_args.kwargs["headers"])
-
-    def test_per_call_options_do_not_mutate_defaults(self):
-        client = LLM(openai_config(max_tokens=100, temperature=0.4, timeout_s=30))
-        response = FakeResponse(body=success_body())
-        with patch("requests.post", return_value=response) as post:
-            client.chat([], timeout_s=2, max_tokens=10, temperature=0)
-            client.chat([])
-
-        first = post.call_args_list[0].kwargs
-        second = post.call_args_list[1].kwargs
-        self.assertEqual(first["timeout"], 2.0)
-        self.assertEqual(first["json"]["max_tokens"], 10)
-        self.assertEqual(first["json"]["temperature"], 0.0)
-        self.assertEqual(second["timeout"], 30.0)
-        self.assertEqual(second["json"]["max_tokens"], 100)
-        self.assertEqual(second["json"]["temperature"], 0.4)
-
-    def test_timeout_is_classified(self):
-        client = LLM(openai_config())
-        with patch("requests.post", side_effect=requests.Timeout("read timed out")):
-            with self.assertRaises(LLMTimeoutError) as caught:
-                client.chat([])
-        self.assertTrue(caught.exception.retryable)
-        self.assertEqual(caught.exception.kind, "timeout")
-
-    def test_connection_error_is_classified_and_redacted(self):
-        client = LLM(openai_config(api_key="top-secret"))
-        error = requests.ConnectionError("connection failed using top-secret")
-        with patch("requests.post", side_effect=error):
-            with self.assertRaises(LLMConnectionError) as caught:
-                client.chat([])
-        self.assertTrue(caught.exception.retryable)
-        self.assertNotIn("top-secret", str(caught.exception))
-
-    def test_http_errors_are_classified(self):
-        cases = ((401, False), (429, True), (500, True), (503, True))
-        for status, retryable in cases:
-            with self.subTest(status=status):
-                client = LLM(openai_config(api_key="top-secret"))
-                response = FakeResponse(
-                    status_code=status,
-                    text="server rejected top-secret " + "x" * 1000,
-                )
-                with patch("requests.post", return_value=response):
-                    with self.assertRaises(LLMHTTPError) as caught:
-                        client.chat([])
+    def test_http_json_and_shape_errors_keep_evidence(self):
+        for status, text, kind in [(429, '{"diagnostic":"busy"}', 'http'),
+                                   (503, '<html>unavailable</html>', 'http'),
+                                   (200, 'not-json', 'json'), (200, '{"extra":1}', 'response'),
+                                   (200, 'null', 'response')]:
+            with self.subTest(kind=kind, status=status, text=text), TemporaryDirectory() as temp:
+                recorder = RunRecorder(temp)
+                with self.assertRaises(ModelCallError) as caught:
+                    self.invoke(recorder, text=text, status=status)
+                recorder.close()
                 error = caught.exception
-                self.assertEqual(error.status_code, status)
-                self.assertEqual(error.retryable, retryable)
-                self.assertNotIn("top-secret", str(error))
-                self.assertLess(len(str(error)), 600)
+                self.assertEqual(error.kind, kind)
+                self.assertEqual(error.call_id, 'm001')
+                self.assertEqual((recorder.run_dir / error.evidence.path).read_text(), text)
+                ended = [e for e in self.events(temp) if e['tool']=='llm' and e['event']=='failed']
+                self.assertEqual(len(ended), 1)
+                self.assertFalse((recorder.run_dir/'calls/m001/content.txt').exists())
 
-    def test_invalid_json_is_response_error(self):
-        response = FakeResponse(json_error=ValueError("bad json"))
-        with patch("requests.post", return_value=response):
-            with self.assertRaises(LLMResponseError):
-                LLM(openai_config()).chat([])
+    def test_timeout_connection_have_no_fabricated_response(self):
+        for exception, kind in [(requests.Timeout('secret'), 'timeout'),
+                                (requests.ConnectionError('secret'), 'connection')]:
+            with TemporaryDirectory() as temp:
+                recorder = RunRecorder(temp)
+                with self.assertRaises(ModelCallError) as caught:
+                    self.invoke(recorder, error=exception)
+                self.assertEqual(caught.exception.kind, kind)
+                self.assertTrue(caught.exception.retryable)
+                self.assertIsNone(caught.exception.evidence)
+                self.assertFalse((recorder.run_dir / 'calls/m001/response.txt').exists())
+                recorder.close()
 
-    def test_invalid_response_shapes_are_rejected(self):
-        bodies = [None, {}, {"choices": []}, {"choices": [{}]}]
-        for body in bodies:
-            with self.subTest(body=body):
-                with patch("requests.post", return_value=FakeResponse(body=body)):
-                    with self.assertRaises(LLMResponseError):
-                        LLM(openai_config()).chat([])
+    def test_mock_is_explicit_and_not_http(self):
+        with TemporaryDirectory() as temp:
+            recorder = RunRecorder(temp)
+            reply = ModelService(MockBackend(), recorder).chat(ModelRequest([
+                dict(role='user', content='module TopModule(input a, output q);')]))
+            recorder.close()
+            self.assertIn('MOCK BACKEND', reply.content)
+            self.assertIsNone(reply.response_artifact)
+            self.assertFalse((recorder.run_dir/'calls/m001/response.txt').exists())
+            self.assertIsNone(reply.usage.tokens_in)
 
-    def test_null_content_preserves_finish_and_reasoning_metadata(self):
-        body = success_body(None)
-        body["choices"][0]["finish_reason"] = "length"
-        body["choices"][0]["message"]["reasoning_content"] = "hidden reasoning"
-        with patch("requests.post", return_value=FakeResponse(body=body)):
-            result = LLM(openai_config()).chat([])
-        self.assertEqual(result.text, "")
-        self.assertTrue(result.empty_content)
-        self.assertTrue(result.has_reasoning)
-        self.assertEqual(result.finish_reason, "length")
+    def test_basic_mode_has_trace_but_no_raw_artifacts(self):
+        with TemporaryDirectory() as temp:
+            recorder = RunRecorder(temp, RecordingConfig('basic'))
+            self.invoke(recorder)
+            recorder.close()
+            self.assertFalse(recorder.run_dir.exists())
+            self.assertEqual(len([e for e in self.events(temp) if e['tool']=='llm']), 2)
 
-    def test_missing_or_invalid_usage_falls_back_to_zero(self):
-        body = success_body()
-        body["usage"] = {"prompt_tokens": "bad", "completion_tokens": -2}
-        with patch("requests.post", return_value=FakeResponse(body=body)):
-            result = LLM(openai_config()).chat([])
-        self.assertEqual(result.tokens_in, 0)
-        self.assertEqual(result.tokens_out, 0)
+    def test_optional_recording_failure_preserves_reply_and_original_error(self):
+        for fail in [False, True]:
+            with TemporaryDirectory() as temp:
+                blocked = Path(temp, 'blocked'); blocked.write_text('file, not directory')
+                recorder = RunRecorder(temp, RecordingConfig(root=blocked))
+                with self.assertWarns(RuntimeWarning):
+                    if fail:
+                        with self.assertRaises(ModelCallError) as caught:
+                            self.invoke(recorder, text='bad JSON')
+                        self.assertEqual(caught.exception.kind, 'json')
+                    else:
+                        reply, _ = self.invoke(recorder)
+                        self.assertEqual(reply.content, 'module TopModule; endmodule')
+                        self.assertIsNone(reply.response_artifact)
+                    recorder.close()
+                self.assertTrue(any(e['event']=='warning' for e in self.events(temp)))
+
+    def test_required_trace_write_failure_is_infrastructure_error(self):
+        with TemporaryDirectory() as temp:
+            recorder = RunRecorder(temp)
+            with patch.object(recorder._trace, 'write', side_effect=OSError('disk')):
+                with self.assertRaises(RecordingError):
+                    self.invoke(recorder)
+            recorder.close()
+
+    def test_unfinished_call_remains_started(self):
+        with TemporaryDirectory() as temp:
+            recorder = RunRecorder(temp)
+            recorder.begin_call(ModelRequest([]), dict(backend='mock'))
+            recorder.close()
+            manifest = json.loads((recorder.run_dir/'run.json').read_text())
+            self.assertEqual(manifest['calls']['m001']['status'], 'started')
+            self.assertFalse(any(e['event']=='succeeded' for e in self.events(temp)))
+
+    def test_extraction_records_truncation_and_ambiguity_with_call_id(self):
+        for content, status in [('```verilog\nmodule TopModule;\n```', 'incomplete'),
+                                ('```verilog\nmodule TopModule; endmodule\n```\n'
+                                 '```verilog\nmodule TopModule; wire b; endmodule\n```', 'ambiguous')]:
+            with TemporaryDirectory() as temp:
+                recorder = RunRecorder(temp)
+                reply, _ = self.invoke(recorder, text=json.dumps(body(content)))
+                extracted = extract_result(reply.content, 'TopModule')
+                recorder.record_extraction(reply.call_id, extracted, 'c001' if extracted.code else None)
+                recorder.close()
+                recorded = json.loads((recorder.run_dir/'calls/m001/extraction.json').read_text())
+                self.assertEqual(recorded['status'], status)
+                self.assertEqual(recorded['call_id'], 'm001')
+                self.assertEqual(recorded['candidate_id'], 'c001' if extracted.code else None)
+
+    def test_unknown_usage_and_null_content(self):
+        data = body(None); data['usage'] = dict(prompt_tokens=0, completion_tokens='bad')
+        with TemporaryDirectory() as temp:
+            recorder = RunRecorder(temp)
+            reply, _ = self.invoke(recorder, text=json.dumps(data))
+            recorder.close()
+            self.assertEqual(reply.content, '')
+            self.assertEqual(reply.usage.tokens_in, 0)
+            self.assertIsNone(reply.usage.tokens_out)
+
+    def test_configuration_validation(self):
+        self.assertEqual(ModelConfig.from_env({}).backend, 'mock')
+        for env in [dict(LLM_BACKEND='unknown'), dict(LLM_BACKEND='openai'),
+                    dict(LLM_MAX_TOKENS='0'), dict(LLM_TIMEOUT_S='nan'), dict(LLM_TEMPERATURE='-1')]:
+            with self.assertRaises(ModelConfigError):
+                ModelConfig.from_env(env)
+        with self.assertRaises(ModelCallError):
+            ModelRequest([], timeout_s=0)
 
 
-class LLMMockTests(unittest.TestCase):
-    def test_mock_uses_the_same_result_type(self):
-        client = LLM(LLMConfig())
-        result = client.chat([{
-            "role": "user",
-            "content": (
-                "I would like you to implement a module named TopModule with "
-                "the following interface.\n - input a\n - output q"
-            ),
-        }])
-        self.assertIn("module TopModule", result.text)
-        self.assertEqual(result.finish_reason, "stop")
-        self.assertEqual(result.model, "mock-model")
-        self.assertFalse(result.empty_content)
+class RecordingIsolationTests(unittest.TestCase):
+    def test_multiple_calls_and_runs_are_distinct(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp, 'records')
+            run_dirs = []
+            for number in range(2):
+                recorder = RunRecorder(Path(temp, f'output{number}'), RecordingConfig(root=root))
+                service = ModelService(MockBackend(), recorder)
+                request = ModelRequest([dict(role='user', content='module TopModule();')])
+                self.assertEqual([service.chat(request).call_id for _ in range(2)], ['m001', 'm002'])
+                recorder.close()
+                run_dirs.append(recorder.run_dir)
+            self.assertNotEqual(*run_dirs)
+            self.assertTrue(all((d/'calls/m002/content.txt').exists() for d in run_dirs))
+
+    def test_request_nested_values_are_immutable_and_recording_does_not_change_reply(self):
+        messages = [dict(role='user', content=[dict(text='original')])]
+        request = ModelRequest(messages)
+        messages[0]['content'][0]['text'] = 'changed'
+        self.assertEqual(request.public_dict()['messages'][0]['content'][0]['text'], 'original')
+        with self.assertRaises(TypeError):
+            request.messages[0]['content'][0]['text'] = 'changed'
+        with TemporaryDirectory() as temp:
+            recorder = RunRecorder(temp, secrets=['small'])
+            content = 'small secret; https://user:password@example.com/path?token=value'
+            response = SimpleNamespace(status_code=200, text=json.dumps(body(content)))
+            with patch('requests.post', return_value=response):
+                reply = ModelService(HttpBackend(config()), recorder).chat(ModelRequest([]))
+            recorder.close()
+            self.assertEqual(reply.content, content)
+            raw = '\n'.join(p.read_text() for p in recorder.run_dir.rglob('*') if p.is_file())
+            self.assertNotIn('small', raw)
+            self.assertNotIn('user:password', raw)
+            self.assertNotIn('token=value', raw)
+
+    def test_trace_failure_after_response_is_not_reclassified_as_model_error(self):
+        with TemporaryDirectory() as temp:
+            recorder = RunRecorder(temp)
+            real_write = recorder.write_event
+            def fail_on_end(tool, event='result', **fields):
+                if tool == 'llm' and event == 'succeeded':
+                    raise RecordingError('trace lost')
+                return real_write(tool, event, **fields)
+            with patch.object(recorder, 'write_event', side_effect=fail_on_end):
+                with self.assertRaises(RecordingError):
+                    ModelService(MockBackend(), recorder).chat(ModelRequest([]))
+            recorder.close()
 
 
 if __name__ == "__main__":
