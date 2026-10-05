@@ -5,11 +5,11 @@ from dataclasses import dataclass
 import inspect
 from pathlib import Path
 from typing import Any, Protocol, TYPE_CHECKING, TypeVar
-from .model import _freeze, _thaw
+from agent.core.model import _freeze, _thaw
 
 if TYPE_CHECKING:
-    from ..context import RunContext
-    from .state import WorkflowResult
+    from agent.core.context import RunContext
+    from agent.core.state import WorkflowResult
 
 InputT = TypeVar('InputT', contravariant=True)
 OutputT = TypeVar('OutputT', covariant=True)

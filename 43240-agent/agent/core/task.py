@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
-from ..interface import InterfaceSpec, parse_expected_interface
+from agent.core.interface import InterfaceSpec, parse_expected_interface
 
 
 @dataclass(frozen=True)

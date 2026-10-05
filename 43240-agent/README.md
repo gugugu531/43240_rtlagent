@@ -23,23 +23,24 @@
 | `agent/main.py` | 单题参数解析、配置装配与已注册 Workflow 选择 |
 | `config/default.yaml` | 默认单题运行条件，组件参数由 Python Workflow 定义 |
 | `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
+| `dev/tools/submission.py` | 按明确清单检查、暂存方案并在没有 dev 的目录中验证默认入口 |
 | `dev/tools/run.py` | 开发侧统一任务选择、采样调度与可选指标入口 |
-| `agent/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
+| `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
 | `agent/policies/` | 可替换的选择策略、失败策略和保守诊断分类 |
-| `agent/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
-| `agent/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
+| `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
+| `agent/core/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
 | `agent/workflows/` | 默认单次生成、可选修复循环及用户实验 Workflow |
 | `agent/nodes/` | 生成、提取、接口、lint 与综合动作 |
-| `agent/prompting.py` | 组装直接生成或修复提示，以及可选技能注入 |
+| `agent/prompts/builder.py` | 组装直接生成或修复提示，以及可选技能注入 |
 | `agent/core/` | 模型、任务、组件、检查与结果契约，以及注册表、预算和运行元数据 |
 | `agent/services/` | 模型、工具、检查缓存和进程服务；模型不自动重试，工具按需初始化 |
-| `agent/extraction.py` | 结构化提取代码，识别目标模块、多草稿与截断回复 |
-| `agent/interface.py` | 结构化解析 ANSI、非 ANSI 接口并输出逐字段差异 |
-| `agent/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
-| `agent/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
-| `agent/tools.py` | 接口检查，以及带进程组清理和结构化结果的 lint、综合工具 |
+| `agent/nodes/extraction.py` | 结构化提取代码，识别目标模块、多草稿与截断回复 |
+| `agent/core/interface.py` | 结构化解析 ANSI、非 ANSI 接口并输出逐字段差异 |
+| `agent/core/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
+| `agent/recording/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
+| `agent/services/vivado.py` | 接口检查，以及带进程组清理和结构化结果的 lint、综合工具 |
 | `agent/recording/` | 保存模型与动作证据、trace、脱敏及通用运行/模型统计 |
-| `agent/skills.py` | 加载技能包，按工具报错挑选相关技能 |
+| `agent/prompts/skills.py` | 加载技能包，按工具报错挑选相关技能 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
 | `skill/` | 技能包，每条技能一个目录，格式见 `skill/README.md` |
 | `serve/serve_api.py` | 评测当天赛事方投题用的 HTTP 接口 |
@@ -231,7 +232,7 @@ Agent trace 当前使用 schema version 4。每行一个 JSON 对象，并自动
 基础设施错误。详细文件写入失败只发出警告并标记 `recording_incomplete`，不会替换原有模型
 结果或错误。进程中途退出时只保留实际已发生的事件，不伪造调用结束。
 
-`dev/eval/analyze.py` 按调用结束事件统计模型耗时、按调用 ID 统计调用次数，避免把开始和
+`dev/tools/analysis/analyze.py` 按调用结束事件统计模型耗时、按调用 ID 统计调用次数，避免把开始和
 结束重复计数；检查开始与结束按 ID 合并，复用检查另计，只有开始事件的工具仍计为一次尝试。
 主办方 baseline 的 trace 仍可分析。未知用量的汇总只代表已知用量之和。
 格式见 [记录格式](dev/docs/design/trace-schema.md)。
@@ -257,7 +258,7 @@ trace 同时用于三件事：工程质量评分、赛事方核对生成结果�
 已验证的情况（2026-09-24，AMD Radeon Cloud 的 W7900，gfx1100）：vLLM 0.16.1 能正常运行
 BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoning-parser qwen3`，否则
 思考内容会混进回复正文，基线分数明显下降。决赛硬件 R9700（gfx1201）上尚未验证。
-详见 `dev/decisions/0001-inference-backend.md`。
+详见 `dev/docs/notes/0001-inference-backend.md`。
 
 ---
 
@@ -316,7 +317,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 2. 工具诊断只识别少数明确的代码错误，未知错误默认停止；完整日志支持继续分析。
 3. 修复仍返回完整文件，技能按日志字符串匹配，工具摘要仍较粗糙。
 4. 硬监督依赖 Linux；自由启动的脱离进程组子进程不受保证。共享模型服务的推理取消没有协议支持。
-5. 未实现 YAML 加载、统一实验入口、指标收集与历史重放。当前可以按注册名称运行单题流程。
+5. 历史重放、自动消融比较尚未实现；已支持 YAML 配置、统一实验入口和可选指标。
 6. 详细记录没有自动清理策略。强制中断可能没有完整的逻辑检查结论或留下临时工作目录，但保留已写的进程输出。
 7. 模型与服务尚未最终确定；混合思考模型需要合适的服务端正文与 reasoning 分离配置。
 
@@ -326,6 +327,8 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
+| 2026-10-05 | 模块归位、开发目录集中与打包检查 | 正式运行独立于 dev；Docker 包含默认配置和原始 baseline 文件 |
+| 2026-10-05 | YAML 配置与统一实验 | 单题、采样、并发与 runtime/model/judge 指标 |
 | 2026-10-05 | 候选保护、失败处理、检查复用与独立监督 | 保留较强证据的答案；回收受管理进程；恢复中断选择和记录 |
 | 2026-10-05 | Python Workflow、Node、Registry 与运行上下文 | 默认单次生成；可选修复流程；记录动作与构造参数 |
 | 2026-09-22 | 新增 `dev/`、`.dockerignore` | 团队开发区，不随方案提交；不影响方案行为 |
@@ -339,3 +342,17 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 | 2026-10-03 | 固定 trace version 1 | 增加公共事件字段、公开配置与 Git 元数据，统一隐藏秘密并兼容旧分析数据 |
 
 可以用 `diff -r ../example . -x dev -x .dockerignore` 查看完整差异。
+
+## 提交目录检查
+
+开发文档统一见 [dev/docs/readme.md](dev/docs/readme.md)，远程管理位于 dev/tools/remote/。
+
+```bash
+python3 dev/tools/submission.py --stage /tmp/agent-submission \
+  --task ../tasks/ex03_lfsr8 --output /tmp/agent-submission-smoke
+```
+
+暂存目标必须不存在，且位于源码目录外。复制范围明确包含 Agent、默认配置、技能、服务、模型
+声明、两个入口与原始 baseline.py；不复制 dev、任务、外置模型权重或缓存。清单与哈希保存在
+暂存目录旁，独立 smoke 使用 mock，不读取开发配置。Dockerfile 也复制 config/ 与 baseline.py。
+此检查不替代参考答案审核、模型与依赖准备、官方基础镜像构建或目标 GPU 验证。

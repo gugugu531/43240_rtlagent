@@ -6,7 +6,7 @@ import sys
 import shutil
 from agent.recording.metrics import MetricResult
 from agent.services.processes import ProcessExecutor, ProcessRequest
-from agent.artifacts import atomic_write_json, atomic_write_text
+from agent.recording.artifacts import atomic_write_json, atomic_write_text
 
 REPO = Path(__file__).resolve().parents[4]
 

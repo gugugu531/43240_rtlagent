@@ -1,9 +1,9 @@
 """Checks produce evidence; workflows choose what to do with it."""
 from dataclasses import dataclass
-from ..candidate import Candidate
-from ..core.components import Component
-from ..core.registry import NODE_REGISTRY
-from ..core.state import CheckResult
+from agent.core.candidate import Candidate
+from agent.core.components import Component
+from agent.core.registry import NODE_REGISTRY
+from agent.core.state import CheckResult
 
 
 @dataclass(frozen=True)

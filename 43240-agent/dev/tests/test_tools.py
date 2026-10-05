@@ -13,7 +13,7 @@ from unittest.mock import patch
 AGENT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENT_ROOT))
 
-from agent.tools import RtlToolchain, run_command  # noqa: E402
+from agent.services.vivado import RtlToolchain, run_command  # noqa: E402
 
 
 class CommandRunnerTests(unittest.TestCase):

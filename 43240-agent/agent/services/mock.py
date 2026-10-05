@@ -22,7 +22,7 @@ def _header_from_prompt(text: str) -> tuple[str | None, list[tuple[str, int]]]:
     复用 tools.ports_from_prompt，与 check_interface 用的是同一份解析，
     免得两处对「题面里的端口表」有两套理解。
     """
-    from ..tools import ports_from_prompt
+    from agent.services.vivado import ports_from_prompt
 
     name, ports = ports_from_prompt(text)
     if not name or not ports:

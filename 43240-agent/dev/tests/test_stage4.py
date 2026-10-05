@@ -81,7 +81,7 @@ class ConfigurationTests(unittest.TestCase):
             self.assertEqual(len(list((root/'evidence').glob('*/run.json'))),1)
 
     def test_explicit_tools_are_per_instance(self):
-        from agent.tools import RtlToolchain
+        from agent.services.vivado import RtlToolchain
         from agent.core.config import ToolConfig
         with tempfile.TemporaryDirectory() as t:
             a=RtlToolchain(config=ToolConfig(part='part_a',bin_dir=t,temp_dir=t))

@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 import sys
-from agent.artifacts import atomic_write_json, atomic_write_text
+from agent.recording.artifacts import atomic_write_json, atomic_write_text
 from agent.core.configuration import ConfigError, ResolvedConfig, positive, string_list
 from agent.recording.metrics import CompletedSample, ModelMetric, RuntimeMetric, collect_metrics
 from agent.recording.redaction import Redactor

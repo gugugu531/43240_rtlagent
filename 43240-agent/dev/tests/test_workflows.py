@@ -18,7 +18,7 @@ from agent.core.config import ModelConfig
 from agent.core.registry import Registry, build_node, build_workflow, load_extensions, WORKFLOW_REGISTRY
 from agent.core.state import WorkflowResult
 from agent.core.task import TaskSpec
-from agent.runner import Runner, RunOptions
+from agent.core.runner import Runner, RunOptions
 from agent.nodes.generate import GenerateInput
 from agent.nodes.extract import ExtractInput
 from test_candidate_flow import FakeBackend, FakeToolchain, reply, events, tool_result
@@ -111,7 +111,7 @@ class WorkflowTests(unittest.TestCase):
         return result, backend
 
     def test_default_is_one_direct_generation_without_skills_or_checks(self):
-        with tempfile.TemporaryDirectory() as temp, patch('agent.prompting.load_skills', side_effect=AssertionError):
+        with tempfile.TemporaryDirectory() as temp, patch('agent.prompts.builder.load_skills', side_effect=AssertionError):
             result, backend = self.run_fake(temp)
             self.assertEqual(result.status, 'completed')
             self.assertEqual(len(backend.requests), 1)

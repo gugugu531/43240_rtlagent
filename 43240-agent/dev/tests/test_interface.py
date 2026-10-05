@@ -9,12 +9,12 @@ AGENT_ROOT = Path(__file__).resolve().parents[2]
 REPO_ROOT = AGENT_ROOT.parent
 sys.path.insert(0, str(AGENT_ROOT))
 
-from agent.interface import (  # noqa: E402
+from agent.core.interface import (  # noqa: E402
     check_interface_result,
     parse_module_interface,
     parse_prompt_interface,
 )
-from agent.tools import check_interface, ports_from_prompt  # noqa: E402
+from agent.services.vivado import check_interface, ports_from_prompt  # noqa: E402
 from agent.core.task import TaskSpec
 
 def infer_top(interface, prompt=""):

@@ -7,7 +7,7 @@ import copy
 import math
 import os
 import re
-from .config import ModelConfig, ToolConfig
+from agent.core.config import ModelConfig, ToolConfig
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = ROOT / 'config/default.yaml'
@@ -96,7 +96,7 @@ class ResolvedConfig:
     document: ConfigDocument = field(repr=False)
 
     def public_dict(self):
-        from ..recording.redaction import Redactor
+        from agent.recording.redaction import Redactor
         return Redactor([self.agent.services.model.api_key]).copy(
             {'schema_version': 1, 'config_path': str(self.document.path) if self.document.path else None,
              'original': self.document.data, 'effective': self.values, 'sources': dict(self.sources)})
@@ -240,9 +240,9 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
 
 def build_run_spec(task, config: ResolvedConfig, *, output_dir: Path, started_at: float,
                    hard_deadline_s: float | None = None):
-    from ..supervision import RunSpec
-    from ..runner import RunOptions
-    from ..recording.recorder import RecordingConfig
+    from agent.core.supervision import RunSpec
+    from agent.core.runner import RunOptions
+    from agent.recording.recorder import RecordingConfig
     runtime = config.agent.runtime
     deadline = runtime.deadline_s
     snapshot = config.public_dict()

@@ -5,11 +5,11 @@ import time
 from dataclasses import replace
 import math
 from collections.abc import Mapping
-from ..core.config import ModelConfig
-from ..core.model import (BackendResponse, ModelBackend, ModelCallError, ModelReply,
+from agent.core.config import ModelConfig
+from agent.core.model import (BackendResponse, ModelBackend, ModelCallError, ModelReply,
                           ModelRequest, ModelUsage)
-from ..recording.recorder import RunRecorder, RecordingError
-from .mock import mock_content
+from agent.recording.recorder import RunRecorder, RecordingError
+from agent.services.mock import mock_content
 
 
 class MockBackend:

@@ -14,7 +14,7 @@ from agent.core.config import ModelConfig, ModelConfigError
 from agent.core.model import ModelRequest, ModelCallError
 from agent.services.model import ModelService, HttpBackend, MockBackend
 from agent.recording.recorder import RunRecorder, RecordingConfig, RecordingError
-from agent.extraction import extract_result
+from agent.nodes.extraction import extract_result
 
 
 def config():

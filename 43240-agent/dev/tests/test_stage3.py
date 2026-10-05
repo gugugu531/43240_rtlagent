@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from agent.candidate import CandidateFactory
+from agent.core.candidate import CandidateFactory
 from agent.core.budget import Budget
 from agent.core.model import ModelCallError
 from agent.core.state import CheckResult
@@ -24,11 +24,11 @@ from agent.policies.failure import AttemptState, FailurePolicy
 from agent.policies.selection import SelectionPolicy
 from agent.services.processes import ProcessExecutor, ProcessRequest
 from agent.services.tools import ToolService
-from agent.supervision import RunSpec, Supervisor, recover_selection, record_supervision
-from agent.runner import RunOptions
+from agent.core.supervision import RunSpec, Supervisor, recover_selection, record_supervision
+from agent.core.runner import RunOptions
 from agent.recording.recorder import RecordingConfig
-from agent.artifacts import ArtifactStore, atomic_write_json
-from agent.tools import ToolResult, classify_tool_failure
+from agent.recording.artifacts import ArtifactStore, atomic_write_json
+from agent.services.vivado import ToolResult, classify_tool_failure
 from test_candidate_flow import FakeBackend, FakeToolchain, reply, run_repair, events
 
 TASK = TaskSpec.from_text('stage3', 'Implement TopModule.')
@@ -303,7 +303,7 @@ class RepairTargetTests(unittest.TestCase):
     def test_repair_target_can_change_without_overwriting_stronger_answer(self):
         from agent.core.config import ModelConfig
         from agent.core.registry import build_workflow
-        from agent.runner import Runner
+        from agent.core.runner import Runner
         from agent.policies.failure import FailureDecision
         class ExploreUnknown(FailurePolicy):
             def decide(self, diagnostics, attempts, budget):
@@ -332,7 +332,7 @@ class RepairTargetTests(unittest.TestCase):
 
 class EvidenceStatisticsTests(unittest.TestCase):
     def test_reuse_and_started_checks_are_counted_once(self):
-        sys.path.insert(0, str(ROOT / 'dev/eval'))
+        sys.path.insert(0, str(ROOT / 'dev/tools/analysis'))
         try:
             from analyze import trace_stats
             evidence = [dict(tool='workflow', event='check_started', check_id='k1', kind='lint'),
@@ -343,7 +343,7 @@ class EvidenceStatisticsTests(unittest.TestCase):
             self.assertEqual(stats['tool_calls'], {'lint': 1, 'synth': 1})
             self.assertEqual(stats['reused_checks'], 1)
         finally:
-            sys.path.remove(str(ROOT / 'dev/eval'))
+            sys.path.remove(str(ROOT / 'dev/tools/analysis'))
 
     def test_partial_trace_is_preserved_without_fake_call_completion(self):
         from agent.core.state import WorkflowResult
@@ -371,7 +371,7 @@ class EvidenceStatisticsTests(unittest.TestCase):
 
 class FullToolLogsTests(unittest.TestCase):
     def test_full_log_survives_work_cleanup_and_is_redacted(self):
-        from agent.tools import RtlToolchain
+        from agent.services.vivado import RtlToolchain
         with tempfile.TemporaryDirectory() as temp:
             tool = Path(temp, 'fake_tool')
             tool.write_text('#!' + sys.executable + '\nimport os\nprint("details " * 800)\nprint(os.environ["LLM_API_KEY"])\n')

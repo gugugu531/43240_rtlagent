@@ -11,8 +11,8 @@ import time
 import uuid
 import warnings
 from typing import Literal
-from ..core.model import ArtifactRef, ModelCallError
-from .redaction import Redactor
+from agent.core.model import ArtifactRef, ModelCallError
+from agent.recording.redaction import Redactor
 
 
 TRACE_SCHEMA_VERSION = 4
@@ -53,7 +53,7 @@ class RunRecorder:
         # Failure here is an infrastructure error, never a silent optional failure.
         self._trace = (self.output_dir / 'trace.jsonl').open('w', encoding='utf-8')
         self.run_dir = (Path(self.config.root) if self.config.root else self.output_dir / 'records') / self.run_id
-        from ..artifacts import atomic_write_json
+        from agent.recording.artifacts import atomic_write_json
         atomic_write_json(self.output_dir / 'run_locator.json', dict(run_id=self.run_id,
                           level=self.config.level, record_dir=str(self.run_dir)))
         self._run = dict(schema_version=TRACE_SCHEMA_VERSION, run_id=self.run_id, level=self.config.level, status='started',

@@ -42,7 +42,7 @@ class CleanupResult:
 
 class ProcessExecutor:
     def __init__(self, *, log_dir=None):
-        from ..recording.redaction import Redactor
+        from agent.recording.redaction import Redactor
         self.redactor = Redactor()
         self._jobs = {}
         self.log_dir = log_dir

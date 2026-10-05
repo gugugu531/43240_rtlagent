@@ -1,10 +1,10 @@
 """Default: one model generation and extraction, similar to the baseline."""
-from ..core.budget import BudgetExhausted
-from ..core.components import Component
-from ..core.model import ModelCallError
-from ..core.registry import WORKFLOW_REGISTRY, build_node
-from ..nodes.generate import GenerateInput
-from ..nodes.extract import ExtractInput
+from agent.core.budget import BudgetExhausted
+from agent.core.components import Component
+from agent.core.model import ModelCallError
+from agent.core.registry import WORKFLOW_REGISTRY, build_node
+from agent.nodes.generate import GenerateInput
+from agent.nodes.extract import ExtractInput
 
 
 @WORKFLOW_REGISTRY.register('single_generate')

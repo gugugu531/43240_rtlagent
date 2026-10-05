@@ -1,8 +1,8 @@
 """Conservative attribution: a nonzero exit alone is not an RTL defect."""
 from dataclasses import dataclass
 from typing import Literal
-from ..core.model import ModelCallError
-from ..core.state import CheckResult
+from agent.core.model import ModelCallError
+from agent.core.state import CheckResult
 
 
 @dataclass(frozen=True)

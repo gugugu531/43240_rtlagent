@@ -101,7 +101,7 @@ class MetadataTests(unittest.TestCase):
 
 class LifecycleStatisticsTests(unittest.TestCase):
     def test_count_attempts_once_and_use_finish_reason(self):
-        sys.path.insert(0, str(AGENT_ROOT / 'dev/eval'))
+        sys.path.insert(0, str(AGENT_ROOT / 'dev/tools/analysis'))
         from analyze import trace_stats
         stats = trace_stats([
             dict(tool='llm', event='started', call_id='m001'),

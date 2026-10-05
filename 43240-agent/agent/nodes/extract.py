@@ -1,10 +1,10 @@
 """Extract one candidate, retaining evidence even when extraction fails."""
 from dataclasses import dataclass
-from ..candidate import Candidate
-from ..core.components import Component
-from ..core.model import ModelReply
-from ..core.registry import NODE_REGISTRY
-from ..extraction import ExtractionResult, extract_result
+from agent.core.candidate import Candidate
+from agent.core.components import Component
+from agent.core.model import ModelReply
+from agent.core.registry import NODE_REGISTRY
+from agent.nodes.extraction import ExtractionResult, extract_result
 
 
 @dataclass(frozen=True)

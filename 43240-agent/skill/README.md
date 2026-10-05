@@ -13,7 +13,7 @@
 等）。**正文用英文**，与官方保持一致；仓库其余文档仍为中文。
 
 这样做有一个直接好处：**官方技能可以原样拷进 `skill/` 目录直接用**，
-`agent/skills.py` 的加载器对两者通用，已实测。
+`agent/prompts/skills.py` 的加载器对两者通用，已实测。
 
 官方技能仓库：https://github.com/amd/skills
 
@@ -70,7 +70,7 @@ frontmatter 只有 `name` 与 `description` 两项，其余信息放正文，这
 而散文式的 Trigger 不会出现在 `xelab` 的日志里。
 
 因此约定：`- **Log signatures:**` 这一行里用反引号括起来的字符串，会被
-`agent/skills.py` 逐个拿去在日志里做子串匹配，命中才注入上下文。没有这一行的技能
+`agent/prompts/skills.py` 逐个拿去在日志里做子串匹配，命中才注入上下文。没有这一行的技能
 （包括所有官方技能）照常加载，只是不会因为某条错误而自动触发。
 
 ---
@@ -90,7 +90,7 @@ frontmatter 只有 `name` 与 `description` 两项，其余信息放正文，这
 `xczu3eg-sbva484-1-e`，与参考测试台一并详细描述」，而不只是给一张表。
 
 **四、技能不必涉及大模型。** 确定性的校验脚本、结构化的踩坑清单，都是技能。
-`agent/tools.py::check_interface()` 就是一例：纯文本比较，不调模型不调工具，
+`agent/services/vivado.py::check_interface()` 就是一例：纯文本比较，不调模型不调工具，
 却覆盖了整个 L0 失败类。评分标准是可复用性，不是是否调用模型。
 
 ---

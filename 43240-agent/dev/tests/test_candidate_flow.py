@@ -12,8 +12,8 @@ from agent.core.model import ModelReply, ModelCallError, BackendResponse
 from agent.core.config import ModelConfig
 from agent.core.registry import build_workflow
 from agent.core.task import TaskSpec
-from agent.runner import Runner, RunOptions
-from agent.tools import ToolResult
+from agent.core.runner import Runner, RunOptions
+from agent.services.vivado import ToolResult
 
 
 def reply(code):
