@@ -1,6 +1,5 @@
 """Run-local reuse with exact task/source/configuration/tool identity."""
 from dataclasses import dataclass
-from agent.policies.diagnostics import classify_check
 
 
 @dataclass(frozen=True)
@@ -20,5 +19,5 @@ class CheckCache:
         return self._results.get(key) if key else None
 
     def put(self, key: CheckKey | None, result):
-        if key and (result.status == 'passed' or classify_check(result)[0].kind == 'code'):
+        if key and (result.status == 'passed' or result.classify() == 'code'):
             self._results[key] = result

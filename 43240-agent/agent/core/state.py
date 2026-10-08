@@ -37,6 +37,29 @@ class CheckResult:
                     excerpt=self.summary[:2000], details=_thaw(self.details),
                     full_log_path=self.full_log_path, work_dir=self.work_dir)
 
+    def classify(self) -> str:
+        """Conservative attribution: a nonzero exit alone is not an RTL defect."""
+        cause = self.details.get('failure_kind')
+        if self.status == 'passed':
+            return 'passed'
+        if self.kind == 'interface' and self.status == 'failed' and self.blocking:
+            return 'code'
+        if self.status == 'timeout':
+            return 'timeout'
+        if self.status in ('unavailable', 'error') or cause == 'environment':
+            return 'environment'
+        if self.status == 'failed' and cause == 'code':
+            return 'code'
+        return 'unknown'
+
+
+@dataclass(frozen=True)
+class SelectionDecision:
+    candidate_id: str | None
+    changed: bool
+    reason: str
+    evidence_ids: tuple[str, ...]
+
 
 @dataclass(frozen=True)
 class NodeExecution:

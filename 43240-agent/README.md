@@ -27,7 +27,7 @@
 | `dev/tools/run.py` | 开发侧统一任务选择、采样调度与可选指标入口 |
 | `dev/tools/log_viewer.html` | 本地日志查看器，导入输出目录后查看节点、工具调用与完整响应 |
 | `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
-| `agent/policies/` | 可替换的选择策略、失败策略和保守诊断分类 |
+| `agent/workflows/repair_loop.py` | 修复流程，自带候选选择 `choose()` 与失败处理 `decide()`，可由子类替换 |
 | `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
 | `agent/core/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
 | `agent/workflows/` | 默认单次生成、可选修复循环及用户实验 Workflow |
@@ -329,6 +329,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
+| 2026-10-08 | 选择与失败策略下放到 Workflow | 删除 `agent/policies/`；检查结果分类改为 `CheckResult.classify()`；修复流程的决策结果不变 |
 | 2026-10-08 | Quickstart、User Manual 与注释配置 | 文档按上手与完整使用拆分；默认配置改名为 `config/example.yaml`，默认运行值保持不变 |
 | 2026-10-05 | 模块归位、开发目录集中与打包检查 | 正式运行独立于 dev；Docker 包含默认配置和原始 baseline 文件 |
 | 2026-10-05 | YAML 配置与统一实验 | 单题、采样、并发与 runtime/model/judge 指标 |

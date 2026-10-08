@@ -18,7 +18,7 @@
 | --- | --- |
 | agent/core/ | 契约、配置、注册表、运行上下文、运行器与监督 |
 | agent/services/ | 模型、进程和 Vivado 等外部服务 |
-| agent/nodes/、workflows/、policies/ | 动作、Python 流程与可复用策略，实验变体也放这里 |
+| agent/nodes/、workflows/ | 动作与 Python 流程；选择与失败策略由各 Workflow 自己定义，实验变体也放这里 |
 | agent/prompts/ | 提示模板、构造与技能选择 |
 | agent/recording/ | trace、证据、原子产物与通用运行指标 |
 | config/ | 正式入口默认配置 |
