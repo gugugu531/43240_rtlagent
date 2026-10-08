@@ -14,7 +14,6 @@ from agent.core.interface import (  # noqa: E402
     parse_module_interface,
     parse_prompt_interface,
 )
-from agent.services.vivado import check_interface, ports_from_prompt  # noqa: E402
 from agent.core.task import TaskSpec
 
 def infer_top(interface, prompt=""):
@@ -116,22 +115,6 @@ class InterfaceCheckTests(unittest.TestCase):
         self.assertEqual(result.status, "skipped")
         self.assertFalse(result.blocking)
         self.assertTrue(result.expected.warnings)
-
-    def test_legacy_wrappers_keep_their_shapes(self):
-        prompt = (
-            "Implement a module named TopModule with the following interface.\n"
-            " - input a (8 bits)\n"
-            " - output q\n"
-        )
-        name, ports = ports_from_prompt(prompt)
-        rc, summary = check_interface(
-            "module TopModule(input [7:0] a, output q); endmodule", "", prompt
-        )
-
-        self.assertEqual(name, "TopModule")
-        self.assertEqual(ports, [("input", 8, "a"), ("output", 1, "q")])
-        self.assertEqual(rc, 0)
-        self.assertIn("matches", summary)
 
 
 class PublicPromptRegressionTests(unittest.TestCase):

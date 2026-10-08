@@ -50,47 +50,23 @@ class CandidateTests(unittest.TestCase):
 
 
 class ArtifactStoreTests(unittest.TestCase):
-    def test_development_mode_saves_candidate_and_selection(self):
+    def test_store_updates_solution_and_checkpoint_only(self):
         with tempfile.TemporaryDirectory() as temp:
-            store = ArtifactStore(temp, save_candidates=True)
+            store = ArtifactStore(temp)
             self.assertEqual(Path(temp, "solution.v").read_text(), "")
             candidate = CandidateFactory().create(
                 "module TopModule; endmodule\n",
                 source_stage="generate",
                 round=1,
             )
-
-            store.save_candidate(candidate)
             store.select(candidate, reason="latest_extracted")
 
             self.assertEqual(Path(temp, "solution.v").read_text(), candidate.code)
-            self.assertEqual(
-                Path(temp, "candidates", "c001.v").read_text(),
-                candidate.code,
-            )
-            metadata = json.loads(
-                Path(temp, "candidates", "c001.json").read_text()
-            )
             selection = json.loads(Path(temp, "selection.json").read_text())
-            self.assertEqual(metadata["id"], "c001")
-            self.assertEqual(metadata["code_hash"], candidate.code_hash)
             self.assertEqual(selection["candidate_id"], "c001")
+            self.assertEqual(selection["code_hash"], candidate.code_hash)
             self.assertEqual(selection["reason"], "latest_extracted")
-
-    def test_submission_mode_only_updates_solution(self):
-        with tempfile.TemporaryDirectory() as temp:
-            store = ArtifactStore(temp)
-            candidate = CandidateFactory().create(
-                "module TopModule; endmodule\n",
-                source_stage="generate",
-                round=1,
-            )
-            store.save_candidate(candidate)
-            store.select(candidate, reason="latest_extracted")
-
-            self.assertEqual(Path(temp, "solution.v").read_text(), candidate.code)
-            self.assertFalse(Path(temp, "candidates").exists())
-            self.assertTrue(Path(temp, "selection.json").exists())
+            self.assertEqual(sorted(p.name for p in Path(temp).iterdir()), ["selection.json", "solution.v"])
 
     def test_failed_replace_keeps_previous_complete_file(self):
         with tempfile.TemporaryDirectory() as temp:

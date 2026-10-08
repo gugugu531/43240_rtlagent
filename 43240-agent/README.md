@@ -109,23 +109,17 @@ Agent 的 Supervisor 管理 Worker 与通过公开服务启动的工具进程；
 开发记录默认使用 `full`。每次运行在 `<输出目录>/records/<run_id>/` 中创建独立记录：
 
 ```text
-run.json
+task.json
 calls/m001/
   request.json       # 请求 messages、实际参数与公开服务配置
-  response.txt       # 原始 HTTP 响应文本（脱敏后；mock、无响应时不生成）
-  response.json      # 可解析的完整 JSON，包括 reasoning 和服务扩展字段
-  content.txt        # 供代码提取使用的正文
-  result.json        # 标准回复或分类错误
-  extraction.json    # 提取状态、诊断与候选 ID
-nodes/e001/execution.json
-candidates/c001/{solution.v,metadata.json}
-checks/k001/result.json
-task.json
-selection.json
-supervision.json
-tool_logs/*.log       # 完整逻辑检查日志，不依赖保留临时工作目录
-process_logs/*.log    # Supervisor 保存的进程输出，中断时也可保留
+  response.json      # 可解析的完整 JSON 响应，包括 reasoning 和服务扩展字段
+  response.txt       # 只在响应不是合法 JSON 或使用 mock 时代替 response.json
+candidates/c001.v
+process_logs/*.log    # Supervisor 保存的完整工具与进程输出，中断时也可保留
 ```
+
+每份数据只保存一处：调用状态、提取结论、Node 执行、检查结果、选择和监督结果都只写在
+trace 中，详细记录目录只放 trace 装不下的正文。检查结果用 `log_paths` 指向对应的进程日志。
 
 设 `AGENT_RECORD_ROOT=/绝对路径` 可将记录保存到输出目录以外。HTTP 服务也继承此设置；
 因此请求临时目录被删除后，记录仍然保留。HTTP 默认不持久保存临时目录中的完整记录。
@@ -199,11 +193,11 @@ Worker 停止后追加记录，不伪造模型或 Node 的结束。关闭模型�
 
 ## 4. trace.jsonl 记录的内容
 
-Agent trace 当前使用 schema version 4。每行一个 JSON 对象，并自动带有以下公共字段：
+每行一个 JSON 对象，并自动带有以下公共字段。trace 不再单独记录格式版本；
+运行元数据中的 Git commit（7 位短 hash）就能确定写出它的代码版本。
 
 | 字段 | 含义 |
 | --- | --- |
-| `schema_version` | trace 格式版本，当前为 `4` |
 | `run_id` | 本次 Agent 运行的标识，同一文件内保持一致 |
 | `seq` | 从 1 开始连续递增的事件编号 |
 | `ts` | 写入事件时的 Unix 时间戳 |
@@ -213,8 +207,8 @@ Agent trace 当前使用 schema version 4。每行一个 JSON 对象，并自动
 
 | `tool` | 何时写入 | 主要字段 |
 | --- | --- | --- |
-| `run` | 记录初始化与运行元数据 | 记录等级、题目 ID、Workflow 描述、服务与预算配置、Git commit 与 dirty 状态 |
-| `node` | 动作开始与结束 | `execution_id`、父执行、组件参数、输入输出摘要、状态、耗时与错误详情 |
+| `run` | 记录初始化与运行元数据 | 记录等级与详细记录目录、题目 ID、Workflow 描述、服务与预算配置、配置来源、Git 短 commit 与 dirty 状态 |
+| `node` | 动作开始与结束 | 开始事件带 `execution_id`、父执行、组件参数与输入摘要；结束事件只带耗时，以及输出摘要或错误 |
 | `workflow` | 流程自定义事件 | 决策理由、提示资源哈希及自定义诊断 |
 | `agent` | 开始、结束、出错、综合通过、提前停止 | `event`（start / done / error / accept / stop）、模型配置 |
 | `env` | 开始时 | `vivado_available`：本机是否找到 Vivado |
@@ -230,7 +224,7 @@ Agent trace 当前使用 schema version 4。每行一个 JSON 对象，并自动
 
 `agent/recording/` 在写入前统一隐藏 API key、Cookie、Authorization、已知秘密与 URL
 中的凭据。原始正文保存在详细记录中，trace 只保存摘要与引用；必要 trace 写入失败视为
-基础设施错误。详细文件写入失败只发出警告并标记 `recording_incomplete`，不会替换原有模型
+基础设施错误。详细文件写入失败只发出 `recording/warning` 警告，不会替换原有模型
 结果或错误。进程中途退出时只保留实际已发生的事件，不伪造调用结束。
 
 `dev/tools/analysis/analyze.py` 按调用结束事件统计模型耗时、按调用 ID 统计调用次数，避免把开始和
@@ -268,7 +262,7 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 默认使用 `config/example.yaml`，可通过 `AGENT_CONFIG` 或 run.sh 的附加 `--config` 参数选择。
 该文件带有逐项注释，可复制到开发配置目录后修改。旧 `config/default.yaml` 已改名，显式引用旧路径的命令或 `AGENT_CONFIG` 需同步调整。
 配置只选择 Workflow、外部服务和运行条件；采样与组件策略保留在 Python。
-生效顺序为内置默认、YAML、支持的环境变量、CLI，输出 `config.json` 记录来源。
+生效顺序为内置默认、YAML、支持的环境变量、CLI，trace 的运行元数据记录生效值和来源。
 
 ```bash
 # 指定单题、重复采样，只收集模型和运行指标
@@ -298,7 +292,6 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 | `AGENT_RESERVE_S` | `20` | 为清理和写出结果预留的时间（秒）；预算小于此值时直接停止 |
 | `AGENT_TMP` | 依次取 `EDA_TMP`、`TRACK_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
 | `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留每次 Vivado 调用的独立目录和完整日志，排查问题用 |
-| `AGENT_SAVE_CANDIDATES` | 未设置 | 设为 `1` 时额外保存每个候选；恢复检查点不受此开关影响 |
 | `AGENT_RECORD_LEVEL` | `full` | `full` 保存详细证据；`basic` 只保留必要 trace |
 | `AGENT_RECORD_ROOT` | 输出目录下 `records/` | 独立记录根目录；HTTP 开发实验应设置到请求临时目录以外 |
 | `AGENT_GIT_COMMIT` | 自动读取 | 镜像中没有 `.git` 时，由构建过程注入源码 commit |
@@ -329,6 +322,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
+| 2026-10-08 | 精简运行记录 | 去掉 txt/json 双份和与 trace 重复的文件；取消 trace 版本号，改记 Git 短 commit；删除 `save_candidates` |
 | 2026-10-08 | 选择与失败策略下放到 Workflow | 删除 `agent/policies/`；检查结果分类改为 `CheckResult.classify()`；修复流程的决策结果不变 |
 | 2026-10-08 | Quickstart、User Manual 与注释配置 | 文档按上手与完整使用拆分；默认配置改名为 `config/example.yaml`，默认运行值保持不变 |
 | 2026-10-05 | 模块归位、开发目录集中与打包检查 | 正式运行独立于 dev；Docker 包含默认配置和原始 baseline 文件 |

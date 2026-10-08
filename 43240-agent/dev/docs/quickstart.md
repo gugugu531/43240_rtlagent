@@ -35,16 +35,15 @@ LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/agent-quickstart \
 
 ```bash
 cat /tmp/agent-quickstart/solution.v
-cat /tmp/agent-quickstart/run_locator.json
 cat /tmp/agent-quickstart/trace.jsonl
+ls -R /tmp/agent-quickstart/records/
 ```
 
 | 文件 | 第一遍看什么 |
 | --- | --- |
 | `solution.v` | 是否生成了完整模块；mock 通常把输出置零，只验证流程 |
-| `trace.jsonl` | 模型调用、候选选择、最后的状态与停止原因 |
-| `config.json` | 实际使用了什么配置，以及每个字段来自 YAML、环境还是命令行 |
-| `run_locator.json` | 本次详细记录所在目录 |
+| `trace.jsonl` | 模型调用、候选选择、最后的状态与停止原因；`run/metadata` 事件里有实际使用的配置及每个字段的来源 |
+| `records/<run_id>/` | 本次详细记录：请求、回复和候选代码 |
 
 **有代码或退出码为 0 不代表功能正确。** 默认 `single_generate` 不进行接口、lint 或综合检查。
 
@@ -101,15 +100,16 @@ YAML 的相对路径以配置文件所在目录为基准；移动文件后重新
 
 ## 6. 查看一次模型调用
 
-先从输出目录的 `run_locator.json` 读取 `record_dir`，再查看其中的 `calls/m001/`：
+详细记录目录写在 trace 的 `run/recording` 事件的 `record_dir` 中，默认是输出目录下的 `records/<run_id>/`。
+其中 `calls/m001/` 保存：
 
 | 文件 | 内容 |
 | --- | --- |
 | `request.json` | 实际发送的提示和生成参数的脱敏副本 |
-| `response.txt` / `response.json` | 模型服务返回的 HTTP 响应及可解析 JSON，包括服务返回的 reasoning 字段 |
-| `content.txt` | 交给代码提取器的正文的脱敏副本 |
-| `result.json` / `extraction.json` | 调用状态、错误或代码提取结论 |
+| `response.json` | 模型服务返回的完整 JSON，包括服务返回的 reasoning 字段 |
+| `response.txt` | 只在返回内容不是合法 JSON 时代替 `response.json`；mock 用它保存生成的正文 |
 
+调用状态、错误和代码提取结论在 trace 的 `llm` 与 `extract` 事件中。
 mock 不制造 HTTP 响应，连接失败时也可能没有响应文件；`basic` 记录模式不保存这些详细文件。
 可用浏览器打开 [日志查看器](../tools/log_viewer.html) 导入运行目录，使用方式见[查看器说明](design/log-viewer.md)。
 
@@ -140,10 +140,10 @@ uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
 
 | 现象 | 检查位置 |
 | --- | --- |
-| 改了 YAML 没生效 | `config.json` 中的 `effective` 和 `sources`，尤其环境变量覆盖 |
+| 改了 YAML 没生效 | trace 中 `run/metadata` 事件的 `configuration.effective` 和 `sources`，尤其环境变量覆盖 |
 | 答案为空 | `trace.jsonl` 的模型错误、提取状态、预算和初始化错误 |
 | 没有工具日志 | 确认使用 `repair_loop`；默认单次生成不调用工具 |
 | 有答案却运行提前停止 | 候选可能已保存，后续验证因环境或预算停止；看停止原因 |
-| 找不到完整回复 | 查看记录等级、`run_locator.json` 和 HTTP 外部记录目录 |
+| 找不到完整回复 | 查看记录等级、`run/recording` 事件的 `record_dir` 和 HTTP 外部记录目录 |
 
 完整排障表见 [User Manual](user-manual.md#14-常见问题与排查顺序)。

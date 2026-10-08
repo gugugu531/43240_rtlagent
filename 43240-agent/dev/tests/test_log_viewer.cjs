@@ -51,4 +51,15 @@ const nested=parser.build(parse([
   {tool:'node',execution_id:'e2',parent_execution_id:'e1',status:'started'},
 ]).events);
 assert.equal(nested.rows.length,3,'malformed parent cycles must not hang');
-console.log('PASS: syntax, grouped calls, nesting, reuse, interruptions, malformed/empty traces, baseline, workflow status');
+const compact=parser.build(parse([
+  {tool:'node',event:'started',execution_id:'e1',component:{name:'rtl_generate'},input:{task_id:'t'}},
+  {tool:'node',event:'started',execution_id:'e2',parent_execution_id:'e1',component:{name:'inner'}},
+  {tool:'node',event:'succeeded',execution_id:'e2',elapsed_s:0.1,output:null},
+  {tool:'node',event:'succeeded',execution_id:'e1',elapsed_s:0.5,output:{call_id:'m001'}},
+]).events);
+const outer=compact.rows.find(r=>r.id==='node:e1');
+assert.equal(outer.title,'rtl_generate','name comes from the started event');
+assert.equal(outer.status,'succeeded');
+assert.equal(outer.elapsed,0.5);
+assert.equal(compact.rows.find(r=>r.id==='node:e2').parent,'node:e1','end events keep the started parent');
+console.log('PASS: syntax, grouped calls, nesting, reuse, interruptions, malformed/empty traces, baseline, workflow status, compact node events');

@@ -38,6 +38,10 @@ class ExtractionResult:
             "code_bytes": len(self.code.encode("utf-8")),
         }
 
+    def summary_dict(self) -> dict[str, object]:
+        """Node events keep the status; details are in the extract event."""
+        return {"status": self.status}
+
 
 @dataclass(frozen=True)
 class _Block:

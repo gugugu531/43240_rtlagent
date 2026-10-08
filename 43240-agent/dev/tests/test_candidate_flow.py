@@ -60,12 +60,16 @@ def events(temp):
     return [json.loads(line) for line in Path(temp, 'trace.jsonl').read_text().splitlines()]
 
 
+def record_file(temp, relative):
+    return next(Path(temp, 'records').glob(f'*/{relative}'))
+
+
 def run_repair(temp, backend, tools, **params):
     return Runner(ModelConfig(), backend_factory=lambda config: backend,
                   toolchain_factory=lambda: tools).run(
         TaskSpec.from_text('test', 'Implement TopModule.'),
         lambda: build_workflow('repair_loop', use_skills=False, **params),
-        options=RunOptions(Path(temp), save_candidates=True))
+        options=RunOptions(Path(temp)))
 
 
 class CandidateFlowTests(unittest.TestCase):
@@ -89,7 +93,7 @@ class CandidateFlowTests(unittest.TestCase):
             self.assertIsNone(result.selected_candidate)
             self.assertEqual(result.stop_reason, 'model_timeout')
             self.assertEqual(Path(temp, 'solution.v').read_text(), '')
-            self.assertEqual(Path(temp, 'candidates/c001.v').read_text(), code)
+            self.assertEqual(record_file(temp, 'candidates/c001.v').read_text(), code)
             self.assertEqual(len(backend.requests), 2)
             self.assertIn('lint failed', backend.requests[1].messages[-1]['content'])
             self.assertIn(code.strip(), backend.requests[1].messages[-1]['content'])
@@ -102,8 +106,10 @@ class CandidateFlowTests(unittest.TestCase):
                               [tool_result('synth', 'ok', 'Synthesis finished')])
         with tempfile.TemporaryDirectory() as temp:
             result = run_repair(temp, backend, tools)
-            first = json.loads(Path(temp, 'candidates/c001.json').read_text())
-            second = json.loads(Path(temp, 'candidates/c002.json').read_text())
+            created = {e['candidate_id']: e for e in events(temp)
+                       if e['tool'] == 'candidate' and e['event'] == 'create'}
+            first, second = created['c001'], created['c002']
+            self.assertEqual(record_file(temp, 'candidates/c002.v').read_text(), second_code)
             selection = json.loads(Path(temp, 'selection.json').read_text())
             self.assertEqual(first['source_call_id'], 'm001')
             self.assertEqual(second['source_call_id'], 'm002')

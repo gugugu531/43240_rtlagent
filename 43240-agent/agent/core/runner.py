@@ -26,7 +26,7 @@ class RunOptions:
     deadline_s: float = 360.0
     reserve_s: float = 20.0
     recording: RecordingConfig = field(default_factory=RecordingConfig)
-    save_candidates: bool = False
+    run_id: str | None = None
 
 
 class Runner:
@@ -41,8 +41,8 @@ class Runner:
     def run(self, task: TaskSpec, workflow: Workflow | Callable[[], Workflow], *,
             options: RunOptions, started_at: float | None = None) -> WorkflowResult:
         started_at = time.monotonic() if started_at is None else started_at
-        artifacts = ArtifactStore(options.output_dir, save_candidates=options.save_candidates)
-        recorder = RunRecorder(options.output_dir, options.recording)
+        artifacts = ArtifactStore(options.output_dir)
+        recorder = RunRecorder(options.output_dir, options.recording, run_id=options.run_id)
         if callable(getattr(self._process_executor, "set_recorder", None)):
             self._process_executor.set_recorder(recorder)
         ctx = None
@@ -63,12 +63,11 @@ class Runner:
             spec = describe_component(instance)
             recorder.record_metadata(mode='agent', task_id=task.id, task=task.public_dict(),
                                      workflow=spec.public_dict(), model=config.public_dict(),
-                                     runtime=dict(deadline_s=options.deadline_s, reserve_s=options.reserve_s,
-                                                  save_candidates=options.save_candidates),
+                                     runtime=dict(deadline_s=options.deadline_s, reserve_s=options.reserve_s),
                                      git=git_metadata(str(ROOT)), configuration=self._configuration,
                                      tools=(self._tool_config or ToolConfig.from_env()).public_dict())
             recorder.record_task(task)
-            recorder.write_event('agent', 'start', workflow=spec.public_dict())
+            recorder.write_event('agent', 'start')
             result = instance.run(ctx)
             if not isinstance(result, WorkflowResult):
                 raise TypeError('workflow.run() must return ctx.finish() result')
@@ -84,7 +83,6 @@ class Runner:
         finally:
             try:
                 selected = artifacts.selected
-                recorder.record_result(result)
                 recorder.write_event('agent', 'done', candidate_id=selected.id if selected else None,
                                      code_hash=selected.code_hash if selected else None,
                                      bytes=len(selected.code.encode('utf-8')) if selected else 0,

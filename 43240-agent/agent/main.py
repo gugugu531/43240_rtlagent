@@ -24,7 +24,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--reserve-s', type=float)
     parser.add_argument('--record-root', type=Path)
     parser.add_argument('--record-level', choices=('basic', 'full'))
-    parser.add_argument('--save-candidates', action='store_true', default=None)
     args = parser.parse_args(argv)
     caller = Path(os.environ.get("AGENT_CALLER_CWD", os.getcwd()))
     for name in ("config", "record_root", "config_parent"):
@@ -33,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
             setattr(args, name, (caller / value).resolve())
     fields = {'workflow': 'workflow.type', 'import_module': 'imports', 'deadline_s': 'runtime.deadline_s',
               'reserve_s': 'runtime.reserve_s', 'record_root': 'runtime.recording.root',
-              'record_level': 'runtime.recording.level', 'save_candidates': 'runtime.save_candidates'}
+              'record_level': 'runtime.recording.level'}
     overrides = RunOverrides({target: getattr(args, name) for name, target in fields.items()
                               if getattr(args, name) is not None})
     try:
@@ -53,8 +52,8 @@ def main(argv: list[str] | None = None) -> int:
         try:
             recorder.write_event('agent', 'error', error_type=type(exc).__name__, reason='configuration_or_entry_error',
                                  excerpt=str(exc) if isinstance(exc, ConfigError) else 'entry preparation failed')
-            from agent.core.state import WorkflowResult
-            recorder.record_result(WorkflowResult(recorder.run_id, None, 'configuration_or_entry_error', 'error'))
+            recorder.write_event('agent', 'done', candidate_id=None, code_hash=None, bytes=0,
+                                 status='error', stop_reason='configuration_or_entry_error')
         finally:
             recorder.close()
         return 0

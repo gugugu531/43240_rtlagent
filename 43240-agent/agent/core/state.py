@@ -21,7 +21,7 @@ class CheckResult:
     elapsed_s: float = 0.0
     command: tuple[tuple[str, ...], ...] = ()
     details: Mapping[str, Any] = field(default_factory=dict)
-    full_log_path: str | None = None
+    log_paths: tuple[str, ...] = ()
     work_dir: str | None = None
 
     def __post_init__(self):
@@ -29,13 +29,14 @@ class CheckResult:
             raise ValueError('unknown check status')
         object.__setattr__(self, 'details', _freeze(self.details))
         object.__setattr__(self, 'command', tuple(tuple(c) for c in self.command))
+        object.__setattr__(self, 'log_paths', tuple(self.log_paths))
 
     def public_dict(self):
         return dict(check_id=self.id, candidate_id=self.candidate_id, kind=self.kind,
                     status=self.status, blocking=self.blocking, rc=self.rc,
                     elapsed_s=self.elapsed_s, command=[list(c) for c in self.command],
                     excerpt=self.summary[:2000], details=_thaw(self.details),
-                    full_log_path=self.full_log_path, work_dir=self.work_dir)
+                    log_paths=list(self.log_paths), work_dir=self.work_dir)
 
     def classify(self) -> str:
         """Conservative attribution: a nonzero exit alone is not an RTL defect."""

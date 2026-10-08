@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 AGENT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENT_ROOT))
-sys.path.insert(0, str(AGENT_ROOT / "dev" / "eval"))
 
 from agent.core.metadata import git_metadata
 from agent.core.config import ModelConfig, ModelConfigError
@@ -22,7 +21,7 @@ class TraceEventTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp, "trace.jsonl")
             trace = RunRecorder(temp)
-            trace.write_event(tool="agent", event="start", schema_version=999, seq=99)
+            trace.write_event(tool="agent", event="start", seq=99)
             trace.write_event(tool="agent", event="done")
             trace.close()
 
@@ -30,9 +29,7 @@ class TraceEventTests(unittest.TestCase):
 
         self.assertEqual([event["seq"] for event in events], [1, 2, 3])
         self.assertTrue(all(event["run_id"] == trace.run_id for event in events))
-        self.assertTrue(all(
-            event["schema_version"] == 4 for event in events
-        ))
+        self.assertFalse(any("schema_version" in event for event in events))
         self.assertTrue(all(isinstance(event["ts"], float) for event in events))
         self.assertEqual(events[1]["tool"], "agent")
 
@@ -91,9 +88,14 @@ class MetadataTests(unittest.TestCase):
             "/missing",
             {"AGENT_GIT_COMMIT": "abc123", "AGENT_GIT_DIRTY": "false"},
         )
+        self.assertEqual(metadata["commit"], "abc123")
+        metadata = git_metadata(
+            "/missing",
+            {"AGENT_GIT_COMMIT": "f700e38" + "0" * 33, "AGENT_GIT_DIRTY": "false"},
+        )
 
         self.assertEqual(metadata, {
-            "commit": "abc123",
+            "commit": "f700e38",
             "dirty": False,
             "source": "environment",
         })

@@ -32,6 +32,7 @@ class ProcessResult:
     status: str
     elapsed_s: float
     output: str
+    log_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -55,11 +56,14 @@ class ProcessExecutor:
         identity = self._sequence
         started = time.monotonic()
         # File output avoids pipe buffer deadlocks and inherited-pipe hangs.
+        log_path = None
         if self.log_dir:
             try:
                 os.makedirs(self.log_dir, exist_ok=True)
-                stream = open(os.path.join(self.log_dir, f'process_{identity:03d}.log'), 'w+b')
+                log_path = os.path.join(self.log_dir, f'process_{identity:03d}.log')
+                stream = open(log_path, 'w+b')
             except OSError:
+                log_path = None
                 self.recording_incomplete = True
                 stream = tempfile.TemporaryFile()
         else:
@@ -71,7 +75,7 @@ class ProcessExecutor:
             stream.close()
             raise
         self.groups.add(proc.pid)
-        self._jobs[identity] = dict(proc=proc, stream=stream, started=started,
+        self._jobs[identity] = dict(proc=proc, stream=stream, started=started, log_path=log_path,
                                    deadline=started + max(0.0, request.timeout_s - request.terminate_grace_s),
                                    grace=request.terminate_grace_s, term_at=None, timeout=False)
         return identity
@@ -95,12 +99,12 @@ class ProcessExecutor:
         stream.flush()
         stream.seek(0)
         output = stream.read().decode('utf-8', errors='replace')
-        self._sanitize_stream(stream, output)
+        saved = self._sanitize_stream(stream, output)
         stream.close()
         del self._jobs[identity]
         return ProcessResult(124 if job['timeout'] else rc,
                              'timeout' if job['timeout'] else 'ok' if rc == 0 else 'failed',
-                             now - job['started'], output)
+                             now - job['started'], output, job['log_path'] if saved else None)
 
     def run(self, request: ProcessRequest):
         if request.timeout_s <= 0:
@@ -145,6 +149,7 @@ class ProcessExecutor:
             stream.truncate()
             stream.write(self.redactor.copy(output).encode('utf-8'))
             stream.flush()
+            return True
         except OSError:
             self.recording_incomplete = True
             if isinstance(stream.name, str):
@@ -152,6 +157,7 @@ class ProcessExecutor:
                     os.unlink(stream.name)
                 except OSError:
                     pass
+            return False
 
     @staticmethod
     def _signal(pgid, sig):

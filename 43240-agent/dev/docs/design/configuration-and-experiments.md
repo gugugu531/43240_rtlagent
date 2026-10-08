@@ -37,7 +37,6 @@ services:
 runtime:
   deadline_s: 360
   reserve_s: 20
-  save_candidates: false
   recording:
     level: full
 experiment:
@@ -78,7 +77,7 @@ build_run_spec(task, config, *, output_dir, started_at, hard_deadline_s=None) ->
 `ResolvedConfig` 包含 `AgentConfig`、逐字段来源与原始配置；凭据只进入模型服务对象，
 公开快照不包含凭据值。CLI、HTTP 的子进程和实验样本共用这些接口与原有 Supervisor。
 `RunSpec` 向 Worker 传递明确的模型、工具配置与配置快照；Workflow 在 Worker 内构造。
-输出目录新增 `config.json`，详细运行元数据也保存配置。配置失败留下空答案和失败 trace。
+生效配置及来源只保存在 trace 的 `run/metadata` 事件中。配置失败留下空答案和失败 trace。
 Supervisor 已经开始执行后的异常不由入口清空已有答案。
 
 ## 开发实验
@@ -114,7 +113,7 @@ baseline 调用原始入口，外围执行器提供进程组停止与输出日�
 取消样本的指标可以标为 skipped，不伪造执行成功。
 
 实验先解析并冻结生效配置，再生成内部 `resolved.yaml` 供各个正式入口读取；子进程移除
-已处理的环境覆盖项，不二次覆盖配置。逐样本 `config.json` 的 `parent_config` 指向实验
+已处理的环境覆盖项，不二次覆盖配置。样本 trace 元数据中的 `parent_config` 指向实验
 原配置、生效值及来源。显式独立记录根目录保持有效，默认记录在样本下。
 
 ## 指标
@@ -159,8 +158,8 @@ runs/<experiment_id>/
 ├── tasks.json                  # 实际清单、排除结果和输入哈希
 ├── source/                     # 明确范围内源码与快照清单
 ├── samples/<mode>/<task>/s<index>/
-│   ├── solution.v、trace.jsonl、config.json、solve.json
-│   ├── records/                # 正式 Agent 完整证据，或由 locator 指向独立目录
+│   ├── solution.v、trace.jsonl、solve.json；baseline 样本另有 config.json
+│   ├── records/                # 正式 Agent 完整证据；设置独立根目录时由 trace 的 record_dir 给出
 │   ├── process_logs/、run.log
 │   ├── judge/                  # 仅启用判定时生成
 │   └── metrics.json

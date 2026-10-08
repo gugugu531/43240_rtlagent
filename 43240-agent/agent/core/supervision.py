@@ -16,6 +16,7 @@ from agent.core.state import WorkflowResult
 from agent.core.config import ModelConfig, ToolConfig
 from agent.core.task import TaskSpec
 from agent.core.runner import Runner, RunOptions
+from agent.recording.recorder import record_dir
 from agent.services.processes import ProcessExecutor, RemoteProcessExecutor, ProcessResult
 
 
@@ -41,7 +42,6 @@ def _worker(connection, spec):
     signal.signal(signal.SIGTERM, signal.SIG_DFL)
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     from agent.core.registry import build_workflow, load_builtin_components, load_extensions
-    from agent.services.vivado import RtlToolchain
     executor = RemoteProcessExecutor(connection)
 
     def workflow():
@@ -71,29 +71,25 @@ class Supervisor:
     def run(self, spec: RunSpec) -> WorkflowResult:
         started = spec.started_at if spec.started_at is not None else time.monotonic()
         from dataclasses import replace
-        spec = replace(spec, started_at=started)
+        import uuid
+        # The supervisor owns the run identity, so it can find the records after any worker exit.
+        run_id = spec.options.run_id or uuid.uuid4().hex
+        spec = replace(spec, started_at=started, options=replace(spec.options, run_id=run_id))
         options = spec.options
         out = Path(options.output_dir)
         out.mkdir(parents=True, exist_ok=True)
         # Contract files exist even if input/configuration/worker startup fails.
         atomic_write_text(out / 'solution.v', '')
         atomic_write_text(out / 'trace.jsonl', '')
-        if spec.configuration:
-            atomic_write_json(out / 'config.json', spec.configuration)
         atomic_write_json(out / 'selection.json', {'candidate_id': None})
-        locator = out / 'run_locator.json'
-        locator.unlink(missing_ok=True)
-        import uuid
-        fallback_id = uuid.uuid4().hex
-        fallback = dict(run_id=fallback_id, level=options.recording.level,
-                        record_dir=str((options.recording.root or out / 'records') / fallback_id))
-        atomic_write_json(locator, fallback)
         hard_deadline = started + options.deadline_s
         solve_deadline = hard_deadline - options.reserve_s
         context = multiprocessing.get_context('fork')
         parent, child = context.Pipe()
         worker = context.Process(target=_worker, args=(child, spec), name='agent_worker')
-        executor = ProcessExecutor()
+        # Process output is streamed here, so it survives a killed worker.
+        executor = ProcessExecutor(log_dir=str(record_dir(out, options.recording, run_id) / 'process_logs')
+                                   if options.recording.level == 'full' else None)
         result, reason, active, error_type = None, None, None, None
         old_handlers = {}
         # This dedicated CLI process adopts descendants for reaping on Linux.
@@ -135,13 +131,6 @@ class Supervisor:
                             executor.redactor.add_secrets(secrets)
                             if active is not None:
                                 raise RuntimeError('overlapping worker process requests')
-                            # Preserve raw process logs even if the worker is killed.
-                            if executor.log_dir is None:
-                                try:
-                                    info = json.loads(locator.read_text())
-                                    executor.log_dir = str(Path(info['record_dir']) / 'process_logs') if info['level'] == 'full' else None
-                                except (OSError, ValueError, KeyError):
-                                    pass
                             from dataclasses import replace
                             request = replace(payload, timeout_s=min(payload.timeout_s,
                                               max(0.0, solve_deadline - time.monotonic())))
@@ -202,7 +191,7 @@ class Supervisor:
                                     'error' if not same else result.status)
         interruption = reason or (result.stop_reason if result else 'worker_exit')
         if result is None:
-            result = WorkflowResult(_read_locator(out).get('run_id', ''), selected, interruption,
+            result = WorkflowResult(run_id, selected, interruption,
                                     'stopped' if interruption in ('deadline', 'sigterm', 'sigint', 'cancelled') else 'error')
         fields = dict(status='interrupted' if reason else 'completed', stop_reason=interruption,
                       worker_exitcode=worker.exitcode if worker.pid else None,
@@ -212,7 +201,7 @@ class Supervisor:
                       terminated_groups=list(cleanup.terminated_groups),
                       unreaped_pids=list(cleanup.unreaped_pids) + list(adopted),
                       backend_inference_cancelled='unknown')
-        record_supervision(out, fields, result, interrupted=reason is not None)
+        record_supervision(out, fields, run_id)
         self._cancel_reason = None
         return result
 
@@ -230,13 +219,6 @@ class Supervisor:
             if remaining:
                 time.sleep(0.005)
         return tuple(remaining)
-
-
-def _read_locator(out):
-    try:
-        return json.loads((Path(out) / 'run_locator.json').read_text())
-    except (OSError, ValueError):
-        return {}
 
 
 def recover_selection(out):
@@ -261,12 +243,10 @@ def recover_selection(out):
         return None, 'invalid_checkpoint'
 
 
-def record_supervision(out, fields, result, *, interrupted):
+def record_supervision(out, fields, run_id):
     """Append after worker exit; leave unfinished call/node evidence untouched."""
-    from agent.recording.recorder import TRACE_SCHEMA_VERSION
     out = Path(out)
     trace = out / 'trace.jsonl'
-    locator = _read_locator(out)
     events = []
     raw = trace.read_bytes() if trace.exists() else b''
     valid = bytearray()
@@ -277,28 +257,6 @@ def record_supervision(out, fields, result, *, interrupted):
         except (ValueError, UnicodeDecodeError):
             # Retain interrupted bytes separately; return parseable JSONL.
             atomic_write_text(out / 'trace_partial.txt', line.decode(errors='replace'))
-    event = dict(fields, tool='supervisor', event='result', schema_version=TRACE_SCHEMA_VERSION,
-                 run_id=locator.get('run_id', result.run_id),
+    event = dict(fields, tool='supervisor', event='result', run_id=run_id,
                  seq=max((e.get('seq', 0) for e in events), default=0) + 1, ts=round(time.time(), 3))
     atomic_write_text(trace, valid.decode() + json.dumps(event, ensure_ascii=False) + '\n')
-    atomic_write_json(out / 'supervision.json', fields)
-    if locator.get('level') == 'full':
-        directory = Path(locator['record_dir'])
-        try:
-            atomic_write_json(directory / 'supervision.json', fields)
-            path = directory / 'run.json'
-            if path.is_file():
-                manifest = json.loads(path.read_text())
-            else:
-                manifest = dict(schema_version=TRACE_SCHEMA_VERSION, run_id=locator.get('run_id'),
-                                level=locator.get('level'), calls={}, nodes={}, recording_incomplete=True)
-            manifest['supervision'] = fields
-            if fields.get('process_logs_incomplete'):
-                manifest['recording_incomplete'] = True
-            if interrupted:
-                manifest.update(status='interrupted', finished_at=time.time())
-                manifest['result'] = dict(status=result.status, stop_reason=result.stop_reason,
-                                         selected_candidate_id=result.selected_candidate.id if result.selected_candidate else None)
-            atomic_write_json(path, manifest)
-        except (OSError, ValueError):
-            pass  # Optional full recording must not replace the solve result.

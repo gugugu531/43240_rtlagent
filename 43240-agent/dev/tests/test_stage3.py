@@ -1,6 +1,6 @@
 """Workflow decisions, cache and real process lifecycle acceptance tests."""
 from __future__ import annotations
-from dataclasses import replace
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -181,10 +181,10 @@ class Flow(Component):
                 self.assertEqual(result.stop_reason, 'deadline')
                 self.assertIsNotNone(result.selected_candidate)
                 self.assertIn('module TopModule', Path(temp, 'out/solution.v').read_text())
-                manifest = json.loads(next(Path(temp, 'records').glob('*/run.json')).read_text())
-                self.assertEqual(manifest['status'], 'interrupted')
-                self.assertEqual(manifest['calls']['m001']['status'], 'succeeded')
-                self.assertEqual(manifest['supervision']['unreaped_pids'], [])
+                trace = events(Path(temp, 'out'))
+                self.assertTrue(any(e['tool'] == 'llm' and e['event'] == 'succeeded' for e in trace))
+                self.assertEqual(trace[-1]['status'], 'interrupted')
+                self.assertEqual(trace[-1]['unreaped_pids'], [])
             finally:
                 sys.path.remove(temp)
 
@@ -209,8 +209,8 @@ class Flow(Component):
                 self.assertEqual(len(pids), 2)
                 for pid in pids:
                     with self.assertRaises(ProcessLookupError): os.kill(pid, 0)
-                self.assertEqual(json.loads(Path(temp, 'out/supervision.json').read_text())['unreaped_pids'], [])
                 trace = events(Path(temp, 'out'))
+                self.assertEqual(trace[-1]['unreaped_pids'], [])
                 self.assertTrue(any(e['tool'] == 'process' and e['event'] == 'started' for e in trace))
                 self.assertFalse(any(e['tool'] == 'process' and e['event'] == 'result' for e in trace))
                 self.assertTrue(list(Path(temp, 'records').glob('*/process_logs/*.log')))
@@ -289,14 +289,13 @@ class TransportCancellationTests(unittest.TestCase):
                 self.assertEqual(supervision['stop_reason'], 'sigterm')
                 self.assertEqual(supervision['backend_inference_cancelled'], 'unknown')
                 self.assertEqual(supervision['unreaped_pids'], [])
-                manifest = json.loads(next(Path(temp, 'records').glob('*/run.json')).read_text())
-                self.assertEqual(manifest['calls']['m001']['status'], 'started')
-                self.assertEqual(manifest['status'], 'interrupted')
+                self.assertEqual(supervision['status'], 'interrupted')
             finally:
                 if proc.poll() is None:
                     proc.terminate()
                     proc.wait(timeout=3)
 
+    @unittest.skipUnless(importlib.util.find_spec('fastapi'), 'fastapi is not installed')
     def test_http_small_deadline_bounds_blocking_model_without_five_second_floor(self):
         from serve import serve_api
         port, arrived = self.server()
@@ -361,10 +360,9 @@ class EvidenceStatisticsTests(unittest.TestCase):
             sys.path.remove(str(ROOT / 'dev/tools/analysis'))
 
     def test_partial_trace_is_preserved_without_fake_call_completion(self):
-        from agent.core.state import WorkflowResult
         with tempfile.TemporaryDirectory() as temp:
             Path(temp, 'trace.jsonl').write_bytes(b'{"tool":"llm","event":"started","call_id":"m001","seq":1}\n{"broken":')
-            record_supervision(temp, {'stop_reason': 'deadline'}, WorkflowResult('test', None, 'deadline'), interrupted=True)
+            record_supervision(temp, {'stop_reason': 'deadline'}, 'r1')
             evidence = events(temp)
             self.assertEqual([e['tool'] for e in evidence], ['llm', 'supervisor'])
             self.assertEqual(evidence[-1]['seq'], 2)
@@ -377,9 +375,9 @@ class EvidenceStatisticsTests(unittest.TestCase):
             self.assertEqual(result.stop_reason, 'deadline')
             self.assertTrue(result.run_id)
             self.assertEqual(Path(temp, 'solution.v').read_text(), '')
-            manifest = json.loads(next(Path(temp, 'records').glob('*/run.json')).read_text())
-            self.assertEqual(manifest['status'], 'interrupted')
-            self.assertEqual(manifest['calls'], {})
+            trace = events(temp)
+            self.assertEqual(trace[-1]['status'], 'interrupted')
+            self.assertFalse(any(e['tool'] == 'llm' for e in trace))
 
 
 
@@ -399,7 +397,7 @@ class FullToolLogsTests(unittest.TestCase):
             self.assertEqual(result.status, 'ok')
             self.assertIsNone(result.work_dir)
             self.assertFalse(list(Path(temp).glob('agent_lint_*')))
-            log = Path(result.full_log_path).read_text()
+            log = Path(result.log_paths[0]).read_text()
             self.assertGreater(len(log), len(result.summary))
             self.assertNotIn('tool-secret-xyz', log)
             self.assertIn('[redacted]', log)

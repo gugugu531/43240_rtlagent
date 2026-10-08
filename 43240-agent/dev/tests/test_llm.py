@@ -49,14 +49,14 @@ class ModelTests(unittest.TestCase):
             call = recorder.run_dir / 'calls/m001'
             parsed = json.loads((call / 'response.json').read_text())
             self.assertEqual(parsed, body())
-            self.assertIn('reasoning evidence', (call / 'response.txt').read_text())
+            self.assertEqual(sorted(p.name for p in call.iterdir()), ['request.json', 'response.json'])
             self.assertEqual(reply.request_id, 'request-id')
             self.assertIsNone(reply.usage.tokens_in)
             self.assertIsNone(reply.usage.tokens_out)
             self.assertEqual(post.call_count, 1)
             self.assertEqual(post.call_args.kwargs['json']['max_tokens'], 101)
             self.assertEqual(post.call_args.kwargs['timeout'], 2)
-            self.assertEqual(reply.response_artifact.path, 'calls/m001/response.txt')
+            self.assertEqual(reply.response_artifact.path, 'calls/m001/response.json')
             self.assertEqual(request.messages[0]['content'], 'explicit-test-secret')
             self.assertNotIn('explicit-test-secret', (call / 'request.json').read_text())
             self.assertEqual([e['event'] for e in self.events(temp) if e['tool']=='llm'], ['started', 'succeeded'])
@@ -74,10 +74,15 @@ class ModelTests(unittest.TestCase):
                 error = caught.exception
                 self.assertEqual(error.kind, kind)
                 self.assertEqual(error.call_id, 'm001')
-                self.assertEqual((recorder.run_dir / error.evidence.path).read_text(), text)
+                saved = (recorder.run_dir / error.evidence.path).read_text()
+                if error.evidence.path.endswith('.json'):
+                    self.assertEqual(json.loads(saved), json.loads(text))
+                else:
+                    self.assertEqual(saved, text)
                 ended = [e for e in self.events(temp) if e['tool']=='llm' and e['event']=='failed']
                 self.assertEqual(len(ended), 1)
-                self.assertFalse((recorder.run_dir/'calls/m001/content.txt').exists())
+                responses = [p.name for p in (recorder.run_dir/'calls/m001').iterdir() if p.name.startswith('response')]
+                self.assertEqual(len(responses), 1)
 
     def test_timeout_connection_have_no_fabricated_response(self):
         for exception, kind in [(requests.Timeout('secret'), 'timeout'),
@@ -100,7 +105,7 @@ class ModelTests(unittest.TestCase):
             recorder.close()
             self.assertIn('MOCK BACKEND', reply.content)
             self.assertIsNone(reply.response_artifact)
-            self.assertFalse((recorder.run_dir/'calls/m001/response.txt').exists())
+            self.assertEqual((recorder.run_dir/'calls/m001/response.txt').read_text(), reply.content)
             self.assertIsNone(reply.usage.tokens_in)
 
     def test_basic_mode_has_trace_but_no_raw_artifacts(self):
@@ -141,8 +146,7 @@ class ModelTests(unittest.TestCase):
             recorder = RunRecorder(temp)
             recorder.begin_call(ModelRequest([]), dict(backend='mock'))
             recorder.close()
-            manifest = json.loads((recorder.run_dir/'run.json').read_text())
-            self.assertEqual(manifest['calls']['m001']['status'], 'started')
+            self.assertTrue(any(e['tool']=='llm' and e['event']=='started' for e in self.events(temp)))
             self.assertFalse(any(e['event']=='succeeded' for e in self.events(temp)))
 
     def test_extraction_records_truncation_and_ambiguity_with_call_id(self):
@@ -155,7 +159,8 @@ class ModelTests(unittest.TestCase):
                 extracted = extract_result(reply.content, 'TopModule')
                 recorder.record_extraction(reply.call_id, extracted, 'c001' if extracted.code else None)
                 recorder.close()
-                recorded = json.loads((recorder.run_dir/'calls/m001/extraction.json').read_text())
+                recorded = next(e for e in self.events(temp) if e['tool'] == 'extract')
+                self.assertFalse((recorder.run_dir/'calls/m001/extraction.json').exists())
                 self.assertEqual(recorded['status'], status)
                 self.assertEqual(recorded['call_id'], 'm001')
                 self.assertEqual(recorded['candidate_id'], 'c001' if extracted.code else None)
@@ -194,7 +199,7 @@ class RecordingIsolationTests(unittest.TestCase):
                 recorder.close()
                 run_dirs.append(recorder.run_dir)
             self.assertNotEqual(*run_dirs)
-            self.assertTrue(all((d/'calls/m002/content.txt').exists() for d in run_dirs))
+            self.assertTrue(all((d/'calls/m002/response.txt').exists() for d in run_dirs))
 
     def test_request_nested_values_are_immutable_and_recording_does_not_change_reply(self):
         messages = [dict(role='user', content=[dict(text='original')])]

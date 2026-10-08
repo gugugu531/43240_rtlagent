@@ -11,7 +11,7 @@
 # 复制后需重新核对相对路径：YAML 中的相对路径以配置文件目录为基准，
 # CLI 和环境变量中的相对路径以启动命令所在目录为基准。
 # 同一字段覆盖顺序：内置默认值 < YAML < 支持的非空环境变量 < 已提供的 CLI 参数。
-# 输出目录的 config.json 记录生效值和来源；旧环境变量可能覆盖这里的设置。
+# trace.jsonl 的 run/metadata 事件记录生效值和来源；旧环境变量可能覆盖这里的设置。
 #
 # 本文件只配置已注册流程、服务和运行条件。温度、输出 token 上限、修复轮数、
 # Node 参数与分支循环由 Python Workflow 定义，不可自行增加到 YAML。
@@ -98,13 +98,8 @@ runtime:
   # 覆盖：AGENT_RESERVE_S / CLI --reserve-s。
   reserve_s: 20
 
-  # 在输出目录 candidates/ 额外保存各轮代码和元数据。
-  # 与 full 记录中的候选副本独立；关闭也仍会写答案恢复检查点。
-  # 覆盖：AGENT_SAVE_CANDIDATES=0/1；CLI --save-candidates 只表示开启。
-  save_candidates: false
-
   recording:
-    # full：trace + 详细请求、回复、候选、检查和运行证据。
+    # full：trace + 题面、模型请求与回复、候选代码和工具进程输出。
     # basic：保留必要 trace，不写完整模型正文等详细证据。
     # 两者都保存 solution.v 和输出目录 selection.json 恢复检查点。
     # 覆盖：AGENT_RECORD_LEVEL / CLI --record-level。

@@ -1,4 +1,4 @@
-"""Crash-safe final output and optional per-candidate development artifacts."""
+"""Crash-safe final output and its recovery checkpoint."""
 
 from __future__ import annotations
 
@@ -13,36 +13,21 @@ from agent.core.candidate import Candidate
 
 
 class ArtifactStore:
-    """Own files produced by one Agent run.
+    """Own the answer files of one Agent run.
 
     ``solution.v`` exists from initialization onward and every replacement is
-    atomic. Candidate history is optional because it is useful during
-    development but is not part of the submission protocol.
+    atomic. Candidate history belongs to the full recording, not to this store.
     """
 
-    def __init__(self, output_dir: str | os.PathLike[str], *,
-                 save_candidates: bool = False) -> None:
+    def __init__(self, output_dir: str | os.PathLike[str]) -> None:
         self.output_dir = Path(output_dir)
         self.solution_path = self.output_dir / "solution.v"
-        self.candidate_dir = self.output_dir / "candidates"
         self.selection_path = self.output_dir / "selection.json"
-        self.save_candidates = save_candidates
         self.selected: Candidate | None = None
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         atomic_write_text(self.solution_path, "")
         atomic_write_json(self.selection_path, {"candidate_id": None})
-        if self.save_candidates:
-            self.candidate_dir.mkdir(parents=True, exist_ok=True)
-
-    def save_candidate(self, candidate: Candidate) -> None:
-        if not self.save_candidates:
-            return
-        atomic_write_text(self.candidate_dir / f"{candidate.id}.v", candidate.code)
-        atomic_write_json(
-            self.candidate_dir / f"{candidate.id}.json",
-            candidate.public_dict(),
-        )
 
     def select(self, candidate: Candidate, *, reason: str) -> None:
         """Atomically make candidate the answer available to the harness."""
