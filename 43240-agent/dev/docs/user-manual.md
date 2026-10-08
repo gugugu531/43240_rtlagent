@@ -161,8 +161,8 @@ YAML 中相对路径按配置文件所在目录解析；环境变量中的相对
 | 修复说明模板 | `agent/prompts/repair.md`：上一版代码、错误反馈和修改要求 | `prompts/builder.py` 填入当前反馈及待修复代码，附在 user 消息中 |
 | 技能资料 | `skill/*/SKILL.md`：技能正文、名称、日志匹配特征等 | `prompts/skills.py` 加载；有反馈且启用技能时，按题面和反馈中的特征字符串匹配，默认最多选 2 条；`builder.py` 加入额外 system 消息 |
 | 温度和输出长度上限 | Python Workflow 构造参数。单次生成默认温度 `0.0`、上限 `8192`；修复流程为 `0.2`、`4096` | `workflows/*.py` 传给 `nodes/generate.py`，再作为模型请求参数交给 `services/model.py` |
-| 轮数、重试数和调用总数 | `workflows/repair_loop.py` 的构造参数，默认 3 轮、每个请求最多重试 1 次、总调用最多 4 次 | `policies/failure.py` 根据已用次数、错误类型和剩余时间决定继续或停止 |
-| 候选选择规则 | `agent/policies/selection.py` 的默认策略，也可由 Python Workflow 显式替换 | 比较候选和检查证据，输出选择决定；`core/context.py` 执行保存或清空 |
+| 轮数、重试数和调用总数 | `workflows/repair_loop.py` 的构造参数，默认 3 轮、每个请求最多重试 1 次、总调用最多 4 次 | `RepairLoop.decide()` 根据已用次数、错误类型和剩余时间决定继续或停止 |
+| 候选选择规则 | 由各 Workflow 自己定义：`single_generate` 直接选择，`repair_loop` 用 `RepairLoop.choose()` | 比较候选和检查证据，输出选择决定；`core/context.py` 执行保存或清空 |
 
 **当前 YAML 不定义采样参数、轮数或流程图。** 这些由 Python Workflow 决定；旧的 `LLM_TEMPERATURE`、`LLM_MAX_TOKENS`、`AGENT_MAX_ROUNDS` 也不被当前配置读取器使用。
 
@@ -302,7 +302,7 @@ flowchart TD
 flowchart TD
     A["core/task.py<br/>题面 + 可选接口"] --> B["nodes/generate.py + services/model.py<br/>模型生成完整代码"]
     B --> C["nodes/extract.py<br/>提取候选"]
-    C -- 有候选 --> D["core/context.py + policies/selection.py<br/>保存候选，更新答案选择"]
+    C -- 有候选 --> D["core/context.py + RepairLoop.choose()<br/>保存候选，更新答案选择"]
     C -- 未提取成功 --> X["workflows/repair_loop.py<br/>整理当前反馈"]
 
     D --> E["nodes/check.py → core/interface.py<br/>接口检查"]
@@ -315,7 +315,7 @@ flowchart TD
     G -- 通过 --> H["core/context.py + recording/artifacts.py<br/>结束并保留选中答案"]
     G -- 未通过 --> X
 
-    X --> Y{"policies/failure.py<br/>继续还是停止？"}
+    X --> Y{"RepairLoop.decide()<br/>继续还是停止？"}
     Y -- 允许修复且预算足够 --> R["prompts/builder.py + prompts/skills.py<br/>题面 + 待修复代码 + 反馈 + 相关技能"]
     R --> B
     Y -- 环境故障、未知错误或达到限制 --> H
@@ -340,8 +340,8 @@ flowchart TD
 | lint | 当前候选代码、顶层模块名、允许耗时 | `nodes/check.py` 发起；`services/tools.py` 调用 `services/vivado.py`；`services/processes.py` 管理外部执行 | `xvlog` 和 `xelab` 的状态、退出码、日志、耗时，再统一为 `CheckResult` |
 | 综合 | 当前候选代码、顶层模块名、配置中的器件、允许耗时 | 同上，由 `services/vivado.py` 准备源码和 Tcl 并执行 Vivado | 综合状态、退出码、日志、耗时，再统一为 `CheckResult` |
 | 检查复用 | 源码哈希、本题信息、检查类型、工具和配置身份 | `services/tools.py`、`services/check_cache.py` | 本题内匹配的可复用结果；带上旧检查编号，不再次启动工具 |
-| 错误分类 | 当前检查结果，或模型调用错误 | `policies/diagnostics.py` | 代码错误、环境问题、超时、未知或可重试模型错误等诊断 |
-| 继续、重试或修复 | 诊断、已用调用次数、重试次数、修复次数和剩余时间 | `policies/failure.py`；`workflows/repair_loop.py` 执行决定 | 重新请求、进入下一轮修复或结束 |
+| 错误分类 | 当前检查结果，或模型调用错误 | `CheckResult.classify()`（`core/state.py`）；模型错误由 `repair_loop.py` 的 `classify_model_error()` 分类 | 代码错误、环境问题、超时、未知或可重试模型错误等分类 |
+| 继续、重试或修复 | 诊断、已用调用次数、重试次数、修复次数和剩余时间 | `RepairLoop.decide()` 作出并执行决定 | 重新请求、进入下一轮修复或结束 |
 | 形成修复反馈 | 未通过检查的摘要；若提取失败则使用提取诊断 | `workflows/repair_loop.py` | 反馈字符串和待修复候选交给 `nodes/generate.py`，再由 `prompts/builder.py` 组装下一次输入 |
 
 检查通过或失败后，`repair_loop.py` 都会更新答案选择。完整工具日志主要供记录和排查；下一轮模型直接收到的是 Workflow 整理的摘要，并非自动读取全部日志文件。
@@ -367,7 +367,7 @@ flowchart TD
 | repair_loop | max_rounds=3、max_tokens=4096、temperature=0.2、timeout_s=180、use_skills=true、max_request_retries=1 | 按接口 → lint → synth 检查，反馈修复、候选保护与有限请求重试 |
 
 单次 Node 上限还受服务默认 180 秒和剩余整题预算约束，不是总能使用 300 秒。
-repair_loop 可以注入 selection_policy 和 failure_policy，max_model_calls 默认 max_rounds+max_request_retries。
+repair_loop 的 max_model_calls 默认 max_rounds+max_request_retries。要换选择或失败策略，继承 `RepairLoop` 覆盖 `choose()` 或 `decide()`，注册为新的 Workflow 名称。
 它遇到综合通过停止，但综合通过不证明行为正确；完整文件修复尚无程序化 patch 应用。
 
 ## 6. 候选与答案选择
@@ -385,11 +385,11 @@ repair_loop 可以注入 selection_policy 和 failure_policy，max_model_calls �
 3. 证据相同时，优先保留已经选中的答案。
 4. 没有可选候选时，清空答案。
 
-这里由 `agent/policies/selection.py` 接收全部候选、已有检查结果和当前答案编号，返回“选谁、是否变化、为什么选、依据哪些检查”。`agent/workflows/repair_loop.py` 发起比较，`agent/core/context.py` 应用决定，`agent/recording/artifacts.py` 执行实际文件更新。默认单次生成 Workflow 不经过这套比较策略，直接选择提取出的候选。
+这里由 `RepairLoop.choose()` 接收全部候选、已有检查结果和当前答案编号，返回“选谁、是否变化、为什么选、依据哪些检查”。`agent/core/context.py` 应用决定，`agent/recording/artifacts.py` 执行实际文件更新。选择策略属于 Workflow：默认单次生成不经过这套比较，直接选择提取出的候选；自定义 Workflow 可以定义自己的规则。
 
 所以，第二轮产生了新代码，也不一定替换第一轮答案。如果第二轮确认存在代码错误，而第一轮仍符合选择条件，框架可以继续保留第一轮。
 
-对应实现：[selection.py](../../agent/policies/selection.py)。
+对应实现：[repair_loop.py](../../agent/workflows/repair_loop.py)。
 
 ## 7. 输出文件与记录
 
@@ -940,7 +940,7 @@ python3 dev/tools/submission.py --stage /tmp/agent-manual-submission \
 | 接口不一致但仍继续检查 | 从题面列表推断出的差异是非阻断提示；独立接口声明有不同约束等级 | `core/interface.py` |
 | Vivado 不可用 | 检查 `VIVADO_BIN` 或 PATH、初始化脚本、授权和工具日志；不是模型代码错误 | `services/vivado.py` |
 | 有答案但 Workflow stopped | 已选候选可保留；后续验证可能因环境、超时或调用上限停止，查看 stop_reason | `workflows/repair_loop.py`、`core/context.py` |
-| 第二轮代码未成为最终答案 | 新候选可能已确认错误或证据没有更强；查看选择决定、检查编号、父候选 | `policies/selection.py` |
+| 第二轮代码未成为最终答案 | 新候选可能已确认错误或证据没有更强；查看选择决定、检查编号、父候选 | `workflows/repair_loop.py` |
 | 很快就停止或没有调用模型 | 检查 deadline、reserve、HTTP 剩余时限；预算不足不会强行启动动作 | `core/budget.py`、`core/supervision.py` |
 | 模型调用只有 started | 运行可能在调用中被终止；结束状态未知，不能据此认定仍运行或调用成功 | `recording/recorder.py`、`core/supervision.py` |
 | token 为 null 或指标 partial | 服务未提供有效用量，或调用未完成；未知不等于零 | `services/model.py`、`recording/metrics.py` |

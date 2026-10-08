@@ -7,7 +7,7 @@
 ```text
 agent/main.py → core.configuration → core.supervision → core.runner
                                                     → core.context
-                                                    → workflows / nodes / policies
+                                                    → workflows / nodes
                                                     → services / recording
 ```
 
@@ -19,7 +19,7 @@ core 包含候选、接口、运行状态、预算与注册表。services/tools.
 Runner.run(task, workflow, *, options, started_at=None) -> WorkflowResult
 Supervisor.run(spec: RunSpec) -> WorkflowResult
 RunContext.execute(node, input) -> output
-SelectionPolicy.choose(candidates, checks, current_id) -> SelectionDecision
+RepairLoop.choose(state) -> SelectionDecision
 ```
 
 本次没有旧路径兼容层。公开示例、测试、HTTP 服务和开发工具均使用新的模块位置。

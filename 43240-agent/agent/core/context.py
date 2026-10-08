@@ -11,7 +11,7 @@ from agent.core.budget import Budget
 from agent.core.cancellation import CancellationToken
 from agent.core.components import Node, ComponentSpec, describe_component
 from agent.core.model import ModelReply
-from agent.core.state import CheckResult, NodeExecution, RunStateView, WorkflowResult
+from agent.core.state import CheckResult, NodeExecution, RunStateView, SelectionDecision, WorkflowResult
 from agent.core.task import TaskSpec
 from agent.recording.recorder import RunRecorder
 from agent.services.model import ModelService
@@ -147,7 +147,7 @@ class RunContext:
         self._selection_reason = reason
         self._recorder.record_selection(candidate, reason=reason)
 
-    def apply_selection(self, decision) -> None:
+    def apply_selection(self, decision: SelectionDecision) -> None:
         self.emit('selection_decision', candidate_id=decision.candidate_id,
                   changed=decision.changed, reason=decision.reason,
                   evidence_ids=decision.evidence_ids)

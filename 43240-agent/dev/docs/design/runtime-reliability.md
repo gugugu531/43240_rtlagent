@@ -9,7 +9,7 @@
 单题 CLI / run.sh
   └─ Supervisor：单调时钟、取消信号、Worker 生命周期、输出恢复、记录交接
        ├─ Worker：Runner → Python Workflow → Node / 服务
-       │    ├─ SelectionPolicy / FailurePolicy：由 Workflow 构造并选择
+       │    ├─ 候选选择与失败处理：由各 Workflow 自己定义
        │    └─ ToolService / CheckCache：执行和保存证据，不决定修复策略
        └─ ProcessExecutor：启动工具进程、管理进程组、记录输出、TERM / KILL / 回收
 ```
@@ -21,16 +21,17 @@ HTTP 外层监督 Agent shell 或原始 baseline shell。baseline 不进入 Node
 ## 候选与选择
 
 ```python
-SelectionPolicy.choose(candidates, checks, current_id) -> SelectionDecision
-SelectionDecision(candidate_id, changed, reason, evidence_ids)
+RepairLoop.choose(state: RunStateView) -> SelectionDecision
+SelectionDecision(candidate_id, changed, reason, evidence_ids)   # core/state.py
 ctx.apply_selection(decision) -> None
 ```
 
 latest 是刚提取的候选；repair_target 是下次反馈携带的代码；selected 是已经落盘的答案。
-它们不能用同一个变量代替。自定义 Workflow 可以替换选择策略，也可以直接显式选择。
-策略可继承 Component 描述参数，实际生效的选择与失败策略写入 workflow/policies，支持实验追溯。
+它们不能用同一个变量代替。选择策略属于 Workflow：single_generate 直接显式选择；repair_loop 用自己的 choose() 比较证据。
+换策略时继承 RepairLoop 覆盖 choose() 或 decide()，或新写一个 Workflow。实际决定写入
+workflow/selection_decision 与 workflow/failure_decision 事件，生效的 Workflow 类和参数写入运行元数据，支持实验追溯。
 
-默认选择策略排除不完整、目标缺失、确认代码错误或权威接口失败的候选。其余候选先比较真实综合
+repair_loop 的选择排除不完整、目标缺失、确认代码错误或权威接口失败的候选。其余候选先比较真实综合
 通过，再比较 lint 和接口通过；同等证据保留已有选择，没有已有选择时保留较早候选。
 只有完整提取但未验证的代码可作回退；超时、环境错误和未知状态不增加通过证据。
 确认所有候选无效时清除答案，避免继续提交已经确认错误的代码。综合通过不证明功能正确。
@@ -41,15 +42,15 @@ Supervisor 接管后检查身份和哈希，可以完成尚未写出的答案更
 ## 失败判断与次数边界
 
 ```python
-Diagnostic(kind, message, confidence, source_id, code=None)
-classify_model_error(error) -> Diagnostic
-classify_check(result) -> tuple[Diagnostic, ...]
-FailurePolicy.decide(diagnostics, attempts, budget) -> FailureDecision
+CheckResult.classify() -> str                 # core/state.py，各 Workflow 与检查缓存共用
+classify_model_error(error) -> str            # workflows/repair_loop.py
+RepairLoop.decide(kind, source_id, attempts, budget) -> FailureDecision
 AttemptState(model_calls, request_retries, repairs)
-FailureDecision(action, reason, diagnostic_ids)
+FailureDecision(action, reason, source_id)
 ```
 
-诊断区分确认代码错误、模型可重试错误、模型终止错误、环境故障、超时和未知。
+检查结果分为 passed、code（确认代码错误）、environment（环境故障）、timeout 和 unknown；
+模型错误分为 model_retryable 和 model_terminal，提取失败为 extraction。
 普通非零退出不足以归因 RTL；只有明确的编译器代码诊断和阻断接口差异触发修复。
 工具许可、路径等问题属于环境。无法确认原因时保留 unknown 与完整日志，默认停止。
 
