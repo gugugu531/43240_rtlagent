@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Agent 日志查看器</title>
+<style>
+:root{color-scheme:light;--ink:#172137;--muted:#68768d;--line:#e1e7ef;--blue:#1463ee;--soft:#edf4ff;--green:#18733e;--red:#b42c39;--amber:#97600a}
+*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:14px/1.6 system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC",sans-serif}button,input,select{font:inherit}button,select{cursor:pointer}button{background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px 15px;color:var(--ink)}button:hover{background:#f5f7fa}button.primary{background:var(--blue);color:#fff;border-color:var(--blue)}button:disabled{cursor:default;opacity:.5}:focus-visible{outline:3px solid #8db6ff;outline-offset:2px}h1,h2,h3,p{margin:0}h1{font-size:28px;letter-spacing:-.7px;line-height:1.3}h2{font-size:19px}h3{font-size:14px}small,.muted{color:var(--muted)}header{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:26px 32px 20px}header p{color:var(--muted);margin-top:4px}.actions{display:flex;gap:10px;flex-wrap:wrap}main{padding:0 24px 24px;max-width:1800px;margin:auto}.runbar{display:flex;align-items:center;gap:16px;border:1px solid var(--line);border-radius:7px;padding:14px 18px;flex-wrap:wrap;margin-bottom:14px}.runbar label{font-weight:600}.runbar select{min-width:180px;max-width:460px;flex:1;padding:8px;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink)}#stats{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.badge{font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;background:#eef1f5;color:#586579}.badge.good{background:#e1f5e7;color:var(--green)}.badge.bad{background:#fde9eb;color:var(--red)}.badge.warn{background:#fff1d8;color:var(--amber)}.badge.info{background:var(--soft);color:var(--blue)}.workspace{display:grid;grid-template-columns:minmax(310px,37%) minmax(0,1fr);gap:14px}.panel{border:1px solid var(--line);border-radius:7px;min-width:0;background:#fff}.panel-head{padding:18px 18px 12px}.filters{display:flex;gap:8px;padding:0 18px 14px}.filters input{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:5px}.filters select{max-width:120px;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink);padding:6px}.tree{padding:0 8px 16px;max-height:calc(100vh - 300px);min-height:400px;overflow:auto}.row{position:relative;display:flex;align-items:center;gap:10px;width:100%;border:0;text-align:left;padding:12px 10px 12px calc(15px + var(--depth,0)*20px);border-radius:5px;margin:2px 0;background:transparent}.row::before{content:"";width:9px;height:9px;flex-shrink:0;border-radius:50%;background:#9da9ba;z-index:1}.row.good::before{background:#38a468}.row.bad::before{background:#d95764}.row.warn::before{background:#d59935}.row.active{background:var(--soft);box-shadow:inset 3px 0 var(--blue)}.row.active::before{background:var(--blue)}.row .name{flex:1;min-width:0}.row strong{display:block;overflow-wrap:anywhere;font-weight:600;font-size:13px}.row small{display:block;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;margin-top:2px}.row .duration{font:11px ui-monospace,monospace;color:var(--muted);white-space:nowrap}.detail-head{padding:18px 20px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.detail-head h2{overflow-wrap:anywhere}.tabs{display:flex;gap:12px;border-bottom:1px solid var(--line);padding:0 18px}.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px 12px;color:var(--muted)}.tabs button[aria-selected=true]{color:var(--blue);border-bottom-color:var(--blue)}#detail-body{padding:16px 18px;max-height:calc(100vh - 290px);min-height:400px;overflow:auto}.block{border:1px solid var(--line);border-radius:6px;margin-bottom:14px;overflow:hidden}.block-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 12px;background:#fafbfd}.block-head button{font-size:12px;padding:3px 8px}.block summary{cursor:pointer;padding:10px 12px;font-weight:600}.block pre{margin:0;padding:14px;background:#f7f9fc;color:#28344b;font:12px/1.75 ui-monospace,SFMono-Regular,Consolas,"Noto Sans Mono",monospace;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:2}.file-source{padding:7px 12px;color:var(--muted);font-size:11px;border-top:1px solid var(--line);overflow-wrap:anywhere}.notice{padding:10px 14px;margin-bottom:14px;background:#fff7e8;border:1px solid #f1dfb8;border-radius:6px;color:#835515;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.empty{padding:60px 28px;text-align:center;color:var(--muted)}.empty h2{color:var(--ink);font-size:20px;margin-bottom:10px}.empty p{max-width:520px;margin:8px auto}.empty code{font-size:12px;background:#f0f3f8;padding:2px 5px;border-radius:3px}.facts{display:grid;grid-template-columns:100px minmax(0,1fr);gap:9px 16px;margin:0 0 20px}.facts dt{color:var(--muted)}.facts dd{margin:0;overflow-wrap:anywhere}#source{color:var(--muted);font-size:11px;overflow-wrap:anywhere;padding:10px 18px;border-top:1px solid var(--line)}#message{font-size:12px;color:var(--muted);padding:0 2px 12px;overflow-wrap:anywhere}.hidden,[hidden]{display:none!important}.help{border-top:1px solid var(--line);padding:14px 18px;color:var(--muted);font-size:12px}.help summary{cursor:pointer}.help p{margin-top:8px}.subnote{margin-bottom:14px;color:var(--muted);font-size:12px}.drop-active{outline:3px dashed var(--blue);outline-offset:-8px}.count{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px}
+@media(min-width:1500px){header{max-width:1800px;margin:auto}}@media(max-width:800px){header{padding:20px;align-items:flex-start;flex-direction:column;gap:14px}h1{font-size:24px}main{padding:0 12px 16px}.workspace{grid-template-columns:1fr}.runbar{gap:10px;padding:12px}.runbar select{max-width:100%;min-width:0;width:70%}.tree{max-height:330px;min-height:140px}#detail-body{max-height:none;min-height:240px}.detail-head{padding:16px}.tabs{gap:2px;padding:0 8px}.tabs button{padding:10px}.row{padding-left:calc(10px + var(--depth,0)*14px)}.row .duration{display:none}.filters{padding-left:12px;padding-right:12px}.facts{grid-template-columns:80px minmax(0,1fr)}}
+.view-switch{display:flex;gap:4px;padding:0 18px 12px}.view-switch button{font-size:12px;padding:5px 12px}.view-switch button[aria-pressed=true]{color:var(--blue);border-color:#bfd5ff;background:var(--soft)}.diagram{padding:0 18px 20px}.flow-group{border:1px solid #dbe3ee;border-radius:7px;padding:4px;background:#fff;min-width:0}.flow-group.flow-root{border-color:#bfd5ff;background:#f8fbff}.flow-group .row{margin:0;padding:10px 8px}.flow-group .row strong{font-size:13px}.flow-group .row .duration{font-size:10px}.flow-children{border-left:2px solid #e0e7f1;margin:0 8px 8px 13px;padding-left:7px}.flow-children .flow-group{border:0;padding:0}.flow-children .row{padding:7px 5px}.flow-children .row strong{font-weight:500;font-size:12px}.flow-children .row::before{width:6px;height:6px}.flow-arrow{display:block;width:20px;height:28px;margin:0 auto;color:#a8b5c8}.flow-note{font-size:11px;color:var(--muted);margin:0 0 12px}.flow-filtered .flow-group{margin-bottom:8px}@media(max-width:800px){.diagram{padding-left:12px;padding-right:12px}.tree.diagram{max-height:470px}.flow-group .row .duration{display:none}}
+@media(max-width:800px){#stats{flex-basis:100%;font-size:12px}.runbar select{max-width:calc(100% - 76px)}}
+</style>
+</head>
+<body>
+<header><div><h1>Agent 日志查看器</h1><p>在本机查看执行过程与完整响应</p></div><div class="actions"><button class="primary" id="open-dir">选择日志目录</button><button id="open-files">打开 trace</button></div></header>
+<input id="directory-input" type="file" webkitdirectory multiple hidden>
+<input id="file-input" type="file" accept=".jsonl,.json,.txt,.log,.v,.sv" multiple hidden>
+<main>
+<div class="runbar"><label for="run-select">运行记录</label><select id="run-select" disabled><option>请先选择日志目录</option></select><div id="stats"></div></div>
+<p id="message" role="status" aria-live="polite">支持整个实验目录、单题输出目录，或单独的 trace.jsonl。文件只在本机读取。</p>
+<div id="warnings" class="notice" hidden></div>
+<div class="workspace">
+<section class="panel" aria-label="执行流程"><div class="panel-head"><h2>执行流程 <span class="count" id="row-count"></span></h2></div><div class="view-switch" aria-label="流程展示方式"><button id="graph-view" aria-pressed="true">流程图</button><button id="list-view" aria-pressed="false">事件列表</button></div><div class="filters"><input id="search" placeholder="搜索节点、事件或 ID" aria-label="搜索节点或事件"><select id="filter" aria-label="筛选状态"><option value="all">所有状态</option><option value="bad">失败 / 错误</option><option value="warn">中断 / 未完成</option><option value="good">成功 / 通过</option></select></div><div class="tree" id="tree"><div class="empty"><p>导入后，在这里查看实际执行顺序。</p></div></div><details class="help"><summary>如何导入日志</summary><p>选择包含 trace.jsonl 与 records/ 的输出目录，可看到请求、回复、候选代码和工具日志。也可选择整个实验目录，再切换样本。</p><p>单独打开 trace 只能查看事件中已有的信息。详细记录在外部目录时，可再次选择该目录补充导入。拖入文件夹或多个文件也可以。</p><p>连接顺序表示实际执行记录，不推测未执行的分支。只有开始记录的调用显示“未见结束”，不认定仍在运行。重新选择目录可刷新文件。</p></details></section>
+<section class="panel" aria-label="节点详情"><div class="detail-head"><h2 id="detail-title">节点详情</h2><span id="detail-status"></span><small id="detail-duration"></small></div><div class="tabs" role="tablist" aria-label="详情内容"><button role="tab" aria-selected="true" data-tab="overview">概览</button><button role="tab" aria-selected="false" data-tab="request">请求</button><button role="tab" aria-selected="false" data-tab="response">响应</button><button role="tab" aria-selected="false" data-tab="raw">原始事件</button></div><div id="detail-body" role="tabpanel"><div class="empty"><h2>从一次运行开始</h2><p>点击“选择日志目录”，选择 Agent 的单题输出或实验目录。</p><p>点击左侧节点，查看输入、输出、模型回复和错误详情。</p><p>不需要启动服务器，也不会上传日志。</p></div></div><div id="source">尚未载入</div></section>
+</div>
+</main>
+<script>
+'use strict';
+// Pure trace parsing: shared with the offline regression tests.
+const TraceParser = (() => {
+  const labels = {succeeded:'成功',passed:'通过',completed:'已完成',failed:'失败',error:'错误',timeout:'超时',unavailable:'不可用',skipped:'跳过',stopped:'已停止',interrupted:'已中断',unfinished:'未见结束',recorded:'已记录',unknown:'未知',ok:'成功'};
+  const tone = s => ['succeeded','passed','completed','ok'].includes(s) ? 'good' : ['failed','error'].includes(s) ? 'bad' : ['timeout','unavailable','stopped','interrupted','unfinished'].includes(s) ? 'warn' : 'info';
+  function parse(text) {
+    const events=[], warnings=[];
+    text.replace(/^\uFEFF/,'').split(/\r?\n/).forEach((line,i) => {
+      if (!line.trim()) return;
+      try { const e=JSON.parse(line); if(!e || typeof e!=='object' || Array.isArray(e)) throw Error(); events.push({...e,_line:i+1}); }
+      catch { warnings.push(`第 ${i+1} 行不是有效的事件，已跳过（可能是中断留下的残行）。`); }
+    });
+    if(!events.length) warnings.push('没有可读取的事件；空日志不代表成功。');
+    const ids=new Set(events.map(e=>e.run_id).filter(Boolean));
+    if(ids.size>1) warnings.push('此文件含多个 run_id，不符合单次运行格式；请分开导入以避免 ID 冲突。');
+    return {events,warnings};
+  }
+  function eventStatus(e) {
+    if (e.event==='started' || e.event==='check_started' || e.status==='started') return 'unfinished';
+    if (e.error || e.error_type || e.event==='error' || e.event==='failed') return 'error';
+    if (e.status) return e.status;
+    if (['succeeded','failed','stopped'].includes(e.event)) return e.event;
+    if (typeof e.rc==='number' && e.rc!==0) return 'failed';
+    if (e.tool==='llm' && !e.event) return 'succeeded';
+    return 'recorded';
+  }
+  function build(events) {
+    const groups=new Map();
+    const metadata=events.find(e=>e.tool==='run' && e.event==='metadata') || {};
+    const done=[...events].reverse().find(e=>e.tool==='agent' && e.event==='done');
+    const supervisor=[...events].reverse().find(e=>e.tool==='supervisor');
+    const status=supervisor && supervisor.status!=='completed' ? supervisor.status : done?.status || (events.length ? 'unknown':'unfinished');
+    const workflow=metadata.workflow?.name || events.find(e=>e.workflow)?.workflow?.name || '运行记录';
+    function add(key,kind,title,e,parent=null) {
+      if(!groups.has(key)) groups.set(key,{id:key,kind,title,parent,events:[],order:e._line,status:'recorded'});
+      const g=groups.get(key);g.events.push(e);g.last=e;g.status=eventStatus(e);g.elapsed=g.status==='unfinished'?undefined:Number.isFinite(e.elapsed_s)?e.elapsed_s:g.elapsed;
+      if(parent) g.parent=parent;
+      return g;
+    }
+    for(const e of events) {
+      const parent=e.execution_id ? `node:${e.execution_id}` : null;
+      if(e.tool==='node') add(`node:${e.execution_id || e._line}`,'node',e.component?.name || 'Node',e,e.parent_execution_id?`node:${e.parent_execution_id}`:null);
+      else if(e.tool==='llm') add(`llm:${e.call_id || e._line}`,'llm',`模型调用 ${e.call_id || ''}`.trim(),e,parent);
+      else if(e.check_id && (e.event==='check_started' || ['lint','synth','check_interface'].includes(e.tool))) add(`check:${e.check_id}`,'check',`${e.kind || e.tool} ${e.check_id}`,e,parent);
+      else if(e.tool==='process') add(`process:${e.process_id || e._line}`,'process',`外部进程 ${e.process_id || ''}`,e,parent);
+      else if(e.tool==='supervisor') add(`event:${e._line}`,'supervisor','监督结束',e);
+      else if(e.tool==='candidate') add(`event:${e._line}`,'candidate',`${e.event==='select'?'选择答案':'保存候选'} ${e.candidate_id || ''}`,e,parent);
+      else if(e.tool==='extract') add(`event:${e._line}`,'extract','提取代码',e,parent);
+      else if(!['run','agent','baseline_meta'].includes(e.tool)) add(`event:${e._line}`,'event',`${e.tool || '事件'} · ${e.event || 'result'}`,e,parent);
+      else if(e.tool==='agent' && e.event==='error') add(`event:${e._line}`,'event','运行错误',e);
+    }
+    const root={id:'workflow',kind:'workflow',title:workflow,status,events,last:done || supervisor || metadata,order:0,depth:0};
+    const rows=[root], visited=new Set();
+    function visit(g,depth) { if(visited.has(g.id))return;visited.add(g.id);g.depth=Math.min(depth,8);rows.push(g);for(const child of groups.values())if(child.parent===g.id)visit(child,depth+1); }
+    for(const g of groups.values())if(!g.parent || !groups.has(g.parent))visit(g,0);
+    for(const g of groups.values())visit(g,0);
+    return {rows,metadata,status,workflow,runId:events.find(e=>e.run_id)?.run_id || '',events};
+  }
+  return {parse,build,tone,label:s=>labels[s] || String(s || '未知')};
+})();
+// Local file indexing and rendering. Log text is only inserted as textContent.
+const $=id=>document.getElementById(id);
+const files=new Map(), textCache=new Map();
+let current=null, selectedId='workflow', activeTab='overview', graphView=true, loadVersion=0, detailVersion=0;
+const pretty=v=>typeof v==='string'?v:JSON.stringify(v,null,2);
+const normalize=p=>String(p || '').replaceAll('\\','/').replace(/^\.\//,'');
+const join=(base,p)=>base?`${base}/${p}`:p;
+const seconds=v=>Number.isFinite(v)?(v<1?`${(v*1000).toFixed(1)} ms`:`${v.toFixed(2)} s`):'未记录耗时';
+function el(tag,text,cls) {const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n;}
+function badge(status) {return el('span',TraceParser.label(status),`badge ${TraceParser.tone(status)}`);}
+async function read(path) {
+  if(!path || !files.has(path))return null;
+  if(!textCache.has(path))textCache.set(path,files.get(path).text());
+  try{return await textCache.get(path);}catch{return null;}
+}
+async function json(path) {const text=await read(path);try{return JSON.parse(text);}catch{return null;}}
+function recordPath(run,relative) {
+  const local=join(run.base,`records/${run.runId}/${relative}`);
+  if(run.runId && files.has(local))return local;
+  const matches=[...files.keys()].filter(p=>run.runId && ('/'+p).endsWith(`/${run.runId}/${relative}`));
+  return matches.length===1?matches[0]:null;
+}
+function logPath(run,path) {
+  if(!path)return null;
+  const p=normalize(path);
+  if(files.has(join(run.base,p)))return join(run.base,p);
+  if(run.runId && p.includes(`/${run.runId}/`))return recordPath(run,p.split(`/${run.runId}/`)[1]);
+  const scope=[...files.keys()].filter(f=>f.startsWith(run.base+'/'));
+  for(const marker of ['tool_logs/','process_logs/','judge/logs/']) {
+    if(p.includes(marker)) {
+      const tail=p.slice(p.lastIndexOf(marker));const matches=scope.filter(f=>f.endsWith('/'+tail));
+      if(matches.length===1)return matches[0];
+    }
+  }
+  return null;
+}
+async function importFiles(entries) {
+  const accepted=entries.filter(([p])=>/\.(jsonl|json|txt|log|v|sv)$/i.test(p) && !normalize(p).split('/').includes('source'));
+  for(const [p,f] of accepted){files.set(normalize(p),f);textCache.delete(normalize(p));}
+  const traces=[...files.keys()].filter(p=>p.endsWith('/trace.jsonl') || p==='trace.jsonl' || (!p.includes('/') && p.endsWith('.jsonl'))).sort();
+  $('message').textContent=`已索引 ${files.size} 个日志与证据文件 · ${traces.length} 个运行记录。可再次选择目录补充详细文件。`;
+  const previous=$('run-select').value;
+  $('run-select').replaceChildren();
+  for(const p of traces){const parts=p.split('/samples/');const label=parts.length===2?`${parts[1].replace(/\/trace\.jsonl$/,'')} · ${parts[0].split('/').pop()}`:p.replace(/\/trace\.jsonl$/,'');const option=el('option',label);option.value=p;option.title=p;$('run-select').append(option);}
+  $('run-select').disabled=!traces.length;
+  if(!traces.length){$('warnings').hidden=false;$('warnings').textContent='目录中未找到 trace.jsonl。请选择单题输出目录；若刚导入外部 records，请继续导入对应 trace。';return;}
+  $('run-select').value=traces.includes(previous)?previous:traces.find(p=>p.includes('/agent/')) || traces[0];
+  await loadRun($('run-select').value);
+}
+async function loadRun(path) {
+  const version=++loadVersion;++detailVersion;
+  const parsed=TraceParser.parse(await read(path) || '');
+  const run=TraceParser.build(parsed.events);run.path=path;run.base=path.includes('/')?path.slice(0,path.lastIndexOf('/')):'';
+  run.warnings=parsed.warnings;
+  if(version!==loadVersion)return;
+  current=run;selectedId='workflow';$('search').value='';$('filter').value='all';$('run-select').title=path;
+  $('stats').replaceChildren(el('span',run.workflow),badge(run.status),el('span',`${run.rows.filter(r=>r.kind==='node').length} 个节点`),el('span',`${run.rows.filter(r=>r.kind==='llm').length} 次模型调用`));
+  if(run.runId && !recordPath(run,'run.json'))run.warnings.push('未导入本次 records 详细记录；请求与回复可能只有摘要。可补充选择详细记录目录。');
+  if(!run.runId && run.events.length)run.warnings.push('旧格式 / baseline 日志：按已有事件展示，无法还原未记录的 Node 结构。');
+  $('warnings').hidden=!run.warnings.length;$('warnings').textContent=run.warnings.slice(0,8).join('\n')+(run.warnings.length>8?`\n另有 ${run.warnings.length-8} 条解析提示。`:'');
+  renderTree();await renderDetail();
+}
+function renderTree() {
+  if(!current)return;
+  const scrollTop=$('tree').scrollTop,focused=document.activeElement?.dataset?.row;
+  const query=$('search').value.toLowerCase(),filter=$('filter').value;
+  const rows=current.rows.filter(r=>(filter==='all' || TraceParser.tone(r.status)===filter) && `${r.title} ${r.id} ${pretty(r.events)}`.toLowerCase().includes(query));
+  $('row-count').textContent=`${rows.length} 项`;$('tree').replaceChildren();
+  $('tree').className=graphView?'tree diagram':'tree';
+  $('graph-view').setAttribute('aria-pressed',String(graphView));$('list-view').setAttribute('aria-pressed',String(!graphView));
+  function rowButton(row) {
+    const button=el('button',undefined,`row ${TraceParser.tone(row.status)}${row.id===selectedId?' active':''}`);
+    button.style.setProperty('--depth',row.depth);button.setAttribute('aria-pressed',String(row.id===selectedId));button.dataset.row=row.id;
+    const name=el('span',undefined,'name');name.append(el('strong',row.title),el('small',row.kind==='workflow'?'Workflow · 实际执行记录':`${row.id} · #${row.order}`));
+    button.append(name,badge(row.status));
+    if(row.last?.details?.executed===false)button.append(el('span','复用','badge info'));
+    if(Number.isFinite(row.elapsed))button.append(el('span',seconds(row.elapsed),'duration'));
+    button.onclick=()=>{selectedId=row.id;renderTree();renderDetail();};return button;
+  }
+  if(graphView && rows.length) {
+    const filtered=Boolean(query) || filter!=='all';
+    $('tree').append(el('p',filtered?'当前为筛选结果，已隐藏顺序箭头。':'箭头表示实际执行顺序；框内为节点内部调用。','flow-note'));
+    if(filtered)$('tree').classList.add('flow-filtered');
+    const visible=new Set(rows.map(r=>r.id)),visited=new Set();
+    function group(row) {
+      visited.add(row.id);const box=el('div',undefined,`flow-group${row.kind==='workflow'?' flow-root':''}`);box.append(rowButton(row));
+      const children=rows.filter(r=>r.parent===row.id && !visited.has(r.id));
+      if(children.length){const inside=el('div',undefined,'flow-children');for(const child of children)if(!visited.has(child.id))inside.append(group(child));box.append(inside);}
+      return box;
+    }
+    function arrow() {
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 20 28');svg.classList.add('flow-arrow');svg.setAttribute('aria-hidden','true');
+      const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d','M10 1 V23 M5 18 L10 23 L15 18');path.setAttribute('stroke','currentColor');path.setAttribute('stroke-width','1.5');path.setAttribute('fill','none');svg.append(path);return svg;
+    }
+    let count=0;
+    for(const row of rows.filter(r=>!r.parent || !visible.has(r.parent))){if(count++ && !filtered)$('tree').append(arrow());$('tree').append(group(row));}
+    for(const row of rows)if(!visited.has(row.id))$('tree').append(group(row));
+  } else {
+    for(const row of rows)$('tree').append(rowButton(row));
+  }
+  if(!rows.length)$('tree').append(el('div','没有匹配的节点或事件。','empty'));
+  $('tree').scrollTop=scrollTop;
+  if(focused)[...$('tree').querySelectorAll('[data-row]')].find(b=>b.dataset.row===focused)?.focus({preventScroll:true});
+}
+function block(title,value,path=null,collapsed=false) {
+  const box=el(collapsed?'details':'section',undefined,'block');
+  const head=el(collapsed?'summary':'div',undefined,collapsed?'':'block-head');head.append(el('span',title));
+  const text=pretty(value ?? '未记录');
+  if(!collapsed){const copy=el('button','复制');copy.onclick=async()=>{try{await navigator.clipboard.writeText(text);copy.textContent='已复制';}catch{copy.textContent='请选中文本复制';}setTimeout(()=>copy.textContent='复制',1800);};head.append(copy);}
+  box.append(head,el('pre',text));if(path)box.append(el('div',path,'file-source'));return box;
+}
+function facts(values) {const dl=el('dl',undefined,'facts');for(const [key,value] of values){dl.append(el('dt',key),el('dd',value ?? '未记录'));}return dl;}
+async function fileBlock(run,title,path,collapsed=false) {const text=await read(path);return text===null?null:block(title,path.endsWith('.json')?await json(path) ?? text:text,path,collapsed);}
+function relatedRows(run,row,kind) {
+  if(row.kind===kind)return [row];
+  if(row.kind==='workflow')return run.rows.filter(r=>r.kind===kind);
+  const ids=new Set([row.id]);let grew=true;
+  while(grew){grew=false;for(const r of run.rows)if(ids.has(r.parent) && !ids.has(r.id)){ids.add(r.id);grew=true;}}
+  return run.rows.filter(r=>r.kind===kind && ids.has(r.id));
+}
+async function modelBlocks(run,row,tab) {
+  const result=[];
+  for(const call of relatedRows(run,row,'llm')) {
+    const id=call.last.call_id;
+    const locate=name=>id?recordPath(run,`calls/${id}/${name}`):files.has(join(run.base,`model_capture/${name}`))?join(run.base,`model_capture/${name}`):null;
+    if(tab==='request') {
+      const path=locate('request.json'),request=await json(path);
+      if(request){const req=request.request || request;result.push(block(`${call.title} · 参数`,Object.fromEntries(Object.entries(req).filter(([k])=>k!=='messages')),path));for(const m of Array.isArray(req.messages)?req.messages:[])if(m)result.push(block(`消息 · ${m.role || 'unknown'}`,m.content,path));}
+      else result.push(block(`${call.title} · 请求未留档`,'请导入对应 records 目录。trace 不含完整 messages。'));
+    } else {
+      const path=locate('response.json'),body=await json(path),message=body?.choices?.[0]?.message;
+      const content=await read(locate('content.txt')) ?? message?.content;
+      if(content!==undefined && content!==null)result.push(block(`${call.title} · 回复正文`,content,locate('content.txt') || path));
+      const reasoning=message?.reasoning_content ?? message?.reasoning ?? await read(locate('reasoning.txt'));
+      if(reasoning)result.push(block('思考内容',reasoning,path || locate('reasoning.txt'),true));
+      const raw=await fileBlock(run,'完整模型响应',path || locate('response.txt'),true);if(raw)result.push(raw);
+      const normalized=await fileBlock(run,'调用结果 / 错误',locate('result.json'),true);if(normalized)result.push(normalized);
+      if(content==null && !raw)result.push(block(`${call.title} · 回复未留档`,call.status==='unfinished'?'仅记录了调用开始，未见响应或结束。':'未找到完整响应文件；请导入 records，或查看原始事件。'));
+    }
+  }
+  return result;
+}
+async function renderDetail() {
+  if(!current)return;
+  const version=++detailVersion,run=current,row=run.rows.find(r=>r.id===selectedId) || run.rows[0],tab=activeTab;
+  $('detail-title').textContent=row.title;$('detail-status').replaceChildren(badge(row.status));$('detail-duration').textContent=Number.isFinite(row.elapsed)?`耗时 ${seconds(row.elapsed)}`:'';
+  $('source').textContent=`${run.path}${run.runId?' · '+run.runId:''}`;
+  document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
+  $('detail-body').replaceChildren(el('p','正在读取本地证据…','muted'));
+  const nodes=[],last=row.last || {};
+  if(tab==='raw')nodes.push(block('原始 trace 事件',row.events.map(({_line,...e})=>e),run.path));
+  if(tab==='overview') {
+    nodes.push(facts([['类型',row.kind],['状态',TraceParser.label(row.status)],['耗时',seconds(row.elapsed)],['执行 ID',last.execution_id],['调用 ID',last.call_id],['候选 ID',last.candidate_id],['停止原因',last.stop_reason || last.reason]]));
+    if(row.status==='unfinished')nodes.push(el('p','仅见开始记录，没有结束事件；可能是中断或日志不完整。','notice'));
+    if(row.kind==='node')nodes.push(el('p','Node 成功表示动作正常返回；检查是否通过，请查看它下面的检查结果。','subnote'));
+    if(last.error_message || last.message || last.excerpt)nodes.push(block('摘要 / 错误',last.error_message || last.message || last.excerpt));
+    if(last.component)nodes.push(block('组件与参数',last.component));
+    if(row.kind==='workflow') {
+      nodes.push(block('运行元数据',run.metadata));
+      for(const [name,title] of [['solve.json','求解结果'],['supervision.json','监督与清理'],['selection.json','最终选择']]) {const b=await fileBlock(run,title,join(run.base,name),true);if(b)nodes.push(b);}
+    } else nodes.push(block('最新记录',last));
+  }
+  if(tab==='request' || tab==='response') {
+    if(tab==='request' && last.input!=null)nodes.push(block('节点输入摘要',last.input));
+    nodes.push(...await modelBlocks(run,row,tab));
+    if(tab==='response') {
+      if(last.output!=null)nodes.push(block('节点输出摘要',last.output));
+      const checks=relatedRows(run,row,'check');
+      for(const check of checks){nodes.push(block(`检查结果 · ${check.title}`,check.last));const path=logPath(run,check.last.full_log_path),b=await fileBlock(run,'完整工具日志',path);nodes.push(b || el('p','未找到此检查的完整日志；当前仅显示记录中的结果与摘要。','subnote'));}
+      const ids=new Set(row.kind==='workflow'?[]:[last.candidate_id,last.output?.candidate?.id]);
+      if(row.kind==='node')for(const e of run.events)if(e.execution_id===last.execution_id && e.candidate_id)ids.add(e.candidate_id);
+      for(const id of ids)if(id){const p=recordPath(run,`candidates/${id}/solution.v`) || (files.has(join(run.base,`candidates/${id}.v`))?join(run.base,`candidates/${id}.v`):null);const b=await fileBlock(run,`候选代码 · ${id}`,p);if(b)nodes.push(b);}
+      if(row.kind==='workflow'){const b=await fileBlock(run,'最终答案',join(run.base,'solution.v'));if(b)nodes.unshift(b);}
+      if(row.kind==='process')nodes.push(block('进程返回',last));
+      if(!nodes.length)nodes.push(block('事件响应 / 结果',last));
+    }else if(!nodes.length)nodes.push(block('输入 / 调用参数',row.events.find(e=>e.event==='started' || e.event==='check_started') || last));
+  }
+  if(version!==detailVersion)return;
+  $('detail-body').replaceChildren(...nodes);$('detail-body').scrollTop=0;
+}
+async function guardedImport(entries) {try{await importFiles(entries);}catch(e){$('warnings').hidden=false;$('warnings').textContent=`读取失败：${e.message}。请重新选择日志文件。`;}}
+$('open-dir').onclick=()=>$('directory-input').click();$('open-files').onclick=()=>$('file-input').click();
+for(const id of ['directory-input','file-input'])$(id).onchange=async e=>{await guardedImport([...e.target.files].map(f=>[f.webkitRelativePath || f.name,f]));e.target.value='';};
+$('run-select').onchange=e=>loadRun(e.target.value);$('search').oninput=renderTree;$('filter').onchange=renderTree;
+$('graph-view').onclick=()=>{graphView=true;renderTree();};$('list-view').onclick=()=>{graphView=false;renderTree();};
+document.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{activeTab=button.dataset.tab;renderDetail();});
+async function walk(entry,prefix='') {
+  if(entry.isFile){const f=await new Promise((resolve,reject)=>entry.file(resolve,reject));return [[prefix+entry.name,f]];}
+  if(!entry.isDirectory)return [];
+  const reader=entry.createReader(),children=[];let batch;
+  do{batch=await new Promise((resolve,reject)=>reader.readEntries(resolve,reject));children.push(...batch);}while(batch.length);
+  const results=[];for(const child of children)results.push(...await walk(child,prefix+entry.name+'/'));return results;
+}
+document.addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('drop-active');});
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('drop-active');});
+document.addEventListener('drop',async e=>{e.preventDefault();document.body.classList.remove('drop-active');const entries=[...e.dataTransfer.items].map(i=>i.webkitGetAsEntry?.()).filter(Boolean);const fallback=[...e.dataTransfer.files];try{const all=[];for(const entry of entries)all.push(...await walk(entry));await guardedImport(entries.length?all:fallback.map(f=>[f.name,f]));}catch(error){$('message').textContent=`无法读取拖入的目录：${error.message}。请使用“选择日志目录”。`;}});
+</script>
+</body>
+</html>

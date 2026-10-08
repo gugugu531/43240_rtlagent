@@ -15,6 +15,7 @@
 | [Python Workflow](design/python-workflows.md) | 注册、组件和上下文 |
 | [配置与实验](design/configuration-and-experiments.md) | YAML、统一入口与指标 |
 | [记录格式](design/trace-schema.md) | trace 与完整模型证据 |
+| [日志查看器](design/log-viewer.md) | 在浏览器中查看执行流程、节点状态与响应 |
 | [可靠运行](design/runtime-reliability.md) | 选择、诊断、缓存、预算与监督 |
 | [目录与提交](design/layout-and-submission.md) | 文件组织和独立打包检查 |
 | [远端管理](design/remote-tools.md) | 脚本使用，平台细节带历史实测范围 |
