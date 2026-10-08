@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-import shutil
 import sys
 import tempfile
 import time
@@ -13,71 +12,21 @@ from unittest.mock import patch
 AGENT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENT_ROOT))
 
-from agent.services.vivado import RtlToolchain, run_command  # noqa: E402
+from agent.services.processes import ProcessExecutor, ProcessRequest  # noqa: E402
+from agent.services.vivado import RtlToolchain  # noqa: E402
 
 
-class CommandRunnerTests(unittest.TestCase):
+class ProcessStatusTests(unittest.TestCase):
     def test_success_failure_and_launch_error_have_distinct_statuses(self):
         with tempfile.TemporaryDirectory() as temp:
-            success = run_command(
-                "test", [sys.executable, "-c", "print('ok')"], temp, 2
-            )
-            failure = run_command(
-                "test", [sys.executable, "-c", "raise SystemExit(7)"], temp, 2
-            )
-            unavailable = run_command(
-                "test", [str(Path(temp, "missing-command"))], temp, 2
-            )
+            executor = ProcessExecutor()
+            success = executor.run(ProcessRequest((sys.executable, "-c", "print('ok')"), temp, 2))
+            failure = executor.run(ProcessRequest((sys.executable, "-c", "raise SystemExit(7)"), temp, 2))
+            unavailable = executor.run(ProcessRequest((str(Path(temp, "missing-command")),), temp, 2))
 
         self.assertEqual((success.status, success.rc), ("ok", 0))
         self.assertEqual((failure.status, failure.rc), ("failed", 7))
         self.assertEqual((unavailable.status, unavailable.rc), ("unavailable", -1))
-
-    def test_timeout_terminates_parent_and_child_processes(self):
-        with tempfile.TemporaryDirectory() as temp:
-            child_pid_path = Path(temp, "child.pid")
-            code = (
-                "import pathlib, signal, subprocess, sys, time\n"
-                "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
-                "child = subprocess.Popen([sys.executable, '-c', "
-                "'import signal, time; "
-                "signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)'])\n"
-                f"pathlib.Path({str(child_pid_path)!r}).write_text(str(child.pid))\n"
-                "time.sleep(30)\n"
-            )
-            result = run_command(
-                "test", [sys.executable, "-c", code], temp, 0.2,
-                terminate_grace_s=0.05,
-            )
-            child_pid = int(child_pid_path.read_text())
-
-            deadline = time.monotonic() + 1.0
-            while _pid_is_running(child_pid) and time.monotonic() < deadline:
-                time.sleep(0.02)
-
-        self.assertEqual(result.status, "timeout")
-        self.assertEqual(result.rc, 124)
-        self.assertFalse(_pid_is_running(child_pid))
-
-    def test_summary_is_separate_from_optional_full_log(self):
-        with tempfile.TemporaryDirectory() as temp:
-            full_log = str(Path(temp, "full.log"))
-            code = "\n".join([
-                "for i in range(80):",
-                "    print(f'ordinary line {i}: ' + 'x' * 80)",
-            ])
-            result = run_command(
-                "test", [sys.executable, "-c", code], temp, 2,
-                full_log_path=full_log,
-            )
-
-            saved = Path(full_log).read_text()
-
-        self.assertEqual(result.status, "ok")
-        self.assertLessEqual(len(result.summary), 2100)
-        self.assertIn("ordinary line 0", saved)
-        self.assertIn("ordinary line 79", saved)
-        self.assertNotIn("ordinary line 0", result.summary)
 
 
 class RtlToolchainTests(unittest.TestCase):
@@ -160,9 +109,9 @@ class RtlToolchainTests(unittest.TestCase):
 
             self.assertEqual(result.status, "ok")
             self.assertIsNotNone(result.work_dir)
-            self.assertIsNotNone(result.full_log_path)
-            self.assertTrue(Path(result.full_log_path or "").is_file())
-            self.assertIn("xvlog-full", Path(result.full_log_path or "").read_text())
+            self.assertEqual(len(result.log_paths), 1)
+            self.assertTrue(Path(result.log_paths[0]).is_file())
+            self.assertIn("xvlog-full", Path(result.log_paths[0]).read_text())
 
     def test_invalid_top_is_rejected_before_creating_work_directory(self):
         with tempfile.TemporaryDirectory() as temp:

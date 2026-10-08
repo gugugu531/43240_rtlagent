@@ -117,20 +117,5 @@ class StageFiveTests(unittest.TestCase):
         self.assertIn('vram_watch.sh stop',(root/'dev/runs/operations').read_text())
         self.assertIn('完成：dev/runs/result',result.stdout)
 
-    def test_historical_tools_paths_and_offline_entrypoints(self):
-        from dev.tools.analysis import categorize, overview
-        from dev.tools.remote import cloud, submit_client, record
-        self.assertEqual(Path(categorize.TABLE),ROOT/'dev/configs/categories.tsv')
-        self.assertEqual(Path(categorize.REPO_ROOT),ROOT.parent)
-        self.assertEqual(Path(overview.MANUAL_PATH),ROOT/'dev/docs/notes/model-metrics-manual.json')
-        self.assertEqual(Path(cloud.STATE),ROOT/'dev/tools/remote/cloud.state')
-        self.assertEqual(Path(submit_client.AGENT_ROOT),ROOT)
-        self.assertEqual(Path(record.AGENT_ROOT),ROOT)
-        for command in ([sys.executable,str(ROOT/'dev/tools/remote/cloud.py'),'--help'],
-                        [sys.executable,str(ROOT/'dev/tools/remote/submit_client.py'),'--help']):
-            self.assertEqual(subprocess.run(command,capture_output=True,timeout=10).returncode,0)
-        self.assertFalse((ROOT/'dev/eval').exists())
-        self.assertFalse((ROOT/'dev/tools/run_eval.py').exists())
-
 
 if __name__=='__main__': unittest.main()

@@ -109,21 +109,20 @@ class ModelService:
         response = None
         try:
             response = self.backend.complete(request)
-            artifact = self.recorder.record_response(call, response)
+            body, json_valid = None, False
+            if response.mock_content is None:
+                # Parsing even an HTTP error's JSON preserves all diagnostic fields.
+                try:
+                    body = json.loads(response.raw_text)
+                    json_valid = True
+                except (ValueError, TypeError):
+                    body = None
+            artifact = self.recorder.record_response(call, response, body if json_valid else None)
             if response.mock_content is not None:
                 reply = ModelReply(call.call_id, response.mock_content,
                                    model=self.backend.describe().get('model'),
                                    finish_reason='stop', elapsed_s=response.elapsed_s)
             else:
-                # Parsing even an HTTP error's JSON preserves all diagnostic fields.
-                try:
-                    body = json.loads(response.raw_text)
-                except (ValueError, TypeError):
-                    body = None
-                    json_valid = False
-                else:
-                    json_valid = True
-                    self.recorder.record_parsed_response(call, body)
                 if response.status_code != 200:
                     raise ModelCallError(f'model service returned HTTP {response.status_code}', kind='http',
                                          status_code=response.status_code,

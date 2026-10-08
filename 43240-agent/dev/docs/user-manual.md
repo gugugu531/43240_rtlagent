@@ -141,14 +141,13 @@ API key 用于连接模型服务，投题令牌用于接收主办方请求；两
 | 保留工具工作目录 | YAML `services.tools.keep_work` / `AGENT_KEEP_WORK` | 默认关闭；环境变量用 `0` / `1` | `services/vivado.py` 决定是否清理临时目录 |
 | 详细记录等级 | YAML `runtime.recording.level` / `AGENT_RECORD_LEVEL` / CLI `--record-level` | `full`；`basic` 不保存完整请求回复等详细文件 | `recording/recorder.py` |
 | 详细记录根目录 | YAML `runtime.recording.root` / `AGENT_RECORD_ROOT` / CLI `--record-root` | 默认 `<输出目录>/records/`，每次运行再建独立编号目录 | `recording/recorder.py` |
-| 额外保存候选文件 | YAML `runtime.save_candidates` / `AGENT_SAVE_CANDIDATES` / CLI `--save-candidates` | 默认关闭；控制输出目录下额外的 `candidates/`，不影响恢复检查点 | `recording/artifacts.py` |
-| 代码版本信息 | `AGENT_GIT_COMMIT`、`AGENT_GIT_DIRTY`，或读取本地 Git 元数据 | 用于追溯实验使用的源码，不进入提示 | `core/metadata.py`、`core/runner.py` |
+| 代码版本信息 | `AGENT_GIT_COMMIT`、`AGENT_GIT_DIRTY`，或读取本地 Git 元数据 | 记录 7 位短 commit，用于追溯实验使用的源码，不进入提示 | `core/metadata.py`、`core/runner.py` |
 
 HTTP 服务自己的请求临时目录只读取 `AGENT_TMP`，未设置时用 `/tmp`；它和 Vivado 工具临时目录的解析逻辑不同。
 
 标准入口中，**同一配置字段的生效顺序是：内置默认值 → YAML → 支持的非空环境变量 → 已提供的 CLI 参数，后者覆盖前者**。只有入口实际提供的 CLI 选项才能覆盖；例如模型名和地址没有对应的专用 CLI 参数。顶层模块名、题目编号和 HTTP 硬时限按前文各自的逻辑处理。
 
-YAML 中相对路径按配置文件所在目录解析；环境变量中的相对路径按调用者当前目录解析。最终值和来源由 `configuration.py` 整理，`supervision.py` 写入输出目录的 `config.json`，便于查清某个值到底来自哪里。
+YAML 中相对路径按配置文件所在目录解析；环境变量中的相对路径按调用者当前目录解析。最终值和来源由 `configuration.py` 整理，写入 trace 中 `run/metadata` 事件的 `configuration` 字段，便于查清某个值到底来自哪里。
 
 ### 2.4 开发者提供的提示、技能和生成策略
 
@@ -393,18 +392,14 @@ repair_loop 的 max_model_calls 默认 max_rounds+max_request_retries。要换�
 
 ## 7. 输出文件与记录
 
-以下路径默认相对于输出目录。`run_id` 是本次 Agent 运行的独立编号，由记录模块生成，与主办方的 `task_id` 不同。
+以下路径默认相对于输出目录。`run_id` 是本次 Agent 运行的独立编号，由 Supervisor 生成后交给 Worker，与主办方的 `task_id` 不同。
 
 | 输出 | 内容来源与具体内容 | 负责写入的模块 | 使用者 / 用途 |
 |---|---|---|---|
 | `solution.v` | Workflow 当前选中的候选代码；没有答案时为空 | `recording/artifacts.py`；中断恢复由 `core/supervision.py` 处理 | HTTP 入口或外部评测读取，作为提交答案 |
-| `trace.jsonl` | 节点、模型和工具真实发生的事件，含编号、状态、摘要、选择和停止原因 | `recording/recorder.py`；Worker 停止后 `core/supervision.py` 追加监督结果 | 主办方核查、开发分析；代码和长正文主要在详细记录中 |
+| `trace.jsonl` | 节点、模型和工具真实发生的事件，含编号、状态、摘要、选择、停止原因，以及生效配置和每个字段的来源 | `recording/recorder.py`；Worker 停止后 `core/supervision.py` 追加监督结果 | 主办方核查、开发分析；代码和长正文主要在详细记录中 |
 | `selection.json` | 选中候选的实际代码、来源、哈希、选择原因和时间 | `recording/artifacts.py` | `core/supervision.py` 校验并恢复答案 |
-| `config.json` | 合并后的有效配置、原始配置、每个字段的来源，使用公开脱敏副本 | `core/configuration.py` 组装，`core/supervision.py` 写入 | 查明配置从何而来、为什么生效 |
-| `run_locator.json` | 运行编号、记录等级和详细记录目录 | `recording/recorder.py`，监督模块也准备回退定位信息 | 定位本次详细记录 |
-| `supervision.json` | 停止、清理、恢复及相关进程状态 | `core/supervision.py` | 排查超时、中断或 Worker 异常 |
-| `records/<run_id>/` | 模型请求回复、任务、候选、节点、检查和运行结果的详细证据 | `recording/recorder.py`，工具与监督模块补充日志 | 开发排查；记录根目录可改，详细内容在 `full` 模式写入 |
-| `candidates/`，可选 | 每个候选的 `.v` 代码和 `.json` 元数据 | `recording/artifacts.py` | 由 `save_candidates` 控制的额外副本，便于直接比较版本 |
+| `records/<run_id>/` | trace 装不下的正文：任务、模型请求与回复、候选代码和完整进程日志 | `recording/recorder.py`，监督模块保存进程日志 | 开发排查；记录根目录可改，只在 `full` 模式写入 |
 
 详细记录内最有用的输入输出文件如下。表中路径相对于该次记录目录：
 
@@ -412,16 +407,13 @@ repair_loop 的 max_model_calls 默认 max_rounds+max_request_retries。要换�
 |---|---|---|
 | `task.json` | `TaskSpec`：本次读取的题面、接口、题号和接口解析信息 | `recording/recorder.py` |
 | `calls/m001/request.json` | 本次调用实际组装的 messages、输出上限、温度、超时、用途和公开服务配置 | `services/model.py` 调用 `recording/recorder.py` |
-| `calls/m001/response.txt`、`response.json` | 收到的 HTTP 响应文本及可解析的 JSON，保存前脱敏；mock 或没有响应时不伪造 | `services/model.py`、`recording/recorder.py` |
-| `calls/m001/content.txt` | 用于提取代码的回复正文的脱敏副本 | `recording/recorder.py` |
-| `calls/m001/result.json`、`extraction.json` | 标准模型结果或错误，以及提取状态、诊断和候选编号 | `services/model.py`、`nodes/extract.py` 经记录模块保存 |
-| `candidates/c001/solution.v`、`metadata.json` | 候选代码的脱敏证据副本、来源模型调用、轮次、父候选和哈希 | `core/context.py` 经记录模块保存 |
-| `checks/k001/result.json` | 某份候选的结构化检查结果及日志引用 | `services/tools.py` 经上下文和记录模块保存 |
-| `nodes/e001/execution.json` | 节点实现、参数、输入输出摘要、状态和耗时 | `core/context.py` 经记录模块保存 |
-| `selection.json` | 选中候选编号、来源调用、哈希和理由；此处是证据摘要，不含恢复所需代码正文 | `recording/recorder.py` |
-| `tool_logs/`、`process_logs/` | 完整逻辑检查日志、监督器保留的进程输出 | `services/vivado.py`、`core/supervision.py` 等 |
+| `calls/m001/response.json` | 返回内容是合法 JSON 时保存的完整响应，包括 reasoning 和服务扩展字段，保存前脱敏 | `services/model.py`、`recording/recorder.py` |
+| `calls/m001/response.txt` | 返回内容不是合法 JSON 时代替 `response.json`；mock 用它保存生成的正文。没有响应时不伪造 | `services/model.py`、`recording/recorder.py` |
+| `candidates/c001.v` | 候选代码的脱敏证据副本；来源调用、轮次、父候选和哈希在 trace 的 `candidate/create` 事件中 | `core/context.py` 经记录模块保存 |
+| `process_logs/` | 监督器保存的完整工具与进程输出；检查事件的 `log_paths` 指向这里 | `services/processes.py`、`core/supervision.py` |
 
-**输出目录的 `selection.json` 与详细记录目录里的同名文件用途不同。** 前者是带实际代码的恢复检查点，后者是脱敏的选择证据摘要。同样，`save_candidates` 控制的是输出目录下的额外候选副本；即使该开关关闭，`full` 记录模式仍会保存记录目录里的候选证据。
+调用状态、代码提取结论、Node 执行、检查结果、选择和监督结果只写在 trace 中，详细记录目录不再另存一份。
+恢复检查点 `selection.json` 只在输出目录中，带实际代码，不属于脱敏证据。
 
 ### 7.1 HTTP 对外返回什么
 
@@ -434,7 +426,7 @@ repair_loop 的 max_model_calls 默认 max_rounds+max_request_retries。要换�
 | `trace` | `trace.jsonl` 的文件内容，是 JSONL 文本字符串 | 返回调用与运行记录 |
 | `elapsed_s` | HTTP 服务本地计时 | 耗时参考；正式计时由主办方完成 |
 
-HTTP 请求结束后临时目录会被删除。默认位于该目录内的详细记录也会随之消失；配置到外部 `AGENT_RECORD_ROOT` 的详细记录可以保留。`config.json`、候选目录等并不会随 HTTP 响应自动返回。
+HTTP 请求结束后临时目录会被删除。默认位于该目录内的详细记录也会随之消失；配置到外部 `AGENT_RECORD_ROOT` 的详细记录可以保留。详细记录目录不会随 HTTP 响应自动返回。
 
 ### 7.2 保存与恢复由谁负责
 
@@ -446,22 +438,22 @@ HTTP 请求结束后临时目录会被删除。默认位于该目录内的详细
 
 ### 7.3 事件关联与缺失记录
 
-Agent 的 trace 当前使用 `schema_version=4`，每个事件带有 `run_id`、递增的 `seq`、时间戳 `ts`、
+Agent 的 trace 不记录格式版本，代码版本看 `run/metadata` 中的 7 位短 commit。每个事件带有 `run_id`、递增的 `seq`、时间戳 `ts`、
 来源 `tool` 和事件 `event`。原始 baseline 保持官方格式。按编号追踪一条信息的来源：
 
 | 编号 | 来源与关联 |
 | --- | --- |
-| `run_id` | 记录模块为一次运行生成；不是题号 |
+| `run_id` | Supervisor 为一次运行生成；不是题号 |
 | `m001` | 模型调用编号，开始与结束共用；候选保留 `source_call_id` |
 | `e001` | Node 执行编号；嵌套动作保留父执行编号 |
 | `c001` | 候选编号；修复候选可保留 `parent_id` |
 | `k001` | 检查编号；关联候选，复用检查注明旧检查编号 |
 
-先通过 `run_locator.json` 定位详细目录，不通过最新文件夹猜测并发样本来源。`run.json` 保存运行和调用状态、
-最终结果及 `recording_incomplete`。原始响应只能保留服务实际返回的字段，无法获取服务未返回的内部思考过程。
+详细目录由 trace 中 `run/recording` 事件的 `record_dir` 给出，不通过最新文件夹猜测并发样本来源。
+调用状态和最终结果都以 trace 为准。原始响应只能保留服务实际返回的字段，无法获取服务未返回的内部思考过程。
 
 详细记录使用脱敏副本；实际请求、提取器内存正文、输出目录中的答案和恢复检查点不被记录脱敏改写。
-因此详细记录不能保证逐字节重放。详细文件写入失败会警告并标为不完整，不替换原本模型结果；必要 trace
+因此详细记录不能保证逐字节重放。详细文件写入失败只发出 `recording/warning`，不替换原本模型结果；必要 trace
 写入失败则是基础设施错误。中断时可能只有 started，没有结束事件，监督器不会伪造调用完成。
 trace 末行被打断时，原片段保存为 `trace_partial.txt`。
 
@@ -504,7 +496,6 @@ python3 -m agent.main --input ../tasks/ex03_lfsr8 --output /tmp/agent-python \
 | `--top` | 显式顶层模块名，优先于 `RTL_TOP` 与题目推断 |
 | `--deadline-s` / `--reserve-s` | 整题上限 / 清理预留，单位秒 |
 | `--record-root` / `--record-level basic\|full` | 详细记录根目录 / 记录等级 |
-| `--save-candidates` | 开启输出目录下额外候选副本 |
 | `--hard-deadline-s` | HTTP 内部使用的更小硬时限，通常不手动指定 |
 | `--config-parent` | 开发实验记录父配置来源，通常不手动指定 |
 
@@ -851,15 +842,15 @@ dev/runs/<experiment_id>/
 ├── config.json、resolved.yaml、experiment.json、tasks.json
 ├── source/manifest.json 与源码快照
 ├── samples/<mode>/<task>/s<index>/
-│   ├── solution.v、trace.jsonl、config.json、solve.json
-│   ├── records/ 或指向外部详细目录的 locator
+│   ├── solution.v、trace.jsonl、solve.json，baseline 样本另有 config.json
+│   ├── records/（设置外部记录根目录时在外部）
 │   ├── process_logs/、run.log、metrics.json
 │   └── judge/（仅启用判定时）
 └── metrics.json、summary.json、summary.md
 ```
 
-实验内部 resolved.yaml 固定有效运行条件，子进程移除已处理的环境覆盖项；样本 parent_config 指回
-实验 config.json。源码快照采用明确范围，不复制环境文件、参考答案或权重，记录原始与快照哈希；
+实验内部 resolved.yaml 固定有效运行条件，子进程移除已处理的环境覆盖项；样本 trace 元数据中的
+parent_config 指回实验 config.json。源码快照采用明确范围，不复制环境文件、参考答案或权重，记录原始与快照哈希；
 扩展来源缺失或源码因脱敏改变时标不完整。它不锁定依赖包、模型权重或 GPU 推理确定性。
 笔记自动生成到 dev/docs/experiments，人工假设与结论在生成块外补写。
 
@@ -926,15 +917,15 @@ python3 dev/tools/submission.py --stage /tmp/agent-manual-submission \
 
 ## 14. 常见问题与排查顺序
 
-一次失败先看输出目录的 `config.json` 与 `trace.jsonl`，再通过 `run_locator.json` 定位详细记录。
+一次失败先看输出目录的 `trace.jsonl`（配置和来源在 `run/metadata` 事件中），再按 `run/recording` 事件的 `record_dir` 打开详细记录。
 如果入口配置阶段就失败，配置快照或后续记录可能尚未建立，以已有失败 trace 为准。
 
 | 现象 | 可能原因及检查步骤 | 负责模块 |
 | --- | --- | --- |
 | 改了 YAML 却没有变化 | 看 `effective` 和 `sources`；检查环境覆盖、实际 `--config` 路径；模型采样参数需改 Workflow | `core/configuration.py`、`workflows/` |
 | 找不到 `default.yaml` | 显式配置路径尚未迁移，改用 `config/example.yaml`；检查 shell 是否仍导出旧 `AGENT_CONFIG` | `main.py`、`core/configuration.py` |
-| 模型连接失败或 HTTP 错误 | 核对 backend、模型名、地址、服务是否已启动、API key 环境变量名；查看调用 `result.json` | `services/model.py` |
-| 模型有回复却没有候选 | 查看 `content.txt` 和 `extraction.json`；可能只有 reasoning、模块不完整或正文为空 | `services/model.py`、`nodes/extraction.py` |
+| 模型连接失败或 HTTP 错误 | 核对 backend、模型名、地址、服务是否已启动、API key 环境变量名；查看 trace 中的 `llm/failed` 事件和 `response.txt` | `services/model.py` |
+| 模型有回复却没有候选 | 查看 `response.json` 和 trace 中的 `extract/result` 事件；可能只有 reasoning、模块不完整或正文为空 | `services/model.py`、`nodes/extraction.py` |
 | 提示输出被截断 | 看 `finish_reason`、提取诊断与 Workflow 的 `max_tokens`；同时核对模型服务上下文容量 | `nodes/generate.py`、`services/model.py` |
 | 默认没有 lint/synth 日志 | `single_generate` 本来就不调用工具；需要 `repair_loop`，或在开发实验单独启用 judge | `workflows/`、`dev/tools/metrics/judge.py` |
 | 接口不一致但仍继续检查 | 从题面列表推断出的差异是非阻断提示；独立接口声明有不同约束等级 | `core/interface.py` |
@@ -945,8 +936,6 @@ python3 dev/tools/submission.py --stage /tmp/agent-manual-submission \
 | 模型调用只有 started | 运行可能在调用中被终止；结束状态未知，不能据此认定仍运行或调用成功 | `recording/recorder.py`、`core/supervision.py` |
 | token 为 null 或指标 partial | 服务未提供有效用量，或调用未完成；未知不等于零 | `services/model.py`、`recording/metrics.py` |
 | HTTP 后找不到详细回复 | 默认临时目录已删除；预先配置外部记录根目录并确认 full 模式和写权限 | `serve/serve_api.py`、`recording/recorder.py` |
-| 两处 selection.json 内容不同 | 输出目录文件负责恢复，记录目录文件只是选择证据摘要 | `recording/artifacts.py`、`recording/recorder.py` |
-| 关闭 save_candidates 仍有候选文件 | full 记录目录中的候选证据独立保存，该开关只控制输出目录的额外副本 | `recording/recorder.py`、`recording/artifacts.py` |
 | baseline 连接失败而 Agent 正常 | HTTP baseline 不读取 Agent YAML、不带模型认证头；核对其环境变量与服务认证要求 | `serve/serve_api.py`、原始 baseline 入口 |
 | 改题目后实验拒绝启动样本 | 实验已冻结题面和接口哈希，输入发生变化需新建实验 | `dev/tools/experiment.py` |
 | 日志查看器看不到请求正文 | 只导入 trace 或没有导入对应 records；外部记录目录可追加导入 | `dev/tools/log_viewer.html` |

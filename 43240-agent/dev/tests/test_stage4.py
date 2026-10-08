@@ -22,6 +22,14 @@ from dev.tools.experiment import (TaskSelection,select_tasks,parse_experiment,bu
 from dev.tools.metrics.judge import JudgeMetric
 
 
+def trace_events(output):
+    return [json.loads(l) for l in (Path(output)/'trace.jsonl').read_text().splitlines()]
+
+
+def trace_value(output, tool, event, field):
+    return next(e[field] for e in trace_events(output) if e['tool']==tool and e['event']==event)
+
+
 class ConfigurationTests(unittest.TestCase):
     def config(self, root, body):
         path = root/'config.yaml';path.write_text('schema_version: 1\n'+body)
@@ -78,7 +86,7 @@ class ConfigurationTests(unittest.TestCase):
                 cwd=root,env=dict(os.environ,LLM_BACKEND='mock'),capture_output=True,text=True,timeout=10)
             self.assertEqual(result.returncode,0)
             self.assertIn('module TopModule',(root/'out/solution.v').read_text())
-            self.assertEqual(len(list((root/'evidence').glob('*/run.json'))),1)
+            self.assertEqual(len(list((root/'evidence').glob('*/task.json'))),1)
 
     def test_explicit_tools_are_per_instance(self):
         from agent.services.vivado import RtlToolchain
@@ -127,12 +135,12 @@ class ExperimentTests(unittest.TestCase):
                 self.assertIn('module TopModule',(sample.output_dir/'solution.v').read_text())
                 trace=(sample.output_dir/'trace.jsonl').read_text()
                 self.assertNotIn('reference-marker',trace)
-                info=json.loads((sample.output_dir/'run_locator.json').read_text());run_ids.append(info['run_id'])
-                task=json.loads((Path(info['record_dir'])/'task.json').read_text())
+                run_ids.append(trace_events(sample.output_dir)[0]['run_id'])
+                task=json.loads((Path(trace_value(sample.output_dir,'run','recording','record_dir'))/'task.json').read_text())
                 self.assertNotIn('reference',json.dumps(task))
                 self.assertEqual(sample.metrics[1].values['attempts'],1)
                 self.assertIsNone(sample.metrics[1].values['completion_tokens']['known_total'])
-                self.assertEqual(json.loads((sample.output_dir/'config.json').read_text())['parent_config'],str(result.output_dir/'config.json'))
+                self.assertEqual(trace_value(sample.output_dir,'run','metadata','configuration')['parent_config'],str(result.output_dir/'config.json'))
             self.assertEqual(len(set(run_ids)),2)
             snapshot=result.output_dir/'source'
             self.assertFalse(any('forbidden' in str(p) for p in snapshot.rglob('*')))
@@ -145,9 +153,9 @@ class ExperimentTests(unittest.TestCase):
             cfg=resolve_config(cfg.document,env={},overrides=RunOverrides({'runtime.recording.root':str(root/'external')}))
             exp=parse_experiment(cfg,{'samples':1});manifest=select_tasks(exp.selection)
             result=ExperimentRunner(write_notes=False).run(build_sample_plan(manifest,exp),ResolvedExperiment(cfg,exp,manifest))
-            locator=json.loads((result.samples[0].output_dir/'run_locator.json').read_text())
-            self.assertTrue(Path(locator['record_dir']).is_relative_to(root/'external'))
-            self.assertTrue((Path(locator['record_dir'])/'run.json').is_file())
+            record=Path(trace_value(result.samples[0].output_dir,'run','recording','record_dir'))
+            self.assertTrue(record.is_relative_to(root/'external'))
+            self.assertTrue((record/'task.json').is_file())
 
     def test_registered_extension_receives_isolated_nodes_and_metrics(self):
         with tempfile.TemporaryDirectory() as t:
@@ -247,8 +255,8 @@ class Blocked(Component):
                 samples=json.loads((run/'metrics.json').read_text())
                 self.assertEqual(len(samples),2)
                 self.assertTrue(all(s['solve']['status']=='cancelled' for s in samples))
-                for p in run.glob('samples/agent/one/s*/records/*/supervision.json'):
-                    self.assertEqual(json.loads(p.read_text())['unreaped_pids'],[])
+                for p in run.glob('samples/agent/one/s*'):
+                    self.assertEqual(trace_events(p)[-1]['unreaped_pids'],[])
             finally:
                 if proc.poll() is None:proc.kill();proc.wait()
                 # Generated development note belongs to this test only.

@@ -23,7 +23,7 @@ SCHEMA = {
     'services': {'model': {'backend': None, 'model': None, 'base_url': None,
                            'api_key_env': None, 'timeout_s': None},
                  'tools': {'part': None, 'bin_dir': None, 'temp_dir': None, 'keep_work': None}},
-    'runtime': {'deadline_s': None, 'reserve_s': None, 'save_candidates': None,
+    'runtime': {'deadline_s': None, 'reserve_s': None,
                 'recording': {'level': None, 'root': None}},
     'experiment': {'tasks': {'root': None, 'ids': None, 'list': None, 'exclude': None},
                    'modes': None, 'samples': None, 'solve_jobs': None, 'metric_jobs': None,
@@ -34,13 +34,13 @@ DEFAULTS = {'schema_version': 1, 'imports': [], 'workflow': {'type': 'single_gen
                                    'api_key_env': 'LLM_API_KEY', 'timeout_s': 180.0},
                          'tools': {'part': 'xczu3eg-sbva484-1-e', 'bin_dir': None,
                                    'temp_dir': '/tmp', 'keep_work': False}},
-            'runtime': {'deadline_s': 360.0, 'reserve_s': 20.0, 'save_candidates': False,
+            'runtime': {'deadline_s': 360.0, 'reserve_s': 20.0,
                         'recording': {'level': 'full', 'root': None}}}
 ENV_FIELDS = {'LLM_BACKEND': 'services.model.backend', 'LLM_MODEL': 'services.model.model',
               'LLM_BASE_URL': 'services.model.base_url', 'LLM_TIMEOUT_S': 'services.model.timeout_s',
               'AGENT_WORKFLOW': 'workflow.type', 'AGENT_DEADLINE_S': 'runtime.deadline_s',
               'AGENT_RESERVE_S': 'runtime.reserve_s', 'AGENT_RECORD_ROOT': 'runtime.recording.root',
-              'AGENT_RECORD_LEVEL': 'runtime.recording.level', 'AGENT_SAVE_CANDIDATES': 'runtime.save_candidates',
+              'AGENT_RECORD_LEVEL': 'runtime.recording.level',
               'RTL_PART': 'services.tools.part', 'VIVADO_BIN': 'services.tools.bin_dir',
               'AGENT_KEEP_WORK': 'services.tools.keep_work'}
 PATH_FIELDS = {'services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root',
@@ -78,7 +78,6 @@ class RuntimeConfig:
     reserve_s: float
     recording_level: str
     recording_root: Path | None
-    save_candidates: bool
 
 
 @dataclass(frozen=True)
@@ -191,7 +190,7 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
         if name.endswith('_s'):
             try: value = float(value)
             except ValueError: raise ConfigError(f'{key} must be numeric') from None
-        if name.endswith(('save_candidates', 'keep_work')):
+        if name.endswith('keep_work'):
             if value not in ('0', '1'): raise ConfigError(f'{key} must be 0 or 1')
             value = value == '1'
         if name in PATH_FIELDS: value = str((caller / value).resolve())
@@ -220,7 +219,6 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
     if not re.fullmatch(r'[A-Za-z_]\w*', m['api_key_env']): raise ConfigError('api_key_env must name an environment variable')
     positive(m['timeout_s'], 'services.model.timeout_s')
     positive(r['deadline_s'], 'runtime.deadline_s'); positive(r['reserve_s'], 'runtime.reserve_s', allow_zero=True)
-    if type(r['save_candidates']) is not bool: raise ConfigError('runtime.save_candidates must be boolean')
     level = r['recording']['level']
     if level not in ('basic', 'full'): raise ConfigError('recording.level must be basic or full')
     for field_name in ('services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root'):
@@ -233,7 +231,7 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
     model = ModelConfig(m['backend'], m['model'], m['base_url'], env.get(m['api_key_env'], ''), m['timeout_s'])
     tools = ToolConfig(**t)
     runtime = RuntimeConfig(r['deadline_s'], r['reserve_s'], level,
-                            Path(r['recording']['root']) if r['recording']['root'] else None, r['save_candidates'])
+                            Path(r['recording']['root']) if r['recording']['root'] else None)
     return ResolvedConfig(AgentConfig(WorkflowConfig(name, imports), ServicesConfig(model, tools, m['api_key_env']), runtime),
                           sources, values, document)
 
@@ -253,7 +251,7 @@ def build_run_spec(task, config: ResolvedConfig, *, output_dir: Path, started_at
         snapshot['hard_deadline_s'] = hard_deadline_s
     return RunSpec(task, config.agent.workflow.type,
                    RunOptions(output_dir, deadline, runtime.reserve_s,
-                              RecordingConfig(runtime.recording_level, runtime.recording_root), runtime.save_candidates),
+                              RecordingConfig(runtime.recording_level, runtime.recording_root)),
                    import_modules=config.agent.workflow.imports, started_at=started_at,
                    model_config=config.agent.services.model, tool_config=config.agent.services.tools,
                    configuration=snapshot)

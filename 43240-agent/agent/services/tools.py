@@ -87,7 +87,7 @@ class ToolService:
                             result.summary, blocking=result.status == 'failed' and result.failure_kind == 'code',
                             rc=result.rc, elapsed_s=result.elapsed_s, command=result.command,
                             details={'failure_kind': result.failure_kind, 'executed': True},
-                            full_log_path=result.full_log_path, work_dir=result.work_dir)
+                            log_paths=result.log_paths, work_dir=result.work_dir)
         self.cache.put(key, check)
         self._publish(check)
         return check

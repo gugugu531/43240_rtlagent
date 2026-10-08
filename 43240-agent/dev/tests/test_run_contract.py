@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -15,7 +16,6 @@ import unittest
 AGENT_ROOT = Path(__file__).resolve().parents[2]
 RUN_SH = AGENT_ROOT / "run.sh"
 sys.path.insert(0, str(AGENT_ROOT))
-from serve import serve_api
 
 
 class RunContractTests(unittest.TestCase):
@@ -41,9 +41,8 @@ class RunContractTests(unittest.TestCase):
             self._assert_jsonl(trace)
             records = list((cwd / "result" / "records").iterdir())
             self.assertEqual(len(records), 1)
-            self.assertTrue((records[0] / "calls/m001/content.txt").is_file())
-            extraction = json.loads((records[0] / "calls/m001/extraction.json").read_text())
-            self.assertEqual(extraction["candidate_id"], "c001")
+            self.assertTrue((records[0] / "calls/m001/response.txt").is_file())
+            self.assertTrue((records[0] / "candidates/c001.v").is_file())
             self.assertFalse((AGENT_ROOT / "result").exists())
 
     def test_agent_process_failure_still_creates_contract_files(self):
@@ -77,7 +76,9 @@ class RunContractTests(unittest.TestCase):
             (bin_dir / command).symlink_to(shutil.which(command))
         return str(bin_dir)
 
+    @unittest.skipUnless(importlib.util.find_spec("fastapi"), "fastapi is not installed")
     def test_http_preserves_records_outside_request_temporary_directory(self):
+        from serve import serve_api
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             records = root / "records"
@@ -91,16 +92,14 @@ class RunContractTests(unittest.TestCase):
                 result = serve_api.solve(request, authorization="Bearer test-token")
             self.assertEqual(set(result), {"task_id", "solution", "trace", "elapsed_s"})
             self.assertIn("module TopModule", result["solution"])
-            manifests = list(records.glob('*/run.json'))
-            self.assertEqual(len(manifests), 1)
-            manifest = json.loads(manifests[0].read_text())
-            self.assertEqual(manifest['metadata']['task_id'], 'single-test')
-            self.assertEqual(manifest['calls']['m001']['status'], 'succeeded')
-            self.assertEqual(manifest['result']['selected_candidate_id'], 'c001')
-            self.assertEqual(manifest['result']['stop_reason'], 'completed')
-            self.assertTrue((manifests[0].parent/'calls/m001/content.txt').is_file())
+            tasks = list(records.glob('*/task.json'))
+            self.assertEqual(len(tasks), 1)
+            self.assertEqual(json.loads(tasks[0].read_text())['task_id'], 'single-test')
+            self.assertTrue((tasks[0].parent/'calls/m001/response.txt').is_file())
             self.assertEqual(set(root.iterdir()), {records, root / "isolated_bin"})
             events = [json.loads(line) for line in result['trace'].splitlines()]
+            done = next(e for e in events if e['tool'] == 'agent' and e['event'] == 'done')
+            self.assertEqual(done['candidate_id'], 'c001')
             self.assertTrue(any(e.get('candidate_id') == 'c001' and e.get('source_call_id') == 'm001'
                                 for e in events))
 

@@ -2,7 +2,7 @@
 
 Three tools, in increasing cost:
 
-    check_interface()   pure Python, no tools, microseconds
+    interface check     pure Python (agent.core.interface), microseconds
     lint()              xvlog + xelab on the DUT alone, seconds
     synth()             synth_design, tens of seconds
 
@@ -20,8 +20,8 @@ against the declared interface costs nothing and removes the entire failure
 class -- which is also a demonstration that a skill need not involve a model.
 
 If Vivado is not installed, lint() and synth() return status=unavailable with a
-clear reason and the agent falls back to fewer rounds. check_interface() still
-works. They never pretend to have checked something they did not.
+clear reason and the agent falls back to fewer rounds. The interface check
+still works. They never pretend to have checked something they did not.
 """
 
 from __future__ import annotations
@@ -38,8 +38,6 @@ import time
 from typing import Literal, Sequence
 
 from agent.core.interface import (
-    check_interface_result,
-    parse_module_interface,
     parse_prompt_interface,
 )
 
@@ -53,8 +51,9 @@ class ToolResult:
     """Standard result of one logical RTL tool step.
 
     ``command`` is nested because lint consists of xvlog followed by xelab.
-    Full logs stay out of this object and trace; in debug mode the path points
-    to a file in the retained work directory.
+    Full logs stay out of this object and trace. ``log_paths`` names the one
+    saved copy: the supervisor's process logs when present, otherwise a log
+    written by the toolchain.
     """
 
     tool: str
@@ -63,7 +62,7 @@ class ToolResult:
     status: ToolStatus
     elapsed_s: float
     summary: str
-    full_log_path: str | None = None
+    log_paths: tuple[str, ...] = ()
     work_dir: str | None = None
     failure_kind: str = "unknown"
 
@@ -76,8 +75,8 @@ class ToolResult:
             "elapsed_s": round(self.elapsed_s, 3),
             "excerpt": self.summary[:TOOL_SUMMARY_LIMIT],
         }
-        if self.full_log_path is not None:
-            fields["full_log_path"] = self.full_log_path
+        if self.log_paths:
+            fields["log_paths"] = list(self.log_paths)
         if self.work_dir is not None:
             fields["work_dir"] = self.work_dir
         return fields
@@ -90,6 +89,7 @@ class _CommandOutcome:
     status: ToolStatus
     elapsed_s: float
     output: str
+    log_path: str | None = None
 
 
 class RtlToolchain:
@@ -125,7 +125,8 @@ class RtlToolchain:
             return _run_command(cmd, cwd, timeout_s)
         from agent.services.processes import ProcessRequest
         result = self.executor.run(ProcessRequest(tuple(cmd), cwd, timeout_s))
-        return _CommandOutcome(tuple(cmd), result.rc, result.status, result.elapsed_s, result.output)
+        return _CommandOutcome(tuple(cmd), result.rc, result.status, result.elapsed_s, result.output,
+                               result.log_path)
 
     @property
     def available(self) -> bool:
@@ -231,45 +232,7 @@ def ports_from_prompt(prompt: str) -> tuple[str | None, list[tuple[str, int, str
     return spec.module_name, ports
 
 
-def check_interface(source: str, interface: str,
-                    prompt: str = "") -> tuple[int, str]:
-    """Compatibility wrapper returning the previous ``(rc, summary)`` shape."""
-    result = check_interface_result(source, interface, prompt)
-    return result.rc, result.summary
-
-
-def _ports(text: str) -> tuple[str | None, list[tuple[str, int, str]]]:
-    """Legacy tuple view for older internal callers."""
-    spec = parse_module_interface(text)
-    ports = [
-        (port.direction, port.width or 1, port.name) for port in spec.ports
-    ]
-    return spec.module_name, ports
-
-
 # --------------------------------------------------------------------- utils
-
-
-def run_command(tool: str, cmd: Sequence[str], cwd: str,
-                timeout_s: float, full_log_path: str | None = None,
-                terminate_grace_s: float = 1.0) -> ToolResult:
-    """Run one command in its own process group and return a public result."""
-    outcome = _run_command(cmd, cwd, timeout_s, terminate_grace_s)
-    if full_log_path is not None:
-        try:
-            _write_full_log(full_log_path, [outcome])
-        except OSError:
-            full_log_path = None
-    return ToolResult(
-        tool=tool,
-        command=(outcome.command,),
-        rc=outcome.rc,
-        status=outcome.status,
-        elapsed_s=outcome.elapsed_s,
-        summary=summarize_log(outcome.output),
-        full_log_path=full_log_path,
-        work_dir=cwd if full_log_path is not None else None,
-    )
 
 
 def _run_command(cmd: Sequence[str], cwd: str, timeout_s: float,
@@ -355,18 +318,23 @@ def _build_result(tool: str, outcomes: Sequence[_CommandOutcome],
     commands = tuple(outcome.command for outcome in outcomes)
     final = outcomes[-1]
     full_output = "\n".join(outcome.output for outcome in outcomes)
-    full_log_path = os.path.join(work, f"{tool}.full.log") if keep_work else None
-    if log_dir is not None:
-        try:
-            os.makedirs(log_dir, exist_ok=True)
-            full_log_path = os.path.join(log_dir, os.path.basename(work) + '.log')
-        except OSError:
-            full_log_path = None
-    if full_log_path is not None:
-        try:
-            _write_full_log(full_log_path, outcomes, redactor)
-        except OSError:
-            full_log_path = None
+    log_paths = tuple(outcome.log_path for outcome in outcomes if outcome.log_path)
+    if len(log_paths) != len(outcomes):
+        # Only write a log when the process executor kept no copy of its own.
+        log_paths = ()
+        full_log_path = os.path.join(work, f"{tool}.full.log") if keep_work else None
+        if log_dir is not None:
+            try:
+                os.makedirs(log_dir, exist_ok=True)
+                full_log_path = os.path.join(log_dir, os.path.basename(work) + '.log')
+            except OSError:
+                full_log_path = None
+        if full_log_path is not None:
+            try:
+                _write_full_log(full_log_path, outcomes, redactor)
+                log_paths = (full_log_path,)
+            except OSError:
+                pass
     return ToolResult(
         tool=tool,
         command=commands,
@@ -374,7 +342,7 @@ def _build_result(tool: str, outcomes: Sequence[_CommandOutcome],
         status=final.status,
         elapsed_s=sum(outcome.elapsed_s for outcome in outcomes),
         summary=summarize_log(full_output),
-        full_log_path=full_log_path,
+        log_paths=log_paths,
         work_dir=work if keep_work else None,
         failure_kind=classify_tool_failure(full_output) if final.status == "failed" else "unknown",
     )

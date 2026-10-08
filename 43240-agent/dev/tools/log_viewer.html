@@ -144,7 +144,7 @@ async function loadRun(path) {
   if(version!==loadVersion)return;
   current=run;selectedId='workflow';$('search').value='';$('filter').value='all';$('run-select').title=path;
   $('stats').replaceChildren(el('span',run.workflow),badge(run.status),el('span',`${run.rows.filter(r=>r.kind==='node').length} 个节点`),el('span',`${run.rows.filter(r=>r.kind==='llm').length} 次模型调用`));
-  if(run.runId && !recordPath(run,'run.json'))run.warnings.push('未导入本次 records 详细记录；请求与回复可能只有摘要。可补充选择详细记录目录。');
+  if(run.runId && !recordPath(run,'task.json') && !recordPath(run,'run.json'))run.warnings.push('未导入本次 records 详细记录；请求与回复可能只有摘要。可补充选择详细记录目录。');
   if(!run.runId && run.events.length)run.warnings.push('旧格式 / baseline 日志：按已有事件展示，无法还原未记录的 Node 结构。');
   $('warnings').hidden=!run.warnings.length;$('warnings').textContent=run.warnings.slice(0,8).join('\n')+(run.warnings.length>8?`\n另有 ${run.warnings.length-8} 条解析提示。`:'');
   renderTree();await renderDetail();
@@ -236,29 +236,34 @@ async function renderDetail() {
   $('source').textContent=`${run.path}${run.runId?' · '+run.runId:''}`;
   document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
   $('detail-body').replaceChildren(el('p','正在读取本地证据…','muted'));
-  const nodes=[],last=row.last || {};
+  const nodes=[],last=row.last || {},start=row.events.find(e=>e.event==='started') || {};
+  const component=last.component ?? start.component,input=last.input ?? start.input;
   if(tab==='raw')nodes.push(block('原始 trace 事件',row.events.map(({_line,...e})=>e),run.path));
   if(tab==='overview') {
     nodes.push(facts([['类型',row.kind],['状态',TraceParser.label(row.status)],['耗时',seconds(row.elapsed)],['执行 ID',last.execution_id],['调用 ID',last.call_id],['候选 ID',last.candidate_id],['停止原因',last.stop_reason || last.reason]]));
     if(row.status==='unfinished')nodes.push(el('p','仅见开始记录，没有结束事件；可能是中断或日志不完整。','notice'));
     if(row.kind==='node')nodes.push(el('p','Node 成功表示动作正常返回；检查是否通过，请查看它下面的检查结果。','subnote'));
     if(last.error_message || last.message || last.excerpt)nodes.push(block('摘要 / 错误',last.error_message || last.message || last.excerpt));
-    if(last.component)nodes.push(block('组件与参数',last.component));
+    if(component)nodes.push(block('组件与参数',component));
     if(row.kind==='workflow') {
       nodes.push(block('运行元数据',run.metadata));
       for(const [name,title] of [['solve.json','求解结果'],['supervision.json','监督与清理'],['selection.json','最终选择']]) {const b=await fileBlock(run,title,join(run.base,name),true);if(b)nodes.push(b);}
     } else nodes.push(block('最新记录',last));
   }
   if(tab==='request' || tab==='response') {
-    if(tab==='request' && last.input!=null)nodes.push(block('节点输入摘要',last.input));
+    if(tab==='request' && input!=null)nodes.push(block('节点输入摘要',input));
     nodes.push(...await modelBlocks(run,row,tab));
     if(tab==='response') {
       if(last.output!=null)nodes.push(block('节点输出摘要',last.output));
       const checks=relatedRows(run,row,'check');
-      for(const check of checks){nodes.push(block(`检查结果 · ${check.title}`,check.last));const path=logPath(run,check.last.full_log_path),b=await fileBlock(run,'完整工具日志',path);nodes.push(b || el('p','未找到此检查的完整日志；当前仅显示记录中的结果与摘要。','subnote'));}
+      for(const check of checks) {
+        nodes.push(block(`检查结果 · ${check.title}`,check.last));
+        const logs=[];for(const p of check.last.log_paths || [check.last.full_log_path]){const b=await fileBlock(run,'完整工具日志',logPath(run,p));if(b)logs.push(b);}
+        nodes.push(...(logs.length?logs:[el('p','未找到此检查的完整日志；当前仅显示记录中的结果与摘要。','subnote')]));
+      }
       const ids=new Set(row.kind==='workflow'?[]:[last.candidate_id,last.output?.candidate?.id]);
       if(row.kind==='node')for(const e of run.events)if(e.execution_id===last.execution_id && e.candidate_id)ids.add(e.candidate_id);
-      for(const id of ids)if(id){const p=recordPath(run,`candidates/${id}/solution.v`) || (files.has(join(run.base,`candidates/${id}.v`))?join(run.base,`candidates/${id}.v`):null);const b=await fileBlock(run,`候选代码 · ${id}`,p);if(b)nodes.push(b);}
+      for(const id of ids)if(id){const p=recordPath(run,`candidates/${id}.v`) || recordPath(run,`candidates/${id}/solution.v`) || (files.has(join(run.base,`candidates/${id}.v`))?join(run.base,`candidates/${id}.v`):null);const b=await fileBlock(run,`候选代码 · ${id}`,p);if(b)nodes.push(b);}
       if(row.kind==='workflow'){const b=await fileBlock(run,'最终答案',join(run.base,'solution.v'));if(b)nodes.unshift(b);}
       if(row.kind==='process')nodes.push(block('进程返回',last));
       if(!nodes.length)nodes.push(block('事件响应 / 结果',last));

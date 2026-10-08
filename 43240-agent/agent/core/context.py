@@ -23,13 +23,17 @@ O = TypeVar('O')
 
 
 def summarize(value):
-    """Keep large prompt/code bodies out of action events and snapshots."""
+    """Keep bodies out of node events; objects with their own events appear by ID only."""
     if isinstance(value, Candidate):
-        return value.public_dict()
+        return dict(candidate_id=value.id)
     if isinstance(value, ModelReply):
-        return value.public_dict()
-    if isinstance(value, (TaskSpec, CheckResult)):
-        return value.public_dict()
+        return dict(call_id=value.call_id)
+    if isinstance(value, CheckResult):
+        return dict(check_id=value.id, status=value.status)
+    if isinstance(value, TaskSpec):
+        return dict(task_id=value.id)
+    if callable(getattr(value, 'summary_dict', None)):
+        return value.summary_dict()
     if isinstance(value, ComponentSpec):
         return value.public_dict()
     if callable(getattr(value, 'trace_dict', None)):
@@ -37,6 +41,8 @@ def summarize(value):
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, str):
+        if len(value) <= 80 and '\n' not in value:
+            return value
         return dict(bytes=len(value.encode('utf-8')), sha256=hashlib.sha256(value.encode('utf-8')).hexdigest())
     if is_dataclass(value):
         return {f.name: summarize(getattr(value, f.name)) for f in fields(value)}
@@ -122,7 +128,6 @@ class RunContext:
             raise ValueError(f'duplicate candidate: {candidate.id}')
         if candidate.parent_id and candidate.parent_id not in self._candidates:
             raise ValueError('candidate parent is not registered')
-        self._artifacts.save_candidate(candidate)
         self._candidates[candidate.id] = candidate
         self._recorder.record_candidate(candidate)
 

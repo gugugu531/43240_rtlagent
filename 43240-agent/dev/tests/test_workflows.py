@@ -91,8 +91,10 @@ class AddedWorkflow(Component):
                 result = Runner(ModelConfig()).run(TASK, lambda: build_workflow(name+'_workflow'),
                                                   options=RunOptions(Path(temp)/'output'))
                 self.assertEqual(result.stop_reason, 'custom_completed')
-                action = next(e for e in events(Path(temp)/'output') if e['tool']=='node' and e['event']=='succeeded')
-                self.assertEqual(action['component']['parameters']['value'], 11)
+                trace = events(Path(temp)/'output')
+                started = next(e for e in trace if e['tool']=='node' and e['event']=='started')
+                action = next(e for e in trace if e['tool']=='node' and e['event']=='succeeded')
+                self.assertEqual(started['component']['parameters']['value'], 11)
                 self.assertEqual(action['output'], 11)
             finally:
                 sys.path.remove(temp)
@@ -124,8 +126,9 @@ class WorkflowTests(unittest.TestCase):
             self.assertIn('Output only code', request.messages[0]['content'])
             self.assertEqual(Path(temp, 'solution.v').read_text(), CODE)
             self.assertFalse(any(e['tool'] in ('lint', 'synth', 'check_interface') for e in events(temp)))
+            started = [e for e in events(temp) if e['tool']=='node' and e['event']=='started']
+            self.assertEqual([e['component']['name'] for e in started], ['rtl_generate', 'rtl_extract'])
             actions = [e for e in events(temp) if e['tool']=='node' and e['event']=='succeeded']
-            self.assertEqual([e['component']['name'] for e in actions], ['rtl_generate', 'rtl_extract'])
             call = next(e for e in events(temp) if e['tool']=='llm' and e['event']=='succeeded')
             self.assertEqual(call['execution_id'], actions[0]['execution_id'])
             created = next(e for e in events(temp) if e['tool']=='candidate' and e['event']=='create')
