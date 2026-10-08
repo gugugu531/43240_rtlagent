@@ -1,6 +1,6 @@
 # Python Workflow 与 Node 接口
 
-本文是当前接口的专题参考；完整索引见[详细参考](../reference.md)。
+本文是当前接口的专题参考；完整索引见[User Manual](../user-manual.md)。
 
 本文描述当前提供的接口。默认流程是 `single_generate`：一次直接生成、提取和选择。
 可选 `repair_loop` 包含多轮接口检查、lint 与综合反馈。官方 baseline 文件保持原样。

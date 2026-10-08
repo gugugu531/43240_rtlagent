@@ -10,7 +10,7 @@ import re
 from agent.core.config import ModelConfig, ToolConfig
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = ROOT / 'config/default.yaml'
+DEFAULT_CONFIG = ROOT / 'config/example.yaml'
 
 
 class ConfigError(ValueError):

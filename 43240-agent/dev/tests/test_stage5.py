@@ -28,7 +28,7 @@ class StageFiveTests(unittest.TestCase):
         self.assertFalse((staged/'dev').exists())
         self.assertFalse((staged/'__pycache__').exists())
         self.assertEqual((staged/'baseline.py').read_bytes(), (ROOT/'baseline.py').read_bytes())
-        self.assertTrue(any(f['path']=='config/default.yaml' for f in manifest.files))
+        self.assertTrue(any(f['path']=='config/example.yaml' for f in manifest.files))
         for row in manifest.files:
             self.assertEqual(row['sha256'], hashlib.sha256((staged/row['path']).read_bytes()).hexdigest())
         result = smoke_submission(staged, ROOT.parent/'tasks/ex03_lfsr8', self.work/'mock')
@@ -56,11 +56,11 @@ class StageFiveTests(unittest.TestCase):
 
     def test_detect_missing_config_and_docker_baseline(self):
         staged=self.work/'submission'; stage_submission(ROOT,staged)
-        (staged/'config/default.yaml').unlink()
+        (staged/'config/example.yaml').unlink()
         p=staged/'Dockerfile'; p.write_text(p.read_text().replace('run_baseline.sh baseline.py','run_baseline.sh'))
         report=check_submission_layout(staged)
         self.assertFalse(report.ok)
-        self.assertIn('missing required file: config/default.yaml', report.errors)
+        self.assertIn('missing required file: config/example.yaml', report.errors)
         self.assertIn('file absent from Docker COPY destinations: baseline.py',report.errors)
 
     def test_reject_dev_import_and_symlink(self):

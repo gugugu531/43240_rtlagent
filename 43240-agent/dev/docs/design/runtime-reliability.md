@@ -1,6 +1,6 @@
 # 候选、失败处理与运行监督
 
-本文是当前可靠运行接口的专题参考；总览见[详细参考](../reference.md)。默认 single_generate 保持单次生成，不添加检查、技能或重试。
+本文是当前可靠运行接口的专题参考；总览见[User Manual](../user-manual.md)。默认 single_generate 保持单次生成，不添加检查、技能或重试。
 实现与验证结果单独写入[阶段进展](../notes/2026-10-05-stage3-progress.md)。
 
 ## 架构分工
