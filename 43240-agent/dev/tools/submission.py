@@ -21,7 +21,7 @@ from agent.services.processes import ProcessExecutor, ProcessRequest
 FILES = ('run.sh', 'run_baseline.sh', 'baseline.py', 'requirements.txt',
          'manifest.json', 'REPORT.md', 'README.md', 'Dockerfile', '.dockerignore')
 DIRECTORIES = ('agent', 'config', 'skill', 'serve', 'model')
-REQUIRED = (*FILES, 'config/default.yaml', 'agent/main.py', 'serve/serve_api.py',
+REQUIRED = (*FILES, 'config/example.yaml', 'agent/main.py', 'serve/serve_api.py',
             'serve/vllm.sh', 'model/MODEL.md')
 FIXED_NAMES = {'README.md', 'REPORT.md', 'MODEL.md', 'SKILL.md', 'Dockerfile', '.dockerignore'}
 

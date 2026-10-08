@@ -10,7 +10,7 @@
 > 正式入口使用独立 Worker 和 Supervisor 管理时间、信号与工具进程，支持中断恢复。
 > 已提供 YAML 配置与统一实验入口，支持指定单题、重复采样、独立并发和可选判定指标。
 > 真实模型小规模验证已完成；模型与服务仍未最终确定，全量收益和历史重放尚未验证。
-> 使用见[简洁手册](dev/docs/guide.md)，接口与架构见[详细参考](dev/docs/reference.md)，历史证据见[文档索引](dev/docs/readme.md)。
+> 首次运行见 [Quickstart](dev/docs/quickstart.md)，完整用法、输入来源与模块职责见 [User Manual](dev/docs/user-manual.md)，历史证据见[文档索引](dev/docs/readme.md)。
 
 ---
 
@@ -21,7 +21,7 @@
 | `run.sh` | 单题入口：从任意当前目录读取一道题，输出代码和工具调用记录 |
 | `run_baseline.sh`、`baseline.py` | 基线入口，赛事方提供，**不得修改** |
 | `agent/main.py` | 单题参数解析、配置装配与已注册 Workflow 选择 |
-| `config/default.yaml` | 默认单题运行条件，组件参数由 Python Workflow 定义 |
+| `config/example.yaml` | 带逐项中文注释的配置示例，也是正式入口默认配置；组件参数由 Python Workflow 定义 |
 | `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
 | `dev/tools/submission.py` | 按明确清单检查、暂存方案并在没有 dev 的目录中验证默认入口 |
 | `dev/tools/run.py` | 开发侧统一任务选择、采样调度与可选指标入口 |
@@ -265,7 +265,8 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 
 ## 配置与开发实验
 
-默认使用 `config/default.yaml`，可通过 `AGENT_CONFIG` 或 run.sh 的附加 `--config` 参数选择。
+默认使用 `config/example.yaml`，可通过 `AGENT_CONFIG` 或 run.sh 的附加 `--config` 参数选择。
+该文件带有逐项注释，可复制到开发配置目录后修改。旧 `config/default.yaml` 已改名，显式引用旧路径的命令或 `AGENT_CONFIG` 需同步调整。
 配置只选择 Workflow、外部服务和运行条件；采样与组件策略保留在 Python。
 生效顺序为内置默认、YAML、支持的环境变量、CLI，输出 `config.json` 记录来源。
 
@@ -290,7 +291,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 | `LLM_API_KEY` | 空 | 本地推理服务可以随便填 |
 | `LLM_MODEL` | `mock-model` | 请求中使用的模型名 |
 | `LLM_TIMEOUT_S` | `180` | 单次模型调用超时（秒） |
-| `AGENT_CONFIG` | `config/default.yaml` | YAML 配置路径；相对路径按调用者当前目录解析 |
+| `AGENT_CONFIG` | `config/example.yaml` | YAML 配置路径；相对路径按调用者当前目录解析 |
 | `VIVADO_BIN` | PATH | 显式 Vivado 可执行文件目录 |
 | `AGENT_WORKFLOW` | `single_generate` | 已注册 Workflow 名称 |
 | `AGENT_DEADLINE_S` | `360` | 单题时间预算（秒），HTTP 请求中的 `deadline_s` 只能缩小实际预算 |
@@ -328,6 +329,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
+| 2026-10-08 | Quickstart、User Manual 与注释配置 | 文档按上手与完整使用拆分；默认配置改名为 `config/example.yaml`，默认运行值保持不变 |
 | 2026-10-05 | 模块归位、开发目录集中与打包检查 | 正式运行独立于 dev；Docker 包含默认配置和原始 baseline 文件 |
 | 2026-10-05 | YAML 配置与统一实验 | 单题、采样、并发与 runtime/model/judge 指标 |
 | 2026-10-05 | 候选保护、失败处理、检查复用与独立监督 | 保留较强证据的答案；回收受管理进程；恢复中断选择和记录 |

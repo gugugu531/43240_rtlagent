@@ -1,17 +1,17 @@
 # 配置与统一实验入口
 
-本文是当前配置与实验的专题参考；总览见[详细参考](../reference.md)。流程、Node 及动作参数仍由 Python 定义；YAML 选择 Workflow、
+本文是当前配置与实验的专题参考；总览见[User Manual](../user-manual.md)。流程、Node 及动作参数仍由 Python 定义；YAML 选择 Workflow、
 外部服务、运行条件与开发实验。没有 YAML 流程图、bindings 或 Node 装配清单。
 
 ## 运行与配置
 
-正式入口仍为 `run.sh <input_dir> <output_dir>`，默认加载 `config/default.yaml`。
+正式入口仍为 `run.sh <input_dir> <output_dir>`，默认加载 `config/example.yaml`。
 使用 `AGENT_CONFIG` 或附加 `--config` 选择配置。附加的路径参数相对于调用者的当前目录；
 YAML 中的路径相对于该 YAML 文件。正式代码不导入开发工具。
 
 ```bash
 LLM_BACKEND=mock ./43240-agent/run.sh tasks/ex03_lfsr8 /tmp/out \
-  --config 43240-agent/config/default.yaml
+  --config 43240-agent/config/example.yaml
 
 python3 43240-agent/dev/tools/run.py \
   --config 43240-agent/dev/configs/smoke.yaml --task ex03_lfsr8

@@ -1,6 +1,6 @@
 # 运行记录格式
 
-本文是当前接口的专题参考；完整索引见[详细参考](../reference.md)。
+本文是当前接口的专题参考；完整索引见[User Manual](../user-manual.md)。
 
 本文描述当前 Agent 记录。官方 baseline 保持原样，使用官方 trace 格式。
 
