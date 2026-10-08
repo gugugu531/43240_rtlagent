@@ -25,6 +25,7 @@
 | `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
 | `dev/tools/submission.py` | 按明确清单检查、暂存方案并在没有 dev 的目录中验证默认入口 |
 | `dev/tools/run.py` | 开发侧统一任务选择、采样调度与可选指标入口 |
+| `dev/tools/log_viewer.html` | 本地日志查看器，导入输出目录后查看节点、工具调用与完整响应 |
 | `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
 | `agent/policies/` | 可替换的选择策略、失败策略和保守诊断分类 |
 | `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |

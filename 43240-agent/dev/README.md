@@ -14,6 +14,10 @@
 | runs/ | 原始产物，不提交 Git |
 | docs/ | 统一团队文档，包括开发规范 |
 
+可视化检查日志：直接用浏览器打开 [日志查看器](tools/log_viewer.html)，选择包含 `trace.jsonl`
+和 `records/` 的单题输出目录，或整个实验目录。可查看 Workflow、Node、模型与工具调用的
+状态、请求、回复和原始事件；文件只在本机读取，不需要服务器。用法见[日志查看器说明](docs/design/log-viewer.md)。
+
 统一实验：
 
 ```bash
