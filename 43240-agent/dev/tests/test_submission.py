@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 from dev.tools.submission import check_submission_layout, stage_submission, smoke_submission
 
 
-class StageFiveTests(unittest.TestCase):
+class SubmissionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

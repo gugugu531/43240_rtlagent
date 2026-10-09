@@ -142,14 +142,5 @@ def _write_executable(path: Path, content: str) -> None:
     path.chmod(0o755)
 
 
-def _pid_is_running(pid: int) -> bool:
-    stat = Path(f"/proc/{pid}/stat")
-    try:
-        state = stat.read_text().split()[2]
-    except (FileNotFoundError, IndexError, OSError):
-        return False
-    return state != "Z"
-
-
 if __name__ == "__main__":
     unittest.main()

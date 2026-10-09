@@ -31,7 +31,7 @@ remote.env、cloud.state、cloud_known_hosts 随目录迁移，未改内容，�
 
 Dockerfile 补齐 config/ 和 baseline.py。新增 dev/tools/submission.py，按明确文件清单检查并
 暂存方案，拒绝已有或位于源码树内的目标；保存文件哈希，在没有 dev、没有继承 PYTHONPATH 的
-目录中运行默认 mock。具体接口与限制见[目录与提交说明](../design/layout-and-submission.md)。
+目录中运行默认 mock。具体接口与限制见[目录与提交说明](../user-manual.md#13-测试打包与限制)。
 
 ## 验证
 

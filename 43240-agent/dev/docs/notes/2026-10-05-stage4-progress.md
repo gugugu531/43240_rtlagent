@@ -7,7 +7,7 @@
 按本阶段经审阅的范围实现配置加载、统一实验入口和可选指标，默认仍为近似 baseline 的
 `single_generate`。Workflow、Node 和动作参数由 Python 定义；YAML 只选择 Workflow、
 本地扩展、模型与工具服务、运行条件和实验，不提供 bindings 或流程图。
-接口、配置字段和产物结构见[设计文档](../design/configuration-and-experiments.md)。
+接口、配置字段和产物结构见[设计文档](../user-manual.md#12-开发实验与指标)。
 
 - CLI、HTTP 与实验样本共用配置解析和 RunSpec 构造；严格检查未知字段、重复键、类型和版本，
   保存原始配置、生效值及逐字段来源。HTTP 的预算上限只能缩小配置预算。

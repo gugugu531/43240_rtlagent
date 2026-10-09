@@ -1,6 +1,6 @@
 # Agent User Manual：配置、运行、输入输出与扩展
 
-本文是当前 Agent 框架的完整使用手册，按 2026-10-08 工作区实现核对。首次使用先读
+本文是当前 Agent 框架的完整使用手册，按 2026-10-09 工作区实现核对。首次使用先读
 [Quickstart](quickstart.md)，配置可直接参照 [example.yaml](../../config/example.yaml)。
 [开发规范](conventions.md)单独维护协作要求；历史笔记和实验保留当时结论，不代替当前用法。
 
@@ -211,6 +211,8 @@ flowchart TD
 
 时间上限必须为有限正数，清理预留可为零；YAML 开关使用布尔值 `true/false`，支持的环境开关使用 `0/1`。
 配置路径无效或配置内容错误时，入口记录 `configuration_or_entry_error` 并输出空答案。
+ResolvedConfig 保存 AgentConfig、原始配置与逐字段来源，公开快照不包含凭据值。
+CLI、HTTP 子进程和实验样本共用配置解析接口；RunSpec 将模型、工具及公开配置快照传给 Worker。
 只有运行已经开始后的异常恢复才可能保留本次已选答案；输出目录不是自动续跑目录。
 
 提供自定义 YAML 时，未填写的字段由 Python 内置默认值补齐，不是继续叠加 `example.yaml`。
@@ -354,6 +356,10 @@ flowchart TD
 - 工具缺失、工具超时和未知故障默认停止。
 - 技能在出现反馈时按相关性选择，再加入模型提示。
 
+普通非零退出不能单独证明 RTL 有错，必须有明确的编译器诊断或阻断接口差异。
+模型配置、认证、JSON 和响应字段错误默认终止；只有分类为可重试的连接、超时或 HTTP 错误才重发相同请求。
+选择和失败决定分别写入 `workflow/selection_decision` 与 `workflow/failure_decision` 事件。
+
 默认最多生成 3 轮，每个请求最多重试 1 次，模型调用总数最多 4 次，同时受整题时间预算约束。
 
 对应实现：[repair_loop.py](../../agent/workflows/repair_loop.py)。
@@ -381,7 +387,7 @@ repair_loop 的 max_model_calls 默认 max_rounds+max_request_retries。要换�
 
 1. 排除不符合提取状态要求，或已确认有代码错误的候选。
 2. 按综合通过、lint 通过、接口通过的证据依次比较。
-3. 证据相同时，优先保留已经选中的答案。
+3. 证据相同时，优先保留已经选中的答案；没有已有选择时保留较早候选。
 4. 没有可选候选时，清空答案。
 
 这里由 `RepairLoop.choose()` 接收全部候选、已有检查结果和当前答案编号，返回“选谁、是否变化、为什么选、依据哪些检查”。`agent/core/context.py` 应用决定，`agent/recording/artifacts.py` 执行实际文件更新。选择策略属于 Workflow：默认单次生成不经过这套比较，直接选择提取出的候选；自定义 Workflow 可以定义自己的规则。
@@ -636,6 +642,9 @@ build_node/build_workflow 自动加载内置组件，并捕获构造参数及默
 取得参数，取不到则记 unknown。用户扩展显式导入，不自动扫描目录。YAML/CLI 的扩展列表只接受本地
 模块名，并拒绝 dev/selftest 顶层模块；用户代码本身仍需遵守依赖与参考答案隔离要求。
 
+不能保存构造元数据属性的自定义对象，应自行提供等价 describe()。组件描述写入记录时会脱敏。
+Node 当前同步执行，没有并行调度器；异常被记录后重新抛给 Workflow，不会自动转成修复动作。
+
 完整示例可保存为 `agent/workflows/custom_example.py`：
 
 ```python
@@ -711,7 +720,7 @@ ExtractionOutput 包含 extraction 和可空 candidate。CheckInput 包含 candi
 候选登记和最终选择分开。检查前可登记多份候选，但不能靠修改 state 或覆盖 solution.v 绕过选择接口。
 答案检查点保存实际代码和哈希，Supervisor 在 Worker 停止后核对并完成必要恢复。
 
-模型服务 `ctx.llm.chat(ModelRequest)` 单次调用，不自动重试。保存响应文本之后才解析协议，
+模型服务 `ctx.llm.chat(ModelRequest)` 单次调用，不自动重试。先按 JSON 或原始文本保存响应，再校验 HTTP 状态和响应字段，
 因此非 JSON 或错误状态响应仍可诊断。标准正文来自第一条 choice.message.content；完整响应中其他
 choices、reasoning 和供应方字段另存，不自动拼接到提取输入。
 
@@ -722,6 +731,9 @@ ModelService 自身只裁剪服务请求上限。内置 GenerateNode 已完成�
 证据；实际使用 lint/synth 时才初始化 Vivado。检查缓存只在本题内使用，键包含任务、代码、检查配置
 和工具身份；没有工具指纹时不复用相应工具检查。只缓存通过或已确认代码失败，不把超时和环境失败当作
 稳定结论。复用分配新 check ID，并记录 executed=false 和 reused_from_check_id。
+缓存键包含 task_fingerprint、code_hash、kind、config_fingerprint、tool_fingerprint；题目指纹涵盖题面、接口与 top。
+工具身份包含二进制路径与文件身份、环境、器件和实现摘要；自定义工具需提供 fingerprint。
+重复源码仍保留独立候选编号、调用和父子关系，复用检查不伪造执行耗时。
 
 自定义进程使用：
 
@@ -734,9 +746,12 @@ result = ctx.processes.run(ProcessRequest(
 ))
 ```
 
-自行准备 cwd 与文件；使用参数数组，不依赖隐式 shell。ProcessResult.status 为 ok、failed 或 timeout；
+自行准备 cwd 与文件；使用参数数组，不依赖隐式 shell。ProcessResult.status 为 ok（正常退出）、failed（运行后非零退出）、timeout（超时或没有剩余进程预算）、
+unavailable（命令无法启动）；
 它与 Workflow 的 completed 状态不同。ProcessService 裁剪剩余预算、记录事件，生产入口的进程由
 Supervisor 管理；env 可显式传入，不进入公开命令记录。
+ProcessRequest 还可设置 terminate_grace_s；ProcessResult 保存 rc、status、elapsed_s、output 和可空 log_path。
+ProcessExecutor.cancel_all(deadline) 返回 CleanupResult，列出已终止进程组与未回收进程。
 
 预算基于单调时钟：remaining_s() 默认扣除清理预留，remaining_s(include_reserve=True) 包含预留；
 can_start(minimum_s) 必须有超过最低窗口的时间；timeout_s(limit_s, minimum_s) 不足时抛 BudgetExhausted。
@@ -748,12 +763,15 @@ ctx.cancellation 提供进程内合作式取消。自由 Python 阻塞靠外层�
 核对返回结果与已保存答案一致、处理普通异常和关闭记录。可通过 `backend_factory`、`toolchain_factory`、
 `process_executor` 注入替代服务，适合组件测试。
 
-`RunOptions` 包含输出目录、整题预算、预留、记录配置和额外候选开关。
+`RunOptions` 包含输出目录、整题预算、预留和记录配置。
 `core/supervision.py` 的 `RunSpec` 还包含本题、Workflow 名称与可序列化参数、扩展模块、开始时间、模型和工具配置。
 生产入口把这些数据传给 Worker，在子进程内重新构造组件。`Supervisor.run(spec)` 管理硬截止时间，
 先尝试 TERM，再按需要 KILL，并回收通过公开服务启动的工具进程。
+当前是 Linux 同步实现，Worker 通过管道请求 Supervisor 启动外部进程，一次等待一个命令；
+Supervisor 使用 subreaper 接管孤儿后代。输出写文件，避免管道占满或后代持有管道阻碍返回。
 
 直接使用 Runner 时可传工厂或本题独立实例；不要跨题复用带可变状态的实例。
+Runner 每次建立独立上下文、记录器、候选状态和预算。组件构造在输出文件建立之后进行，构造错误也可留下失败证据。
 Runner 的预算是合作式的，不能硬停止任意阻塞 Python；正式运行应经过 Supervisor。
 Supervisor 只在 Worker 停止后接管 trace，校验恢复检查点中的哈希并恢复选中代码，不伪造未完成调用的结束事件。
 自行脱离受管理进程组的后代、共享模型服务内部推理，不在硬回收保证范围内。
@@ -855,7 +873,8 @@ parent_config 指回实验 config.json。源码快照采用明确范围，不复
 笔记自动生成到 dev/docs/experiments，人工假设与结论在生成块外补写。
 
 历史 tools/analysis 继续服务旧实验格式，不能用于宣称支持新实验的自动比较。
-完整配置与实验专题见[配置专题](design/configuration-and-experiments.md)。
+实验取消后，未执行的指标可以标为 skipped；basic 记录中缺失的证据不通过推断补齐。
+`summarize_experiment(samples, *, planned=0, status='completed')` 汇总样本指标和计划完成情况。
 
 ## 13. 测试、打包与限制
 
@@ -865,6 +884,12 @@ parent_config 指回实验 config.json。源码快照采用明确范围，不复
 python3 -m unittest discover -s dev/tests -v
 python3 dev/tools/submission.py
 ```
+
+测试按职责组织：修复决策见 test_repair_decisions.py，检查复用见 test_check_cache.py，
+进程监督见 test_supervision.py，证据记录见 test_evidence.py；配置、实验和指标分别见
+ test_configuration.py、test_experiments.py、test_metrics.py，打包及远程包装入口见 test_submission.py。
+共享假模型、假工具及记录辅助函数在 dev/tests/support.py，不再通过导入测试模块共享。
+其余模块继续覆盖接口、提取、候选、模型、trace、Workflow 和运行契约。
 
 先准备 requirements.txt 依赖。模块测试可以注入假模型与工具：
 
@@ -889,7 +914,14 @@ submission 工具检查必需文件、名称、符号链接、直接 dev/selftes
 暂存复制 agent/config/skill/serve/model 与规定入口和声明，拒绝覆盖或复制到源码树内，保存哈希清单；
 不复制开发区、任务或外置模型权重。独立 smoke 清除继承的运行覆盖和 PYTHONPATH，使用默认 mock。
 Dockerfile 已复制 config/ 与 baseline.py；官方基础镜像仍是占位项，真实构建尚未验收。
-详见[提交专题](design/layout-and-submission.md)。
+提交工具的 Python 接口为 `check_submission_layout(root) -> CheckReport`、
+`stage_submission(root, destination) -> SubmissionManifest` 和
+`smoke_submission(staged_root, task_dir, output_dir) -> SmokeResult`，路径参数均为 Path。
+检查包括明显的本地配置和日志；源码旁存在 example 时还逐字节核对 baseline。
+检查不会推断动态导入，也不能自动证明没有隐蔽凭据或参考答案。
+暂存清单及文件哈希写在目标目录旁；独立 smoke 强制使用 single_generate，输出放在暂存目录外，
+检查退出、非空答案、正式监督结果和未回收后代。baseline 入口由本地假 HTTP 服务测试覆盖。
+开发目录职责与文件保护规则统一见[开发规范](conventions.md)。
 
 当前限制：
 
@@ -899,7 +931,7 @@ Dockerfile 已复制 config/ 与 baseline.py；官方基础镜像仍是占位项
 - 自定义 Python 指标没有独立进程硬监督；用户自行脱离进程组的后代不受保证。
 - 客户端结束不证明共享服务推理取消，backend_inference_cancelled 记录 unknown。
 - 最终模型、依赖与服务版本未锁定；模型声明、manifest 和 REPORT 仍有占位内容。
-- 当前框架做过小规模真实验证；本次文档与配置改名只作本地验证，不能代表最终比赛 GPU 或全题集收益。
+- 当前框架做过小规模真实验证；本地 mock 回归不能代表最终比赛 GPU 或全题集收益。
 
 验收来源见[第五阶段记录](notes/2026-10-05-stage5-progress.md)与[真实模型单题实验](experiments/20261005-193024-stage4-real-single-ff1050ad.md)。
 
@@ -924,7 +956,7 @@ python3 dev/tools/submission.py --stage /tmp/agent-manual-submission \
 | --- | --- | --- |
 | 改了 YAML 却没有变化 | 看 `effective` 和 `sources`；检查环境覆盖、实际 `--config` 路径；模型采样参数需改 Workflow | `core/configuration.py`、`workflows/` |
 | 找不到 `default.yaml` | 显式配置路径尚未迁移，改用 `config/example.yaml`；检查 shell 是否仍导出旧 `AGENT_CONFIG` | `main.py`、`core/configuration.py` |
-| 模型连接失败或 HTTP 错误 | 核对 backend、模型名、地址、服务是否已启动、API key 环境变量名；查看 trace 中的 `llm/failed` 事件和 `response.txt` | `services/model.py` |
+| 模型连接失败或 HTTP 错误 | 核对 backend、模型名、地址、服务是否已启动、API key 环境变量名；查看 trace 中的 `llm/failed` 事件及 `response.json` 或 `response.txt` | `services/model.py` |
 | 模型有回复却没有候选 | 查看 `response.json` 和 trace 中的 `extract/result` 事件；可能只有 reasoning、模块不完整或正文为空 | `services/model.py`、`nodes/extraction.py` |
 | 提示输出被截断 | 看 `finish_reason`、提取诊断与 Workflow 的 `max_tokens`；同时核对模型服务上下文容量 | `nodes/generate.py`、`services/model.py` |
 | 默认没有 lint/synth 日志 | `single_generate` 本来就不调用工具；需要 `repair_loop`，或在开发实验单独启用 judge | `workflows/`、`dev/tools/metrics/judge.py` |
