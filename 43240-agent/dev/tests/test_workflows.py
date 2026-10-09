@@ -21,7 +21,7 @@ from agent.core.task import TaskSpec
 from agent.core.runner import Runner, RunOptions
 from agent.nodes.generate import GenerateInput
 from agent.nodes.extract import ExtractInput
-from test_candidate_flow import FakeBackend, FakeToolchain, reply, events, tool_result
+from support import FakeBackend, FakeToolchain, reply, events, tool_result
 
 TASK = TaskSpec.from_text('test', 'Implement a module named TopModule.')
 CODE = 'module TopModule; endmodule\n'

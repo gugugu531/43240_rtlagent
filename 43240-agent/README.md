@@ -179,7 +179,7 @@ python3 -m agent.main --input <task_dir> --output <out_dir> \
 上下文提供模型、工具、预算、只读状态与候选操作。保存候选不会自动选择答案；Workflow 必须
 调用 `ctx.select_candidate()`，并用 `ctx.finish()` 返回与已落盘选择一致的结果。
 运行器支持 Workflow 工厂，在每题调用工厂创建新实例。构造参数、实现路径与实际执行动作自动记录。
-完整接口和扩展示例见 [Python Workflow 接口](dev/docs/design/python-workflows.md)。
+完整接口和扩展示例见 [Python Workflow 接口](dev/docs/user-manual.md#10-python-组件与扩展)。
 
 预算使用单调时钟，动作可设置最少启动时间，并为清理和写出结果预留时间。正式入口在独立 Worker
 中运行 Python Workflow，Supervisor 在预算结束或收到信号时先 TERM、再 KILL 并回收受管理进程。
@@ -274,7 +274,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 
 指标选项为 runtime、model、judge；未选 judge 不启动判定。参考答案与判定结果不进入 Agent。
 原始实验产物在 dev/runs/，新实验笔记集中放 dev/docs/experiments/。
-配置字段、公开接口、产物和边界见[配置与实验说明](dev/docs/design/configuration-and-experiments.md)。
+配置字段、公开接口、产物和边界见[配置与实验说明](dev/docs/user-manual.md#12-开发实验与指标)。
 
 ## 6. 环境变量
 

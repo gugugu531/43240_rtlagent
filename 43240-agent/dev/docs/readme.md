@@ -5,23 +5,21 @@
 - **[Quickstart](quickstart.md)**：准备环境、运行单题、接入模型、选择配置和查看结果。
 - **[User Manual](user-manual.md)**：输入来源、模块职责、完整配置、流程、接口、记录、实验、扩展与排障。
 
-框架手册按 2026-10-08 工作区实现核对；逐项注释配置见 [example.yaml](../../config/example.yaml)。[开发规范](conventions.md)独立维护协作规则。
+框架手册按 2026-10-09 工作区实现核对；逐项注释配置见 [example.yaml](../../config/example.yaml)。[开发规范](conventions.md)独立维护协作规则。
 归档只调整文档状态与入口，所有实验、验证、决策和原始资源数据保留；历史结论不自动成为当前行为。
 
 ## 当前专题参考
 
 | 文档 | 内容 |
 | --- | --- |
-| [Python Workflow](design/python-workflows.md) | 注册、组件和上下文 |
-| [配置与实验](design/configuration-and-experiments.md) | YAML、统一入口与指标 |
 | [记录格式](design/trace-schema.md) | trace 与完整模型证据 |
 | [日志查看器](design/log-viewer.md) | 在浏览器中查看执行流程、节点状态与响应 |
-| [可靠运行](design/runtime-reliability.md) | 选择、诊断、缓存、预算与监督 |
-| [目录与提交](design/layout-and-submission.md) | 文件组织和独立打包检查 |
 | [远端管理](design/remote-tools.md) | 脚本使用，平台细节带历史实测范围 |
 | [历史分析工具](design/historical-analysis.md) | 保留的旧格式统计工具 |
 
 已移除被新手册替代的旧指南和临时输入输出说明；此前文档维护记录见[2026-10-05 整理记录](notes/2026-10-05-documentation-progress.md)。
+
+本次合并与测试整理见[清理清单及执行结果](notes/2026-10-09-cleanup-review.md)。
 
 ## 归档笔记与验证证据
 

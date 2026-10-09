@@ -66,7 +66,7 @@ Node 返回结果，不暗中安排下一步：lint 返回检查结果，是否�
 依赖方向：Node 和 Workflow 依赖共享契约与公开上下文；运行器依赖注册表和运行入口；
 实验工具依赖公开运行入口与产物格式。基础服务不反向决定求解流程。
 
-目标组织（主要目录已在第五阶段归位，实际接口和位置见 [目录说明](../design/layout-and-submission.md)；重放仍待实现）：
+目标组织（主要目录已在第五阶段归位，实际接口和位置见 [目录说明](../user-manual.md#13-测试打包与限制)；重放仍待实现）：
 
 ```text
 43240-agent/
@@ -317,7 +317,7 @@ experiment:
     - judge
 ```
 
-模型和工具的当前字段见[配置说明](../design/configuration-and-experiments.md)。外部配置不能覆盖 Workflow 中未开放的组件参数；
+模型和工具的当前字段见[配置说明](../user-manual.md#12-开发实验与指标)。外部配置不能覆盖 Workflow 中未开放的组件参数；
 若需要替换固定 Node，修改 Python 或注册复用公共逻辑的 Workflow 变体。
 框架基础字段由框架校验，开放的 Workflow 参数由对应 Workflow 校验。
 

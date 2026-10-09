@@ -11,7 +11,7 @@
 | 后续 | 下一阶段先提交具体计划，审阅后才开始修改 |
 
 总体设计见[设计方案](2026-10-05-agent-redesign-plan.md)，公开接口见
-[Python Workflow 接口](../design/python-workflows.md)，记录格式见[记录格式](../design/trace-schema.md)。
+[Python Workflow 接口](../user-manual.md#10-python-组件与扩展)，记录格式见[记录格式](../design/trace-schema.md)。
 
 ## 已完成
 
