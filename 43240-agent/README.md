@@ -160,6 +160,13 @@ Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig
 不要求复刻 baseline 的冗余模型查询、异常文本或进程中断行为；mock 只验证流程。HTTP 请求的
 `request.json` 在 `request` 字段保存实际出站 JSON 的脱敏副本，另记实际超时、用途与请求类型。
 
+长输出补测可显式导入 `agent.workflows.single_generate_long_output`，选择
+`single_generate_long_output`。它复用上述生成、提取和保存过程，仅把单次输出上限改为
+`32768`、请求超时改为最多 `900` 秒，并记录 `experiment_override` 事件。
+实验配置还应显式设置 `services.model.timeout_s: 900` 和 `runtime.deadline_s: 960`；
+服务上限与剩余预算仍会缩短请求。模型服务需要足够的上下文和缓存容量。
+这是单独的额度对照实验，不属于严格 baseline 请求等价结果，也不改变默认流程或 `repair_loop`。
+
 可选 `repair_loop`：
 
 ```text
