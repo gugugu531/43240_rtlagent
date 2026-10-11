@@ -1,4 +1,4 @@
-"""Default: one model generation and extraction, similar to the baseline."""
+"""Official RTL baseline semantics with Agent recording and supervision."""
 from agent.core.budget import BudgetExhausted
 from agent.core.components import Component
 from agent.core.model import ModelCallError
@@ -9,12 +9,9 @@ from agent.nodes.extract import ExtractInput
 
 @WORKFLOW_REGISTRY.register('single_generate')
 class SingleGenerate(Component):
-    def __init__(self, max_tokens: int = 8192, temperature: float = 0.0,
-                 timeout_s: float = 300.0):
-        self.max_tokens, self.temperature, self.timeout_s = max_tokens, temperature, timeout_s
-        self.generate = build_node('rtl_generate', max_tokens=max_tokens,
-                                   temperature=temperature, timeout_s=timeout_s)
-        self.extract = build_node('rtl_extract')
+    def __init__(self):
+        self.generate = build_node('baseline_generate')
+        self.extract = build_node('baseline_extract')
 
     def run(self, ctx):
         try:

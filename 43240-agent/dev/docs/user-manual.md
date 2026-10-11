@@ -113,10 +113,10 @@ flowchart TB
 |---|---|---|---|
 | 模型后端 | YAML `backend` / `LLM_BACKEND` | `mock`；真实服务使用 `openai`，表示采用兼容接口格式 | `core/configuration.py` 读取；`services/model.py` 选择假模型或 HTTP 后端 |
 | 模型服务地址 | YAML `base_url` / `LLM_BASE_URL` | 默认空；HTTP 后端必须提供，例如本地服务的 `/v1` 地址 | `core/config.py` 校验；`services/model.py` 在其后追加 `/chat/completions` 并发出请求 |
-| 请求模型名 | YAML `model` / `LLM_MODEL` | `mock-model`；真实调用时应与服务公布的名称一致 | `services/model.py` 写入请求的 `model` 字段 |
+| 请求模型名 | single_generate：`MODEL_NAME` → `/models` 第一项 → `default`；其他流程：YAML `model` / `LLM_MODEL` | 普通模型配置默认 `mock-model`；统一实验将配置模型名传给两个模式的 `MODEL_NAME` | `services/model.py` 解析并记录实际请求模型 |
 | **模型 API key 的环境变量名** | YAML `api_key_env` | 默认 `LLM_API_KEY`，允许改为其他合法环境变量名 | `core/configuration.py` 根据这个名字去环境中读取实际密钥 |
-| **模型 API key 的实际值** | 上一行指定的环境变量，例如 `LLM_API_KEY` | 未设置时为空；是否要求密钥由模型服务决定 | `core/configuration.py` 放入内存中的 `ModelConfig`；`services/model.py` 在值非空时加入出站请求的 `Authorization: Bearer ...` |
-| 模型服务调用超时 | YAML `timeout_s` / `LLM_TIMEOUT_S` | 180 秒；还要受节点和本题剩余预算限制 | `services/model.py` 限制 HTTP 调用时间 |
+| **模型 API key 的实际值** | 上一行指定的环境变量，例如 `LLM_API_KEY` | 未设置时为空；single_generate 与 baseline 一样不发送认证头 | `core/configuration.py` 放入 `ModelConfig`；普通请求在非空时加入 `Authorization: Bearer ...` |
+| 模型服务调用超时 | YAML `timeout_s` / `LLM_TIMEOUT_S` | 省略或 null 时 single_generate 为 300 秒，其余为 180 秒；显式值及剩余预算仍限制调用 | `services/model.py` 限制 HTTP 调用时间 |
 | **投题令牌的预期值** | 环境变量 `FPGACHINA_TOKEN`，部署者按主办方提供的令牌设置 | HTTP 服务必须配置；与模型 API key 是两项独立凭据 | `serve/serve_api.py` 启动加载模块时读取，用于验证入站投题请求 |
 
 **准确地说，当前 YAML 不支持直接填写 API key 值。** 它保存的是 `api_key_env`，实际值来自环境变量；核心配置读取器也不会自动加载 `.env` 或 `remote.env`。如果外层脚本读取这些文件，需要由该脚本把值导出到环境后再启动 Agent。
@@ -155,11 +155,11 @@ YAML 中相对路径按配置文件所在目录解析；环境变量中的相对
 
 | 信息 | 来源与具体内容 | 负责模块与传递方式 |
 |---|---|---|
-| 单次生成要求 | `agent/prompts/single_generate.md`：要求生成指定顶层模块、可综合代码和输出格式 | `prompts/builder.py` 替换顶层模块名，作为 system 消息 |
+| 单次生成要求 | 官方 `baseline.py` 的 `SYS['rtl']`，固定 TopModule | `nodes/baseline.py` 复用提示，按原始题面和接口拼接 user 消息；原 direct 提示仍供自定义节点使用 |
 | 修复流程的总体要求 | `agent/prompts/system.md`：接口、复位、赋值方式、可综合性和输出格式等 | `prompts/builder.py` 在修复流程中作为 system 消息 |
 | 修复说明模板 | `agent/prompts/repair.md`：上一版代码、错误反馈和修改要求 | `prompts/builder.py` 填入当前反馈及待修复代码，附在 user 消息中 |
 | 技能资料 | `skill/*/SKILL.md`：技能正文、名称、日志匹配特征等 | `prompts/skills.py` 加载；有反馈且启用技能时，按题面和反馈中的特征字符串匹配，默认最多选 2 条；`builder.py` 加入额外 system 消息 |
-| 温度和输出长度上限 | Python Workflow 构造参数。单次生成默认温度 `0.0`、上限 `8192`；修复流程为 `0.2`、`4096` | `workflows/*.py` 传给 `nodes/generate.py`，再作为模型请求参数交给 `services/model.py` |
+| 温度和输出长度上限 | single_generate 固定使用 baseline 的温度 `0.0`、top_p `1.0`、上限 `8192`；修复流程默认为 `0.2`、`4096` | single_generate 不接受采样覆盖；其他 Workflow 通过 Python 构造参数控制 |
 | 轮数、重试数和调用总数 | `workflows/repair_loop.py` 的构造参数，默认 3 轮、每个请求最多重试 1 次、总调用最多 4 次 | `RepairLoop.decide()` 根据已用次数、错误类型和剩余时间决定继续或停止 |
 | 候选选择规则 | 由各 Workflow 自己定义：`single_generate` 直接选择，`repair_loop` 用 `RepairLoop.choose()` | 比较候选和检查证据，输出选择决定；`core/context.py` 执行保存或清空 |
 
@@ -225,16 +225,14 @@ CLI、HTTP 子进程和实验样本共用配置解析接口；RunSpec 将模型�
 
 ```mermaid
 flowchart TD
-    A["core/task.py<br/>题面 + 可选接口 + 顶层模块名"] --> B["prompts/builder.py<br/>组装模型输入"]
-    B --> C["nodes/generate.py → services/model.py<br/>调用模型一次"]
+    A["core/task.py<br/>原始题面 + 可选接口"] --> B["nodes/baseline.py<br/>复用 baseline 提示和常量"]
+    B --> C["services/model.py<br/>选择模型并生成一次"]
     C --> D["ModelReply<br/>正文 + 结束原因 + 用量与耗时"]
-    D --> E["nodes/extract.py → nodes/extraction.py<br/>提取代码并给出诊断"]
-    E --> F{"是否提取出候选代码？"}
-    F -- 是 --> G["core/context.py + core/candidate.py<br/>建立候选并记录来源"]
+    D --> E["nodes/baseline.py → baseline.extract<br/>按官方规则提取，附加回复诊断"]
+    E --> G["core/context.py + core/candidate.py<br/>建立候选并记录来源"]
     G --> H["workflows/single_generate.py<br/>显式选为答案"]
     H --> I["recording/artifacts.py<br/>保存 solution.v 和恢复检查点"]
-    F -- 否 --> J["Workflow 调用 ctx.finish<br/>停止并记录原因"]
-    C -- 调用失败 --> J
+    C -- 调用失败 --> J["Workflow 调用 ctx.finish<br/>停止并记录原因"]
 ```
 
 这里有三种东西需要分清：
@@ -245,21 +243,23 @@ flowchart TD
 | 候选代码 | 从回复中提取出的代码，附带编号、来源调用、轮次、哈希等 | 便于检查、比较和追溯 |
 | 最终答案 | Workflow 明确选中的候选 | 决定 `solution.v` 保存哪一份 |
 
-例如，模型回复里有两段不同的完整代码，提取器会优先寻找包含目标模块的代码块，并记录“出现多份草稿”。**提取出代码，只说明它具备可识别的模块结构，并不证明语法或功能正确。**
+默认流程直接调用官方 `baseline.extract()`，选择第一个匹配代码块，再提取 `TopModule`；找不到时回退保留文本。残缺代码、纯说明和空内容都不被额外过滤，空内容写出一个换行；模型调用失败才写空文件。结构化提取器仅对原始回复提供诊断，不能改写或拒绝 baseline 的提取结果。`repair_loop` 继续按目标模块和代码长度选择完整候选。
 
 默认流程在候选产生后直接选择它，**不执行接口检查、Vivado 检查或修复重试**。因此，默认流程也不会仅因提取器报告“目标模块缺失”就自动纠正代码。
 
 另外，仓库默认配置使用的是 `mock` 假模型，主要生成输出恒为零的模块来检查流程；真实求解需要切换到实际模型服务。
 
-对应实现：[single_generate.py](../../agent/workflows/single_generate.py)、[extraction.py](../../agent/nodes/extraction.py)、[example.yaml](../../config/example.yaml)。
+对应实现：[single_generate.py](../../agent/workflows/single_generate.py)、[baseline 节点](../../agent/nodes/baseline.py)、[example.yaml](../../config/example.yaml)。
+
+在相同 RTL 输入、模型服务和充足预算下，single_generate 与 baseline 的生成请求 JSON 和最终文件逐字节对齐。模型发现查询单独记录，不算生成调用；不复制 baseline 的冗余查询。Agent 的预算、中断和错误分类仍生效，`completed` 只表示流程完成。HTTP 请求记录的 `request` 字段保存实际出站 JSON，外层保存实际超时、用途和请求类型；日志查看器兼容这一格式。
 
 默认流程由 `agent/workflows/single_generate.py` 调度，各步通过 `agent/core/context.py` 的 `execute()` 执行，以便统一记录节点输入输出摘要、执行状态和耗时。具体交接如下：
 
 | 步骤 | 输入来自哪里、包含什么 | 负责模块 | 输出交给谁 |
 |---|---|---|---|
 | 准备本题 | `TaskSpec`、有效配置、输出目录、起始时间 | `core/configuration.py` 装配 `RunSpec`；`core/supervision.py` 启动 Worker；`core/runner.py` 建立上下文和服务 | Workflow 得到 `RunContext`，可读取本题和调用公共服务 |
-| 生成 | Workflow 传入 `GenerateInput`：本题、反馈、父候选、轮次；首次反馈和父候选为空 | `nodes/generate.py` 调用 `prompts/builder.py`；再调用 `services/model.py` | 返回 `ModelReply` 给 Workflow |
-| 提取 | `ModelReply.content`、预期顶层模块名，以及轮次和来源信息 | `nodes/extract.py` 调用 `nodes/extraction.py` | 返回提取状态、诊断、可选候选对象 |
+| 生成 | Workflow 传入 `GenerateInput`：本题与轮次 | `nodes/baseline.py` 复用官方提示，再调用 `services/model.py` | 返回 `ModelReply` 给 Workflow |
+| 提取 | `ModelReply.content`，以及轮次和来源信息 | `nodes/baseline.py` 调用官方提取函数，并用结构化提取器诊断原始回复 | 返回官方提取结果对应的候选与诊断 |
 | 建立候选 | 提取出的代码、来源模型调用编号、轮次、父候选编号 | `core/context.py` 调用 `core/candidate.py` 分配编号、计算代码哈希；记录模块保存证据 | 候选注册进本题状态，供 Workflow 检查和选择 |
 | 选择并保存 | Workflow 指定的候选编号及选择原因 | `core/context.py` 调用 `recording/artifacts.py` 和 `recording/recorder.py` | 更新答案、恢复检查点和选择记录 |
 | 结束 | 选中的候选或空值、停止原因、运行状态 | Workflow 调用 `core/context.py` 的 `finish()`；`core/runner.py` 核对并记录 | 内部返回 `WorkflowResult`；HTTP 入口最终读取文件返回结果 |
@@ -270,7 +270,7 @@ flowchart TD
 
 | 调用阶段 | 模型看到的内容 | 内容来源与负责模块 |
 |---|---|---|
-| 默认单次生成 | 写代码的总体要求、目标模块名、题面、可选接口 | `prompts/builder.py` 将 `single_generate.md` 与 `TaskSpec` 组装为 system 和 user 消息 |
+| 默认单次生成 | 固定 TopModule 要求、保留首尾空白的题面、可选接口 | `nodes/baseline.py` 使用官方 `SYS['rtl']` 与原始文本 |
 | 修复流程的首次生成 | 更详细的 RTL 编写要求、题面、可选接口 | `prompts/builder.py` 使用 `system.md` 与 `TaskSpec`，此时没有反馈，不注入技能 |
 | 后续修复 | 上述内容，加上待修复代码、检查反馈摘要，以及匹配到的技能内容 | `workflows/repair_loop.py` 提供父候选和反馈；`prompts/builder.py` 填充 `repair.md`，调用 `prompts/skills.py` 选择技能 |
 
@@ -368,10 +368,10 @@ flowchart TD
 
 | Workflow | 默认 Python 参数 | 行为 |
 | --- | --- | --- |
-| single_generate | max_tokens=8192、temperature=0.0、timeout_s=300 | 一次直接生成、提取、显式选择；不注入技能、运行工具或自动重试 |
+| single_generate | 无构造参数；固定复用 baseline 的 max_tokens=8192、temperature=0.0、top_p=1.0、timeout_s=300 | 一次生成和官方提取、显式选择；不注入技能、运行工具或自动重试 |
 | repair_loop | max_rounds=3、max_tokens=4096、temperature=0.2、timeout_s=180、use_skills=true、max_request_retries=1 | 按接口 → lint → synth 检查，反馈修复、候选保护与有限请求重试 |
 
-单次 Node 上限还受服务默认 180 秒和剩余整题预算约束，不是总能使用 300 秒。
+单次 Node 上限还受服务上限和剩余整题预算约束，不是总能使用 300 秒。直接注入 `ModelConfig()` 时其上限仍为 180 秒；标准配置入口根据 Workflow 决定默认值。
 repair_loop 的 max_model_calls 默认 max_rounds+max_request_retries。要换选择或失败策略，继承 `RepairLoop` 覆盖 `choose()` 或 `decide()`，注册为新的 Workflow 名称。
 它遇到综合通过停止，但综合通过不证明行为正确；完整文件修复尚无程序化 patch 应用。
 
@@ -580,20 +580,20 @@ HTTP 时限只能缩小配置预算。请求结束清理临时目录，需保留
 ### 8.4 原始 baseline 与 Agent 配置边界
 
 HTTP `mode=baseline` 调用未改动的 `run_baseline.sh` 和 `baseline.py`，只增加外部进程组监督。
-它不读取 Agent YAML，不执行 Agent Workflow 或技能；需要通过环境变量设置 `LLM_BASE_URL` 与 `LLM_MODEL`。
+它不读取 Agent YAML，不执行 Agent Workflow 或技能；通过环境变量设置 `LLM_BASE_URL` 与可选的 `MODEL_NAME`，后者未设时查询 `/models`。
 原始 baseline 不携带模型 Authorization 头，服务认证条件需与该入口兼容。
 开发实验运行器会把解析后的模型地址和名称传给 baseline，详见第 12 章。
 
-Agent 与 baseline 必须使用同一模型服务；框架默认 Agent 服务调用上限为 180 秒，原始 baseline 为 300 秒。
+Agent 与 baseline 必须使用同一模型服务；标准入口的 single_generate 默认请求上限与 baseline 均为 300 秒，repair_loop 保持 180 秒。
 `dev/configs/remote-smoke.yaml` 将 Agent 服务上限显式设为 300 秒；这仍受整题预算和生成 Node 上限影响。
 
 ## 9. 数据契约
 
 | 对象 | 主要内容 | 约束 |
 | --- | --- | --- |
-| TaskSpec | id、prompt、interface、top、expected_interface | 只读题面和接口；显式 top 优先，否则接口推断，再退回 TopModule |
+| TaskSpec | id、prompt、interface、top、expected_interface、raw_prompt、raw_interface | 原始字段保留目录输入的首尾空白供 baseline 节点使用；原字段和 top 推断供其他流程使用 |
 | ComponentSpec | name、module、implementation、parameters | 不可变元数据；不可描述参数为 unknown，不调用任意对象的 repr |
-| ModelRequest | messages、max_tokens、temperature、timeout_s、purpose | 请求容器从调用者分离；数值合法性检查 |
+| ModelRequest | messages、max_tokens、temperature、timeout_s、purpose、model、top_p、stream、profile | 容器从调用者分离；top_p 为 None 时不发送，stream 为 None 时不发送；baseline_rtl 请求不发送认证头 |
 | ModelReply | call_id、content、model、request_id、finish_reason、usage、elapsed_s、response_artifact | 标准正文与原始 HTTP 响应分开；用量可以未知 |
 | ModelCallError | kind、retryable、status_code、call_id、elapsed_s、evidence | 传输、HTTP、JSON、协议或后端错误，不等同于 RTL 错误 |
 | Candidate | id、code、code_hash、source_call_id、parent_id、source_stage、round、extraction_status | 不可变代码与来源；检查记录独立保存 |
@@ -693,6 +693,8 @@ LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/custom-out \
 | 注册名 | 输入 → 输出 | Python 构造参数 |
 | --- | --- | --- |
 | rtl_generate | GenerateInput → ModelReply | max_tokens=8192、temperature=0.0、timeout_s=300、prompt_style=direct、use_skills=false、minimum_s=0 |
+| baseline_generate | GenerateInput → ModelReply | 无构造参数；复用官方 RTL 提示和采样常量，按 baseline 规则选择模型 |
+| baseline_extract | ExtractInput → ExtractionOutput | 无构造参数；官方提取文本直接形成候选，诊断不阻止选择 |
 | rtl_extract | ExtractInput → ExtractionOutput | 无 |
 | interface_check | CheckInput → CheckResult | 无 |
 | vivado_lint | CheckInput → CheckResult | timeout_s=300、minimum_s=0 |

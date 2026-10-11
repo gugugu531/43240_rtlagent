@@ -105,13 +105,16 @@ class RunRecorder:
     def record_metadata(self, **metadata):
         self.write_event('run', 'metadata', **metadata)
 
-    def begin_call(self, request, service_info):
+    def begin_call(self, request, service_info, *, http_payload=None):
         self._call_seq += 1
         call = CallHandle(f'm{self._call_seq:03d}', self.run_id)
         self._calls[call.call_id] = dict(execution_id=self._execution.get())
         self.write_event('llm', 'started', call_id=call.call_id, purpose=request.purpose,
                          service=service_info)
-        self._artifact(f'calls/{call.call_id}/request.json', request.public_dict())
+        record = request.public_dict() if http_payload is None else dict(
+            request=http_payload, timeout_s=request.timeout_s,
+            purpose=request.purpose, profile=request.profile)
+        self._artifact(f'calls/{call.call_id}/request.json', record)
         return call
 
     def record_response(self, call, response, body=None):

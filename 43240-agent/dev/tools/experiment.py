@@ -235,7 +235,7 @@ def summarize_experiment(samples, *, planned=0, status='completed'):
         comparable = valid('agent') == valid('baseline') and bool(valid('agent'))
         result['comparison'] = {'paired_coverage':comparable,
              'gain':a['set_score']/b['set_score'] if comparable and b['set_score'] else None,
-             'baseline_timeout_s':300, 'note':'策略近似 baseline；请求上限、提示与实际采样条件见逐样本记录'}
+             'baseline_timeout_s':300, 'note':'single_generate 对齐 baseline RTL 请求与提取；预算与实际条件见逐样本记录'}
     return result
 
 
@@ -275,14 +275,16 @@ class ExperimentRunner:
         env = dict(os.environ)
         # Effective config is frozen; ambient supported overrides cannot reapply in children.
         from agent.core.configuration import ENV_FIELDS
-        for key in (*ENV_FIELDS, 'AGENT_CONFIG','AGENT_TMP','EDA_TMP','TRACK_TMP'): env.pop(key, None)
+        for key in (*ENV_FIELDS, 'MODEL_NAME', 'AGENT_CONFIG','AGENT_TMP','EDA_TMP','TRACK_TMP'): env.pop(key, None)
         env['AGENT_TASK_ID'] = name
+        # Freeze the experiment's model for both modes; baseline ignores LLM_MODEL.
+        env['MODEL_NAME'] = agent.services.model.model
         if task_hashes(Path(sample.task['directory'])) != sample.task['inputs']:
             raise ConfigError('task inputs changed after selection')
         command = (str(ROOT/'run.sh'), sample.task['directory'], str(output), '--config', str(run_dir/'resolved.yaml'), '--config-parent', str(run_dir/'config.json'))
         if sample.mode == 'baseline':
             model = agent.services.model
-            env.update(LLM_BASE_URL=model.base_url, LLM_MODEL=model.model)
+            env.update(LLM_BASE_URL=model.base_url)
             command = (str(ROOT/'run_baseline.sh'), sample.task['directory'], str(output))
         process = self._process(ProcessRequest(command, str(ROOT), agent.runtime.deadline_s, env,
                                                 terminate_grace_s=min(.5, agent.runtime.deadline_s*.1)), output)

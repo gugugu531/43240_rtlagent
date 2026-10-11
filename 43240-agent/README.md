@@ -5,7 +5,7 @@
 最后输出 `solution.v`。
 
 > **当前状态：** 已建立 Registry、Python Workflow、Node、逐题运行上下文和运行器。
-> 默认 Workflow 为 `single_generate`，采用近似 baseline 的单次生成策略，不加载技能或执行工具。
+> 默认 Workflow 为 `single_generate`，复用 baseline 的 RTL 提示、采样常量和提取函数，不加载技能或执行工具。
 > `repair_loop` 提供可选的多轮检查与修复，按证据选择答案、区分失败原因并限制重试。
 > 正式入口使用独立 Worker 和 Supervisor 管理时间、信号与工具进程，支持中断恢复。
 > 已提供 YAML 配置与统一实验入口，支持指定单题、重复采样、独立并发和可选判定指标。
@@ -32,6 +32,7 @@
 | `agent/core/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
 | `agent/workflows/` | 默认单次生成、可选修复循环及用户实验 Workflow |
 | `agent/nodes/` | 生成、提取、接口、lint 与综合动作 |
+| `agent/nodes/baseline.py` | `single_generate` 专用节点，导入未修改的 baseline 规则，保留原始题面和提取结果 |
 | `agent/prompts/builder.py` | 组装直接生成或修复提示，以及可选技能注入 |
 | `agent/core/` | 模型、任务、组件、检查与结果契约，以及注册表、预算和运行元数据 |
 | `agent/services/` | 模型、工具、检查缓存和进程服务；模型不自动重试，工具按需初始化 |
@@ -138,9 +139,26 @@ trace、详细证据和工具日志使用脱敏副本，模型实际收到的请
 题面与可选接口 → 一次直接生成 → 提取候选 → 显式选择并保存答案
 ```
 
-默认温度为 `0.0`，输出上限为 `8192`，Node 超时上限为 `300` 秒；服务超时默认 `180` 秒，
-实际调用受本题预算约束。生成提示不注入技能，不执行接口、lint 或综合检查，不进行重试。
-官方 baseline 仍由原版 `baseline.py` 执行；Agent 的模型名、提取器和记录方式有自己的契约。
+提示、温度 `0.0`、`top_p=1.0`、输出上限 `8192` 和请求上限 `300` 秒直接取自未修改的
+`baseline.py`。该 Workflow 不接受采样参数覆盖；不同策略应另注册 Workflow。题面和可选接口
+保留读取时的首尾空白，系统提示固定要求 `TopModule`，不采用 `RTL_TOP` 或接口推断的模块名。
+HTTP 请求只发送 baseline 的字段，不附加 `stream` 或认证头。请求模型名依次取 `MODEL_NAME`、
+`/models` 第一项和 `default`；`LLM_MODEL` 仍用于 mock、修复流程及实验配置。统一实验入口将
+配置中的模型名通过 `MODEL_NAME` 显式传给两个模式，覆盖遗留环境变量。
+
+提取直接调用 `baseline.extract()`：保留第一个匹配代码块，再提取 `TopModule`，找不到时
+保留文本。残缺代码和纯说明也作为候选保存；正常响应的空内容写出一个换行，请求失败写空文件。
+现有结构化提取器只提供回复诊断，不筛选或改写这一路径的答案。`completed` 表示流程完成，
+不表示代码完整或正确。`repair_loop` 继续使用原来的提示、请求参数和结构化提取节点。
+
+通过标准入口运行时，`services.model.timeout_s` 省略或为 `null` 表示按 Workflow 取默认值：
+`single_generate` 为 300 秒，其余为 180 秒。显式服务上限和整题剩余预算仍可缩短调用，
+Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig()` 仍显式使用其 180 秒上限。
+模型发现最多等 30 秒，也受服务上限和剩余预算约束，耗时计入整题预算，不算一次生成调用。
+
+等价性指相同 RTL 输入与模型服务、预算充足且正常 API 响应下的生成请求 JSON 和最终文件字节。
+不要求复刻 baseline 的冗余模型查询、异常文本或进程中断行为；mock 只验证流程。HTTP 请求的
+`request.json` 在 `request` 字段保存实际出站 JSON 的脱敏副本，另记实际超时、用途与请求类型。
 
 可选 `repair_loop`：
 
@@ -283,8 +301,8 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 | `LLM_BACKEND` | `mock` | `mock` 或 `openai` |
 | `LLM_BASE_URL` | 无 | 模型服务地址，`openai` 后端必填 |
 | `LLM_API_KEY` | 空 | 本地推理服务可以随便填 |
-| `LLM_MODEL` | `mock-model` | 请求中使用的模型名 |
-| `LLM_TIMEOUT_S` | `180` | 单次模型调用超时（秒） |
+| `LLM_MODEL` | `mock-model` | mock、修复流程及统一实验配置的模型名；直接运行 single_generate 使用 MODEL_NAME 或发现服务模型 |
+| `LLM_TIMEOUT_S` | 按 Workflow | single_generate 默认 300 秒，其余 180 秒；显式值限制单次调用 |
 | `AGENT_CONFIG` | `config/example.yaml` | YAML 配置路径；相对路径按调用者当前目录解析 |
 | `VIVADO_BIN` | PATH | 显式 Vivado 可执行文件目录 |
 | `AGENT_WORKFLOW` | `single_generate` | 已注册 Workflow 名称 |
@@ -299,9 +317,9 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 | `RTL_PART` | `xczu3eg-sbva484-1-e` | 综合用的器件 |
 | `RTL_TOP` | `TopModule` | 顶层模块名；未设置时从 `interface.txt` 中推断，推断不出则用 `TopModule` |
 | `FPGACHINA_TOKEN` | 无 | 投题接口的令牌，`serve_api.py` 必须设置 |
-| `MODEL_NAME` | 取生效配置的模型名 | 健康检查接口返回的模型名 |
+| `MODEL_NAME` | 未设置 | baseline 与 single_generate 的请求模型名；未设时发现服务模型；也用于健康检查返回值 |
 
-温度、输出上限与轮数通过 Workflow 的 Python 构造参数设置；旧的 `LLM_MAX_TOKENS`、
+single_generate 的采样常量固定；其他 Workflow 的温度、输出上限与轮数通过 Python 构造参数设置。旧的 `LLM_MAX_TOKENS`、
 `LLM_TEMPERATURE` 和 `AGENT_MAX_ROUNDS` 不再读取。正式提交时同步采样与模型声明。
 
 ---
@@ -322,6 +340,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
+| 2026-10-11 | single_generate 对齐官方 RTL baseline | 复用提示、采样与提取规则；对齐模型选择和原始输入，保留日志、预算与监督；不改变 repair_loop |
 | 2026-10-08 | 精简运行记录 | 去掉 txt/json 双份和与 trace 重复的文件；取消 trace 版本号，改记 Git 短 commit；删除 `save_candidates` |
 | 2026-10-08 | 选择与失败策略下放到 Workflow | 删除 `agent/policies/`；检查结果分类改为 `CheckResult.classify()`；修复流程的决策结果不变 |
 | 2026-10-08 | Quickstart、User Manual 与注释配置 | 文档按上手与完整使用拆分；默认配置改名为 `config/example.yaml`，默认运行值保持不变 |

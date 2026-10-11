@@ -32,17 +32,29 @@ class HttpBackend:
     def describe(self):
         return dict(backend='openai', model=self.config.model, base_url=self.config.base_url)
 
+    def baseline_model(self, timeout_s):
+        if self.config.baseline_model_name:
+            return self.config.baseline_model_name, 'MODEL_NAME'
+        import requests
+        try:
+            response = requests.get(self.config.base_url + '/models', timeout=timeout_s)
+            response.raise_for_status()
+            data = response.json().get('data', [])
+            model = data[0]['id'] if data else None
+            return (model, 'models') if model else ('default', 'fallback')
+        except (requests.RequestException, ValueError, TypeError, KeyError, IndexError, AttributeError):
+            return 'default', 'fallback'
+
     def complete(self, request: ModelRequest):
         import requests
         headers = {'Content-Type': 'application/json'}
-        if self.config.api_key:
+        if self.config.api_key and request.profile != 'baseline_rtl':
             headers['Authorization'] = f'Bearer {self.config.api_key}'
         start = time.monotonic()
         try:
             response = requests.post(
                 self.config.base_url + '/chat/completions', headers=headers,
-                json=dict(model=self.config.model, messages=request.public_dict()['messages'],
-                          max_tokens=request.max_tokens, temperature=request.temperature, stream=False),
+                json=request.payload(self.config.model),
                 timeout=request.timeout_s)
         except requests.Timeout as exc:
             raise ModelCallError('model request timed out', kind='timeout', retryable=True,
@@ -101,10 +113,31 @@ class ModelService:
         if config is not None:
             recorder.redactor.add_secrets([config.api_key])
 
+    def baseline_model(self, *, timeout_s: float) -> str:
+        """Discovery is recorded separately and does not consume a generation ID."""
+        resolver = getattr(self.backend, 'baseline_model', None)
+        if resolver is None:
+            model, source = self.backend.describe().get('model') or 'default', 'non_http'
+        else:
+            limit = min(timeout_s, self.timeout_limit_s) if self.timeout_limit_s else timeout_s
+            self.recorder.write_event('model_selection', 'started', timeout_s=limit)
+            start = time.monotonic()
+            model, source = resolver(limit)
+            self.recorder.write_event('model_selection', 'finished', model=model, source=source,
+                                      elapsed_s=time.monotonic() - start)
+        return model
+
     def chat(self, request: ModelRequest) -> ModelReply:
         if self.timeout_limit_s is not None:
             request = replace(request, timeout_s=min(request.timeout_s, self.timeout_limit_s))
-        call = self.recorder.begin_call(request, self.backend.describe())
+        if isinstance(self.backend, HttpBackend) and request.model is None:
+            request = replace(request, model=self.backend.config.model)
+        payload = (request.payload(self.backend.config.model)
+                   if isinstance(self.backend, HttpBackend) and request.profile == 'baseline_rtl' else None)
+        service_info = dict(self.backend.describe())
+        if request.model is not None:
+            service_info['model'] = request.model
+        call = self.recorder.begin_call(request, service_info, http_payload=payload)
         artifact = None
         response = None
         try:

@@ -10,7 +10,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class Candidate:
-    """One complete piece of extracted RTL and its immutable origin metadata."""
+    """Extracted output and its origin; completeness is diagnostic, not guaranteed."""
 
     id: str
     code: str
