@@ -10,6 +10,8 @@
 
 ## 当前专题参考
 
+当前模型实验依据见下方 AutoDL Qwen3 实测汇总。10 月 10 日的开发提案与资源分配检查已列入归档笔记；其当时的待办、资源条件和未测试状态不代表当前进展。
+
 | 文档 | 内容 |
 | --- | --- |
 | [记录格式](design/trace-schema.md) | trace 与完整模型证据 |
@@ -29,6 +31,8 @@
 
 | 记录 | 归档性质 |
 | --- | --- |
+| [2026-10-10-rtl-agent-proposal](notes/2026-10-10-rtl-agent-proposal.md) | 历史提案：部分前置工作已完成，候选路线尚未选定或实施 |
+| [2026-10-10-cloud-allocation-check](notes/2026-10-10-cloud-allocation-check.md) | 历史环境检查：该次分配失败，后续 AutoDL 测试另有记录 |
 | [0001-inference-backend](notes/0001-inference-backend.md) | 历史选型决策：尚未定稿，不作为当前服务配置 |
 | [0002-model-choice](notes/0002-model-choice.md) | 历史选型决策：尚未定稿，不作为当前服务配置 |
 | [2026-09-23-plan-review](notes/2026-09-23-plan-review.md) | 归档笔记：结论、路径与命令反映当时实验或设计 |
@@ -59,8 +63,10 @@
 ## 实验记录（全部保留）
 
 笔记保存于 experiments/，原始数据仍在 dev/runs/；生成块不手改，人工假设与结论在块外。
-旧格式与新格式以各次记录为准。用户已有的一份未提交笔记仍在原路径，未修改、未移动：
-`dev/experiments/20261004-212040-joint-cur-qwen3-8b-quick.md`（仅本地存在，不在 Git 中）。
+旧格式与新格式以各次记录为准。10 月 4 日旧格式记录保留在原路径 `dev/experiments/`，已补充历史口径说明并纳入版本管理；历史测量值与原始日志保持不变。
+
+- [20261007-221221-cloud-single-review-691f4b83](experiments/20261007-221221-cloud-single-review-691f4b83.md)：AMD 环境单题验证，不能外推完整题集或证明请求等价。
+- [20261004-212040-joint-cur-qwen3-8b-quick](../experiments/20261004-212040-joint-cur-qwen3-8b-quick.md)：旧实现联合实验；保留原表，得分与因果解释见文件顶部说明。
 
 - [20261011-162201-qwen3-4b-thinking-2507-think-full34-168e9695](experiments/20261011-162201-qwen3-4b-thinking-2507-think-full34-168e9695.md)
 - [20261011-161532-qwen3-coder-30b-a3b-instruct-awq-nothink-full34-98a8eb93](experiments/20261011-161532-qwen3-coder-30b-a3b-instruct-awq-nothink-full34-98a8eb93.md)
