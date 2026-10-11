@@ -127,7 +127,7 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(Path(temp, 'solution.v').read_text(), CODE)
             self.assertFalse(any(e['tool'] in ('lint', 'synth', 'check_interface') for e in events(temp)))
             started = [e for e in events(temp) if e['tool']=='node' and e['event']=='started']
-            self.assertEqual([e['component']['name'] for e in started], ['rtl_generate', 'rtl_extract'])
+            self.assertEqual([e['component']['name'] for e in started], ['baseline_generate', 'baseline_extract'])
             actions = [e for e in events(temp) if e['tool']=='node' and e['event']=='succeeded']
             call = next(e for e in events(temp) if e['tool']=='llm' and e['event']=='succeeded')
             self.assertEqual(call['execution_id'], actions[0]['execution_id'])
@@ -138,9 +138,10 @@ class WorkflowTests(unittest.TestCase):
     def test_default_does_not_retry_incomplete_output(self):
         with tempfile.TemporaryDirectory() as temp:
             result, backend = self.run_fake(temp, outcomes=[reply('module TopModule;')])
-            self.assertEqual(result.stop_reason, 'extraction_incomplete')
+            self.assertEqual(result.stop_reason, 'completed')
             self.assertEqual(len(backend.requests), 1)
-            self.assertEqual(Path(temp, 'solution.v').read_text(), '')
+            self.assertEqual(Path(temp, 'solution.v').read_text(), 'module TopModule;\n')
+            self.assertEqual(result.selected_candidate.extraction_status, 'incomplete')
 
     def test_unknown_workflow_leaves_contract_files_and_error_evidence(self):
         with tempfile.TemporaryDirectory() as temp:

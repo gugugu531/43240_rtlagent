@@ -69,7 +69,7 @@ def load_extensions(module_names: Sequence[str]) -> None:
 
 
 def load_builtin_components() -> None:
-    load_extensions(('agent.nodes.generate', 'agent.nodes.extract', 'agent.nodes.check',
+    load_extensions(('agent.nodes.generate', 'agent.nodes.extract', 'agent.nodes.check', 'agent.nodes.baseline',
                      'agent.workflows.single_generate', 'agent.workflows.repair_loop'))
 
 

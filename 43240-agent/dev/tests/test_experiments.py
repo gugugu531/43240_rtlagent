@@ -129,13 +129,14 @@ class Custom(Component):
         from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
         class Handler(BaseHTTPRequestHandler):
             def do_POST(self):
-                self.rfile.read(int(self.headers.get('Content-Length',0)))
+                self.server.requests.append(json.loads(self.rfile.read(int(self.headers.get('Content-Length',0)))))
                 body=json.dumps({'id':'integration','model':'test-model','choices':[{'finish_reason':'stop',
                      'message':{'content':'module TopModule(input a, output q); assign q=a; endmodule'}}],
                      'usage':{'prompt_tokens':1,'completion_tokens':2}}).encode()
                 self.send_response(200);self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
             def log_message(self,*args):pass
         server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+        server.requests=[]
         thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
         try:
             with tempfile.TemporaryDirectory() as t:
@@ -143,8 +144,12 @@ class Custom(Component):
                 cfg=resolve_config(cfg.document,env={},overrides=RunOverrides({'services.model.backend':'openai',
                     'services.model.model':'test-model','services.model.base_url':f'http://127.0.0.1:{server.server_address[1]}/v1'}))
                 exp=parse_experiment(cfg,{'modes':('agent','baseline'),'samples':1});manifest=select_tasks(exp.selection)
-                result=ExperimentRunner(write_notes=False).run(build_sample_plan(manifest,exp),ResolvedExperiment(cfg,exp,manifest))
+                with patch.dict(os.environ, MODEL_NAME='stale-ambient-model'):
+                    result=ExperimentRunner(write_notes=False).run(build_sample_plan(manifest,exp),ResolvedExperiment(cfg,exp,manifest))
                 self.assertEqual({s.mode for s in result.samples},{'agent','baseline'})
+                self.assertEqual(len(server.requests),2)
+                self.assertEqual(server.requests[0],server.requests[1])
+                self.assertEqual(server.requests[0]['model'],'test-model')
                 for sample in result.samples:
                     self.assertEqual(sample.solve['status'],'ok')
                     self.assertIn('assign q=a',(sample.output_dir/'solution.v').read_text())

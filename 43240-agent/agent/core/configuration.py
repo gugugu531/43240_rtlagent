@@ -31,7 +31,7 @@ SCHEMA = {
 }
 DEFAULTS = {'schema_version': 1, 'imports': [], 'workflow': {'type': 'single_generate'},
             'services': {'model': {'backend': 'mock', 'model': 'mock-model', 'base_url': '',
-                                   'api_key_env': 'LLM_API_KEY', 'timeout_s': 180.0},
+                                   'api_key_env': 'LLM_API_KEY', 'timeout_s': None},
                          'tools': {'part': 'xczu3eg-sbva484-1-e', 'bin_dir': None,
                                    'temp_dir': '/tmp', 'keep_work': False}},
             'runtime': {'deadline_s': 360.0, 'reserve_s': 20.0,
@@ -214,6 +214,13 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
     if not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9_-]*', name):
         raise ConfigError('workflow.type must be a registered name')
     m = values['services']['model']; t = values['services']['tools']; r = values['runtime']
+    if m['timeout_s'] is None:
+        if name == 'single_generate':
+            from baseline import TIMEOUT_S
+            m['timeout_s'] = float(TIMEOUT_S)
+        else:
+            m['timeout_s'] = 180.0
+        sources['services.model.timeout_s'] = 'workflow_default:' + name
     for key in ('backend', 'model', 'base_url', 'api_key_env'):
         if not isinstance(m[key], str): raise ConfigError(f'services.model.{key} must be a string')
     if not re.fullmatch(r'[A-Za-z_]\w*', m['api_key_env']): raise ConfigError('api_key_env must name an environment variable')
@@ -228,7 +235,8 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
     from urllib.parse import urlsplit
     if urlsplit(m['base_url']).query or urlsplit(m['base_url']).fragment:
         raise ConfigError('services.model.base_url must not contain query parameters or fragments')
-    model = ModelConfig(m['backend'], m['model'], m['base_url'], env.get(m['api_key_env'], ''), m['timeout_s'])
+    model = ModelConfig(m['backend'], m['model'], m['base_url'], env.get(m['api_key_env'], ''),
+                        m['timeout_s'], baseline_model_name=env.get('MODEL_NAME', ''))
     tools = ToolConfig(**t)
     runtime = RuntimeConfig(r['deadline_s'], r['reserve_s'], level,
                             Path(r['recording']['root']) if r['recording']['root'] else None)

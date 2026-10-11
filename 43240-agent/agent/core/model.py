@@ -30,6 +30,10 @@ class ModelRequest:
     temperature: float = 0.2
     timeout_s: float = 180.0
     purpose: str = 'generate'
+    model: str | None = None
+    top_p: float | None = None
+    stream: bool | None = False
+    profile: str = 'default'
 
     def __post_init__(self):
         if isinstance(self.max_tokens, bool) or not isinstance(self.max_tokens, int) or self.max_tokens <= 0:
@@ -38,12 +42,33 @@ class ModelRequest:
             raise ModelCallError('temperature must be finite and nonnegative', kind='config')
         if not math.isfinite(self.timeout_s) or self.timeout_s <= 0:
             raise ModelCallError('timeout_s must be positive and finite', kind='config')
+        if self.top_p is not None and (isinstance(self.top_p, bool) or
+                not isinstance(self.top_p, (int, float)) or not math.isfinite(self.top_p) or
+                not 0 < self.top_p <= 1):
+            raise ModelCallError('top_p must be in (0, 1]', kind='config')
+        if self.model is not None and (not isinstance(self.model, str) or not self.model):
+            raise ModelCallError('model must be a nonempty string', kind='config')
+        if self.stream is not None and type(self.stream) is not bool:
+            raise ModelCallError('stream must be boolean or null', kind='config')
+        if self.profile not in ('default', 'baseline_rtl'):
+            raise ModelCallError('unknown request profile', kind='config')
         # Detach from caller-owned containers. No recorder may mutate this copy.
         object.__setattr__(self, 'messages', tuple(_freeze(dict(m)) for m in self.messages))
 
     def public_dict(self):
         return dict(messages=_thaw(self.messages), max_tokens=self.max_tokens,
-                    temperature=self.temperature, timeout_s=self.timeout_s, purpose=self.purpose)
+                    temperature=self.temperature, timeout_s=self.timeout_s, purpose=self.purpose,
+                    model=self.model, top_p=self.top_p, stream=self.stream, profile=self.profile)
+
+    def payload(self, default_model: str):
+        body = dict(model=self.model if self.model is not None else default_model,
+                    messages=_thaw(self.messages), max_tokens=self.max_tokens,
+                    temperature=self.temperature)
+        if self.top_p is not None:
+            body['top_p'] = self.top_p
+        if self.stream is not None:
+            body['stream'] = self.stream
+        return body
 
 
 @dataclass(frozen=True)

@@ -55,11 +55,13 @@ ls -R /tmp/agent-quickstart/records/
 export LLM_BACKEND=openai
 export LLM_BASE_URL=http://127.0.0.1:8000/v1
 export LLM_MODEL='替换为服务公布的模型名'
+export MODEL_NAME="$LLM_MODEL"
 ./run.sh ../tasks/ex03_lfsr8 /tmp/agent-real --config config/example.yaml
 ```
 
-服务需要认证时，在启动前设置 `LLM_API_KEY`。YAML 中 `api_key_env: LLM_API_KEY` 是环境变量名称，
-实际密钥不写入 YAML。框架不会自动读取 `.env`，也不会替你启动服务。
+`single_generate` 与 baseline 一样使用 `MODEL_NAME`；未设时查询 `/models`，失败后用 `default`，
+并且不发送认证头。`repair_loop` 使用 `LLM_MODEL`，需要认证时设置 `LLM_API_KEY`。YAML 中
+`api_key_env: LLM_API_KEY` 是环境变量名称，实际密钥不写入 YAML。框架不会自动读取 `.env` 或启动服务。
 模型服务部署参数见 [User Manual 的输入来源](user-manual.md#2-输入内容来源与配置)。
 
 ## 4. 按示例建立自己的配置
@@ -79,11 +81,11 @@ YAML 的相对路径以配置文件所在目录为基准；移动文件后重新
 
 | 需要做什么 | 修改位置 |
 | --- | --- |
-| 切换模型、地址、单次调用超时 | YAML `services.model` 或对应的 `LLM_*` 环境变量 |
+| 切换模型、地址、单次调用超时 | YAML `services.model` 或对应环境变量；单独运行 single_generate 的模型名用 `MODEL_NAME` |
 | 选择修复流程 | `workflow.type: repair_loop` 或命令行 `--workflow repair_loop` |
 | 调整整题预算 | `runtime.deadline_s`、`runtime.reserve_s` |
 | 保存详细请求、回复 | `runtime.recording.level: full`，默认开启 |
-| 改温度、输出 token 上限或修复轮数 | 在 Python Workflow 中定义，见 [扩展说明](user-manual.md#10-python-组件与扩展) |
+| 改温度、输出 token 上限或修复轮数 | single_generate 固定复用 baseline；其他策略在 Python Workflow 中定义，见 [扩展说明](user-manual.md#10-python-组件与扩展) |
 
 ## 5. 尝试检查和修复
 

@@ -24,6 +24,7 @@ class ModelConfig:
     base_url: str = ""
     api_key: str = field(default="", repr=False)
     timeout_s: float = 180.0
+    baseline_model_name: str = ''
 
     def __post_init__(self) -> None:
         backend = self.backend.strip().lower()
@@ -37,6 +38,8 @@ class ModelConfig:
             raise ModelConfigError(f"unknown LLM_BACKEND: {backend!r}")
         if not model:
             raise ModelConfigError("LLM_MODEL must not be empty")
+        if not isinstance(self.baseline_model_name, str):
+            raise ModelConfigError('MODEL_NAME must be a string')
         object.__setattr__(
             self, "timeout_s",
             _positive_float("timeout_s", self.timeout_s, self.timeout_s),
@@ -68,6 +71,7 @@ class ModelConfig:
             base_url=base_url,
             api_key=api_key,
             timeout_s=timeout_s,
+            baseline_model_name=values.get('MODEL_NAME', ''),
         )
 
     def public_dict(self) -> dict[str, Any]:
@@ -76,6 +80,7 @@ class ModelConfig:
             "model": self.model,
             "base_url": self.base_url or None,
             "timeout_s": self.timeout_s,
+            "baseline_model_name": self.baseline_model_name or None,
         }
 
 

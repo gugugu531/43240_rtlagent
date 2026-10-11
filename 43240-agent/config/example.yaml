@@ -41,12 +41,15 @@ services:
     # 接入已经启动的真实模型服务，可设置：
     #   LLM_BACKEND=openai
     #   LLM_BASE_URL=http://127.0.0.1:8000/v1
-    #   LLM_MODEL=<服务实际公布的模型名>
+    #   MODEL_NAME=<服务实际公布的模型名>  # single_generate，与 baseline 一致
+    #   LLM_MODEL=<服务实际公布的模型名>   # repair_loop 和统一实验的模型配置
     # 正式提交使用预先准备的本地服务；此配置不会启动服务或下载权重。
     # 覆盖：LLM_BACKEND。
     backend: mock
 
-    # 真实调用时必须与服务公布的模型名一致，不一定等于权重目录完整路径。
+    # repair_loop 和统一实验使用此值，必须与服务公布的模型名一致。
+    # 单独运行 single_generate 使用 MODEL_NAME，否则查询 /models，最后回退 default。
+    # 统一实验将此值写入两个模式的 MODEL_NAME，确保请求同一个模型。
     # 覆盖：LLM_MODEL。
     model: mock-model
 
@@ -58,13 +61,14 @@ services:
     # 这里只填“保存密钥的环境变量名”，不填 API key 实际值。
     # 启动前由 shell / 容器 / 部署脚本导出该变量；未提供时实际密钥为空。
     # 如改成 MY_MODEL_KEY，读取的就是 MY_MODEL_KEY，不再读取 LLM_API_KEY。
-    # 实际值非空时用于模型请求的 Authorization 头，不进入模型提示。
+    # 普通请求在非空时加入 Authorization 头；single_generate 与 baseline 一样不发送此头。
     # 投题接口的 FPGACHINA_TOKEN 是另一项凭据，不在此配置。
     api_key_env: LLM_API_KEY
 
-    # 单次模型服务调用上限，单位秒，必须为正数。覆盖：LLM_TIMEOUT_S。
+    # 单次模型服务调用上限：正数或 null。覆盖：LLM_TIMEOUT_S。
+    # null / 省略：single_generate 默认 300 秒，其余 Workflow 默认 180 秒。
     # 实际上限还取决于生成 Node 设置和扣除清理预留后的本题剩余时间。
-    timeout_s: 180
+    timeout_s: null
 
   tools:
     # Vivado 综合的目标器件。覆盖：RTL_PART。
