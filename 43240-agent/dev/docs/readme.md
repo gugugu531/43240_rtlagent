@@ -17,7 +17,7 @@
 | [远端管理](design/remote-tools.md) | 脚本使用，平台细节带历史实测范围 |
 | [历史分析工具](design/historical-analysis.md) | 保留的旧格式统计工具 |
 
-当前云端实验：[Qwen3 思考模式输出额度补测](notes/2026-10-11-qwen3-output-budget.md)。
+最近云端实验（已完成、实例已释放）：[AutoDL Qwen3 实测汇总](notes/2026-10-11-autodl-qwen3-results.md)；[Qwen3 思考模式输出额度补测](notes/2026-10-11-qwen3-output-budget.md)。
 
 已移除被新手册替代的旧指南和临时输入输出说明；此前文档维护记录见[2026-10-05 整理记录](notes/2026-10-05-documentation-progress.md)。
 
@@ -61,6 +61,43 @@
 笔记保存于 experiments/，原始数据仍在 dev/runs/；生成块不手改，人工假设与结论在块外。
 旧格式与新格式以各次记录为准。用户已有的一份未提交笔记仍在原路径，未修改、未移动：
 `dev/experiments/20261004-212040-joint-cur-qwen3-8b-quick.md`（仅本地存在，不在 Git 中）。
+
+- [20261011-162201-qwen3-4b-thinking-2507-think-full34-168e9695](experiments/20261011-162201-qwen3-4b-thinking-2507-think-full34-168e9695.md)
+- [20261011-161532-qwen3-coder-30b-a3b-instruct-awq-nothink-full34-98a8eb93](experiments/20261011-161532-qwen3-coder-30b-a3b-instruct-awq-nothink-full34-98a8eb93.md)
+- [20261011-161100-qwen3-4b-instruct-2507-nothink-full34-9ad508d8](experiments/20261011-161100-qwen3-4b-instruct-2507-nothink-full34-9ad508d8.md)
+- [20261011-160821-qwen3-8b-nothink-full34-ccef6ff7](experiments/20261011-160821-qwen3-8b-nothink-full34-ccef6ff7.md)
+- [20261011-160033-qwen3-30b-a3b-gptq-int4-nothink-full34-3bd85161](experiments/20261011-160033-qwen3-30b-a3b-gptq-int4-nothink-full34-3bd85161.md)
+- [20261011-155728-qwen3-8b-fp8-nothink-full34-ac839aaa](experiments/20261011-155728-qwen3-8b-fp8-nothink-full34-ac839aaa.md)
+- [20261011-155521-qwen3-1p7b-fp8-nothink-full34-9ebfce50](experiments/20261011-155521-qwen3-1p7b-fp8-nothink-full34-9ebfce50.md)
+- [20261011-155349-qwen3-0p6b-fp8-nothink-full34-a233f01c](experiments/20261011-155349-qwen3-0p6b-fp8-nothink-full34-a233f01c.md)
+- [20261011-155029-qwen3-32b-awq-nothink-full34-3b83cdee](experiments/20261011-155029-qwen3-32b-awq-nothink-full34-3b83cdee.md)
+- [20261011-154546-qwen3-4b-nothink-full34-07c53ac0](experiments/20261011-154546-qwen3-4b-nothink-full34-07c53ac0.md)
+- [20261011-154029-qwen3-14b-awq-nothink-full34-ad93ffc3](experiments/20261011-154029-qwen3-14b-awq-nothink-full34-ad93ffc3.md)
+- [20261011-150418-qwen3-8b-awq-think-full34-6e6f79af](experiments/20261011-150418-qwen3-8b-awq-think-full34-6e6f79af.md)
+- [20261011-142353-qwen3-4b-awq-think-full34-4f3ab9b5](experiments/20261011-142353-qwen3-4b-awq-think-full34-4f3ab9b5.md)
+- [20261011-141910-qwen3-8b-awq-nothink-full34-9be62c55](experiments/20261011-141910-qwen3-8b-awq-nothink-full34-9be62c55.md)
+- [20261011-141315-qwen3-4b-awq-nothink-full34-8422a6e7](experiments/20261011-141315-qwen3-4b-awq-nothink-full34-8422a6e7.md)
+- [20261011-141021-qwen3-1p7b-nothink-full34-b48a6ffb](experiments/20261011-141021-qwen3-1p7b-nothink-full34-b48a6ffb.md)
+- [20261011-140545-qwen3-0p6b-nothink-full34-d85dbf85](experiments/20261011-140545-qwen3-0p6b-nothink-full34-d85dbf85.md)
+- [20261011-140418-qwen3-0p6b-nothink-smoke-96a7f52a](experiments/20261011-140418-qwen3-0p6b-nothink-smoke-96a7f52a.md)
+
+- [20261011-165418-qwen3-4b-fp8-nothink-r165351-full34-7e39ace2](experiments/20261011-165418-qwen3-4b-fp8-nothink-r165351-full34-7e39ace2.md)
+
+- [20261011-165850-qwen3-4b-awq-think-32k-truncated-9909d824](experiments/20261011-165850-qwen3-4b-awq-think-32k-truncated-9909d824.md)
+
+- [20261011-182653-qwen3-8b-awq-think-32k-truncated-06fa26d5](experiments/20261011-182653-qwen3-8b-awq-think-32k-truncated-06fa26d5.md)
+
+- [20261011-190449-qwen3-4b-thinking-2507-think-32k-truncated-f917d002](experiments/20261011-190449-qwen3-4b-thinking-2507-think-32k-truncated-f917d002.md)
+
+- [20261011-192206-qwen3-14b-fp8-nothink-full34-b6d4a848](experiments/20261011-192206-qwen3-14b-fp8-nothink-full34-b6d4a848.md)
+
+- [20261011-192507-qwen3-32b-awq-nothink-r192435-full155-f0548440](experiments/20261011-192507-qwen3-32b-awq-nothink-r192435-full155-f0548440.md)
+
+- [20261011-193839-qwen3-8b-fp8-nothink-r193812-full155-706f2796](experiments/20261011-193839-qwen3-8b-fp8-nothink-r193812-full155-706f2796.md)
+
+- [20261011-195619-qwen3-30b-a3b-gptq-int4-nothink-r195537-full155-c55acbe3](experiments/20261011-195619-qwen3-30b-a3b-gptq-int4-nothink-r195537-full155-c55acbe3.md)
+
+- [20261011-201323-qwen3-coder-30b-a3b-instruct-awq-nothink-r201246-full155-60c897f6](experiments/20261011-201323-qwen3-coder-30b-a3b-instruct-awq-nothink-r201246-full155-60c897f6.md)
 
 - [20261005-201406-stage5-mock-9f5cfd91](experiments/20261005-201406-stage5-mock-9f5cfd91.md)
 - [20261005-193024-stage4-real-single-ff1050ad](experiments/20261005-193024-stage4-real-single-ff1050ad.md)
