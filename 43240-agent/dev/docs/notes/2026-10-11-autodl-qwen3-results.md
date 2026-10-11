@@ -183,7 +183,7 @@ Qwen 官方说明提醒思考模式的贪心解码可能重复；本轮保持 te
 
 长输出扩展的差分与回归共 134 项测试，2 项因本地测试解释器缺少 FastAPI 按原条件跳过，其余通过；Supervisor mock smoke、提交检查、无 dev 的默认与扩展运行包 smoke 均通过。首次扩展放在 dev 被运行边界拒绝的记录也保留。
 
-代码位于独立分支 codex/qwen3-autodl-evaluation；长输出扩展本地提交 de19c24。未推送。用户原有未提交文件按字节哈希核对保留。
+代码位于独立分支 codex/qwen3-autodl-evaluation；长输出扩展提交 de19c24；实验归档时尚未推送，后续交付状态以分支与 PR 为准。用户原有未提交文件按字节哈希核对保留。
 
 原始 Agent 记录位于 43240-agent/dev/runs/20261011-autodl-qwen3。聊天输出目录 outputs/autodl-qwen3 保存配置、服务/资源证据、分析结果、验证日志和最终备份。凭据、模型权重与原始运行日志不进入 Git。
 
