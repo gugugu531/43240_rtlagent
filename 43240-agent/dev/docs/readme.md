@@ -17,6 +17,8 @@
 | [远端管理](design/remote-tools.md) | 脚本使用，平台细节带历史实测范围 |
 | [历史分析工具](design/historical-analysis.md) | 保留的旧格式统计工具 |
 
+当前云端实验：[Qwen3 思考模式输出额度补测](notes/2026-10-11-qwen3-output-budget.md)。
+
 已移除被新手册替代的旧指南和临时输入输出说明；此前文档维护记录见[2026-10-05 整理记录](notes/2026-10-05-documentation-progress.md)。
 
 本次合并与测试整理见[清理清单及执行结果](notes/2026-10-09-cleanup-review.md)。
