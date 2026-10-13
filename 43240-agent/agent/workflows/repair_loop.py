@@ -94,6 +94,15 @@ class RepairLoop(Component):
             return FailureDecision('repair', 'code_feedback', source_id)
         return FailureDecision('stop', kind, source_id)
 
+    def build_extraction_feedback(self, ctx, reply, extraction) -> str:
+        """Hook for experimental workflows; keep legacy repair_loop text unchanged."""
+        return ('上一轮回复没有包含完整的 Verilog 模块。解析结果：' +
+                '; '.join(extraction.diagnostics) + '。请输出完整 module/endmodule。')
+
+    def build_check_feedback(self, ctx, checks) -> str:
+        """Hook for experimental workflows; default to the existing bounded summaries."""
+        return '\n\n'.join(check.summary for check in checks if check.status != 'passed')
+
     def run(self, ctx):
         repair_target = None
         feedback, reason = '', 'round_limit'
@@ -134,9 +143,9 @@ class RepairLoop(Component):
             result = ctx.execute(self.extract, ExtractInput(reply, round,
                 repair_target.id if repair_target else None, 'repair' if repair_target else 'generate'))
             if result.candidate is None:
-                feedback = ('上一轮回复没有包含完整的 Verilog 模块。解析结果：' +
-                            '; '.join(result.extraction.diagnostics) + '。请输出完整 module/endmodule。')
                 choice = decide('extraction', reply.call_id)
+                if choice.action == 'repair':
+                    feedback = self.build_extraction_feedback(ctx, reply, result.extraction)
             else:
                 latest = result.candidate
                 # A complete fallback can survive a blocked verification service.
@@ -161,8 +170,9 @@ class RepairLoop(Component):
                 except BudgetExhausted:
                     return ctx.finish(reason='deadline', status='stopped')
                 last = checks[-1]
-                feedback = '\n\n'.join(c.summary for c in checks if c.status != 'passed')
                 choice = decide(last.classify(), last.id)
+                if choice.action == 'repair':
+                    feedback = self.build_check_feedback(ctx, checks)
             if choice.action != 'repair':
                 reason = ('verification_unavailable' if choice.reason == 'environment' else choice.reason)
                 break

@@ -82,7 +82,7 @@ YAML 的相对路径以配置文件所在目录为基准；移动文件后重新
 | 需要做什么 | 修改位置 |
 | --- | --- |
 | 切换模型、地址、单次调用超时 | YAML `services.model` 或对应环境变量；单独运行 single_generate 的模型名用 `MODEL_NAME` |
-| 选择修复流程 | `workflow.type: repair_loop` 或命令行 `--workflow repair_loop` |
+| 选择修复流程 | 多轮用 `repair_loop`；方案 A 用 `evidence_repair`（结构化反馈、最多一次修复） |
 | 调整整题预算 | `runtime.deadline_s`、`runtime.reserve_s` |
 | 保存详细请求、回复 | `runtime.recording.level: full`，默认开启 |
 | 改温度、输出 token 上限或修复轮数 | single_generate 固定复用 baseline；其他策略在 Python Workflow 中定义，见 [扩展说明](user-manual.md#10-python-组件与扩展) |
@@ -93,7 +93,7 @@ YAML 的相对路径以配置文件所在目录为基准；移动文件后重新
 
 ```bash
 ./run.sh ../tasks/ex03_lfsr8 /tmp/agent-repair \
-  --config dev/configs/my-agent.yaml --workflow repair_loop
+  --config dev/configs/my-agent.yaml --workflow evidence_repair
 ```
 
 框架会依次做接口检查、lint（编译与展开设计）、综合，明确的代码错误可以反馈给模型修复。
@@ -144,7 +144,7 @@ uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
 | --- | --- |
 | 改了 YAML 没生效 | trace 中 `run/metadata` 事件的 `configuration.effective` 和 `sources`，尤其环境变量覆盖 |
 | 答案为空 | `trace.jsonl` 的模型错误、提取状态、预算和初始化错误 |
-| 没有工具日志 | 确认使用 `repair_loop`；默认单次生成不调用工具 |
+| 没有工具日志 | 确认使用 `repair_loop` 或 `evidence_repair`；默认单次生成不调用工具 |
 | 有答案却运行提前停止 | 候选可能已保存，后续验证因环境或预算停止；看停止原因 |
 | 找不到完整回复 | 查看记录等级、`run/recording` 事件的 `record_dir` 和 HTTP 外部记录目录 |
 

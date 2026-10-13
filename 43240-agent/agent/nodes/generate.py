@@ -26,9 +26,11 @@ class GenerateNode(Component):
     prompt_style: str = 'direct'
     use_skills: bool = False
     minimum_s: float = 0.0
+    top_p: float | None = None
 
     def __post_init__(self):
-        ModelRequest([], max_tokens=self.max_tokens, temperature=self.temperature, timeout_s=self.timeout_s)
+        ModelRequest([], max_tokens=self.max_tokens, temperature=self.temperature,
+                     timeout_s=self.timeout_s, top_p=self.top_p)
         if not math.isfinite(self.minimum_s) or self.minimum_s < 0:
             raise ValueError('minimum_s must be finite and nonnegative')
         if self.prompt_style not in ('direct', 'repair'):
@@ -41,5 +43,6 @@ class GenerateNode(Component):
         ctx.emit('prompt_resources', round=input.round, **resources)
         return ctx.llm.chat(ModelRequest(messages, max_tokens=self.max_tokens,
                                         temperature=self.temperature,
+                                        top_p=self.top_p,
                                         timeout_s=ctx.budget.timeout_s(self.timeout_s, self.minimum_s),
                                         purpose='repair' if input.parent else 'generate'))

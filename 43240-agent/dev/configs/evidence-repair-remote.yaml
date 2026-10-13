@@ -1,0 +1,26 @@
+schema_version: 1
+workflow:
+  type: evidence_repair
+services:
+  model:
+    backend: openai
+    model: Qwen3-8B
+    base_url: http://127.0.0.1:18000/v1
+    api_key_env: LLM_API_KEY
+    timeout_s: 180
+runtime:
+  deadline_s: 360
+  reserve_s: 20
+  recording:
+    level: full
+experiment:
+  tasks:
+    root: ../../../tasks
+    ids: [ex03_lfsr8]
+    exclude: exclude.txt
+  modes: [agent, baseline]
+  samples: 1
+  solve_jobs: 1
+  metric_jobs: 1
+  metrics: [runtime, model, judge]
+  tag: evidence-repair-smoke

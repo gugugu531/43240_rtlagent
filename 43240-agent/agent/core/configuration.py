@@ -215,7 +215,7 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
         raise ConfigError('workflow.type must be a registered name')
     m = values['services']['model']; t = values['services']['tools']; r = values['runtime']
     if m['timeout_s'] is None:
-        if name == 'single_generate':
+        if name in ('single_generate', 'evidence_repair'):
             from baseline import TIMEOUT_S
             m['timeout_s'] = float(TIMEOUT_S)
         else:

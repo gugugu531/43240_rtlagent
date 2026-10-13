@@ -7,6 +7,8 @@
 > **当前状态：** 已建立 Registry、Python Workflow、Node、逐题运行上下文和运行器。
 > 默认 Workflow 为 `single_generate`，复用 baseline 的 RTL 提示、采样常量和提取函数，不加载技能或执行工具。
 > `repair_loop` 提供可选的多轮检查与修复，按证据选择答案、区分失败原因并限制重试。
+> `evidence_repair` 是方案 A 的最小实验骨架：结构化诊断、最多一次修复，不使用 ICL、规划、RAG 或 testbench。
+> 方案 A 的生成参数对齐 baseline（8192 tokens、temperature 0、top_p 1、300 秒）；失败修复保留完整旧候选，回退原因单独记录。
 > 正式入口使用独立 Worker 和 Supervisor 管理时间、信号与工具进程，支持中断恢复。
 > 已提供 YAML 配置与统一实验入口，支持指定单题、重复采样、独立并发和可选判定指标。
 > 真实模型小规模验证已完成；模型与服务仍未最终确定，全量收益和历史重放尚未验证。
@@ -28,6 +30,7 @@
 | `dev/tools/log_viewer.html` | 本地日志查看器，导入输出目录后查看节点、工具调用与完整响应 |
 | `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
 | `agent/workflows/repair_loop.py` | 修复流程，自带候选选择 `choose()` 与失败处理 `decide()`，可由子类替换 |
+| `agent/workflows/evidence_repair.py` | 方案 A；复用修复流程的检查和选择，只注入有限结构化诊断并最多修复一次 |
 | `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
 | `agent/core/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
 | `agent/workflows/` | 默认单次生成、可选修复循环及用户实验 Workflow |
@@ -152,7 +155,7 @@ HTTP 请求只发送 baseline 的字段，不附加 `stream` 或认证头。请�
 不表示代码完整或正确。`repair_loop` 继续使用原来的提示、请求参数和结构化提取节点。
 
 通过标准入口运行时，`services.model.timeout_s` 省略或为 `null` 表示按 Workflow 取默认值：
-`single_generate` 为 300 秒，其余为 180 秒。显式服务上限和整题剩余预算仍可缩短调用，
+`single_generate`、`evidence_repair` 为 300 秒，其余为 180 秒。显式服务上限和整题剩余预算仍可缩短调用，
 Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig()` 仍显式使用其 180 秒上限。
 模型发现最多等 30 秒，也受服务上限和剩余预算约束，耗时计入整题预算，不算一次生成调用。
 
@@ -183,6 +186,16 @@ Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig
 功能正确。相同源码与任务、配置、工具身份的确定性检查可在本题复用，记录引用来源而不重复调用工具。
 自定义修复 Workflow 可继承 `RepairLoop`，覆盖 `choose()` 或 `decide()`，开展不同选择或失败处理实验。
 
+可选 `evidence_repair` 复用同一套候选选择和失败归因，但固定为一份初始候选加最多一次修复。它通过
+`structured_feedback` Node 把提取或检查失败整理成证据编号、阶段、状态、归因、稳定错误码和有限摘要；
+不读取完整日志、官方 testbench、参考答案或 judge 结果，也不启用技能、ICL、规划、反思和检索。
+
+方案 A 使用与 baseline 相同的生成参数（8192 tokens、temperature 0、top_p 1、单次上限
+300 秒），但保留自己的提示和结构化提取。最终实际超时仍受服务和整题剩余预算约束。
+Vivado `VRFC 10-1280`、`10-9336` 等明确源码诊断会进入修复；环境故障优先单独归因。
+如果修复没有完整代码或所有候选检查失败，方案 A 保留完整旧候选并标记
+`failed_check_fallback`，不会把失败检查改成通过。原有 `repair_loop` 选择规则保持不变。
+
 选择流程：
 
 ```bash
@@ -191,6 +204,9 @@ LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/out
 
 # 两个位置参数不变，通过运行条件选择可选流程
 LLM_BACKEND=mock AGENT_WORKFLOW=repair_loop ./run.sh ../tasks/ex03_lfsr8 /tmp/out-repair
+
+# 方案 A：结构化反馈，最多修复一次（真实检查需要 Vivado）
+LLM_BACKEND=mock AGENT_WORKFLOW=evidence_repair ./run.sh ../tasks/ex03_lfsr8 /tmp/out-evidence
 
 # Python 入口也可直接选择，并显式导入用户扩展模块
 python3 -m agent.main --input <task_dir> --output <out_dir> \
@@ -348,6 +364,7 @@ single_generate 的采样常量固定；其他 Workflow 的温度、输出上限
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
 | 2026-10-11 | single_generate 对齐官方 RTL baseline | 复用提示、采样与提取规则；对齐模型选择和原始输入，保留日志、预算与监督；不改变 repair_loop |
+| 2026-10-11 | 增加 evidence_repair 方案 A | 结构化有限诊断、最多一次修复；保留现有 Workflow 作为独立对照 |
 | 2026-10-08 | 精简运行记录 | 去掉 txt/json 双份和与 trace 重复的文件；取消 trace 版本号，改记 Git 短 commit；删除 `save_candidates` |
 | 2026-10-08 | 选择与失败策略下放到 Workflow | 删除 `agent/policies/`；检查结果分类改为 `CheckResult.classify()`；修复流程的决策结果不变 |
 | 2026-10-08 | Quickstart、User Manual 与注释配置 | 文档按上手与完整使用拆分；默认配置改名为 `config/example.yaml`，默认运行值保持不变 |
