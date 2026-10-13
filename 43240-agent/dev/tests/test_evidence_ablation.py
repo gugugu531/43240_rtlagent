@@ -11,7 +11,7 @@ from agent.core.task import TaskSpec
 from agent.core.replay import digest
 from agent.services.vivado import ToolResult
 from agent.services.knowledge import load_corpus, retrieve_repair_guides
-from support import FakeBackend, FakeToolchain, events, reply
+from support import FakeBackend, FakeToolchain, events, reply, synthetic_corpus, write_synthetic_corpus
 
 TASK = TaskSpec.from_text('test', 'Implement TopModule.')
 FIRST = 'module TopModule; wire broken; endmodule\n'
@@ -27,10 +27,11 @@ def success(kind):
     return ToolResult(kind, (), 0, 'ok', 0.01, 'passed')
 
 
-def run(out, workflow, backend, tools, initial=None):
+def run(out, workflow, backend, tools, initial=None, corpus_path=None):
     return Runner(ModelConfig(), backend_factory=lambda config: backend,
                   toolchain_factory=lambda: tools).run(TASK,
-                    lambda: build_workflow(workflow, initial_state=initial), options=RunOptions(out))
+                    lambda: build_workflow(workflow, initial_state=initial, corpus_path=corpus_path),
+                    options=RunOptions(out))
 
 
 class AblationTests(unittest.TestCase):
@@ -70,11 +71,12 @@ class AblationTests(unittest.TestCase):
     def test_a2_no_hit_messages_exactly_equal_a1(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); checkpoint, _ = self.capture(root, 'VRFC 10-9999')
+            corpus_path = write_synthetic_corpus(root)
             requests = []
             for arm in ('a1', 'a2'):
                 backend = FakeBackend([reply(FIXED)])
                 run(root / arm, 'evidence_' + arm, backend,
-                    FakeToolchain((success('lint'),), (success('synth'),)), str(checkpoint))
+                    FakeToolchain((success('lint'),), (success('synth'),)), str(checkpoint), corpus_path)
                 requests.append(backend.requests[0].messages)
             self.assertEqual(*requests)
 
@@ -82,12 +84,13 @@ class AblationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); checkpoint, _ = self.capture(root)
             backend = FakeBackend([reply('not rtl')])
-            result = run(root / 'a2', 'evidence_a2', backend, FakeToolchain(), str(checkpoint))
+            result = run(root / 'a2', 'evidence_a2', backend, FakeToolchain(), str(checkpoint),
+                         write_synthetic_corpus(root))
             self.assertEqual(result.selected_candidate.code, FIRST)
-            self.assertIn('参考知识 procedural-variable', backend.requests[0].messages[-1]['content'])
+            self.assertIn('SYNTHETIC_GUIDANCE', backend.requests[0].messages[-1]['content'])
 
     def test_unknown_versions_do_not_produce_guidance(self):
-        corpus = load_corpus()
+        corpus = synthetic_corpus()
         for tool, version in ((None, '2026.1'), ('xvlog', None), ('xelab', '2026.1'), ('xvlog', '2025.2')):
             self.assertFalse(retrieve_repair_guides(corpus, codes=('VRFC 10-1280',), tool=tool, version=version)['pieces'])
         self.assertFalse(retrieve_repair_guides(corpus, codes=('VRFC 10-1280',), tool='xvlog', version='2026.1', max_chars=1)['pieces'])

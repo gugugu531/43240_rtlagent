@@ -8,11 +8,10 @@ import re
 
 from agent.prompts.context import ContextPiece
 
-DEFAULT_CORPUS = Path(__file__).resolve().parents[2] / 'skill/rtl_cards.json'
 CODE = re.compile(r'(?:VRFC|SYNTH) \d+-\d+')
 
 
-def load_corpus(path=DEFAULT_CORPUS):
+def load_corpus(path):
     path = Path(path)
     if path.stat().st_size > 1024 * 1024:
         raise ValueError('repair corpus exceeds size limit')
@@ -35,15 +34,19 @@ def load_corpus(path=DEFAULT_CORPUS):
             raise ValueError('invalid error namespace')
         if any(source not in corpus['sources'] for source in card['source_ids']):
             raise ValueError('unknown card source')
+        fragments = card.get('message_contains_any', [])
+        if (not isinstance(fragments, list)
+                or any(not isinstance(v, str) or not v.strip() for v in fragments)):
+            raise ValueError('invalid diagnostic message conditions')
         if re.search(r'\bProb\d{3}_|/tasks/|\b(?:ref|tb)\.s[vh]\b', json.dumps(card), re.I):
             raise ValueError('benchmark-specific material is forbidden')
     return corpus
 
 
-def retrieve_repair_guides(corpus, *, codes, tool, version, limit=2, max_chars=2400):
+def retrieve_repair_guides(corpus, *, codes, tool, version, diagnostics=(), limit=2, max_chars=2400):
     if type(limit) is not int or not 1 <= limit <= 2 or type(max_chars) is not int or max_chars < 0:
         raise ValueError('invalid guidance limits')
-    result = dict(pieces=(), hits=[], omitted=[], reason='no_match', corpus_sha256=hashlib.sha256(
+    result = dict(pieces=(), hits=[], omitted=[], rejected=[], reason='no_match', corpus_sha256=hashlib.sha256(
         json.dumps(corpus, sort_keys=True, ensure_ascii=False).encode()).hexdigest())
     if not tool or not version:
         result['reason'] = 'tool_or_version_unknown'
@@ -51,8 +54,22 @@ def retrieve_repair_guides(corpus, *, codes, tool, version, limit=2, max_chars=2
     selected = [c for c in corpus['cards'] if tool in c['tools'] and version in c['versions']
                 and set(codes).intersection(c['codes'])]
     selected.sort(key=lambda c: c['id'])
+    eligible = []
+    for card in selected:
+        fragments = card.get('message_contains_any', [])
+        matched_messages = [d.message.casefold() for d in diagnostics
+                            if d.code in card['codes'] and d.severity == 'ERROR'
+                            and d.tool == tool and d.version == version]
+        if fragments and not any(fragment.casefold() in message
+                                 for fragment in fragments for message in matched_messages):
+            result['rejected'].append(dict(id=card['id'], reason='diagnostic_message_mismatch'))
+            continue
+        eligible.append(card)
     pieces, chars = [], 0
-    for card in selected[:limit]:
+    for card in eligible:
+        if len(result['hits']) >= limit:
+            result['omitted'].append(card['id'])
+            continue
         matched = sorted(set(codes).intersection(card['codes']))
         text = (f"[参考知识 {card['id']}] {card['title']}\n适用条件：{card['applies_when']}\n"
                 + '建议：' + '；'.join(card['guidance']) + '\n验证：' + '；'.join(card['verify'])
@@ -67,5 +84,6 @@ def retrieve_repair_guides(corpus, *, codes, tool, version, limit=2, max_chars=2
         pieces.append(ContextPiece(card['id'], text, tuple(card['source_ids'])))
         chars += len(text)
     result['pieces'] = tuple(pieces)
-    result['reason'] = 'matched' if pieces else 'character_budget' if selected else 'no_match'
+    result['reason'] = ('matched' if pieces else 'character_budget' if eligible
+                        else 'diagnostic_message_mismatch' if selected else 'no_match')
     return result

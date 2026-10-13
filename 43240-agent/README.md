@@ -14,6 +14,7 @@
 > E1 提供 `evidence_a0/a1/a2`：同提示首份候选、结构化修复、修复加短卡；支持经过来源校验的初始阶段重放。
 > E2 提供 `search_r1/r2/c2/c3`：最多一/两次修复或两/三份独立候选，使用明确 seed、共享首次成本和自身证据选择；采样由 Agent 自身声明（默认 temperature 0.6、top_p 0.95），仅 E2 反馈统一工具临时路径。位选方向诊断 VRFC 10-1219 归为代码错误。
 > E2 的三次调用流程会保存 `stop_after_two.json`，只含当时求解信息，供开发对照读取两次调用停止点；不追加推理或读取判定结果。
+> 知识库内容单独保存在本地，不随 Git 上传；通过 `services.knowledge.corpus_path` 指定。未配置时修复流程不注入资料。`search_r2_guided` 用于与最多两次修复比较，按每轮最新自身错误检索。
 > 正式入口使用独立 Worker 和 Supervisor 管理时间、信号与工具进程，支持中断恢复。
 > 已提供 YAML 配置与统一实验入口，支持指定单题、重复采样、独立并发和可选判定指标。
 > 真实模型小规模验证已完成；模型与服务仍未最终确定，全量收益和历史重放尚未验证。
@@ -43,7 +44,7 @@
 | `agent/core/diagnostic.py` | 自身工具诊断、工具与版本、错误码及可核实的候选行号 |
 | `agent/core/replay.py` | 只含求解信息的初始检查点，核验输入/源码/工具身份并扣除共享成本 |
 | `agent/workflows/evidence_ablation.py` | E1 三组，复用同一个修复循环；不使用 judge 选择候选 |
-| `agent/services/knowledge.py` | 按完整错误码、工具、版本检索经过独立例子验证的三张修复卡 |
+| `agent/services/knowledge.py` | 加载外置的已验证修复卡，按完整错误码、工具、版本及可选诊断文本条件检索 |
 | `agent/workflows/` | 默认单次生成、可选修复循环及用户实验 Workflow |
 | `agent/nodes/` | 生成、提取、接口、lint 与综合动作 |
 | `agent/nodes/baseline.py` | `single_generate` 专用节点，导入未修改的 baseline 规则，保留原始题面和提取结果 |
@@ -208,8 +209,9 @@ Vivado `VRFC 10-1280`、`10-9336` 等明确源码诊断会进入修复；环境�
 `failed_check_fallback`，不会把失败检查改成通过。原有 `repair_loop` 选择规则保持不变。
 
 E1 的 `evidence_a0` 使用方案 A 同一首次提示与提取，只保留首份候选并执行自身检查；
-`evidence_a1` 使用结构化反馈最多修复一次；`evidence_a2` 只额外检索三张经过独立小例子验证的
-错误短卡，最多两张，按实际工具/版本和完整错误码匹配。无命中时反馈与 A1 一致。
+`evidence_a1` 使用结构化反馈最多修复一次；`evidence_a2` 额外检索本地提供并经过独立小例子验证的
+错误短卡，最多两张，按实际工具/版本和完整错误码匹配。卡片可要求同一错误的诊断文本包含指定内容，
+不允许其他错误或 warning 代替该条件。未配置知识库、无法加载或无命中时不增加提示。
 `runtime.initial_state` 可指定 A0 导出的 `initial.json` 做受控重放，核验输入、源码、工具身份，
 复用自身检查并扣除共享首次时间与 token 成本，不读取官方 judge 或参考答案。
 所有求解仍经 run.sh/Supervisor；开发实验和隔离判定在 dev 中调度。三组都是实验变体，默认流程未切换。

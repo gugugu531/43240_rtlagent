@@ -8,13 +8,39 @@ from agent.core.model import ModelCallError, ModelRequest
 from agent.services.vivado import ToolResult, classify_tool_failure
 from agent.workflows.search_ablation import normalize_tool_paths
 from test_evidence_ablation import run, FIRST, FIXED, failure, success
-from support import FakeBackend, FakeToolchain, events, reply
+from support import FakeBackend, FakeToolchain, events, reply, write_synthetic_corpus
 
 SECOND = 'module TopModule; wire second_attempt; endmodule\n'
 THIRD = 'module TopModule; wire third_attempt; endmodule\n'
 
 
 class SearchTests(unittest.TestCase):
+    def test_guided_r2_uses_latest_error_and_same_bounds_as_r2(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); initial, _ = self.capture(root)
+            corpus = write_synthetic_corpus(root)
+            backend = FakeBackend([reply(SECOND), reply(FIXED)])
+            tools = FakeToolchain((failure('VRFC 10-9336'), success('lint')), (success('synth'),))
+            result = run(root/'guided', 'search_r2_guided', backend, tools, initial, corpus)
+            self.assertEqual([r.seed for r in backend.requests], [20261014, 20261015])
+            self.assertIn('SYNTHETIC_GUIDANCE', backend.requests[0].messages[-1]['content'])
+            self.assertNotIn('SYNTHETIC_GUIDANCE', backend.requests[1].messages[-1]['content'])
+            self.assertIn('10-9336', backend.requests[1].messages[-1]['content'])
+            self.assertEqual(result.selected_candidate.code, FIXED)
+
+    def test_guided_r2_without_corpus_matches_plain_r2_and_records_fallback(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); initial, _ = self.capture(root)
+            requests = []
+            for workflow in ('search_r2', 'search_r2_guided'):
+                backend = FakeBackend([reply(FIXED)])
+                run(root/workflow, workflow, backend,
+                    FakeToolchain((success('lint'),), (success('synth'),)), initial)
+                requests.append(backend.requests[0].payload('model'))
+            self.assertEqual(*requests)
+            self.assertTrue(any(e.get('reason') == 'corpus_not_configured'
+                                for e in events(root/'search_r2_guided')))
+
     def capture(self, root, content=FIRST, passed=False):
         backend=FakeBackend([reply(content)])
         tools=FakeToolchain((success('lint'),) if passed else (failure(),), (success('synth'),))

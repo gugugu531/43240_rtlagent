@@ -10,12 +10,12 @@ from agent.workflows.repair_loop import AttemptState, LoopStart
 class EvidenceAblation(EvidenceRepair):
     arm = 'A1'
 
-    def __init__(self, initial_state=None):
+    def __init__(self, initial_state=None, corpus_path=None):
         super().__init__()
         self.initial_state = initial_state
         if self.arm == 'A0':
             self.max_rounds = 1
-        self.guidance = build_node('repair_guidance') if self.arm == 'A2' else None
+        self.guidance = build_node('repair_guidance', corpus_path=corpus_path) if self.arm == 'A2' else None
         self._identity = None
 
     def run(self, ctx):
