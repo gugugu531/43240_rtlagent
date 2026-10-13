@@ -1,5 +1,7 @@
 # 团队开发文档
 
+新对话接手先读：[2026-10-13 交接快照：实现、实验、远端与全部消融路线](notes/2026-10-13-conversation-handoff.md)。
+
 当前框架的两个入口：
 
 - **[Quickstart](quickstart.md)**：准备环境、运行单题、接入模型、选择配置和查看结果。
@@ -10,7 +12,7 @@
 
 ## 当前专题参考
 
-当前模型实验依据见下方 AutoDL Qwen3 实测汇总。10 月 10 日的开发提案与资源分配检查已列入归档笔记；其当时的待办、资源条件和未测试状态不代表当前进展。
+最新方案 A 结论见下方 34 题与 11 题记录。10 月 10 日的开发提案与资源分配检查已列入归档笔记；其当时的待办、资源条件和未测试状态不代表当前进展。
 
 | 文档 | 内容 |
 | --- | --- |
@@ -18,8 +20,11 @@
 | [日志查看器](design/log-viewer.md) | 在浏览器中查看执行流程、节点状态与响应 |
 | [远端管理](design/remote-tools.md) | 脚本使用，平台细节带历史实测范围 |
 | [历史分析工具](design/historical-analysis.md) | 保留的旧格式统计工具 |
+| [RTL 知识卡片与检索](design/knowledge-cards.md) | 15 张开发卡片、离线检索与来源校验；未接入当前 Agent |
+| [Agent 论文与开源工程调研](research/agent-prior-art/README.md) | RTL、EDA、Coding Agent 与通用效率方法的开源资料、指标快照和落地建议 |
 
-最近云端实验（已完成、实例已释放）：[AutoDL Qwen3 实测汇总](notes/2026-10-11-autodl-qwen3-results.md)；[Qwen3 思考模式输出额度补测](notes/2026-10-11-qwen3-output-budget.md)。
+10 月 11 日历史模型实验（该轮实例已释放）：[AutoDL Qwen3 实测汇总](notes/2026-10-11-autodl-qwen3-results.md)；[Qwen3 思考模式输出额度补测](notes/2026-10-11-qwen3-output-budget.md)。
+10 月 13 日方案 A 的新一轮模型实验已结束并停止推理；该实例是否仍计费需在平台核对，详见交接快照。
 
 已移除被新手册替代的旧指南和临时输入输出说明；此前文档维护记录见[2026-10-05 整理记录](notes/2026-10-05-documentation-progress.md)。
 
@@ -61,6 +66,18 @@
 [模型资源人工数据](notes/model-metrics-manual.json)保留每项来源，不因归档改变值。
 
 ## 实验记录（全部保留）
+
+已完成：[五题 thinking/采样诊断结论](notes/2026-10-13-generation-diagnostic-results.md)，
+原始[计划与离线分析](notes/2026-10-13-generation-diagnostic-plan.md)保留。
+本轮题集：[11 题固定开发诊断集](notes/2026-10-13-diagnostic-eleven-plan.md)。
+已完成：[11 题结论与后续](notes/2026-10-13-diagnostic-eleven-results.md)，
+[运行、中断与补跑记录](notes/2026-10-13-diagnostic-eleven-execution.md)，
+[旧会话结果](experiments/20261013-generation-diagnostic-eleven.md)、
+[仅补取消样本后的结果](experiments/20261013-generation-diagnostic-eleven-resume1.md)。
+后续建议：[先做 E1（含短卡片 RAG 对照），再做 E2](notes/2026-10-13-after-generation-experiment-order.md)。
+研究材料：[AMD Ross 本地资料与阅读入口](research/agent-prior-art/ross-ai-study.md)（用户 fork，未安装）。
+本轮自动汇总：[五题对照结果](experiments/20261013-generation-diagnostic-five-retry1.md)，
+当前状态及各组原始运行路径见 `dev/runs/20261013-generation-diagnostic-five-retry1/state.json`。
 
 笔记保存于 experiments/，原始数据仍在 dev/runs/；生成块不手改，人工假设与结论在块外。
 旧格式与新格式以各次记录为准。10 月 4 日旧格式记录保留在原路径 `dev/experiments/`，已补充历史口径说明并纳入版本管理；历史测量值与原始日志保持不变。
@@ -105,6 +122,11 @@
 
 - [20261011-201323-qwen3-coder-30b-a3b-instruct-awq-nothink-r201246-full155-60c897f6](experiments/20261011-201323-qwen3-coder-30b-a3b-instruct-awq-nothink-r201246-full155-60c897f6.md)
 
+- [20261013-105000-autodl-qwen3-8b-a-fixed-quick34-resume](experiments/20261013-105000-autodl-qwen3-8b-a-fixed-quick34-resume-4e464cbc.md)：完整 34 题合并报告，68 个有效样本，含逐题对比与成本分析。
+- [20261012-225403-autodl-qwen3-8b-a-fixed-quick34](experiments/20261012-225403-autodl-qwen3-8b-a-fixed-quick34-460c1d2a.md)：历史暂停记录，29 题完成配对，后续补跑已完成。
+- [20261012-225021-autodl-qwen3-8b-a-fixed-smoke](experiments/20261012-225021-autodl-qwen3-8b-a-fixed-smoke-57c8efca.md)：双方均 L3。
+- [20261012-180247-autodl-qwen3-8b-a-quick34-paired](experiments/20261012-180247-autodl-qwen3-8b-a-quick34-paired-2c614f88.md)：历史断连，非有效全量对比。
+- [20261011-193952-siliconflow-qwen3-8b-a-quick-subset](experiments/20261011-193952-siliconflow-qwen3-8b-a-quick-subset.md)
 - [20261005-201406-stage5-mock-9f5cfd91](experiments/20261005-201406-stage5-mock-9f5cfd91.md)
 - [20261005-193024-stage4-real-single-ff1050ad](experiments/20261005-193024-stage4-real-single-ff1050ad.md)
 - [20261005-191812-stage4-vivado-smoke-1b9df732](experiments/20261005-191812-stage4-vivado-smoke-1b9df732.md)
