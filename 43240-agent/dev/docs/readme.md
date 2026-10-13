@@ -2,6 +2,9 @@
 
 新增 Agent 运行契约见 [上下文、诊断与候选策略接口](design/agent-runtime.md)。
 
+PR #33 的审查修复、运行编号和本地证据见
+[审查修复验收记录](notes/2026-10-14-pr33-review-validation.md)。
+
 当前框架的两个入口：
 
 - **[Quickstart](quickstart.md)**：准备环境、运行单题、接入模型、选择配置和查看结果。
