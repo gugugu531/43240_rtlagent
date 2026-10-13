@@ -16,8 +16,10 @@ def assemble_messages(task: TaskSpec, *, style: str, feedback: str = '',
         system = system.replace('{{TOP}}', task.top)
         user = task.prompt + ('\n\nInterface:\n' + task.interface if task.interface else '')
     else:
+        interface_rule = ('模块名、端口名、方向、位宽和顺序须保持' if feedback
+                          else '模块名与端口不得改动')
         user = ('## 题目\n\n' + (task.prompt or '(empty)') +
-                '\n\n## 模块接口（模块名与端口不得改动）\n\n```verilog\n' +
+                f'\n\n## 模块接口（{interface_rule}）\n\n```verilog\n' +
                 (task.interface or '(empty)') + '\n```\n')
     messages = [{'role': 'system', 'content': system}]
     resources = {'system_file': filename, 'system_sha256': hashlib.sha256(system.encode()).hexdigest()}
