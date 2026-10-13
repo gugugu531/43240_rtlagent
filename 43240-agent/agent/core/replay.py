@@ -52,6 +52,7 @@ def save_initial(path, ctx, reply, result, checks, stop_reason, identity):
     atomic_write_json(path, data)
     ctx.emit('initial_checkpoint', sha256=data['sha256'], path=str(path),
              initial_wall_s=data['initial_wall_s'], candidate_id=result.candidate.id if result.candidate else None)
+    return data
 
 
 def load_initial(path, ctx, extract_node):

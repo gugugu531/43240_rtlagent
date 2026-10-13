@@ -13,6 +13,20 @@ from support import synthetic_corpus, write_synthetic_corpus
 
 
 class KnowledgeTests(unittest.TestCase):
+    def test_malformed_root_and_nested_structures_raise_value_error(self):
+        bad = [[], None, True, 1, 'text', {}, {'schema_version': 1},
+               dict(synthetic_corpus(), cards=[None]), dict(synthetic_corpus(), cards=[[]]),
+               dict(synthetic_corpus(), sources={'test-source': None})]
+        for key, value in [('id', []), ('validation_sha256', 123), ('title', None),
+                           ('applies_when', ''), ('source_ids', [None]), ('codes', [{}])]:
+            corpus = synthetic_corpus(); corpus['cards'][0][key] = value; bad.append(corpus)
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp)/'bad.json'
+            for value in bad:
+                with self.subTest(value=value):
+                    path.write_text(json.dumps(value))
+                    with self.assertRaises(ValueError): load_corpus(path)
+
     def test_external_path_resolves_from_yaml_and_defaults_to_none(self):
         with tempfile.TemporaryDirectory() as temp:
             base = Path(temp)

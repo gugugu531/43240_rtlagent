@@ -60,6 +60,30 @@ class ContextTests(unittest.TestCase):
 
 
 class LedgerTests(unittest.TestCase):
+    def test_counter_uses_only_options_actually_sent_by_request_profile(self):
+        class RecordingCounter(Counter):
+            def count(self, messages, *, template_options=None):
+                self.options = template_options
+                return super().count(messages, template_options=template_options)
+        class Backend:
+            def describe(self): return {'backend': 'test'}
+            def complete(self, request):
+                self.request = request
+                return BackendResponse(0, 200, json.dumps({'choices': [{'message': {'content': 'ok'}}]}))
+        for enabled in (True, False):
+            for profile in ('baseline_rtl', 'default'):
+                with self.subTest(enabled=enabled, profile=profile), tempfile.TemporaryDirectory() as temp:
+                    recorder = RunRecorder(Path(temp)); counter = RecordingCounter(); backend = Backend()
+                    service = ModelService(backend, recorder, token_counter=counter,
+                                           template_options={'enable_thinking': enabled})
+                    service.chat(ModelRequest([{'role': 'user', 'content': 'test'}], profile=profile))
+                    payload = backend.request.payload('test')
+                    expected = {} if profile=='baseline_rtl' else {'enable_thinking': enabled}
+                    self.assertEqual(counter.options, expected)
+                    self.assertEqual(payload.get('chat_template_kwargs', {}), expected)
+                    if profile=='baseline_rtl': self.assertNotIn('chat_template_kwargs', payload)
+                    recorder.close()
+
     def test_generation_reserves_remaining_output_instead_of_original_large_cap(self):
         class Backend:
             def describe(self): return {'backend': 'test'}

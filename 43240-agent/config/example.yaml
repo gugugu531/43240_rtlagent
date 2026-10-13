@@ -45,7 +45,10 @@ services:
     # tokenizer_dir: /models/Qwen3-8B
     # context_limit: 32768
     # strict_context: true
-    # enable_thinking: true  # 同时用于请求 chat template 与输入计数；默认不发送此字段
+    # 普通生成/修复流程：显式设置时同时用于请求 chat template 与输入计数；null/省略时不发送。
+    # single_generate 使用 baseline_rtl，不注入该选项，计数也按模板默认选项；设置被忽略时记录原因。
+    # 此选项不能控制默认 single_generate 服务端的思考模式。
+    # enable_thinking: true
     # tokenizer_sha256: <tokenizer.json SHA256>
     # template_sha256: <chat_template UTF-8 SHA256>
     # token_total_limit: 32768  # 整题累计输入+输出，非上下文窗口；默认不设
