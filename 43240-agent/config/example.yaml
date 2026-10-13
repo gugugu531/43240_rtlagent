@@ -30,6 +30,7 @@ imports: []
 workflow:
   # single_generate：生成一次，提取并选择答案，不检查、不修复、不注入技能。
   # repair_loop：生成 → 接口检查 → lint → 综合，明确代码错误时按预算修复。
+  # evidence_repair：方案 A；同样分层检查，但只使用结构化摘要且最多修复一次。
   # repair_loop 的 lint / 综合需要可用的 Vivado；综合通过不证明功能正确。
   # 自定义名称必须先由 imports 中的模块注册。
   # 覆盖：AGENT_WORKFLOW 或 CLI --workflow。

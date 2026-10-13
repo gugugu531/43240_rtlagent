@@ -438,7 +438,11 @@ def classify_tool_failure(output: str) -> str:
                                     'out of memory', 'cannot open shared object'))
             or re.search(r'(?:license[^\n]*(?:failed|expired|error|unavailable)|(?:failed|unable|cannot)[^\n]*license|no valid license)', low)):
         return 'environment'
-    if re.search(r'ERROR: \[VRFC [^\]]+\].*(?:syntax error|cannot find port|not declared|not found|type mismatch)',
+    # Match primary source diagnostics, not generic follow-on errors such as
+    # "module ignored". Environment errors above always take precedence.
+    if re.search(r'ERROR: \[VRFC 10-(?:1280|9336)\]', output, re.IGNORECASE):
+        return 'code'
+    if re.search(r'ERROR: \[VRFC [^\]]+\].*(?:syntax error|cannot find port|not declared|not found|type mismatch|procedural assignment to a non-register|redeclaration of ANSI port|multiple drivers|already declared)',
                  output, re.IGNORECASE):
         return 'code'
     if re.search(r'ERROR: \[Synth [^\]]+\].*(?:syntax error|multi-driven|multiple drivers|latch)',

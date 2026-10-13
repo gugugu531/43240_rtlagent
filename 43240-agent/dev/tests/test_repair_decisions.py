@@ -77,6 +77,18 @@ class RepairDecisionTests(unittest.TestCase):
         self.assertEqual(classify_tool_failure('exit 1'), 'unknown')
         self.assertEqual(classify_tool_failure('License checked out\nERROR: [VRFC 10-1] syntax error near x'), 'code')
 
+    def test_observed_vivado_source_diagnostics_and_environment_precedence(self):
+        for text in (
+            "ERROR: [VRFC 10-1280] procedural assignment to a non-register out is not permitted",
+            "ERROR: [VRFC 10-9336] redeclaration of ANSI port 'q' is not allowed",
+            "ERROR: [VRFC 10-9999] procedural assignment to a non-register q",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(classify_tool_failure(text), 'code')
+                self.assertEqual(classify_tool_failure(text + '\nNo space left on device'), 'environment')
+        self.assertEqual(classify_tool_failure(
+            "ERROR: [VRFC 10-8530] module ignored due to previous errors"), 'unknown')
+
     def test_retry_same_request_then_success(self):
         backend = FakeBackend([ModelCallError('transient', kind='timeout', retryable=True), reply(self.first.code)])
         tools = FakeToolchain([ToolResult('lint', (), -1, 'unavailable', 0, 'missing')])

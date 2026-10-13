@@ -116,7 +116,7 @@ flowchart TB
 | 请求模型名 | single_generate：`MODEL_NAME` → `/models` 第一项 → `default`；其他流程：YAML `model` / `LLM_MODEL` | 普通模型配置默认 `mock-model`；统一实验将配置模型名传给两个模式的 `MODEL_NAME` | `services/model.py` 解析并记录实际请求模型 |
 | **模型 API key 的环境变量名** | YAML `api_key_env` | 默认 `LLM_API_KEY`，允许改为其他合法环境变量名 | `core/configuration.py` 根据这个名字去环境中读取实际密钥 |
 | **模型 API key 的实际值** | 上一行指定的环境变量，例如 `LLM_API_KEY` | 未设置时为空；single_generate 与 baseline 一样不发送认证头 | `core/configuration.py` 放入 `ModelConfig`；普通请求在非空时加入 `Authorization: Bearer ...` |
-| 模型服务调用超时 | YAML `timeout_s` / `LLM_TIMEOUT_S` | 省略或 null 时 single_generate 为 300 秒，其余为 180 秒；显式值及剩余预算仍限制调用 | `services/model.py` 限制 HTTP 调用时间 |
+| 模型服务调用超时 | YAML `timeout_s` / `LLM_TIMEOUT_S` | 省略或 null 时 single_generate、evidence_repair 为 300 秒，其余为 180 秒；显式值及剩余预算仍限制调用 | `services/model.py` 限制 HTTP 调用时间 |
 | **投题令牌的预期值** | 环境变量 `FPGACHINA_TOKEN`，部署者按主办方提供的令牌设置 | HTTP 服务必须配置；与模型 API key 是两项独立凭据 | `serve/serve_api.py` 启动加载模块时读取，用于验证入站投题请求 |
 
 **准确地说，当前 YAML 不支持直接填写 API key 值。** 它保存的是 `api_key_env`，实际值来自环境变量；核心配置读取器也不会自动加载 `.env` 或 `remote.env`。如果外层脚本读取这些文件，需要由该脚本把值导出到环境后再启动 Agent。
@@ -131,7 +131,7 @@ API key 用于连接模型服务，投题令牌用于接收主办方请求；两
 |---|---|---|---|
 | 输入、输出目录 | `run.sh` 的两个位置参数，转成 Python 的 `--input`、`--output`；HTTP 模式由服务创建临时目录 | 决定从哪里读取题目、在哪里保存结果 | `run.sh` 固定路径；`main.py` 接收；`task.py` 与 `recording/artifacts.py` 使用 |
 | 配置文件路径 | CLI（命令行参数）`--config`，其次 `AGENT_CONFIG` | 均未提供时为 `config/example.yaml` | `main.py`、`core/configuration.py` |
-| Workflow 名称 | YAML `workflow.type` / `AGENT_WORKFLOW` / CLI `--workflow` | `single_generate`；可选 `repair_loop` | `configuration.py` 解析；`supervision.py` 的 Worker（求解子进程）通过 `core/registry.py` 构造实例 |
+| Workflow 名称 | YAML `workflow.type` / `AGENT_WORKFLOW` / CLI `--workflow` | `single_generate`；可选 `repair_loop`、`evidence_repair` | `configuration.py` 解析；`supervision.py` 的 Worker（求解子进程）通过 `core/registry.py` 构造实例 |
 | 扩展模块 | YAML `imports` / CLI `--import-module` | 默认无；用于注册自定义 Workflow 或 Node | `core/registry.py` 导入模块，登记实现 |
 | 本地单题预算 | YAML `runtime.deadline_s` / `AGENT_DEADLINE_S` / CLI `--deadline-s` | 360 秒；还受 HTTP 请求剩余时限的上限约束 | `core/budget.py` 计算可用时间，`core/supervision.py` 强制停止 |
 | 清理预留时间 | YAML `runtime.reserve_s` / `AGENT_RESERVE_S` / CLI `--reserve-s` | 20 秒；从可供求解的时间中扣除 | `core/budget.py`、`core/supervision.py` |
@@ -159,7 +159,7 @@ YAML 中相对路径按配置文件所在目录解析；环境变量中的相对
 | 修复流程的总体要求 | `agent/prompts/system.md`：接口、复位、赋值方式、可综合性和输出格式等 | `prompts/builder.py` 在修复流程中作为 system 消息 |
 | 修复说明模板 | `agent/prompts/repair.md`：上一版代码、错误反馈和修改要求 | `prompts/builder.py` 填入当前反馈及待修复代码，附在 user 消息中 |
 | 技能资料 | `skill/*/SKILL.md`：技能正文、名称、日志匹配特征等 | `prompts/skills.py` 加载；有反馈且启用技能时，按题面和反馈中的特征字符串匹配，默认最多选 2 条；`builder.py` 加入额外 system 消息 |
-| 温度和输出长度上限 | single_generate 固定使用 baseline 的温度 `0.0`、top_p `1.0`、上限 `8192`；修复流程默认为 `0.2`、`4096` | single_generate 不接受采样覆盖；其他 Workflow 通过 Python 构造参数控制 |
+| 温度和输出长度上限 | single_generate 和 evidence_repair 默认使用 baseline 的温度 `0.0`、top_p `1.0`、上限 `8192`；repair_loop 默认为 `0.2`、`4096` | single_generate 不接受采样覆盖；其他 Workflow 通过 Python 构造参数控制 |
 | 轮数、重试数和调用总数 | `workflows/repair_loop.py` 的构造参数，默认 3 轮、每个请求最多重试 1 次、总调用最多 4 次 | `RepairLoop.decide()` 根据已用次数、错误类型和剩余时间决定继续或停止 |
 | 候选选择规则 | 由各 Workflow 自己定义：`single_generate` 直接选择，`repair_loop` 用 `RepairLoop.choose()` | 比较候选和检查证据，输出选择决定；`core/context.py` 执行保存或清空 |
 
@@ -370,10 +370,14 @@ flowchart TD
 | --- | --- | --- |
 | single_generate | 无构造参数；固定复用 baseline 的 max_tokens=8192、temperature=0.0、top_p=1.0、timeout_s=300 | 一次生成和官方提取、显式选择；不注入技能、运行工具或自动重试 |
 | repair_loop | max_rounds=3、max_tokens=4096、temperature=0.2、timeout_s=180、use_skills=true、max_request_retries=1 | 按接口 → lint → synth 检查，反馈修复、候选保护与有限请求重试 |
+| evidence_repair | max_tokens=8192、temperature=0、top_p=1、timeout_s=300、max_request_retries=1、max_feedback_chars=1600 | 方案 A；相同分层检查，结构化有限反馈，不用技能，最多修复一次；失败修复保留完整旧候选 |
 
 单次 Node 上限还受服务上限和剩余整题预算约束，不是总能使用 300 秒。直接注入 `ModelConfig()` 时其上限仍为 180 秒；标准配置入口根据 Workflow 决定默认值。
 repair_loop 的 max_model_calls 默认 max_rounds+max_request_retries。要换选择或失败策略，继承 `RepairLoop` 覆盖 `choose()` 或 `decide()`，注册为新的 Workflow 名称。
 它遇到综合通过停止，但综合通过不证明行为正确；完整文件修复尚无程序化 patch 应用。
+`evidence_repair` 复用分层检查与失败处理，但所有候选都失败时仍保留完整候选，记录为
+`failed_check_fallback`；检查失败证据保持不变。反馈构造作为独立 Node 留痕。它目前不加入 ICL、规划、
+RAG、Reflexion、波形或 testbench，供后续一次只改变一个变量的消融实验使用。
 
 ## 6. 候选与答案选择
 
@@ -699,6 +703,7 @@ LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/custom-out \
 | interface_check | CheckInput → CheckResult | 无 |
 | vivado_lint | CheckInput → CheckResult | timeout_s=300、minimum_s=0 |
 | vivado_synth | CheckInput → CheckResult | timeout_s=900、minimum_s=0 |
+| structured_feedback | FeedbackInput → StructuredFeedback | max_summary_chars=1600 |
 
 GenerateInput 包含 task、feedback、parent、round。ExtractInput 包含 reply、round、parent_id、source_stage。
 ExtractionOutput 包含 extraction 和可空 candidate。CheckInput 包含 candidate。
