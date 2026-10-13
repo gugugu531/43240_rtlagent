@@ -7,5 +7,6 @@
 . "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 # shellcheck disable=SC2086
 exec ssh -p "$REMOTE_SSH_PORT" $REMOTE_SSH_OPTS -o BatchMode=yes -o ControlPath=none \
+    -o ConnectTimeout=10 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 \
     "$REMOTE_HOST" \
     "bash -c 'exec 3<>/dev/tcp/127.0.0.1/$REMOTE_VLLM_PORT; cat <&3 & cat >&3; wait'"

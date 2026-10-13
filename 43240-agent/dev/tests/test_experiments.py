@@ -238,6 +238,33 @@ class Blocked(Component):
         self.assertEqual(summary['modes']['agent']['judge']['tool_errors'],1)
         self.assertEqual(summary['modes']['agent']['judge']['scored_tasks'],1)
 
+    def test_model_connection_failure_is_excluded_and_invalidates_full_comparison(self):
+        judge = MetricResult('judge',1,'ok',{'verdict':{
+            'level':0,'coefficient':0,'tool_error':None,'elapsed_s':0}})
+        ok = MetricResult('model',1,'ok',{'failed':0,'unfinished':0,'succeeded':1})
+        failed = MetricResult('model',1,'partial',{'failed':1,'unfinished':0,'succeeded':0})
+        samples = [SampleResult('a','agent',0,Path('/tmp'),{},(judge,ok)),
+                   SampleResult('a','baseline',0,Path('/tmp'),{},(judge,failed))]
+        summary = summarize_experiment(samples,planned=2)
+        self.assertEqual(summary['modes']['baseline']['judge']['scored_tasks'],0)
+        self.assertEqual(summary['modes']['baseline']['model_failure_samples'],1)
+        self.assertFalse(summary['comparison']['full_comparison_valid'])
+        self.assertFalse(summary['comparison']['paired_coverage'])
+        self.assertIsNone(summary['comparison']['gain'])
+        self.assertIsNone(judge.values['verdict']['tool_error'])
+
+    def test_matching_infra_exclusions_still_do_not_make_full_gain_valid(self):
+        judge = MetricResult('judge',1,'ok',{'verdict':{
+            'level':3,'coefficient':1,'tool_error':None,'elapsed_s':0}})
+        ok = MetricResult('model',1,'ok',{'failed':0,'unfinished':0,'succeeded':1})
+        failed = MetricResult('model',1,'partial',{'failed':1,'unfinished':0,'succeeded':0})
+        samples = [SampleResult(task,mode,0,Path('/tmp'),{},(judge,model))
+                   for task,model in [('a',ok),('b',failed)] for mode in ('agent','baseline')]
+        summary = summarize_experiment(samples,planned=4)
+        self.assertTrue(summary['comparison']['paired_coverage'])
+        self.assertFalse(summary['comparison']['full_comparison_valid'])
+        self.assertIsNone(summary['comparison']['gain'])
+
 
 
 if __name__ == '__main__':

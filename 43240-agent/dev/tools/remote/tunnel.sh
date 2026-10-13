@@ -18,6 +18,50 @@ set -eo pipefail
 
 : "${TUNNEL_MODE:=$([ "${REMOTE_HOST_SETTING:-}" = cloud ] && echo relay || echo forward)}"
 RELAY_PID="${XDG_RUNTIME_DIR:-/tmp}/fpgachina-relay-$(id -u).pid"
+TRANSPORT_PORT="${LOCAL_RELAY_PORT:-$((LOCAL_VLLM_PORT + 1))}"
+TRANSPORT_UNIT="fpgachina-transport-${LOCAL_VLLM_PORT}.service"
+GATEWAY_UNIT="fpgachina-model-gateway-${LOCAL_VLLM_PORT}.service"
+
+up_managed() {
+    # Remove only the legacy tunnel, before the managed listeners claim its port.
+    if relay_alive; then kill "$(cat "$RELAY_PID")"; fi
+    rm -f "$RELAY_PID"
+    ctl exit || true
+    if ! systemctl --user is-active --quiet "$TRANSPORT_UNIT"; then
+        systemd-run --user --collect --unit="$TRANSPORT_UNIT" \
+            --property=Restart=always --property=RestartSec=3 \
+            --property=StartLimitIntervalSec=0 \
+            /usr/bin/bash "$REMOTE_HERE/tunnel.sh" run-transport
+    fi
+    if ! systemctl --user is-active --quiet "$GATEWAY_UNIT"; then
+        gateway_args=()
+        if [ -n "${MODEL_GATEWAY_PROFILE:-}" ]; then
+            [ -n "${MODEL_GATEWAY_AUDIT_DIR:-}" ] || { echo '实验网关缺少审计目录' >&2; return 1; }
+            gateway_args=(--profile "$MODEL_GATEWAY_PROFILE" --audit-dir "$MODEL_GATEWAY_AUDIT_DIR")
+        fi
+        systemd-run --user --collect --unit="$GATEWAY_UNIT" \
+            --property=Restart=always --property=RestartSec=3 \
+            --property=StartLimitIntervalSec=0 \
+            /usr/bin/python3 "$REMOTE_HERE/model_gateway.py" \
+            --port "$LOCAL_VLLM_PORT" --upstream-port "$TRANSPORT_PORT" "${gateway_args[@]}"
+    fi
+    echo "✓ 自动重连服务已启动；日志：journalctl --user -u $TRANSPORT_UNIT -u $GATEWAY_UNIT"
+}
+
+run_transport() {
+    if [ "$TUNNEL_MODE" = relay ]; then
+        command -v socat >/dev/null || { echo '需要 socat' >&2; exit 1; }
+        exec socat "TCP-LISTEN:${TRANSPORT_PORT},bind=127.0.0.1,reuseaddr,fork" \
+            "EXEC:$REMOTE_HERE/relay_conn.sh"
+    else
+        # Foreground SSH belongs to systemd, which reconnects after an exit.
+        # shellcheck disable=SC2086
+        exec ssh -p "$REMOTE_SSH_PORT" $REMOTE_SSH_OPTS -N \
+            -o ControlPath=none -o BatchMode=yes -o ConnectTimeout=10 \
+            -o ExitOnForwardFailure=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=3 \
+            -L "127.0.0.1:${TRANSPORT_PORT}:127.0.0.1:${REMOTE_VLLM_PORT}" "$REMOTE_HOST"
+    fi
+}
 
 ctl() {   # ctl <check|exit>
     # shellcheck disable=SC2086
@@ -59,17 +103,28 @@ up_relay() {
 
 case "${1:-status}" in
     up)
-        if [ "$TUNNEL_MODE" = relay ]; then up_relay; else up_forward; fi
+        up_managed
+        ;;
+    run-transport)
+        run_transport
         ;;
     down)
         closed=0
+        for unit in "$GATEWAY_UNIT" "$TRANSPORT_UNIT"; do
+            if systemctl --user is-active --quiet "$unit"; then
+                systemctl --user stop "$unit"; closed=1
+            fi
+        done
         if relay_alive; then kill "$(cat "$RELAY_PID")" && closed=1; fi
         rm -f "$RELAY_PID"
         ctl exit && closed=1 || true
         [ "$closed" = 1 ] && echo "✓ 隧道已关闭" || echo "隧道原本就没有建立"
         ;;
     status)
-        if [ "$TUNNEL_MODE" = relay ]; then
+        if systemctl --user is-active --quiet "$GATEWAY_UNIT" && \
+                systemctl --user is-active --quiet "$TRANSPORT_UNIT"; then
+            echo "✓ 自动重连服务正常 127.0.0.1:${LOCAL_VLLM_PORT} -> relay:${TRANSPORT_PORT}"
+        elif [ "$TUNNEL_MODE" = relay ]; then
             relay_alive || { echo "✗ 中转未建立     ./tunnel.sh up"; exit 1; }
             echo "✓ 中转正常       127.0.0.1:${LOCAL_VLLM_PORT} -> ${REMOTE_HOST}:${REMOTE_VLLM_PORT}"
         elif ctl check; then

@@ -172,9 +172,9 @@ def snapshot_sources(destination, config):
     """Explicit code/config allowlist; no environment, answers, weights or logs."""
     files = set()
     for base in (ROOT/'agent', ROOT/'serve', ROOT/'skill', ROOT/'dev/tools'):
-        files.update(p for p in base.rglob('*') if p.is_file() and p.suffix in ('.py', '.md', '.txt')
+        files.update(p for p in base.rglob('*') if p.is_file() and p.suffix in ('.py', '.md', '.txt', '.sh', '.yaml')
                      and '__pycache__' not in p.parts)
-    files.update(ROOT/name for name in ('run.sh','baseline.py','run_baseline.sh','requirements.txt'))
+    files.update(ROOT/name for name in ('run.sh','baseline.py','run_baseline.sh','requirements.txt','README.md'))
     files.update((ROOT/'config').glob('*.yaml'))
     incomplete = []
     for module in config.agent.workflow.imports:
@@ -208,13 +208,19 @@ def summarize_experiment(samples, *, planned=0, status='completed'):
     result = {'status':status, 'planned_samples':planned, 'completed_samples':len(samples), 'modes':{}, 'cancelled_samples':sum(s.solve.get('status')=='cancelled' for s in samples)}
     spec = importlib.util.spec_from_file_location('official_score', REPO/'selftest/score.py')
     official = importlib.util.module_from_spec(spec); spec.loader.exec_module(official)
+    def model_failed(row):
+        metric = next((m for m in row.metrics if m.name == 'model'), None)
+        return bool(metric and (metric.values.get('failed', 0)
+                                or metric.values.get('unfinished', 0)))
+
     for mode in sorted({s.mode for s in samples}):
         rows = [s for s in samples if s.mode == mode]
         metrics = {}
         for row in rows:
             for metric in row.metrics:
                 metrics.setdefault(metric.name, []).append(metric)
-        entry = {'samples':len(rows), 'solve_wall_s_sum':sum(r.solve.get('wall_s', 0) for r in rows),
+        entry = {'samples':len(rows), 'model_failure_samples':sum(model_failed(r) for r in rows),
+                 'solve_wall_s_sum':sum(r.solve.get('wall_s', 0) for r in rows),
                  'metric_statuses':{name:{state:sum(m.status==state for m in values) for state in sorted({m.status for m in values})}
                                     for name,values in metrics.items()}}
         judge_rows = {}
@@ -222,6 +228,10 @@ def summarize_experiment(samples, *, planned=0, status='completed'):
             metric = next((m for m in row.metrics if m.name=='judge'), None)
             if metric is None: continue
             verdict = metric.values.get('verdict')
+            # Preserve the official verdict on disk; failed infrastructure is
+            # excluded only in the development aggregate, never scored as RTL L0.
+            if model_failed(row):
+                verdict = {'tool_error':'model_request_failed', 'elapsed_s':0}
             if verdict is None:
                 verdict = {'tool_error':f'metric_{metric.status}', 'elapsed_s':0}
             judge_rows.setdefault(row.task_id, []).append(verdict)
@@ -231,11 +241,14 @@ def summarize_experiment(samples, *, planned=0, status='completed'):
     if a and b:
         # Avoid misleading gains when interruptions/environment exclusions change paired coverage.
         valid = lambda mode: {(s.task_id,s.index) for s in samples if s.mode==mode and
-                              any(m.name=='judge' and m.status=='ok' for m in s.metrics)}
+                              not model_failed(s) and any(m.name=='judge' and m.status=='ok' for m in s.metrics)}
         comparable = valid('agent') == valid('baseline') and bool(valid('agent'))
+        complete = (status == 'completed' and len(samples) == planned
+                    and sum(len(valid(mode)) for mode in ('agent', 'baseline')) == planned)
         result['comparison'] = {'paired_coverage':comparable,
-             'gain':a['set_score']/b['set_score'] if comparable and b['set_score'] else None,
-             'baseline_timeout_s':300, 'note':'single_generate 对齐 baseline RTL 请求与提取；预算与实际条件见逐样本记录'}
+             'full_comparison_valid':complete and comparable,
+             'gain':a['set_score']/b['set_score'] if complete and comparable and b['set_score'] else None,
+                 'baseline_timeout_s':300, 'note':'模型调用失败在开发汇总中排除；只有完整有效配对才计算 gain。采样参数与提示见逐样本记录'}
     return result
 
 

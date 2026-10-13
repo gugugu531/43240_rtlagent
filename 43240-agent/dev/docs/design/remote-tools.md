@@ -57,6 +57,68 @@ export LLM_MODEL="${LLM_MODEL:-deepseek-chat}"
 ./tunnel.sh status          # 查看隧道是否正常、当前模型名
 ```
 
+`tunnel.sh up` 现在用两个 systemd 用户服务管理连接：底层 SSH/socat 转发监听
+`LOCAL_VLLM_PORT + 1`，本地 HTTP gateway 监听 `LOCAL_VLLM_PORT`。服务退出后 3 秒自动
+重启；relay 的每个连接仍新建 SSH 会话，网络恢复后新请求可以继续。需要本机有可用的
+`systemctl --user`，relay 模式另需 socat。`tunnel.sh down` 停止两个服务及其子进程。
+
+gateway 对连接断开、连接被拒绝等传输异常，最多在 270 秒内用原始请求字节重试；GET
+健康检查最多等待 8 秒。上游 HTTP 错误直接返回。两组实验都通过同一个 gateway，采样
+参数和回复正文不变。中断的 POST 重试可能让远端重复推理，因此每次传输重试记录在
+gateway 的 journal 中，分析耗时时需一起查看；本题硬超时仍由 Supervisor 控制。
+
+```bash
+journalctl --user -u fpgachina-transport-18000.service -u fpgachina-model-gateway-18000.service
+```
+
+实验汇总现在排除已记录的模型失败样本，并保留原始 judge 文件；只有完整、双方有效且
+覆盖相同的配对实验才给出 gain。接口连通不等于长时间稳定，正式运行仍需查看调用错误数。
+
+### 本次 AutoDL 暂停后补跑（2026-10-13）
+
+`autodl_resume_quick34.sh` 专用于恢复
+`20261012-225403-autodl-qwen3-8b-a-fixed-quick34-460c1d2a` 取消的 5 题；
+运行前核对源码 SHA256 和 10 个待补样本，使用
+`dev/configs/quick34-remaining-20261013.yaml`，不会重跑已有 58 项。
+历史补跑曾安装 90 分钟远端保护；2026-10-13 用户已取消今后整轮固定截止，当前启动脚本
+默认不安装该保护，退出时仍停止 vLLM、连接与会话定时器。屏幕关闭可继续，但本机网络断开
+或休眠仍会影响求解链路。该旧专用补跑脚本已完成使命，不应再次执行以重跑旧样本。
+`autodl_watchdog.sh disarm` 现在先应用 `REMOTE_ACTIVATE`，解决非交互 SSH 中 Python
+不在 PATH 的问题；本轮已实际验证保护器启动与撤销。
+
+补跑完成后，在 `43240-agent/` 下运行：
+
+```bash
+python3 dev/tools/combine_runs.py <原运行目录> <补跑目录>
+```
+
+工具要求原运行 `cancelled`、补跑 `completed`，并核对有效配置、正式源码哈希、题目输入、
+完整覆盖及重复样本；取消、工具失败或模型失败样本不参与合并。派生摘要写入补跑目录的
+`combined/summary.json`，逐样本来源保存在 `combined/provenance.json`。
+它不修改原始运行，也不是一次新的连续执行。完成后仍需用户在 AutoDL 网页关机；
+脚本停止 vLLM 不会关闭平台实例。
+
+### 当前整轮时限政策与诊断恢复
+
+`autodl_generation_diagnostic.sh`、`autodl_quick34.sh` 和旧专用恢复入口共用
+`autodl_session_limit.sh`：`AUTODL_SESSION_LIMIT_S` 默认 0，取消遗留本地提醒/截止 timer 和远端
+watchdog，不再按 5 小时或 90 分钟自动暂停。只有用户另外明确要求，才设置正数启用限时。
+每次模型请求、单题和判定的超时预算不变；完成、报错或手动停止仍关闭推理服务。
+不启用独立远端时限后，若本机崩溃或断网导致清理无法到达远端，vLLM 可能留在云端，
+恢复连接后应检查；AutoDL 实例持续计费，仍需在网页关机。
+
+11 题诊断在第二组被旧 timer 中断时：
+
+```bash
+python3 dev/tools/generation_resume.py prepare <新会话目录> --previous <旧会话目录>
+python3 dev/tools/generation_resume.py verify <新会话目录>
+DIAGNOSTIC_VIVADO_SETTINGS=<实际settings64.sh路径> \
+  bash dev/tools/remote/autodl_generation_diagnostic.sh <新会话目录> --resume
+```
+
+仅补取消的 SampleSpec，不重抽已完成的低分答案；复用统一 runner。新会话保存原始证据哈希、
+剩余样本清单、网关审计和 `combined-sampled/` 派生汇总。原会话及结果不改写。
+
 远端运行的就是提交方案里的那份 `serve/vllm.sh`，所以测试时的服务配置和
 `MODEL.md` 中声明的一致。
 
@@ -206,6 +268,17 @@ LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../run.py \
 `./remote_eval.sh --config ../../configs/remote-smoke.yaml`（见 [`dev/docs/design/historical-analysis.md`](historical-analysis.md)）。方案（agent）和基线（baseline）在同一次运行中使用同一个推理服务，算出
 的增益才可信。
 
+方案 A 先用单题、单并发验证。这个配置会同时运行 `evidence_repair` 和 baseline；模型仍在远端，
+Agent 的接口检查、lint、综合和 judge 仍在本机，因此本机必须先初始化 Vivado 环境和许可证：
+
+```bash
+./remote_eval.sh --config ../../configs/evidence-repair-remote.yaml
+```
+
+确认 trace 中出现 `evidence_repair`、Vivado 检查不是 `unavailable`，且两种模式都完成后，再增加
+题目、样本数和并发。不要同时修改温度、上下文长度、候选数或提示策略，否则无法把分数变化归因
+到结构化反馈和一次修复本身。
+
 ## 模拟评测当天投题
 
 ```bash
@@ -223,6 +296,23 @@ LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../run.py \
 平台把本地端口暴露到公网的工具）分配的公网地址，做最后一次检查。
 
 ## 测试结束后
+
+### 开发侧 thinking / 采样诊断
+
+网关默认仍然原样转发请求。只有显式设置 `MODEL_GATEWAY_PROFILE` 和
+`MODEL_GATEWAY_AUDIT_DIR` 后重新建立隧道，才会启用开发参数覆盖；原始请求与实际请求均留档，
+两组的原始响应也保存，重试使用同一份实际请求。审计文件不记录 Authorization 请求头。
+可用设置为 `think-on-greedy`、`think-off-greedy`、`think-on-sampled`；
+不改题面、messages 或 8192 输出上限。参数覆盖后的采样组不是官方 baseline 固定参数成绩。
+
+本轮固定五题、三组顺序、验收和资源保护见
+[生成诊断计划](../notes/2026-10-13-generation-diagnostic-plan.md)。
+后续 11 题两组运行见[执行记录](../notes/2026-10-13-diagnostic-eleven-execution.md)；
+`generation_sweep.py prepare --config ... --profiles ...` 可冻结已声明的题集与有序设置，
+生成报告在每组开始和完成时更新，明确区分已汇总与在途样本。
+普通 `tunnel.sh up` 不会自动使用这些设置，也不会改变正式提交服务。
+
+### 释放资源
 
 ```bash
 ./tunnel.sh down

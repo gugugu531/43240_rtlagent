@@ -1,0 +1,30 @@
+# 仅补跑 20261012-225403-autodl-qwen3-8b-a-fixed-quick34-460c1d2a 暂停时剩余的 5 题。
+# 未启动任何服务；启用前必须重新确认模型、推理参数、代码快照及截止保护。
+schema_version: 1
+workflow:
+  type: evidence_repair
+services:
+  model:
+    backend: openai
+    model: Qwen3-8B
+    base_url: http://127.0.0.1:18000/v1
+    timeout_s: 300
+runtime:
+  deadline_s: 360
+  reserve_s: 20
+experiment:
+  tasks:
+    root: ../../../tasks
+    ids:
+      - Prob131_mt2015_q4
+      - Prob133_2014_q3fsm
+      - Prob138_2012_q2fsm
+      - Prob146_fsm_serialdata
+      - Prob154_fsm_ps2data
+    exclude: exclude.txt
+  modes: [agent, baseline]
+  samples: 1
+  solve_jobs: 1
+  metric_jobs: 1
+  metrics: [runtime, model, judge]
+  tag: autodl-qwen3-8b-a-fixed-quick34-resume

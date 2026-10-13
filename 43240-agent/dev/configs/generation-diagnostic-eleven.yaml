@@ -1,0 +1,37 @@
+# 固定开发诊断集：5 道历史退步 + 2 道历史获益 + 2 道稳定通过 + 2 道共同失败。
+# 不是随机样本或独立验证集；加载/解析配置本身不会启动 GPU。
+# thinking/采样由共享开发网关配置，不能在此加入未实现的开关。
+schema_version: 1
+workflow:
+  type: evidence_repair
+services:
+  model:
+    backend: openai
+    model: Qwen3-8B
+    base_url: http://127.0.0.1:18000/v1
+    timeout_s: 300
+runtime:
+  deadline_s: 360
+  reserve_s: 20
+experiment:
+  tasks:
+    root: ../../../tasks
+    ids:
+      - Prob101_circuit4
+      - Prob105_rotate100
+      - Prob109_fsm1
+      - Prob115_shift18
+      - Prob138_2012_q2fsm
+      - Prob026_alwaysblock1
+      - Prob048_m2014_q4c
+      - Prob017_mux2to1v
+      - Prob041_dff8r
+      - Prob043_vector5
+      - Prob058_alwaysblock2
+    exclude: exclude.txt
+  modes: [agent, baseline]
+  samples: 1
+  solve_jobs: 1
+  metric_jobs: 1
+  metrics: [runtime, model, judge]
+  tag: generation-diagnostic-eleven

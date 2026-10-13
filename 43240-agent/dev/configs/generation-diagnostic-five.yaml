@@ -1,0 +1,30 @@
+# 开发诊断集：由既有 quick-34 的 5 道退步题构成，不是独立验证集。
+# thinking/采样由开发网关统一覆盖双方，实际参数以 gateway 审计为准。
+schema_version: 1
+workflow:
+  type: evidence_repair
+services:
+  model:
+    backend: openai
+    model: Qwen3-8B
+    base_url: http://127.0.0.1:18000/v1
+    timeout_s: 300
+runtime:
+  deadline_s: 360
+  reserve_s: 20
+experiment:
+  tasks:
+    root: ../../../tasks
+    ids:
+      - Prob101_circuit4
+      - Prob105_rotate100
+      - Prob109_fsm1
+      - Prob115_shift18
+      - Prob138_2012_q2fsm
+    exclude: exclude.txt
+  modes: [agent, baseline]
+  samples: 1
+  solve_jobs: 1
+  metric_jobs: 1
+  metrics: [runtime, model, judge]
+  tag: generation-diagnostic
