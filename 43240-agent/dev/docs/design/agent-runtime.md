@@ -21,8 +21,11 @@ Diagnostic 保留严重程度、完整错误码、实际工具与版本、原报
 只有当前 solution.sv/v 中有效行号才映射到候选；环境错误、未知错误和 warning 不改成代码错误。
 版本查询使用有时限的受管理进程与独立临时目录。明确的 VRFC 10-1219 位选方向错误进入代码归因。
 
-正式资料位于 skill/rtl_cards.json，只有三张通过独立非赛题例子验证的修复卡。
-检索要求完整错误码、工具和版本匹配，最多两张，并按字符和实际上下文额度整卡省略。
+知识库由本地单独提供，内容不随 Git 上传。services.knowledge.corpus_path 默认 null，
+显式配置时相对路径按 YAML 文件所在目录解析；没有配置或文件无法加载时记录原因并保留原修复提示。
+检索要求完整错误码、工具和版本匹配；卡片可用 message_contains_any 指定诊断文本条件，
+只能由同一错误、工具及版本的 ERROR 满足，不能用其他错误或 warning 代替。
+最多两张，并按字符和实际上下文额度整卡省略；候选数量上限造成的省略也记录。
 记录命中、来源、哈希和省略；无命中不增加提示。语法修复卡不能证明功能正确。
 新增卡片须保留来源、适用条件、验证记录指纹与限制；赛事参考答案和测试台不得进入资料或提示。
 
@@ -35,6 +38,7 @@ Diagnostic 保留严重程度、完整错误码、实际工具与版本、原报
 | evidence_a2 | evidence_a1 加符合自身错误证据的短卡 |
 | search_initial | 保存候选策略共用的首次候选和自身检查 |
 | search_r1 / search_r2 | 最多一次 / 两次修复，通过自身检查即停止 |
+| search_r2_guided | search_r2 加外置修复卡，按每轮最新自身错误检索；未配置时请求与 search_r2 一致 |
 | search_c2 / search_c3 | 最多两份 / 三份独立候选，按自身检查证据选择 |
 
 search_* 的 temperature、top_p、base_seed 在 Python Workflow 构造时声明；
@@ -60,6 +64,6 @@ search_r2/search_c3 保存 stop_after_two.json，记录第三次调用前的答�
 
 组件测试覆盖默认消息兼容、整片段省略、严格额度、未知 usage、计数失配、诊断归因、
 短卡命中/回退、共享起点、第二次修复、独立候选、停止点、调用上限与失败保留。
-dev/tools/validate_repair_cards.py 用独立的错误、修正和控制例验证三张短卡；
+dev/tools/validate_repair_cards.py 用独立的错误、修正和控制例验证修复原则；
 dev/tools/validate_select_direction.py 验证位选错误归因。这些小例子不是赛事题目的参考答案。
 提交包检查继续验证没有 dev 时默认入口可运行；工具和功能检查的通过不等同于完整题集收益。

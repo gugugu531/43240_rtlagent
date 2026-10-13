@@ -68,3 +68,19 @@ def run_repair(temp, backend, tools, **params):
         TaskSpec.from_text('test', 'Implement TopModule.'),
         lambda: build_workflow('repair_loop', use_skills=False, **params),
         options=RunOptions(Path(temp)))
+
+
+def synthetic_corpus():
+    """Artificial parser/routing fixture, not a repair knowledge base."""
+    card = dict(id='test-guide', kind='repair', title='Synthetic fixture',
+        applies_when='Test diagnostic', codes=['VRFC 10-1280'], tools=['xvlog'], versions=['2026.1'],
+        guidance=['SYNTHETIC_GUIDANCE'], verify=['SYNTHETIC_VERIFY'], cautions=['SYNTHETIC_CAUTION'],
+        source_ids=['test-source'], tool_validation='independent_examples_passed', validation_sha256='0'*64)
+    return dict(schema_version=1, status='validated_repair_subset', cards=[card],
+                sources={'test-source': {'origin': 'test-fixture'}})
+
+
+def write_synthetic_corpus(root):
+    path = Path(root) / 'synthetic-corpus.json'
+    path.write_text(json.dumps(synthetic_corpus()))
+    return str(path)

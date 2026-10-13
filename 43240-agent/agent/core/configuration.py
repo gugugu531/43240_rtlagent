@@ -25,7 +25,8 @@ SCHEMA = {
                            'tokenizer_dir': None, 'context_limit': None, 'strict_context': None,
                            'token_total_limit': None, 'token_output_limit': None, 'enable_thinking': None,
                            'tokenizer_sha256': None, 'template_sha256': None},
-                 'tools': {'part': None, 'bin_dir': None, 'temp_dir': None, 'keep_work': None}},
+                 'tools': {'part': None, 'bin_dir': None, 'temp_dir': None, 'keep_work': None},
+                 'knowledge': {'corpus_path': None}},
     'runtime': {'deadline_s': None, 'reserve_s': None, 'initial_state': None,
                 'recording': {'level': None, 'root': None}},
     'experiment': {'tasks': {'root': None, 'ids': None, 'list': None, 'exclude': None},
@@ -39,7 +40,8 @@ DEFAULTS = {'schema_version': 1, 'imports': [], 'workflow': {'type': 'single_gen
                                    'token_total_limit': None, 'token_output_limit': None, 'enable_thinking': None,
                                    'tokenizer_sha256': None, 'template_sha256': None},
                          'tools': {'part': 'xczu3eg-sbva484-1-e', 'bin_dir': None,
-                                   'temp_dir': '/tmp', 'keep_work': False}},
+                                   'temp_dir': '/tmp', 'keep_work': False},
+                         'knowledge': {'corpus_path': None}},
             'runtime': {'deadline_s': 360.0, 'reserve_s': 20.0, 'initial_state': None,
                         'recording': {'level': 'full', 'root': None}}}
 ENV_FIELDS = {'LLM_BACKEND': 'services.model.backend', 'LLM_MODEL': 'services.model.model',
@@ -50,7 +52,7 @@ ENV_FIELDS = {'LLM_BACKEND': 'services.model.backend', 'LLM_MODEL': 'services.mo
               'RTL_PART': 'services.tools.part', 'VIVADO_BIN': 'services.tools.bin_dir',
               'AGENT_KEEP_WORK': 'services.tools.keep_work'}
 PATH_FIELDS = {'services.model.tokenizer_dir', 'services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root',
-               'runtime.initial_state',
+               'runtime.initial_state', 'services.knowledge.corpus_path',
                'experiment.tasks.root', 'experiment.tasks.list', 'experiment.tasks.exclude',
                'experiment.output_root'}
 
@@ -235,7 +237,8 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
     positive(r['deadline_s'], 'runtime.deadline_s'); positive(r['reserve_s'], 'runtime.reserve_s', allow_zero=True)
     level = r['recording']['level']
     if level not in ('basic', 'full'): raise ConfigError('recording.level must be basic or full')
-    for field_name in ('services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root'):
+    for field_name in ('services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root',
+                       'services.knowledge.corpus_path'):
         val = dict(_flatten(values))[field_name]
         if val is not None and (not isinstance(val, str) or not val): raise ConfigError(f'{field_name} must be a path')
     if t['temp_dir'] is None: raise ConfigError('tools.temp_dir must be a path')

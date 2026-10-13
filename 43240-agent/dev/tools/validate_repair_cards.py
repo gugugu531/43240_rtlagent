@@ -26,6 +26,22 @@ CASES = (
      'module child(input a, output q); assign q=a; endmodule\nmodule TopModule(input a, output q); child dut(.wrong(a), .q(q)); endmodule\n',
      'module child(input a, output q); assign q=a; endmodule\nmodule TopModule(input a, output q); child dut(.a(a), .q(q)); endmodule\n',
      'module child(input a, output q); assign q=a; endmodule\nmodule TopModule(input a, output q); child dut(.a(a), .q(q)); endmodule\n'),
+    ('ansi-port-declaration', 'VRFC 10-9336',
+     'module TopModule(input a, output q); reg q; always @* q=a; endmodule\n',
+     'module TopModule(input a, output reg q); always @* q=a; endmodule\n',
+     'module TopModule(a,q); input a; output q; reg q; always @* q=a; endmodule\n'),
+    ('mixed-drivers-declaration', 'VRFC 10-1280',
+     'module TopModule(input a, input clk, output w, output q); assign w=a; always @(posedge clk) q<=a; endmodule\n',
+     'module TopModule(input a, input clk, output w, output reg q); assign w=a; always @(posedge clk) q<=a; endmodule\n',
+     'module TopModule(input a, input clk, output w, output logic q); assign w=a; always @(posedge clk) q<=a; endmodule\n'),
+    ('part-select-descending', 'VRFC 10-1219',
+     'module TopModule(input [7:0] a, output [3:0] q); assign q=a[0:3]; endmodule\n',
+     'module TopModule(input [7:0] a, output [3:0] q); assign q=a[3:0]; endmodule\n',
+     'module TopModule(input [7:0] a, output [3:0] q); assign q=a[4 +: 4]; endmodule\n'),
+    ('part-select-ascending', 'VRFC 10-1219',
+     'module TopModule(input [0:7] a, output [3:0] q); assign q=a[7:4]; endmodule\n',
+     'module TopModule(input [0:7] a, output [3:0] q); assign q=a[4:7]; endmodule\n',
+     'module TopModule(input [0:7] a, output [3:0] q); assign q=a[0 +: 4]; endmodule\n'),
 )
 
 

@@ -37,6 +37,9 @@ workflow:
   type: single_generate
 
 services:
+  knowledge:
+    # 可选本地知识库；内容单独提供，不随 Git 上传。相对路径按本 YAML 所在目录解析。
+    corpus_path: null
   model:
     # 可选离线计数；仅从已准备的 tokenizer.json/tokenizer_config.json 读取，不下载或执行模型代码。
     # tokenizer_dir: /models/Qwen3-8B

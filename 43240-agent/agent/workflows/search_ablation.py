@@ -40,8 +40,9 @@ class SearchAblation(EvidenceAblation):
     limit = 2
     strategy = 'repair'
 
-    def __init__(self, initial_state=None, base_seed=20261013, temperature=0.6, top_p=0.95):
-        super().__init__(initial_state)
+    def __init__(self, initial_state=None, base_seed=20261013, temperature=0.6, top_p=0.95,
+                 corpus_path=None):
+        super().__init__(initial_state, corpus_path=corpus_path)
         self.max_rounds = self.max_model_calls = self.limit
         self.max_request_retries = 0
         self._prefix_ready = False
@@ -153,6 +154,11 @@ class SearchRepairOnce(SearchAblation):
 @WORKFLOW_REGISTRY.register('search_r2')
 class SearchRepairTwice(SearchAblation):
     limit = 3
+
+
+@WORKFLOW_REGISTRY.register('search_r2_guided')
+class SearchGuidedRepairTwice(SearchRepairTwice):
+    arm = 'A2'
 
 
 @WORKFLOW_REGISTRY.register('search_c2')
