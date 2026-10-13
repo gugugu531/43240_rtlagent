@@ -15,6 +15,99 @@ THIRD = 'module TopModule; wire third_attempt; endmodule\n'
 
 
 class SearchTests(unittest.TestCase):
+    def test_first_model_failure_does_not_fabricate_initial_or_stop_view(self):
+        for workflow in ('search_r2', 'search_c3'):
+            with self.subTest(workflow=workflow), tempfile.TemporaryDirectory() as temp:
+                out = Path(temp)
+                run(out, workflow, FakeBackend([ModelCallError('offline', kind='connection')]), FakeToolchain())
+                self.assertFalse((out/'initial.json').exists())
+                self.assertFalse((out/'stop_after_two.json').exists())
+
+    def test_direct_first_check_unavailable_records_early_stop_without_more_calls(self):
+        for workflow in ('search_r2', 'search_c3'):
+            with self.subTest(workflow=workflow), tempfile.TemporaryDirectory() as temp:
+                out = Path(temp); backend = FakeBackend([reply(FIRST)])
+                run(out, workflow, backend,
+                    FakeToolchain((ToolResult('lint', (), -1, 'unavailable', 0, 'missing'),)))
+                prefix = json.loads((out/'stop_after_two.json').read_text())
+                self.assertEqual(prefix['tokens']['calls'], 1)
+                self.assertEqual(len(backend.requests), 1)
+                self.assertIn(prefix['stop_reason'], ('environment', 'verification_unavailable'))
+
+    def test_replayed_stop_view_uses_verified_initial_not_a_later_file_read(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); initial, _ = self.capture(root)
+            initial_sha256 = json.loads(Path(initial).read_text())['sha256']
+            class Backend(FakeBackend):
+                def complete(self, request):
+                    if not self.requests: Path(initial).unlink()
+                    return super().complete(request)
+            backend = Backend([reply(SECOND), reply(FIXED)])
+            run(root/'replay', 'search_r2', backend,
+                FakeToolchain((failure(), success('lint')), (success('synth'),)), initial)
+            prefix = json.loads((root/'replay/stop_after_two.json').read_text())
+            self.assertEqual(prefix['initial_sha256'], initial_sha256)
+            self.assertEqual(prefix['tokens']['calls'], 2)
+            self.assertEqual(len(backend.requests), 2)
+
+    def test_direct_three_call_workflows_save_prefix_before_third_request(self):
+        for workflow in ('search_r2', 'search_c3'):
+            with self.subTest(workflow=workflow), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp); out = root/'direct'
+                class Backend(FakeBackend):
+                    def complete(self, request):
+                        if len(self.requests)==2:
+                            self.prefix_before_third = json.loads((out/'stop_after_two.json').read_text())
+                        return super().complete(request)
+                backend = Backend([reply(FIRST), reply(SECOND), reply(THIRD)])
+                tools = FakeToolchain((failure(), failure(), failure()))
+                run(out, workflow, backend, tools)
+                self.assertEqual(len(backend.requests), 3)
+                prefix = backend.prefix_before_third
+                self.assertEqual(prefix['tokens']['calls'], 2)
+                self.assertEqual(prefix['candidate_ids'], ['c001', 'c002'])
+                self.assertEqual(prefix['code'], FIRST)
+                self.assertNotIn('c003', prefix['candidate_ids'])
+                initial = json.loads((out/'initial.json').read_text())
+                self.assertEqual(prefix['initial_sha256'], initial['sha256'])
+                self.assertEqual(prefix['shared_initial_wall_s'], initial['initial_wall_s'])
+                self.assertGreaterEqual(prefix['branch_wall_s'], 0)
+
+    def test_direct_repair_that_passes_early_saves_one_call_stop_view(self):
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            backend = FakeBackend([reply(FIRST)])
+            result = run(out, 'search_r2', backend,
+                         FakeToolchain((success('lint'),), (success('synth'),)))
+            prefix = json.loads((out/'stop_after_two.json').read_text())
+            self.assertEqual(result.stop_reason, 'synth_passed')
+            self.assertEqual(prefix['stop_reason'], 'synth_passed')
+            self.assertEqual(prefix['tokens']['calls'], 1)
+            self.assertEqual(len(backend.requests), 1)
+
+    def test_direct_candidates_prefix_records_selection_and_survives_third_failure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            backend = FakeBackend([reply(FIRST), reply(SECOND), ModelCallError('offline', kind='connection')])
+            result = run(out, 'search_c3', backend,
+                FakeToolchain((failure(), success('lint')), (success('synth'),)))
+            prefix = json.loads((out/'stop_after_two.json').read_text())
+            self.assertEqual(result.selected_candidate.code, SECOND)
+            self.assertEqual(prefix['code'], SECOND)
+            self.assertEqual(prefix['tokens']['calls'], 2)
+            self.assertEqual(prefix['stop_reason'], 'candidate_limit')
+
+    def test_direct_first_extraction_failure_still_creates_valid_prefix(self):
+        for workflow in ('search_r2', 'search_c3'):
+            with self.subTest(workflow=workflow), tempfile.TemporaryDirectory() as temp:
+                out = Path(temp)
+                backend = FakeBackend([reply('not rtl'), reply('not rtl'), reply(FIXED)])
+                run(out, workflow, backend, FakeToolchain((success('lint'),), (success('synth'),)))
+                prefix = json.loads((out/'stop_after_two.json').read_text())
+                self.assertEqual(prefix['code'], '')
+                self.assertEqual(prefix['candidate_ids'], [])
+                self.assertEqual(prefix['tokens']['calls'], 2)
+
     def test_guided_r2_uses_latest_error_and_same_bounds_as_r2(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); initial, _ = self.capture(root)

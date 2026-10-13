@@ -37,16 +37,21 @@ class ToolService:
         started = time.monotonic()
         try:
             self._identity = (probe(timeout_s=self._budget.timeout_s(5.0)) if callable(probe)
-                              else dict(fingerprint=self.fingerprint(), tools={}, elapsed_s=0))
+                              else dict(fingerprint=self.replay_fingerprint(), tools={}, elapsed_s=0))
         except OSError as exc:
-            self._identity = dict(fingerprint=self.fingerprint(), tools={}, elapsed_s=0,
+            self._identity = dict(fingerprint=self.replay_fingerprint(), tools={}, elapsed_s=0,
                                   status='unavailable', error_type=type(exc).__name__)
         self._identity['elapsed_s'] = time.monotonic() - started
         self._emit('tool_identity', identity=self._identity)
         return self._identity
 
+    def replay_fingerprint(self):
+        self.fingerprint()
+        function = getattr(self._toolchain, 'replay_fingerprint', None)
+        return function() if callable(function) else self.fingerprint()
+
     def restore_identity(self, identity):
-        if identity.get('fingerprint') != self.fingerprint():
+        if identity.get('fingerprint') != self.replay_fingerprint():
             raise ValueError('replay tool identity changed')
         self._identity = identity
         self._emit('tool_identity_restored', identity=identity)

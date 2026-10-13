@@ -16,19 +16,28 @@ def load_corpus(path):
     if path.stat().st_size > 1024 * 1024:
         raise ValueError('repair corpus exceeds size limit')
     corpus = json.loads(path.read_text())
-    if corpus.get('schema_version') != 1 or corpus.get('status') != 'validated_repair_subset':
+    if (not isinstance(corpus, dict) or type(corpus.get('schema_version')) is not int
+            or corpus['schema_version'] != 1 or corpus.get('status') != 'validated_repair_subset'):
         raise ValueError('only a validated repair subset can enter the solver')
     ids = set()
     if not isinstance(corpus.get('cards'), list) or not isinstance(corpus.get('sources'), dict):
         raise ValueError('invalid repair corpus')
+    if any(not source.strip() or not isinstance(metadata, dict)
+           for source, metadata in corpus['sources'].items()):
+        raise ValueError('invalid repair corpus source')
     for card in corpus['cards']:
-        if (card['id'] in ids or not re.fullmatch('[a-z][a-z0-9-]*', card['id'])
+        if not isinstance(card, dict):
+            raise ValueError('invalid repair card')
+        for key in ('id', 'title', 'applies_when', 'kind', 'tool_validation', 'validation_sha256'):
+            if not isinstance(card.get(key), str) or not card[key].strip():
+                raise ValueError('invalid repair card text field')
+        if (not re.fullmatch('[a-z][a-z0-9-]*', card['id']) or card['id'] in ids
                 or card['kind'] != 'repair' or card['tool_validation'] != 'independent_examples_passed'
-                or not card.get('validation_sha256') or not re.fullmatch('[0-9a-f]{64}', card['validation_sha256'])):
+                or not re.fullmatch('[0-9a-f]{64}', card['validation_sha256'])):
             raise ValueError('invalid or unvalidated repair card')
         ids.add(card['id'])
         for key in ('codes', 'tools', 'versions', 'guidance', 'verify', 'cautions', 'source_ids'):
-            if not isinstance(card.get(key), list) or not card[key] or any(not isinstance(v, str) or not v for v in card[key]):
+            if not isinstance(card.get(key), list) or not card[key] or any(not isinstance(v, str) or not v.strip() for v in card[key]):
                 raise ValueError('invalid repair card field')
         if any(CODE.fullmatch(code) is None for code in card['codes']):
             raise ValueError('invalid error namespace')

@@ -122,6 +122,33 @@ class RtlToolchain:
         except OSError:
             return None
 
+    def replay_fingerprint(self):
+        """Tool identity across runs, independent of Agent workflow/output state."""
+        import hashlib
+        from pathlib import Path
+        paths = [self.xvlog, self.xelab, self.vivado]
+        if any(path is None for path in paths):
+            return None
+        names = {'PATH', 'HOME', 'LD_LIBRARY_PATH', 'LD_PRELOAD', 'LIBRARY_PATH',
+                 'CPATH', 'C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'COMPILER_PATH',
+                 'GCC_EXEC_PREFIX', 'TCLLIBPATH', 'TCL_LIBRARY', 'TK_LIBRARY',
+                 'PYTHONPATH', 'PYTHONHOME', 'TMPDIR', 'TMP', 'TEMP', 'LANG',
+                 'LANGUAGE', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS'}
+        prefixes = ('XILINX_', 'XILINXD_', 'RDI_', 'HDI_', 'LM_', 'FLEXLM_', 'LC_')
+        environment = sorted((k, v) for k, v in os.environ.items()
+                             if k in names or k.startswith(prefixes))
+        try:
+            identity = []
+            for path in paths:
+                resolved = Path(path).resolve()
+                info = resolved.stat()
+                identity.append((str(resolved), info.st_dev, info.st_ino, info.st_size,
+                                 info.st_mtime_ns, info.st_ctime_ns))
+            return hashlib.sha256(repr(('replay-tool-v1', identity, self.config.public_dict(),
+                                        environment, Path(__file__).read_bytes())).encode()).hexdigest()
+        except OSError:
+            return None
+
     def _command(self, cmd, cwd, timeout_s):
         if self.executor is None:
             return _run_command(cmd, cwd, timeout_s)
@@ -144,7 +171,7 @@ class RtlToolchain:
                 match = re.search(r'(?:Vivado(?: Simulator)?|xvlog|xelab)\s+v?(\d{4}\.\d+)', result.output, re.I)
                 tools[name] = dict(version=match.group(1) if match and result.status == 'ok' else None,
                                    status=result.status, command=list(result.command), log_path=result.log_path)
-        return dict(fingerprint=self.fingerprint(), tools=tools, elapsed_s=time.monotonic() - started)
+        return dict(fingerprint=self.replay_fingerprint(), tools=tools, elapsed_s=time.monotonic() - started)
 
     @property
     def available(self) -> bool:

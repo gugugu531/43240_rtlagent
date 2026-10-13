@@ -1,15 +1,13 @@
 """Bounded E2 repair depth and independent candidate width comparisons."""
 from dataclasses import dataclass, replace
-import json
 import hashlib
-from pathlib import Path
 import re
 import time
 
 from agent.core.budget import BudgetExhausted
 from agent.core.model import ModelCallError, ModelRequest
 from agent.core.registry import NODE_REGISTRY, WORKFLOW_REGISTRY, build_node
-from agent.core.replay import load_initial, runtime_hashes, task_hash, digest
+from agent.core.replay import load_initial, save_initial, runtime_hashes, task_hash, digest
 from agent.recording.artifacts import atomic_write_json
 from agent.nodes.check import CheckInput
 from agent.nodes.extract import ExtractInput
@@ -60,12 +58,15 @@ class SearchAblation(EvidenceAblation):
         path = ctx.output_dir / 'stop_after_two.json'
         if self.limit != 3 or not self._prefix_ready or path.exists():
             return
-        initial = json.loads(Path(self._source).read_text())
+        initial = self._initial_checkpoint
+        initial_sha256 = initial['sha256'] if 'sha256' in initial else digest(initial)
+        elapsed = time.monotonic() - ctx.started_at
+        branch_wall_s = max(0.0, elapsed - (initial['initial_wall_s'] if not self._source else 0))
         selected = ctx.state.candidates.get(ctx.state.selected_candidate_id)
         data = dict(schema_version=1, source_workflow=self._registration_name,
             task_hash=task_hash(ctx.task), runtime_hashes=runtime_hashes(), service=dict(ctx.llm.backend.describe()),
-            initial_sha256=initial['sha256'], shared_initial_wall_s=initial['initial_wall_s'],
-            branch_wall_s=time.monotonic()-ctx.started_at, requests=ctx.llm.requests,
+            initial_sha256=initial_sha256, shared_initial_wall_s=initial['initial_wall_s'],
+            branch_wall_s=branch_wall_s, requests=ctx.llm.requests,
             tokens=ctx.llm.tokens.snapshot(), candidate_ids=list(ctx.state.candidates),
             selected_candidate_id=selected.id if selected else None, code=selected.code if selected else '',
             stop_reason=reason)
@@ -78,13 +79,22 @@ class SearchAblation(EvidenceAblation):
 
     def restore(self, ctx):
         result = super().restore(ctx)
-        self._prefix_ready = bool(self._source)
+        self._prefix_ready = self._initial_checkpoint is not None
         return result
+
+    def capture_initial(self, ctx, reply, result, checks, reason):
+        if self.limit == 3 and not self._source and self._initial_checkpoint is None:
+            self._initial_checkpoint = save_initial(ctx.output_dir / 'initial.json', ctx, reply,
+                                                    result, checks, reason, self._identity)
+            self._prefix_ready = True
 
     def after_round(self, ctx, reply, result, checks, choice, round):
         super().after_round(ctx, reply, result, checks, choice, round)
+        if round == 1:
+            self.capture_initial(ctx, reply, result, checks, choice.reason)
         if round == 2:
-            self.save_stop_after_two(ctx, 'synth_passed' if choice.reason=='synth_passed' else 'model_call_limit')
+            reason = 'model_call_limit' if choice.action == 'repair' else choice.reason
+            self.save_stop_after_two(ctx, 'verification_unavailable' if reason == 'environment' else reason)
 
     def run(self, ctx):
         configured = getattr(ctx, 'configuration', {}).get('effective', {}).get('runtime', {}).get('initial_state')
@@ -101,13 +111,14 @@ class SearchAblation(EvidenceAblation):
         source = self._source
         if source:
             data, reply, result, checks = load_initial(source, ctx, self.extract)
+            self._initial_checkpoint = data
             self._prefix_ready = True
             ctx.apply_selection(self.choose(ctx.state))
             round_start = data['tokens']['calls'] + 1
             if checks and checks[-1].classify() in ('environment', 'unknown', 'timeout'):
                 return ctx.finish(reason=checks[-1].classify(), status='stopped')
         else:
-            ctx.tools.identify()
+            self._identity = ctx.tools.identify()
             round_start = 1
         for round in range(round_start, self.limit + 1):
             if round == 3:
@@ -121,22 +132,34 @@ class SearchAblation(EvidenceAblation):
                 return ctx.finish(reason=f'model_{exc.kind}', status='stopped')
             result = ctx.execute(self.extract, ExtractInput(reply, round, source_stage='generate'))
             if result.candidate is None:
+                if round == 1:
+                    self.capture_initial(ctx, reply, result, [], 'extraction')
                 continue
             ctx.apply_selection(self.choose(ctx.state))
+            checks = []
             try:
                 candidate = result.candidate
                 check = ctx.execute(self.interface, CheckInput(candidate))
+                checks.append(check)
                 ctx.apply_selection(self.choose(ctx.state))
                 if not check.blocking:
                     check = ctx.execute(self.lint, CheckInput(candidate))
+                    checks.append(check)
                     ctx.apply_selection(self.choose(ctx.state))
                     if check.status == 'passed':
                         check = ctx.execute(self.synth, CheckInput(candidate))
+                        checks.append(check)
                         ctx.apply_selection(self.choose(ctx.state))
                 if check.classify() in ('environment', 'unknown', 'timeout'):
+                    if round == 1:
+                        self.capture_initial(ctx, reply, result, checks, check.classify())
                     return ctx.finish(reason=check.classify(), status='stopped')
             except BudgetExhausted:
+                if round == 1:
+                    self.capture_initial(ctx, reply, result, checks, 'deadline')
                 return ctx.finish(reason='deadline', status='stopped')
+            if round == 1:
+                self.capture_initial(ctx, reply, result, checks, self.choose(ctx.state).reason)
         return ctx.finish(reason='candidate_limit')
 
 

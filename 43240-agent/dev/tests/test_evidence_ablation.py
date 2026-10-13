@@ -35,6 +35,26 @@ def run(out, workflow, backend, tools, initial=None, corpus_path=None):
 
 
 class AblationTests(unittest.TestCase):
+    def test_invalid_corpus_falls_back_to_plain_repair_and_records_reason(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); checkpoint, _ = self.capture(root)
+            backend = FakeBackend([reply(FIXED)])
+            run(root/'plain', 'evidence_a1', backend,
+                FakeToolchain((success('lint'),), (success('synth'),)), str(checkpoint))
+            expected = backend.requests[0].messages
+            corpus_path = root/'bad.json'
+            for index, value in enumerate(([], None, {'cards': [None]},
+                                            dict(synthetic_corpus(), cards=[None]))):
+                corpus_path.write_text(json.dumps(value))
+                backend = FakeBackend([reply(FIXED)])
+                out = root/f'bad-{index}'
+                result = run(out, 'evidence_a2', backend,
+                    FakeToolchain((success('lint'),), (success('synth'),)), str(checkpoint), str(corpus_path))
+                self.assertEqual(result.stop_reason, 'synth_passed')
+                self.assertEqual(backend.requests[0].messages, expected)
+                self.assertTrue(any(e.get('event')=='repair_guidance'
+                                    and e.get('reason')=='corpus_unavailable' for e in events(out)))
+
     def capture(self, root, code='VRFC 10-1280', content=FIRST):
         out = root / 'a0'
         backend = FakeBackend([reply(content)])

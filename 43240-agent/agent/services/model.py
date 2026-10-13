@@ -142,10 +142,13 @@ class ModelService:
             request = replace(request, model=self.backend.config.model)
         if self.template_options and request.profile != 'baseline_rtl' and request.chat_template_kwargs is None:
             request = replace(request, chat_template_kwargs=self.template_options)
+        if self.template_options and request.profile == 'baseline_rtl' and request.chat_template_kwargs is None:
+            self.recorder.write_event('tokens', 'template_options_ignored',
+                                      reason='baseline_payload_unchanged')
         from agent.core.tokens import TokenBudgetError
         from agent.prompts.context import ContextLimitError, messages_hash
         prediction = self.counter.count(request.messages,
-            template_options=request.chat_template_kwargs if request.chat_template_kwargs is not None else self.template_options)
+            template_options=request.chat_template_kwargs if request.chat_template_kwargs is not None else {})
         try:
             cap = self.tokens.allowance(prediction, request.max_tokens)
             if self.context_limit is not None:

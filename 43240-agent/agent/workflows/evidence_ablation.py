@@ -17,6 +17,7 @@ class EvidenceAblation(EvidenceRepair):
             self.max_rounds = 1
         self.guidance = build_node('repair_guidance', corpus_path=corpus_path) if self.arm == 'A2' else None
         self._identity = None
+        self._initial_checkpoint = None
 
     def run(self, ctx):
         # Configuration carries only a checkpoint path; its solver-only payload
@@ -32,6 +33,7 @@ class EvidenceAblation(EvidenceRepair):
         if not self.initial_state:
             return None
         data, reply, result, checks = load_initial(self.initial_state, ctx, self.extract)
+        self._initial_checkpoint = data
         ctx.apply_selection(self.choose(ctx.state))
         if self.arm == 'A0' or data['stop_reason'] == 'synth_passed':
             return ctx.finish(reason=data['stop_reason'])
