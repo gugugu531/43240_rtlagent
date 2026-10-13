@@ -1,0 +1,280 @@
+{
+  "schema_version": 1,
+  "corpus_id": "rtl-general-cards-v1",
+  "created_at": "2026-10-13",
+  "status": "development_only_not_connected",
+  "sources": {
+    "runtime-diagnostics": {
+      "title": "当前 Vivado 服务的通用错误签名与接口检查",
+      "origin": "runtime",
+      "path": "agent/services/vivado.py",
+      "sha256": "6261e8cae75fd1f7379280d96d7b9d674d9ead1109e707109112afa534524463",
+      "url": "local:agent/services/vivado.py",
+      "license": "team-authored",
+      "scope": "只引用通用错误签名，不读取题目、评分或答案"
+    },
+    "interface-contract": {
+      "title": "已有通用接口契约说明",
+      "origin": "runtime",
+      "path": "skill/rtl-module-interface-contract/SKILL.md",
+      "sha256": "68c7b522e3c95e35c85f1005d880a663a09dad188bb9e4e2fc181e113ed05e9a",
+      "url": "local:skill/rtl-module-interface-contract/SKILL.md",
+      "license": "MIT; Copyright 2026 Advanced Micro Devices, Inc.",
+      "scope": "只提炼接口与语法原则，不复制示例评测表"
+    },
+    "ross-assign-1": {
+      "title": "Ross ASSIGN-1 算术结果截断",
+      "origin": "ross",
+      "path": "skills/vivado-rtl-lint/resolution/ASSIGN-1.md",
+      "sha256": "b3255e651e1b149ae5b430b45fa2a41566658bb61c44ff1424bba73fcf903980",
+      "url": "https://github.com/gugugu531/ross-ai-assistant/blob/2cdc9eef1b6b5b17fa45f5e4d468e5483a1c92de/skills/vivado-rtl-lint/resolution/ASSIGN-1.md",
+      "license": "MIT; see NOTICE.md",
+      "scope": "诊断主题参考；未照搬扩大端口或饱和处理建议"
+    },
+    "ross-assign-2": {
+      "title": "Ross ASSIGN-2 有符号与无符号混合",
+      "origin": "ross",
+      "path": "skills/vivado-rtl-lint/resolution/ASSIGN-2.md",
+      "sha256": "94aa668b3de12e3eb406e3a38f16644a302ecbe5c135ce21c84e61f16d12220f",
+      "url": "https://github.com/gugugu531/ross-ai-assistant/blob/2cdc9eef1b6b5b17fa45f5e4d468e5483a1c92de/skills/vivado-rtl-lint/resolution/ASSIGN-2.md",
+      "license": "MIT; see NOTICE.md",
+      "scope": "诊断主题参考；增加禁止盲目强制 signed 的边界"
+    },
+    "ross-assign-3": {
+      "title": "Ross ASSIGN-3 移位范围",
+      "origin": "ross",
+      "path": "skills/vivado-rtl-lint/resolution/ASSIGN-3.md",
+      "sha256": "8ac4cab72fae6a00bf8a7b42ff27f19187e42022ad7809ea9eea16d26a3d08cd",
+      "url": "https://github.com/gugugu531/ross-ai-assistant/blob/2cdc9eef1b6b5b17fa45f5e4d468e5483a1c92de/skills/vivado-rtl-lint/resolution/ASSIGN-3.md",
+      "license": "MIT; see NOTICE.md",
+      "scope": "诊断主题参考；不采用任意裁剪移位量的修复"
+    },
+    "ross-assign-5": {
+      "title": "Ross ASSIGN-5 未驱动信号",
+      "origin": "ross",
+      "path": "skills/vivado-rtl-lint/resolution/ASSIGN-5.md",
+      "sha256": "265d008797100c7acd06ac921ee7c0ca853a5cd06a8c371a0bafa560793c3b16",
+      "url": "https://github.com/gugugu531/ross-ai-assistant/blob/2cdc9eef1b6b5b17fa45f5e4d468e5483a1c92de/skills/vivado-rtl-lint/resolution/ASSIGN-5.md",
+      "license": "MIT; see NOTICE.md",
+      "scope": "不将时序保持误判为必须补零"
+    },
+    "ross-assign-9": {
+      "title": "Ross ASSIGN-9 输出位未赋值",
+      "origin": "ross",
+      "path": "skills/vivado-rtl-lint/resolution/ASSIGN-9.md",
+      "sha256": "a841e4b15d2f6c381003f47d0437c6bdde6633c2549a1c2a9b7c751ebba26607",
+      "url": "https://github.com/gugugu531/ross-ai-assistant/blob/2cdc9eef1b6b5b17fa45f5e4d468e5483a1c92de/skills/vivado-rtl-lint/resolution/ASSIGN-9.md",
+      "license": "MIT; see NOTICE.md",
+      "scope": "不采用删除题面要求输出端口的建议"
+    },
+    "ross-infer-1": {
+      "title": "Ross INFER-1 锁存器诊断主题",
+      "origin": "ross",
+      "path": "skills/vivado-rtl-lint/resolution/INFER-1.md",
+      "sha256": "27b56f31568bb8b74af0d454da9ddffc8d6ff96ad100eb11ed5c0f8927709f01",
+      "url": "https://github.com/gugugu531/ross-ai-assistant/blob/2cdc9eef1b6b5b17fa45f5e4d468e5483a1c92de/skills/vivado-rtl-lint/resolution/INFER-1.md",
+      "license": "MIT; see NOTICE.md",
+      "scope": "采用逐路径赋值原则，不照搬其 P7 对组合块开头默认赋值的笼统否定"
+    },
+    "ross-infer-2": {
+      "title": "Ross INFER-2 case 覆盖",
+      "origin": "ross",
+      "path": "skills/vivado-rtl-lint/resolution/INFER-2.md",
+      "sha256": "2cd7db51fb80f4e374f40c78c07763c653491c2bc044c699c632d417a8bd574c",
+      "url": "https://github.com/gugugu531/ross-ai-assistant/blob/2cdc9eef1b6b5b17fa45f5e4d468e5483a1c92de/skills/vivado-rtl-lint/resolution/INFER-2.md",
+      "license": "MIT; see NOTICE.md",
+      "scope": "default 值必须来自规格；unique case 不能代替完整赋值"
+    },
+    "ross-reset-2": {
+      "title": "Ross RESET-2 异步复位覆盖",
+      "origin": "ross",
+      "path": "skills/vivado-rtl-lint/resolution/RESET-2.md",
+      "sha256": "02ea001dc163d099f528c74d7705d95a2b56532cc8548103b202667fea136f09",
+      "url": "https://github.com/gugugu531/ross-ai-assistant/blob/2cdc9eef1b6b5b17fa45f5e4d468e5483a1c92de/skills/vivado-rtl-lint/resolution/RESET-2.md",
+      "license": "MIT; see NOTICE.md",
+      "scope": "只按题面要求补复位，不把所有寄存器必须同样复位作为普遍定律"
+    },
+    "ross-reset-3": {
+      "title": "Ross RESET-3 同步复位覆盖",
+      "origin": "ross",
+      "path": "skills/vivado-rtl-lint/resolution/RESET-3.md",
+      "sha256": "bbe9665bdba05a204012671982d4d43e8dbac1d14a047bb3cf41696ef830c58d",
+      "url": "https://github.com/gugugu531/ross-ai-assistant/blob/2cdc9eef1b6b5b17fa45f5e4d468e5483a1c92de/skills/vivado-rtl-lint/resolution/RESET-3.md",
+      "license": "MIT; see NOTICE.md",
+      "scope": "关注语句分组和要求复位的位，不任意增加复位行为"
+    },
+    "amd-sequential": {
+      "title": "AMD UG901 2026.1 Sequential Always Block Examples",
+      "origin": "web",
+      "url": "https://docs.amd.com/r/en-US/ug901-vivado-synthesis/Sequential-Always-Block-Examples",
+      "license": "AMD documentation terms; link and original paraphrase only",
+      "checked_at": "2026-10-13"
+    },
+    "amd-fsm": {
+      "title": "AMD UG901 2026.1 FSM Description / FSM Diagrams",
+      "origin": "web",
+      "url": "https://docs.amd.com/r/en-US/ug901-vivado-synthesis/FSM-Description",
+      "license": "AMD documentation terms; link and original paraphrase only",
+      "checked_at": "2026-10-13"
+    },
+    "team-invariants": {
+      "title": "团队原创：从一般 RTL 语义推导的规格检查原则",
+      "origin": "team",
+      "url": "team:rtl-general-invariants-v1",
+      "license": "team-authored",
+      "scope": "无题号、无标准答案；只是通用检查草稿，不是工具验证证书"
+    }
+  },
+  "cards": [
+    {
+      "id": "procedural-variable", "title": "过程赋值目标必须符合变量赋值规则", "kind": "repair",
+      "tools": ["xvlog", "xelab"], "versions": ["2026.1"], "codes": ["VRFC 10-1280"],
+      "keywords": ["procedural assignment", "non-register", "过程赋值", "output reg"],
+      "applies_when": "日志明确指出对 net/non-register 进行了过程赋值，并能定位该对象的声明与驱动过程。",
+      "guidance": ["核对文件实际使用 Verilog 还是 SystemVerilog；在 always 中写入的对象应采用该语言允许的变量声明。", "必要时调整 output 的 reg/logic 类型，不更改端口名、方向或位宽；同时检查是否存在其他驱动者。"],
+      "verify": ["重新运行原失败阶段，确认原错误消失。", "再次核对接口和驱动来源；语法通过不代表功能通过。"],
+      "cautions": ["连续赋值与过程赋值规则不同，不对所有 wire 批量替换为 reg/logic。"],
+      "source_ids": ["runtime-diagnostics", "interface-contract"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "module-port-contract", "title": "顶层模块与端口契约", "kind": "repair",
+      "tools": ["xvlog", "xelab"], "versions": ["2026.1"], "codes": ["VRFC 10-2063", "VRFC 10-3180"],
+      "keywords": ["cannot find port", "module not found", "接口", "端口", "module name"],
+      "applies_when": "日志报告找不到模块或端口，且题面或独立接口声明明确给出了目标。",
+      "guidance": ["逐项比较大小写敏感的模块名、端口集合、方向和位宽。", "先排查文件列表、读取模式与顶层设置，再修复实际拼写或声明不一致。"],
+      "verify": ["接口检查与原 elaboration 阶段都通过后才继续。"],
+      "cautions": ["不能通过删端口、增加别名端口或改变位宽绕过题面。", "没有目标接口时返回信息不足，不猜测隐藏测试台的连接。"],
+      "source_ids": ["runtime-diagnostics", "interface-contract"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "syntax-local-context", "title": "语法错误同时检查报错位置与前一条语句", "kind": "repair",
+      "tools": ["xvlog", "xelab"], "versions": ["2026.1"], "codes": ["VRFC 10-4982"],
+      "keywords": ["syntax error", "语法错误", "分号", "module header"],
+      "applies_when": "解析器报告 syntax error；错误位置附近的实际源码可读取。",
+      "guidance": ["检查当前及前一条语句的分号、括号、begin/end 和模块头终止符。", "核对文件语言模式是否支持当前语法；只修复有源码证据的局部问题。"],
+      "verify": ["重新运行解析阶段，并检查是否出现新的首个错误。"],
+      "cautions": ["错误码不意味着一定缺分号，不应无条件向报错行追加字符。"],
+      "source_ids": ["interface-contract"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "arithmetic-width", "title": "区分数学所需位宽与 RTL 表达式实际位宽", "kind": "repair",
+      "tools": ["vivado-lint"], "versions": ["2026.1"], "codes": ["ASSIGN-1"],
+      "keywords": ["result truncation", "overflow", "位宽", "截断", "carry"],
+      "applies_when": "lint 报告算术结果可能被截断；题面给出了结果表示或溢出行为。",
+      "guidance": ["分别计算数值范围、表达式实际定宽和输出契约；需要保留进位时在运算前扩展内部操作数。", "输出是否截断、回绕或饱和必须由题面决定。"],
+      "verify": ["检查最大值、进位和涉及负数的边界；重新检查宽度警告。"],
+      "cautions": ["不能为消除警告扩大固定输出端口，也不能擅自加入饱和逻辑。", "数学上需要额外一位不等于 Verilog 自动产生额外一位。"],
+      "source_ids": ["ross-assign-1", "team-invariants"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "signedness", "title": "先确认数值含义，再统一位宽与符号", "kind": "repair",
+      "tools": ["vivado-lint"], "versions": ["2026.1"], "codes": ["ASSIGN-2"],
+      "keywords": ["signed", "unsigned", "符号", "负数", "part-select"],
+      "applies_when": "日志报告 signed/unsigned 混合，或切片、比较、算术右移的符号语义与题意有关。",
+      "guidance": ["逐项标注声明、常量和切片的位宽/符号；切片后的符号属性要重新核对。", "无符号正数参与有符号运算时，先按数值范围适当补零扩展；真正有符号值按其含义做符号扩展。"],
+      "verify": ["覆盖最高位为 1 的无符号值、负数及比较边界。"],
+      "cautions": ["直接把所有操作数包进 $signed 可能把合法正数解释成负数；不能当成通用修复。"],
+      "source_ids": ["ross-assign-2", "team-invariants"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "shift-range", "title": "移位量与操作数范围", "kind": "repair",
+      "tools": ["vivado-lint"], "versions": ["2026.1"], "codes": ["ASSIGN-3"],
+      "keywords": ["shift", "移位", "shift amount", "越界"],
+      "applies_when": "lint 指出移位量超出有效范围，或参数与数据宽度不匹配。",
+      "guidance": ["核对操作数实际位宽、移位方向和逻辑/算术语义。", "若参数确实抄错，按规格修正；若规格允许超宽移位，则保留其定义行为。"],
+      "verify": ["检查移位量为 0、宽度减一、等于宽度和大于宽度的情况。"],
+      "cautions": ["不能为了消除告警把移位量自动限制到宽度减一；那会改变结果。"],
+      "source_ids": ["ross-assign-3"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "combinational-coverage", "title": "组合逻辑逐路径完整赋值", "kind": "repair",
+      "tools": ["vivado-lint"], "versions": ["2026.1"], "codes": ["INFER-1", "INFER-2"],
+      "keywords": ["latch", "锁存", "default", "incomplete case", "组合赋值"],
+      "applies_when": "规格要求组合逻辑，但存在不完整赋值路径或意外锁存告警。",
+      "guidance": ["枚举每个输出在每条路径上的赋值；可在组合块每次执行的开头无条件设置合理默认值，再由分支覆盖。", "默认值应来自规格；必要时补全 case 或 if/else。"],
+      "verify": ["检查所有位和分支，重新查看锁存诊断。"],
+      "cautions": ["声明时一次性初始化，不等同于组合块每次执行的默认赋值。", "时序块的条件不满足时保持状态通常合法，不按本卡补零。", "unique case 或综合指令不代替实际赋值覆盖；题面要求锁存时不强行改成寄存器。"],
+      "source_ids": ["ross-infer-1", "ross-infer-2", "team-invariants"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "driven-output-bits", "title": "定位未驱动的内部信号和输出位", "kind": "repair",
+      "tools": ["vivado-lint"], "versions": ["2026.1"], "codes": ["ASSIGN-5", "ASSIGN-9"],
+      "keywords": ["undriven", "unassigned", "未驱动", "输出位", "partial assignment"],
+      "applies_when": "日志确实列出未驱动信号或位，并且能定位声明和驱动来源。",
+      "guidance": ["逐位检查遗漏的连接、切片与驱动语句；根据题面补齐应有驱动。", "区分整个对象未驱动、部分位未驱动与合法的时序保持。"],
+      "verify": ["重新检查该对象及其消费者，确保没有新增驱动冲突。"],
+      "cautions": ["不能删除题面规定的输出端口，也不能用随意补零掩盖缺失逻辑。"],
+      "source_ids": ["ross-assign-5", "ross-assign-9"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "reset-coverage", "title": "按规格检查复位覆盖和语句分组", "kind": "repair",
+      "tools": ["vivado-lint"], "versions": ["2026.1"], "codes": ["RESET-2", "RESET-3"],
+      "keywords": ["reset coverage", "复位覆盖", "begin end", "missing reset"],
+      "applies_when": "日志指出部分寄存器缺复位，且规格明确它们应该在复位时初始化。",
+      "guidance": ["检查 begin/end 是否让多条赋值都落在复位分支中，并核对要求复位的每一位。", "不同寄存器若确实具有不同控制语义，可分开描述，但保持同步/异步类型与题面一致。"],
+      "verify": ["检查复位有效、释放以及复位与使能同时有效时的行为。"],
+      "cautions": ["不是所有寄存器都必须复位，不给规格未要求复位的数据路径擅自增加行为。"],
+      "source_ids": ["ross-reset-2", "ross-reset-3", "amd-sequential"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "reset-semantics", "title": "复位同步性、极性和复位值分别确认", "kind": "design",
+      "tools": ["rtl"], "versions": [], "codes": [],
+      "keywords": ["复位", "reset", "synchronous", "asynchronous", "同步", "异步"],
+      "applies_when": "题面提到复位，或需要检查寄存器更新契约。",
+      "guidance": ["把同步/异步、有效高/低、目标值和释放后的首次更新分别记录。", "同步复位只在指定时钟边沿生效；异步复位的有效边沿应与敏感事件匹配。"],
+      "verify": ["人工推演无时钟边沿时复位变化、时钟到达和复位释放三个场景。"],
+      "cautions": ["厂商的性能建议不能覆盖题面指定的异步或低有效要求。"],
+      "source_ids": ["amd-sequential", "team-invariants"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "sequential-assignment", "title": "明确时序状态更新与组合临时计算", "kind": "design",
+      "tools": ["rtl"], "versions": [], "codes": [],
+      "keywords": ["nonblocking", "blocking", "非阻塞", "阻塞", "流水", "时序赋值"],
+      "applies_when": "描述触发器、流水级或多个状态变量在同一时钟边沿的更新。",
+      "guidance": ["描述时钟触发的状态寄存器时优先使用非阻塞赋值，明确右侧读取的旧状态。", "组合临时计算与寄存器更新分清职责；组合逻辑通常使用阻塞赋值。"],
+      "verify": ["逐时钟边沿列出旧值和新值，核对数据应延迟的周期数。"],
+      "cautions": ["不要机械替换所有等号；局部临时变量与特定算法需要结合语义判断。", "不通过添加时延改变调度来掩盖竞态。"],
+      "source_ids": ["amd-sequential", "team-invariants"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "control-priority", "title": "控制条件重叠时按题面决定优先级", "kind": "design",
+      "tools": ["rtl"], "versions": [], "codes": [],
+      "keywords": ["优先级", "priority", "load enable", "同时有效", "保持"],
+      "applies_when": "复位、加载、使能、清零等多个条件可能同时为真。",
+      "guidance": ["把题面转换为按优先级排列的条件表，特别检查两项及多项同时有效。", "互斥分支和多条顺序赋值可能有不同覆盖语义；明确保持条件。"],
+      "verify": ["列出重叠控制组合并核对预期更新或保持，不只检查单独有效的条件。"],
+      "cautions": ["不存在对所有题都正确的 reset/load/enable 固定顺序。"],
+      "source_ids": ["team-invariants"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "rotate-versus-shift", "title": "旋转与移位的端点行为不同", "kind": "design",
+      "tools": ["rtl"], "versions": [], "codes": [],
+      "keywords": ["旋转", "rotate", "rotation", "循环移位", "rotator"],
+      "applies_when": "规格要求循环旋转，而不是丢弃移出位的普通移位。",
+      "guidance": ["先确定题面的左右方向和控制编码，再追踪一个单独置位比特的去向。", "旋转应将移出位送回另一端；作为通用不变量，已知二值输入的置位数应保持。"],
+      "verify": ["推演最高位、最低位和中间位；全零与全一在旋转后保持。"],
+      "cautions": ["卡片不指定具体控制编码、数据宽度或题目实现；这些只能来自当前题面。"],
+      "source_ids": ["team-invariants"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "counter-boundaries", "title": "计数范围和终值判断分开检查", "kind": "design",
+      "tools": ["rtl"], "versions": [], "codes": [],
+      "keywords": ["计数", "counter", "计数器", "terminal count", "回绕", "off-by-one"],
+      "applies_when": "题面要求有限范围计数、模计数或终值事件。",
+      "guidance": ["先明确端点是否包含、起始值以及终值之后是回绕、饱和还是保持。", "区分用更新前的值产生事件与用更新后的值产生事件；状态宽度须能表示所有必要状态。"],
+      "verify": ["检查起始值、终值前一拍、终值拍、下一拍，以及参数退化边界。"],
+      "cautions": ["自然二进制溢出不等同于任意模数回绕；不从题目名称猜终值。"],
+      "source_ids": ["team-invariants"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    },
+    {
+      "id": "fsm-output-timing", "title": "FSM 的转移与输出时机分别核对", "kind": "design",
+      "tools": ["rtl"], "versions": [], "codes": [],
+      "keywords": ["fsm", "状态机", "moore", "mealy", "状态转移", "输出时机"],
+      "applies_when": "题面以状态图、状态表或时序描述规定有限状态机。",
+      "guidance": ["分别建立状态寄存器、下一状态关系和输出关系；逐条检查条件分支。", "Moore 输出取决于当前状态，Mealy 输出还取决于当前输入；是否注册输出及其延迟另按题面确定。"],
+      "verify": ["推演复位、保持、自环、跨状态转移和输入改变时输出应变化的时刻。"],
+      "cautions": ["不为了代码风格把 Mealy 改成 Moore，也不擅自给输出增加一个周期延迟。", "未规定的状态行为不能通过猜测隐藏测试来补全。"],
+      "source_ids": ["amd-fsm", "team-invariants"], "review_status": "source_reviewed_draft", "tool_validation": "not_run"
+    }
+  ]
+}
