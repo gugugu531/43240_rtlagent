@@ -65,6 +65,8 @@ class ToolResult:
     log_paths: tuple[str, ...] = ()
     work_dir: str | None = None
     failure_kind: str = "unknown"
+    diagnostic_tool: str | None = None
+    tool_version: str | None = None
 
     def trace_dict(self) -> dict[str, object]:
         fields: dict[str, object] = {
@@ -127,6 +129,22 @@ class RtlToolchain:
         result = self.executor.run(ProcessRequest(tuple(cmd), cwd, timeout_s))
         return _CommandOutcome(tuple(cmd), result.rc, result.status, result.elapsed_s, result.output,
                                result.log_path)
+
+    def identify(self, timeout_s=5.0):
+        """Explicit opt-in probe, bounded and executed by the managed executor."""
+        started = time.monotonic()
+        tools = {}
+        with tempfile.TemporaryDirectory(prefix='agent_identity_', dir=self.config.temp_dir) as work:
+            for name, executable in (('xvlog', self.xvlog), ('xelab', self.xelab), ('vivado', self.vivado)):
+                remaining = timeout_s - (time.monotonic() - started)
+                if executable is None or remaining <= 0:
+                    tools[name] = dict(version=None, status='unavailable')
+                    continue
+                result = self._command([executable, '-version'], work, remaining)
+                match = re.search(r'(?:Vivado(?: Simulator)?|xvlog|xelab)\s+v?(\d{4}\.\d+)', result.output, re.I)
+                tools[name] = dict(version=match.group(1) if match and result.status == 'ok' else None,
+                                   status=result.status, command=list(result.command), log_path=result.log_path)
+        return dict(fingerprint=self.fingerprint(), tools=tools, elapsed_s=time.monotonic() - started)
 
     @property
     def available(self) -> bool:
@@ -335,6 +353,7 @@ def _build_result(tool: str, outcomes: Sequence[_CommandOutcome],
                 log_paths = (full_log_path,)
             except OSError:
                 pass
+    version_match = re.search(r'(?:Vivado(?: Simulator)?|xvlog|xelab)\s+v?(\d{4}\.\d+)', full_output, re.I)
     return ToolResult(
         tool=tool,
         command=commands,
@@ -345,6 +364,8 @@ def _build_result(tool: str, outcomes: Sequence[_CommandOutcome],
         log_paths=log_paths,
         work_dir=work if keep_work else None,
         failure_kind=classify_tool_failure(full_output) if final.status == "failed" else "unknown",
+        diagnostic_tool=os.path.basename(final.command[0]) if final.command else None,
+        tool_version=version_match.group(1) if version_match else None,
     )
 
 
@@ -441,6 +462,9 @@ def classify_tool_failure(output: str) -> str:
     # Match primary source diagnostics, not generic follow-on errors such as
     # "module ignored". Environment errors above always take precedence.
     if re.search(r'ERROR: \[VRFC 10-(?:1280|9336)\]', output, re.IGNORECASE):
+        return 'code'
+    if re.search(r'ERROR: \[VRFC 10-1219\][^\n]*part-select direction is opposite from prefix index direction',
+                 output, re.IGNORECASE):
         return 'code'
     if re.search(r'ERROR: \[VRFC [^\]]+\].*(?:syntax error|cannot find port|not declared|not found|type mismatch|procedural assignment to a non-register|redeclaration of ANSI port|multiple drivers|already declared)',
                  output, re.IGNORECASE):

@@ -1,5 +1,7 @@
 # 团队开发文档
 
+新增 Agent 运行契约见 [上下文、诊断与候选策略接口](design/agent-runtime.md)。
+
 当前框架的两个入口：
 
 - **[Quickstart](quickstart.md)**：准备环境、运行单题、接入模型、选择配置和查看结果。

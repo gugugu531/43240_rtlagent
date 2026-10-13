@@ -25,6 +25,15 @@ class FailureDecision:
     source_id: str
 
 
+@dataclass(frozen=True)
+class LoopStart:
+    target: object
+    feedback: str
+    calls: int
+    start_round: int = 2
+    optional_pieces: tuple = ()
+
+
 def classify_model_error(error: ModelCallError) -> str:
     retryable = error.retryable and error.kind in ('transport', 'connection', 'timeout', 'http')
     return 'model_retryable' if retryable else 'model_terminal'
@@ -103,10 +112,28 @@ class RepairLoop(Component):
         """Hook for experimental workflows; default to the existing bounded summaries."""
         return '\n\n'.join(check.summary for check in checks if check.status != 'passed')
 
+    def restore(self, ctx):
+        return None
+
+    def after_round(self, ctx, reply, result, checks, choice, round):
+        pass
+
+    def repair_pieces(self, ctx, checks):
+        return ()
+
     def run(self, ctx):
         repair_target = None
         feedback, reason = '', 'round_limit'
         calls, repairs = 0, 0
+        start_round, optional_pieces = 1, ()
+        restored = self.restore(ctx)
+        from agent.core.state import WorkflowResult
+        if isinstance(restored, WorkflowResult):
+            return restored
+        if restored is not None:
+            repair_target, feedback, calls, start_round, optional_pieces = (
+                restored.target, restored.feedback, restored.calls, restored.start_round, restored.optional_pieces)
+            repairs = start_round - 1
 
         def select():
             ctx.apply_selection(self.choose(ctx.state))
@@ -118,12 +145,12 @@ class RepairLoop(Component):
                      model_calls=calls, request_retries=retries, repairs=repairs)
             return choice
 
-        for round in range(1, self.max_rounds + 1):
+        for round in range(start_round, self.max_rounds + 1):
             if not ctx.budget.can_start(self.minimum_action_s):
                 reason = 'deadline'
                 break
             retries = 0
-            input = GenerateInput(ctx.task, feedback, repair_target, round)
+            input = GenerateInput(ctx.task, feedback, repair_target, round, optional_pieces)
             while True:
                 # Hard limit, also when a subclass decide() keeps asking for more calls.
                 if calls >= self.max_model_calls:
@@ -142,6 +169,7 @@ class RepairLoop(Component):
                     retries += 1
             result = ctx.execute(self.extract, ExtractInput(reply, round,
                 repair_target.id if repair_target else None, 'repair' if repair_target else 'generate'))
+            checks = []
             if result.candidate is None:
                 choice = decide('extraction', reply.call_id)
                 if choice.action == 'repair':
@@ -152,7 +180,6 @@ class RepairLoop(Component):
                 select()
                 ctx.emit('repair_target', candidate_id=latest.id)
                 repair_target = latest
-                checks = []
                 try:
                     interface = ctx.execute(self.interface, CheckInput(latest))
                     checks.append(interface)
@@ -166,13 +193,19 @@ class RepairLoop(Component):
                             checks.append(synth)
                             select()
                             if synth.status == 'passed':
+                                self.after_round(ctx, reply, result, checks,
+                                    FailureDecision('stop', 'synth_passed', synth.id), round)
                                 return ctx.finish(reason='synth_passed')
                 except BudgetExhausted:
+                    self.after_round(ctx, reply, result, checks,
+                        FailureDecision('stop', 'deadline', checks[-1].id if checks else reply.call_id), round)
                     return ctx.finish(reason='deadline', status='stopped')
                 last = checks[-1]
                 choice = decide(last.classify(), last.id)
                 if choice.action == 'repair':
                     feedback = self.build_check_feedback(ctx, checks)
+                    optional_pieces = self.repair_pieces(ctx, checks)
+            self.after_round(ctx, reply, result, checks, choice, round)
             if choice.action != 'repair':
                 reason = ('verification_unavailable' if choice.reason == 'environment' else choice.reason)
                 break

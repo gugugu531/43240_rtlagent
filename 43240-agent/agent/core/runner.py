@@ -50,13 +50,28 @@ class Runner:
         try:
             budget = Budget(options.deadline_s, options.reserve_s, started_at=started_at)
             config = self._config or ModelConfig.from_env()
-            llm = ModelService(self._backend_factory(config), recorder, timeout_limit_s=config.timeout_s)
+            from agent.core.tokens import TokenPolicy
+            counter = None
+            if config.tokenizer_dir:
+                from agent.services.tokenizer import LocalTokenCounter
+                try:
+                    counter = LocalTokenCounter(config.tokenizer_dir,
+                        expected_tokenizer_sha256=config.tokenizer_sha256,
+                        expected_template_sha256=config.template_sha256)
+                except Exception as exc:
+                    recorder.write_event('tokens', 'counter_unavailable', error_type=type(exc).__name__)
+            llm = ModelService(self._backend_factory(config), recorder, timeout_limit_s=config.timeout_s,
+                token_counter=counter, token_policy=TokenPolicy(config.token_total_limit, config.token_output_limit),
+                context_limit=config.context_limit, strict_context=config.strict_context,
+                template_options={} if config.enable_thinking is None else {'enable_thinking': config.enable_thinking})
             factory = self._toolchain_factory
             if factory is RtlToolchain:
                 factory = lambda: RtlToolchain(config=self._tool_config, executor=self._process_executor,
                     log_dir=recorder.run_dir / 'tool_logs' if options.recording.level == 'full' else None,
                     redactor=recorder.redactor)
             ctx = RunContext(task, llm, budget, artifacts, recorder, toolchain_factory=factory, process_executor=self._process_executor)
+            ctx.started_at = started_at
+            ctx.configuration = self._configuration
             # A factory creates fresh workflow/node instances for each task and is
             # invoked after artifacts exist, so constructor failures are recorded.
             instance = workflow if not inspect.isclass(workflow) and callable(getattr(workflow, 'run', None)) else workflow()
@@ -82,6 +97,8 @@ class Runner:
                       WorkflowResult(recorder.run_id, artifacts.selected, 'initialization_error', 'error'))
         finally:
             try:
+                if ctx is not None:
+                    recorder.write_event('tokens', 'final', snapshot=ctx.llm.tokens.snapshot())
                 selected = artifacts.selected
                 recorder.write_event('agent', 'done', candidate_id=selected.id if selected else None,
                                      code_hash=selected.code_hash if selected else None,

@@ -38,6 +38,15 @@ workflow:
 
 services:
   model:
+    # 可选离线计数；仅从已准备的 tokenizer.json/tokenizer_config.json 读取，不下载或执行模型代码。
+    # tokenizer_dir: /models/Qwen3-8B
+    # context_limit: 32768
+    # strict_context: true
+    # enable_thinking: true  # 同时用于请求 chat template 与输入计数；默认不发送此字段
+    # tokenizer_sha256: <tokenizer.json SHA256>
+    # template_sha256: <chat_template UTF-8 SHA256>
+    # token_total_limit: 32768  # 整题累计输入+输出，非上下文窗口；默认不设
+    # token_output_limit: 16384 # 整题累计输出；默认不设
     # mock：假模型；openai：通过 OpenAI 兼容接口调用服务，不限定服务提供方。
     # 接入已经启动的真实模型服务，可设置：
     #   LLM_BACKEND=openai

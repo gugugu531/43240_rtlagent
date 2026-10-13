@@ -9,6 +9,11 @@
 > `repair_loop` 提供可选的多轮检查与修复，按证据选择答案、区分失败原因并限制重试。
 > `evidence_repair` 是方案 A 的最小实验骨架：结构化诊断、最多一次修复，不使用 ICL、规划、RAG 或 testbench。
 > 方案 A 的生成参数对齐 baseline（8192 tokens、temperature 0、top_p 1、300 秒）；失败修复保留完整旧候选，回退原因单独记录。
+> 上下文装配保留原提示，记录消息哈希、实际模板计数和整段省略；默认只观察 token 用量，可显式开启累计限额。
+> 严格配额先预留实际可用输出额度，再装配可选片段；工具版本查询使用独立临时目录。
+> E1 提供 `evidence_a0/a1/a2`：同提示首份候选、结构化修复、修复加短卡；支持经过来源校验的初始阶段重放。
+> E2 提供 `search_r1/r2/c2/c3`：最多一/两次修复或两/三份独立候选，使用明确 seed、共享首次成本和自身证据选择；采样由 Agent 自身声明（默认 temperature 0.6、top_p 0.95），仅 E2 反馈统一工具临时路径。位选方向诊断 VRFC 10-1219 归为代码错误。
+> E2 的三次调用流程会保存 `stop_after_two.json`，只含当时求解信息，供开发对照读取两次调用停止点；不追加推理或读取判定结果。
 > 正式入口使用独立 Worker 和 Supervisor 管理时间、信号与工具进程，支持中断恢复。
 > 已提供 YAML 配置与统一实验入口，支持指定单题、重复采样、独立并发和可选判定指标。
 > 真实模型小规模验证已完成；模型与服务仍未最终确定，全量收益和历史重放尚未验证。
@@ -33,6 +38,12 @@
 | `agent/workflows/evidence_repair.py` | 方案 A；复用修复流程的检查和选择，只注入有限结构化诊断并最多修复一次 |
 | `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
 | `agent/core/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
+| `agent/prompts/context.py` | 保留必须上下文，按真实 chat template 计数并装配可选完整片段 |
+| `agent/core/tokens.py` | 每题 token 账本；未知保持未知，可选累计输入输出/输出限额 |
+| `agent/core/diagnostic.py` | 自身工具诊断、工具与版本、错误码及可核实的候选行号 |
+| `agent/core/replay.py` | 只含求解信息的初始检查点，核验输入/源码/工具身份并扣除共享成本 |
+| `agent/workflows/evidence_ablation.py` | E1 三组，复用同一个修复循环；不使用 judge 选择候选 |
+| `agent/services/knowledge.py` | 按完整错误码、工具、版本检索经过独立例子验证的三张修复卡 |
 | `agent/workflows/` | 默认单次生成、可选修复循环及用户实验 Workflow |
 | `agent/nodes/` | 生成、提取、接口、lint 与综合动作 |
 | `agent/nodes/baseline.py` | `single_generate` 专用节点，导入未修改的 baseline 规则，保留原始题面和提取结果 |
@@ -195,6 +206,16 @@ Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig
 Vivado `VRFC 10-1280`、`10-9336` 等明确源码诊断会进入修复；环境故障优先单独归因。
 如果修复没有完整代码或所有候选检查失败，方案 A 保留完整旧候选并标记
 `failed_check_fallback`，不会把失败检查改成通过。原有 `repair_loop` 选择规则保持不变。
+
+E1 的 `evidence_a0` 使用方案 A 同一首次提示与提取，只保留首份候选并执行自身检查；
+`evidence_a1` 使用结构化反馈最多修复一次；`evidence_a2` 只额外检索三张经过独立小例子验证的
+错误短卡，最多两张，按实际工具/版本和完整错误码匹配。无命中时反馈与 A1 一致。
+`runtime.initial_state` 可指定 A0 导出的 `initial.json` 做受控重放，核验输入、源码、工具身份，
+复用自身检查并扣除共享首次时间与 token 成本，不读取官方 judge 或参考答案。
+所有求解仍经 run.sh/Supervisor；开发实验和隔离判定在 dev 中调度。三组都是实验变体，默认流程未切换。
+
+新增上下文、诊断、短卡检索和候选策略的接口约定见
+[Agent 运行接口](dev/docs/design/agent-runtime.md)。
 
 选择流程：
 

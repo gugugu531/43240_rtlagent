@@ -21,9 +21,12 @@ SCHEMA = {
     'schema_version': None, 'imports': None,
     'workflow': {'type': None},
     'services': {'model': {'backend': None, 'model': None, 'base_url': None,
-                           'api_key_env': None, 'timeout_s': None},
+                           'api_key_env': None, 'timeout_s': None,
+                           'tokenizer_dir': None, 'context_limit': None, 'strict_context': None,
+                           'token_total_limit': None, 'token_output_limit': None, 'enable_thinking': None,
+                           'tokenizer_sha256': None, 'template_sha256': None},
                  'tools': {'part': None, 'bin_dir': None, 'temp_dir': None, 'keep_work': None}},
-    'runtime': {'deadline_s': None, 'reserve_s': None,
+    'runtime': {'deadline_s': None, 'reserve_s': None, 'initial_state': None,
                 'recording': {'level': None, 'root': None}},
     'experiment': {'tasks': {'root': None, 'ids': None, 'list': None, 'exclude': None},
                    'modes': None, 'samples': None, 'solve_jobs': None, 'metric_jobs': None,
@@ -31,10 +34,13 @@ SCHEMA = {
 }
 DEFAULTS = {'schema_version': 1, 'imports': [], 'workflow': {'type': 'single_generate'},
             'services': {'model': {'backend': 'mock', 'model': 'mock-model', 'base_url': '',
-                                   'api_key_env': 'LLM_API_KEY', 'timeout_s': None},
+                                   'api_key_env': 'LLM_API_KEY', 'timeout_s': None,
+                                   'tokenizer_dir': None, 'context_limit': None, 'strict_context': False,
+                                   'token_total_limit': None, 'token_output_limit': None, 'enable_thinking': None,
+                                   'tokenizer_sha256': None, 'template_sha256': None},
                          'tools': {'part': 'xczu3eg-sbva484-1-e', 'bin_dir': None,
                                    'temp_dir': '/tmp', 'keep_work': False}},
-            'runtime': {'deadline_s': 360.0, 'reserve_s': 20.0,
+            'runtime': {'deadline_s': 360.0, 'reserve_s': 20.0, 'initial_state': None,
                         'recording': {'level': 'full', 'root': None}}}
 ENV_FIELDS = {'LLM_BACKEND': 'services.model.backend', 'LLM_MODEL': 'services.model.model',
               'LLM_BASE_URL': 'services.model.base_url', 'LLM_TIMEOUT_S': 'services.model.timeout_s',
@@ -43,7 +49,8 @@ ENV_FIELDS = {'LLM_BACKEND': 'services.model.backend', 'LLM_MODEL': 'services.mo
               'AGENT_RECORD_LEVEL': 'runtime.recording.level',
               'RTL_PART': 'services.tools.part', 'VIVADO_BIN': 'services.tools.bin_dir',
               'AGENT_KEEP_WORK': 'services.tools.keep_work'}
-PATH_FIELDS = {'services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root',
+PATH_FIELDS = {'services.model.tokenizer_dir', 'services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root',
+               'runtime.initial_state',
                'experiment.tasks.root', 'experiment.tasks.list', 'experiment.tasks.exclude',
                'experiment.output_root'}
 
@@ -215,7 +222,7 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
         raise ConfigError('workflow.type must be a registered name')
     m = values['services']['model']; t = values['services']['tools']; r = values['runtime']
     if m['timeout_s'] is None:
-        if name in ('single_generate', 'evidence_repair'):
+        if name in ('single_generate', 'evidence_repair', 'evidence_a0', 'evidence_a1', 'evidence_a2', 'evidence_capture'):
             from baseline import TIMEOUT_S
             m['timeout_s'] = float(TIMEOUT_S)
         else:
@@ -236,7 +243,10 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
     if urlsplit(m['base_url']).query or urlsplit(m['base_url']).fragment:
         raise ConfigError('services.model.base_url must not contain query parameters or fragments')
     model = ModelConfig(m['backend'], m['model'], m['base_url'], env.get(m['api_key_env'], ''),
-                        m['timeout_s'], baseline_model_name=env.get('MODEL_NAME', ''))
+                        m['timeout_s'], baseline_model_name=env.get('MODEL_NAME', ''),
+                        **{key: m[key] for key in ('tokenizer_dir', 'context_limit', 'strict_context',
+                           'token_total_limit', 'token_output_limit', 'enable_thinking',
+                           'tokenizer_sha256', 'template_sha256')})
     tools = ToolConfig(**t)
     runtime = RuntimeConfig(r['deadline_s'], r['reserve_s'], level,
                             Path(r['recording']['root']) if r['recording']['root'] else None)

@@ -25,6 +25,14 @@ class ModelConfig:
     api_key: str = field(default="", repr=False)
     timeout_s: float = 180.0
     baseline_model_name: str = ''
+    tokenizer_dir: str | None = None
+    context_limit: int | None = None
+    strict_context: bool = False
+    token_total_limit: int | None = None
+    token_output_limit: int | None = None
+    enable_thinking: bool | None = None
+    tokenizer_sha256: str | None = None
+    template_sha256: str | None = None
 
     def __post_init__(self) -> None:
         backend = self.backend.strip().lower()
@@ -44,6 +52,21 @@ class ModelConfig:
             self, "timeout_s",
             _positive_float("timeout_s", self.timeout_s, self.timeout_s),
         )
+        from agent.core.tokens import TokenPolicy, positive_integer
+        TokenPolicy(self.token_total_limit, self.token_output_limit)
+        positive_integer(self.context_limit, 'context_limit', optional=True)
+        if type(self.strict_context) is not bool:
+            raise ModelConfigError('strict_context must be boolean')
+        if self.enable_thinking is not None and type(self.enable_thinking) is not bool:
+            raise ModelConfigError('enable_thinking must be boolean or null')
+        if self.tokenizer_dir is not None and (not isinstance(self.tokenizer_dir, str) or not self.tokenizer_dir):
+            raise ModelConfigError('tokenizer_dir must be a nonempty local path')
+        import re
+        for digest in (self.tokenizer_sha256, self.template_sha256):
+            if digest is not None and (not isinstance(digest, str) or not re.fullmatch('[0-9a-f]{64}', digest)):
+                raise ModelConfigError('tokenizer identities must be SHA256 or null')
+        if self.strict_context and self.context_limit is None:
+            raise ModelConfigError('strict_context requires context_limit')
 
         if backend == "openai":
             if not base_url:
@@ -81,6 +104,14 @@ class ModelConfig:
             "base_url": self.base_url or None,
             "timeout_s": self.timeout_s,
             "baseline_model_name": self.baseline_model_name or None,
+            "tokenizer_dir": self.tokenizer_dir,
+            "context_limit": self.context_limit,
+            "strict_context": self.strict_context,
+            "token_total_limit": self.token_total_limit,
+            "token_output_limit": self.token_output_limit,
+            "enable_thinking": self.enable_thinking,
+            "tokenizer_sha256": self.tokenizer_sha256,
+            "template_sha256": self.template_sha256,
         }
 
 

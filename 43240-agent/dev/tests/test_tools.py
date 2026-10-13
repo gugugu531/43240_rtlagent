@@ -30,6 +30,17 @@ class ProcessStatusTests(unittest.TestCase):
 
 
 class RtlToolchainTests(unittest.TestCase):
+    def test_version_probe_uses_and_cleans_independent_scratch_directory(self):
+        from agent.core.config import ToolConfig
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); bin_dir = root / 'bin'; scratch = root / 'scratch'
+            bin_dir.mkdir(); scratch.mkdir()
+            for name in ('xvlog','xelab','vivado'):
+                _write_executable(bin_dir/name, '#!/bin/sh\necho Vivado Simulator v2026.1\ntouch probe.pb\n')
+            result = RtlToolchain(config=ToolConfig(bin_dir=str(bin_dir), temp_dir=str(scratch))).identify()
+            self.assertTrue(all(t['version']=='2026.1' for t in result['tools'].values()))
+            self.assertEqual(list(scratch.iterdir()), [])
+
     def test_lint_timeout_covers_both_commands(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

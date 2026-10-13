@@ -103,11 +103,19 @@ def _parse_reply(body, call_id, response, artifact):
 
 class ModelService:
     def __init__(self, backend: ModelBackend, recorder: RunRecorder, *,
-                 timeout_limit_s: float | None = None):
+                 timeout_limit_s: float | None = None, token_counter=None,
+                 token_policy=None, context_limit=None, strict_context=False,
+                 template_options=None):
         if timeout_limit_s is not None and (not math.isfinite(timeout_limit_s) or timeout_limit_s <= 0):
             raise ValueError('service timeout limit must be positive and finite')
         self.timeout_limit_s = timeout_limit_s
         self.backend, self.recorder = backend, recorder
+        from agent.core.tokens import TokenLedger, UnavailableCounter
+        self.counter = token_counter or UnavailableCounter()
+        self.tokens = TokenLedger(token_policy)
+        self.context_limit, self.strict_context = context_limit, strict_context
+        self.template_options = dict(template_options or {})
+        self.requests = []
         # Programmatic configurations may use secrets absent from the environment.
         config = getattr(backend, 'config', None)
         if config is not None:
@@ -132,12 +140,35 @@ class ModelService:
             request = replace(request, timeout_s=min(request.timeout_s, self.timeout_limit_s))
         if isinstance(self.backend, HttpBackend) and request.model is None:
             request = replace(request, model=self.backend.config.model)
+        if self.template_options and request.profile != 'baseline_rtl' and request.chat_template_kwargs is None:
+            request = replace(request, chat_template_kwargs=self.template_options)
+        from agent.core.tokens import TokenBudgetError
+        from agent.prompts.context import ContextLimitError, messages_hash
+        prediction = self.counter.count(request.messages,
+            template_options=request.chat_template_kwargs if request.chat_template_kwargs is not None else self.template_options)
+        try:
+            cap = self.tokens.allowance(prediction, request.max_tokens)
+            if self.context_limit is not None:
+                if self.strict_context and prediction.status != 'exact':
+                    raise ContextLimitError('input_tokens_unknown')
+                if prediction.status == 'exact' and prediction.value + cap > self.context_limit:
+                    raise ContextLimitError('required_context_exceeds_limit')
+        except (TokenBudgetError, ContextLimitError) as exc:
+            self.recorder.write_event('tokens', 'denied', reason=str(exc), prediction=prediction.public_dict())
+            raise
+        if cap != request.max_tokens:
+            request = replace(request, max_tokens=cap)
         payload = (request.payload(self.backend.config.model)
                    if isinstance(self.backend, HttpBackend) and request.profile == 'baseline_rtl' else None)
         service_info = dict(self.backend.describe())
         if request.model is not None:
             service_info['model'] = request.model
         call = self.recorder.begin_call(request, service_info, http_payload=payload)
+        self.requests.append(dict(call_id=call.call_id, request=request.public_dict()))
+        self.tokens.start(call.call_id, predicted_input=prediction, output_cap=request.max_tokens)
+        self.recorder.write_event('tokens', 'reserved', call_id=call.call_id,
+            prediction=prediction.public_dict(), output_cap=request.max_tokens,
+            messages_sha256=messages_hash(request.messages))
         artifact = None
         response = None
         try:
@@ -171,6 +202,8 @@ class ModelService:
             if exc.status_code is None and response is not None:
                 exc.status_code = response.status_code
             self.recorder.finish_call(call, exc)
+            self.tokens.finish(call.call_id, outcome='failed')
+            self.recorder.write_event('tokens', 'settled', call_id=call.call_id, snapshot=self.tokens.snapshot())
             raise
         except RecordingError:
             raise
@@ -180,6 +213,12 @@ class ModelService:
                                    kind='backend', evidence=artifact,
                                    elapsed_s=response.elapsed_s if response else 0.0)
             self.recorder.finish_call(call, error)
+            self.tokens.finish(call.call_id, outcome='failed')
+            self.recorder.write_event('tokens', 'settled', call_id=call.call_id, snapshot=self.tokens.snapshot())
             raise error from exc
         self.recorder.finish_call(call, reply)
+        self.tokens.finish(call.call_id, usage=reply.usage, outcome='succeeded')
+        if self.tokens.snapshot()['blocked'] and callable(getattr(self.counter, 'mark_mismatch', None)):
+            self.counter.mark_mismatch()
+        self.recorder.write_event('tokens', 'settled', call_id=call.call_id, snapshot=self.tokens.snapshot())
         return reply
