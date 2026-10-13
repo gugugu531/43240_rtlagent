@@ -34,6 +34,8 @@ class ModelRequest:
     top_p: float | None = None
     stream: bool | None = False
     profile: str = 'default'
+    chat_template_kwargs: Mapping[str, Any] | None = None
+    seed: int | None = None
 
     def __post_init__(self):
         if isinstance(self.max_tokens, bool) or not isinstance(self.max_tokens, int) or self.max_tokens <= 0:
@@ -52,13 +54,26 @@ class ModelRequest:
             raise ModelCallError('stream must be boolean or null', kind='config')
         if self.profile not in ('default', 'baseline_rtl'):
             raise ModelCallError('unknown request profile', kind='config')
+        if self.seed is not None and (type(self.seed) is not int or not 0 <= self.seed < 2**32
+                                      or self.profile == 'baseline_rtl'):
+            raise ModelCallError('seed requires a default profile and unsigned 32-bit integer', kind='config')
+        if self.chat_template_kwargs is not None:
+            if (not isinstance(self.chat_template_kwargs, Mapping)
+                    or set(self.chat_template_kwargs) - {'enable_thinking'}
+                    or any(type(v) is not bool for v in self.chat_template_kwargs.values())):
+                raise ModelCallError('unsupported chat template options', kind='config')
+            object.__setattr__(self, 'chat_template_kwargs', _freeze(dict(self.chat_template_kwargs)))
         # Detach from caller-owned containers. No recorder may mutate this copy.
         object.__setattr__(self, 'messages', tuple(_freeze(dict(m)) for m in self.messages))
 
     def public_dict(self):
-        return dict(messages=_thaw(self.messages), max_tokens=self.max_tokens,
+        result = dict(messages=_thaw(self.messages), max_tokens=self.max_tokens,
                     temperature=self.temperature, timeout_s=self.timeout_s, purpose=self.purpose,
-                    model=self.model, top_p=self.top_p, stream=self.stream, profile=self.profile)
+                    model=self.model, top_p=self.top_p, stream=self.stream, profile=self.profile,
+                    chat_template_kwargs=_thaw(self.chat_template_kwargs))
+        if self.seed is not None:
+            result['seed'] = self.seed
+        return result
 
     def payload(self, default_model: str):
         body = dict(model=self.model if self.model is not None else default_model,
@@ -68,6 +83,10 @@ class ModelRequest:
             body['top_p'] = self.top_p
         if self.stream is not None:
             body['stream'] = self.stream
+        if self.chat_template_kwargs is not None:
+            body['chat_template_kwargs'] = _thaw(self.chat_template_kwargs)
+        if self.seed is not None:
+            body['seed'] = self.seed
         return body
 
 

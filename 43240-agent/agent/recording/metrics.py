@@ -104,6 +104,13 @@ class ModelMetric:
             known = [v for v in counts if type(v) is int and v >= 0]
             values[field] = dict(known_total=sum(known) if known else None, known_calls=len(known), unknown_calls=len(calls)-len(known))
         partial = unfinished or failures or any(v['unknown_calls'] for k,v in values.items() if k.endswith('_tokens'))
+        accounting = next((e.get('snapshot') for e in reversed(events)
+                           if e.get('tool') == 'tokens' and e.get('snapshot') is not None), None)
+        if accounting is not None:
+            values['accounting'] = accounting
+        values['context'] = [dict(round=e.get('round'), count=e.get('count'), pieces=e.get('pieces'),
+                                  messages_sha256=e.get('messages_sha256'))
+                             for e in events if e.get('event') == 'context_assembly']
         return MetricResult(self.name, self.version, 'ok' if complete and not partial else 'partial', values,
                             ('trace.jsonl',))
 

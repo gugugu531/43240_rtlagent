@@ -117,6 +117,12 @@ class RunRecorder:
         self._artifact(f'calls/{call.call_id}/request.json', record)
         return call
 
+    def resume_call_sequence(self, initial_calls):
+        if type(initial_calls) is not int or initial_calls < 0 or self._call_seq or self._calls:
+            raise ValueError('call sequence can only be restored before model calls')
+        self._call_seq = initial_calls
+        self.write_event('recording', 'initial_call_sequence', initial_calls=initial_calls)
+
     def record_response(self, call, response, body=None):
         """Keep one copy of the reply: parsed JSON when valid, otherwise the raw text."""
         self._calls[call.call_id]['status_code'] = response.status_code

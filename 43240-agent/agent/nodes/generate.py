@@ -6,7 +6,7 @@ from agent.core.components import Component
 from agent.core.model import ModelRequest, ModelReply
 from agent.core.registry import NODE_REGISTRY
 from agent.core.task import TaskSpec
-from agent.prompts.builder import assemble_messages
+from agent.prompts.context import ContextAssembler, ContextPiece
 
 
 @dataclass(frozen=True)
@@ -15,6 +15,8 @@ class GenerateInput:
     feedback: str = ''
     parent: Candidate | None = None
     round: int = 1
+    optional_pieces: tuple[ContextPiece, ...] = ()
+    seed: int | None = None
 
 
 @NODE_REGISTRY.register('rtl_generate')
@@ -37,12 +39,25 @@ class GenerateNode(Component):
             raise ValueError('prompt_style must be direct or repair')
 
     def run(self, ctx, input: GenerateInput) -> ModelReply:
-        messages, resources = assemble_messages(
-            input.task, style=self.prompt_style, feedback=input.feedback,
-            parent_code=input.parent.code if input.parent else '', use_skills=self.use_skills)
-        ctx.emit('prompt_resources', round=input.round, **resources)
-        return ctx.llm.chat(ModelRequest(messages, max_tokens=self.max_tokens,
+        kwargs = dict(style=self.prompt_style, feedback=input.feedback,
+                      parent_code=input.parent.code if input.parent else '', use_skills=self.use_skills,
+                      counter=ctx.llm.counter, template_options=ctx.llm.template_options)
+        cap, context_limit = self.max_tokens, ctx.llm.context_limit
+        if ctx.llm.tokens.policy.strict:
+            required = ContextAssembler().assemble(input.task, **kwargs)
+            cap = ctx.llm.tokens.allowance(required.count, cap)
+            total = ctx.llm.tokens.policy.total_limit
+            if total is not None:
+                remaining = total - ctx.llm.tokens.snapshot()['charged_total']
+                context_limit = min(context_limit, remaining) if context_limit is not None else remaining
+        assembly = ContextAssembler().assemble(input.task, **kwargs,
+            optional_pieces=input.optional_pieces,
+            context_limit=context_limit, output_reserve=cap, strict=ctx.llm.strict_context)
+        ctx.emit('prompt_resources', round=input.round, **assembly.resources)
+        ctx.emit('context_assembly', round=input.round, **assembly.summary_dict())
+        return ctx.llm.chat(ModelRequest(assembly.messages, max_tokens=cap,
                                         temperature=self.temperature,
                                         top_p=self.top_p,
                                         timeout_s=ctx.budget.timeout_s(self.timeout_s, self.minimum_s),
+                                        seed=input.seed,
                                         purpose='repair' if input.parent else 'generate'))

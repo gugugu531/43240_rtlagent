@@ -58,6 +58,7 @@ class RunContext:
                  artifacts: ArtifactStore, recorder: RunRecorder, *,
                  toolchain_factory=RtlToolchain, process_executor=None):
         self.task, self.llm, self.budget = task, llm, budget
+        self.started_at = time.monotonic()
         self.cancellation = CancellationToken()
         self._artifacts, self._recorder = artifacts, recorder
         self._candidates: dict[str, Candidate] = {}
@@ -145,6 +146,9 @@ class RunContext:
             raise ValueError(f'duplicate check: {result.id}')
         self._checks.append(result)
         self._recorder.record_check(result)
+        from agent.core.diagnostic import diagnostics_from_check
+        for diagnostic in diagnostics_from_check(result, candidate_code=self._candidates[result.candidate_id].code):
+            self._recorder.write_event('diagnostic', 'parsed', diagnostic=diagnostic.public_dict())
 
     def select_candidate(self, candidate_id: str, *, reason: str) -> None:
         candidate = self._candidates[candidate_id]
@@ -166,6 +170,10 @@ class RunContext:
 
     def emit(self, event: str, **fields) -> None:
         self._recorder.write_event('workflow', event, **fields)
+
+    @property
+    def output_dir(self):
+        return self._artifacts.output_dir
 
     def finish(self, *, reason: str, status='completed') -> WorkflowResult:
         if not reason or status not in ('completed', 'stopped', 'error'):

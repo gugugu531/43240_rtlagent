@@ -1,0 +1,146 @@
+{
+  "cards": [
+    {
+      "applies_when": "日志明确指出对 net/non-register 进行了过程赋值，并能定位该对象的声明与驱动过程。",
+      "cautions": [
+        "连续赋值与过程赋值规则不同，不对所有 wire 批量替换为 reg/logic。"
+      ],
+      "codes": [
+        "VRFC 10-1280"
+      ],
+      "guidance": [
+        "核对文件实际使用 Verilog 还是 SystemVerilog；在 always 中写入的对象应采用该语言允许的变量声明。",
+        "必要时调整 output 的 reg/logic 类型，不更改端口名、方向或位宽；同时检查是否存在其他驱动者。"
+      ],
+      "id": "procedural-variable",
+      "keywords": [
+        "procedural assignment",
+        "non-register",
+        "过程赋值",
+        "output reg"
+      ],
+      "kind": "repair",
+      "review_status": "independent_examples_reviewed",
+      "source_ids": [
+        "runtime-diagnostics",
+        "interface-contract"
+      ],
+      "title": "过程赋值目标必须符合变量赋值规则",
+      "tool_validation": "independent_examples_passed",
+      "tools": [
+        "xvlog"
+      ],
+      "validation_sha256": "37823545674e46a63d1330ea68ee23d9213457f890953b41bbffa72dd286b906",
+      "verify": [
+        "重新运行原失败阶段，确认原错误消失。",
+        "再次核对接口和驱动来源；语法通过不代表功能通过。"
+      ],
+      "versions": [
+        "2026.1"
+      ]
+    },
+    {
+      "applies_when": "解析器报告 syntax error；错误位置附近的实际源码可读取。",
+      "cautions": [
+        "错误码不意味着一定缺分号，不应无条件向报错行追加字符。"
+      ],
+      "codes": [
+        "VRFC 10-4982"
+      ],
+      "guidance": [
+        "检查当前及前一条语句的分号、括号、begin/end 和模块头终止符。",
+        "核对文件语言模式是否支持当前语法；只修复有源码证据的局部问题。"
+      ],
+      "id": "syntax-local-context",
+      "keywords": [
+        "syntax error",
+        "语法错误",
+        "分号",
+        "module header"
+      ],
+      "kind": "repair",
+      "review_status": "independent_examples_reviewed",
+      "source_ids": [
+        "interface-contract"
+      ],
+      "title": "语法错误同时检查报错位置与前一条语句",
+      "tool_validation": "independent_examples_passed",
+      "tools": [
+        "xvlog"
+      ],
+      "validation_sha256": "37823545674e46a63d1330ea68ee23d9213457f890953b41bbffa72dd286b906",
+      "verify": [
+        "重新运行解析阶段，并检查是否出现新的首个错误。"
+      ],
+      "versions": [
+        "2026.1"
+      ]
+    },
+    {
+      "applies_when": "日志报告找不到模块或端口，且题面或独立接口声明明确给出了目标。",
+      "cautions": [
+        "不能通过删端口、增加别名端口或改变位宽绕过题面。",
+        "没有目标接口时返回信息不足，不猜测隐藏测试台的连接。"
+      ],
+      "codes": [
+        "VRFC 10-3180"
+      ],
+      "guidance": [
+        "逐项比较大小写敏感的模块名、端口集合、方向和位宽。",
+        "先排查文件列表、读取模式与顶层设置，再修复实际拼写或声明不一致。"
+      ],
+      "id": "module-port-contract",
+      "keywords": [
+        "cannot find port",
+        "module not found",
+        "接口",
+        "端口",
+        "module name"
+      ],
+      "kind": "repair",
+      "review_status": "independent_examples_reviewed",
+      "source_ids": [
+        "runtime-diagnostics",
+        "interface-contract"
+      ],
+      "title": "顶层模块与端口契约",
+      "tool_validation": "independent_examples_passed",
+      "tools": [
+        "xelab"
+      ],
+      "validation_sha256": "37823545674e46a63d1330ea68ee23d9213457f890953b41bbffa72dd286b906",
+      "verify": [
+        "接口检查与原 elaboration 阶段都通过后才继续。"
+      ],
+      "versions": [
+        "2026.1"
+      ]
+    }
+  ],
+  "corpus_id": "rtl-repair-e1-20261013-v1",
+  "schema_version": 1,
+  "sources": {
+    "interface-contract": {
+      "license": "MIT; Copyright 2026 Advanced Micro Devices, Inc.",
+      "origin": "runtime",
+      "path": "skill/rtl-module-interface-contract/SKILL.md",
+      "revision": "5b8bd08",
+      "scope": "只提炼接口与语法原则，不复制示例评测表",
+      "sha256": "68c7b522e3c95e35c85f1005d880a663a09dad188bb9e4e2fc181e113ed05e9a",
+      "title": "已有通用接口契约说明",
+      "url": "local:skill/rtl-module-interface-contract/SKILL.md"
+    },
+    "runtime-diagnostics": {
+      "license": "team-authored",
+      "origin": "runtime",
+      "path": "agent/services/vivado.py",
+      "revision": "5b8bd08",
+      "scope": "只引用通用错误签名，不读取题目、评分或答案",
+      "sha256": "6261e8cae75fd1f7379280d96d7b9d674d9ead1109e707109112afa534524463",
+      "title": "当前 Vivado 服务的通用错误签名与接口检查",
+      "url": "local:agent/services/vivado.py"
+    }
+  },
+  "status": "validated_repair_subset",
+  "validation_report_sha256": "37823545674e46a63d1330ea68ee23d9213457f890953b41bbffa72dd286b906"
+}

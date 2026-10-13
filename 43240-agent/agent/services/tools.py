@@ -22,6 +22,34 @@ class ToolService:
         self._emit = emit or (lambda *args, **kwargs: None)
         self._task_hash = digest([task.id, task.top, task.prompt, task.interface]) if task else ''
         self.cache = CheckCache()
+        self._identity = None
+
+    def fingerprint(self):
+        if self._toolchain is None:
+            self._toolchain = self._factory()
+        function = getattr(self._toolchain, 'fingerprint', None)
+        return function() if callable(function) else function
+
+    def identify(self):
+        self.fingerprint()
+        probe = getattr(self._toolchain, 'identify', None)
+        self._emit('tool_identity_started')
+        started = time.monotonic()
+        try:
+            self._identity = (probe(timeout_s=self._budget.timeout_s(5.0)) if callable(probe)
+                              else dict(fingerprint=self.fingerprint(), tools={}, elapsed_s=0))
+        except OSError as exc:
+            self._identity = dict(fingerprint=self.fingerprint(), tools={}, elapsed_s=0,
+                                  status='unavailable', error_type=type(exc).__name__)
+        self._identity['elapsed_s'] = time.monotonic() - started
+        self._emit('tool_identity', identity=self._identity)
+        return self._identity
+
+    def restore_identity(self, identity):
+        if identity.get('fingerprint') != self.fingerprint():
+            raise ValueError('replay tool identity changed')
+        self._identity = identity
+        self._emit('tool_identity_restored', identity=identity)
 
     def _reuse(self, key, candidate):
         old = self.cache.get(key)
@@ -86,7 +114,10 @@ class ToolService:
                             'passed' if result.status == 'ok' else result.status,
                             result.summary, blocking=result.status == 'failed' and result.failure_kind == 'code',
                             rc=result.rc, elapsed_s=result.elapsed_s, command=result.command,
-                            details={'failure_kind': result.failure_kind, 'executed': True},
+                            details={'failure_kind': result.failure_kind, 'executed': True,
+                                     'diagnostic_tool': result.diagnostic_tool,
+                                     'tool_version': result.tool_version or (self._identity or {}).get('tools', {}).get(
+                                         result.diagnostic_tool, {}).get('version')},
                             log_paths=result.log_paths, work_dir=result.work_dir)
         self.cache.put(key, check)
         self._publish(check)
