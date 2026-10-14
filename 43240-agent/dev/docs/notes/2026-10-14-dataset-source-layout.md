@@ -7,7 +7,7 @@
 
 258题保存在 `tasks/{verilogeval,example,chipbench,rtllm,archxbench,cvdp}/<题号>/`。
 各来源含 `readme.md`、`imported.txt`、`import.py`，说明全部已导入题目、72条未导入记录及原因。
-入口为[题库索引](../../../../tasks/readme.md)，完整操作见[开发题集说明](../design/datasets.md)。
+入口为[题库索引](../../../../tasks/index.md)，完整操作见[开发题集说明](../design/datasets.md)。
 
 迁移前逐文件核对60份均衡集副本与原有159题，确认内容相同后移除重复目录；
 原始159题的差异仅为统一题号和保存原题号别名。迁移后每道题只保留一份。

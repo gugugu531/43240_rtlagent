@@ -82,7 +82,8 @@ services:
     api_key_env: LLM_API_KEY
 
     # 单次模型服务调用上限：正数或 null。覆盖：LLM_TIMEOUT_S。
-    # null / 省略：single_generate 默认 300 秒，其余 Workflow 默认 180 秒。
+    # null / 省略：single_generate、evidence_repair、evidence_a0/a1/a2 默认 300 秒；
+    # search_*、repair_loop 等其余 Workflow 默认 180 秒。
     # 实际上限还取决于生成 Node 设置和扣除清理预留后的本题剩余时间。
     timeout_s: null
 
@@ -108,6 +109,8 @@ services:
     keep_work: false
 
 runtime:
+  # 可选 E1/E2 初始检查点；相对本 YAML 解析，核验身份并扣除共享首次成本。
+  # initial_state: ../runs/<运行编号>/initial.json
   # 整题时间预算，单位秒，必须为正数。
   # 覆盖：AGENT_DEADLINE_S / CLI --deadline-s。
   # HTTP 请求传入的剩余硬时限只会缩小此预算。

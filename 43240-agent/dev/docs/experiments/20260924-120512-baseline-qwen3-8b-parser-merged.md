@@ -1,3 +1,5 @@
+> 2026-10-14 整理补注：以下保留当时记录与测量值。旧得分、pass@5 和比较范围见[指标说明](../design/experiment-reading.md)。
+
 # 20260924-120512-baseline-qwen3-8b-parser-merged
 
 | 项 | 值 |

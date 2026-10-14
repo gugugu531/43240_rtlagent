@@ -37,7 +37,7 @@ def write_source_docs(root, records, chosen=None):
             lines += ['使用 `git archive` 从上述提交读取原始题目；无需额外下载。克隆时须保留该提交的Git历史。', '']
         lines += ['以下命令从仓库根目录执行；`--out`是来源目录的父目录。已有题目不会被覆盖，复现时使用空目录。', '',
                   '```bash', f'python3 tasks/{dataset}/import.py --out 43240-agent/dev/runs/reimport-{dataset} --manifest 43240-agent/dev/runs/reimport-{dataset}/conversion.json',
-                  '```', '', '## 如何选题', '',
+                  '```', '', '## 如何选题', '', '当前目录布局与跨来源选题见[题库索引](../index.md)。', '',
                   '只维护TXT清单，每行一个题号，支持空行与`#`注释；不创建选题副本目录。',
                   f'本来源全量清单为[imported.txt](imported.txt)。跨来源清单可混写题号，实验配置的题目根目录设为`tasks/`。', '',
                   '## 已导入题目', '', '| 题号 | 原始题号（如有） |', '| --- | --- |']
