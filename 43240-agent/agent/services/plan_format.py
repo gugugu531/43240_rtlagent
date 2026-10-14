@@ -37,7 +37,7 @@ def resolve_basis(value, prompt):
     raise ValueError('basis must be a nonempty list of evidence IDs or an exact quotation')
 
 
-def cycle_steps(cycles, timing, inputs, *, max_steps, prompt, reset_basis):
+def cycle_steps(cycles, timing, inputs, *, max_steps, reset_basis):
     """The scheduler owns clock/reset. Model cycles contain data and post-edge checks."""
     if timing.kind != 'sequential':
         raise ValueError('cycles require an explicit sequential timing contract')
@@ -58,8 +58,10 @@ def cycle_steps(cycles, timing, inputs, *, max_steps, prompt, reset_basis):
     # No assertion before a synchronous reset has had an effective edge.
     initial = dict(cycles[0]['inputs'])
     initial.update({timing.clock: inactive, timing.reset: timing.reset_active})
+    # Keep original fragments for both checks: the contract's joined display
+    # text need not occur contiguously in the specification.
     rows = [step(initial, {}, ''),
-            step({timing.clock: active}, dict(timing.reset_values), timing.reset_basis)]
+            step({timing.clock: active}, dict(timing.reset_values), reset_basis)]
     for row in cycles:
         prepared = dict(row['inputs'])
         prepared.update({timing.clock: inactive, timing.reset: 1 - timing.reset_active})
@@ -70,5 +72,5 @@ def cycle_steps(cycles, timing, inputs, *, max_steps, prompt, reset_basis):
     # with a model-predicted last state. Equal-to-reset states are explicitly
     # recorded as non-discriminating for reset-kind coverage.
     rows.append(step({timing.clock: inactive, timing.reset: timing.reset_active}, {}, ''))
-    rows.append(step({timing.clock: active}, dict(timing.reset_values), timing.reset_basis))
+    rows.append(step({timing.clock: active}, dict(timing.reset_values), reset_basis))
     return rows

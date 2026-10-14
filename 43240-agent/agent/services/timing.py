@@ -123,7 +123,8 @@ def parse_timing(raw, task, inputs, outputs):
     # negative phrases, leaving every other state/edge mention intact.
     temporal_text = re.sub(r'\bno\s+(?:clock|reset)(?:\s+and\s+no\s+(?:clock|reset))?\b',
                            '', task.prompt, flags=re.I)
-    temporal = re.search(r'\b(posedge|negedge|rising|falling|clock|sequential|register(?:ed)?|flip.flop|latch|reset|cycle|previous|state)\b',
+    temporal = re.search(r'\b(posedge|negedge|rising|falling|clock|sequential|register(?:ed)?|flip.flop|latch|reset|cycle|previous|state)\b|'
+                         r'\b(?:positive|negative)\s+edge\b',
                          temporal_text, re.I)
     if raw is None:
         raw = dict(kind='combinational')  # Legacy combinational plans only.

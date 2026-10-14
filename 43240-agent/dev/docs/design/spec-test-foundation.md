@@ -22,6 +22,9 @@
 
 这些是保守词法与协议检查，不是完整 SystemVerilog 解析器或自然语言证明器。
 引用原文只能证明有来源，不能证明模型从原文算出的期望值正确。
+时序识别同时接受 posedge/negedge、rising/falling 和 positive/negative edge；
+即使输入名不含 clk/clock，也不能把这些规格作为组合逻辑计划执行。缺少明确复位时仍回退。
+复位证据可以来自非相邻段落；周期展开保留原始证据片段，首次与末次复位检查使用相同的逐段校验。
 
 ## 接口和接入方式
 
@@ -46,12 +49,16 @@
 `CheckResult(kind='behavior')` 沿用现有不可变证据契约，结构化 details 区分：
 
 - 普通模型期望值：`hypothesis_assertions`、`hypothesis_mismatches`，不作为单独推翻可编译候选的依据。
+  X/Z 单独记录为不确定观察，不计为失配；计数字段定义见[运行记录格式](trace-schema.md)。
 - 受支持的公开真值表、明确复位字面值与已声明寄存器的观察保持关系：`property_checks`。
   这些检查仍依赖公开规格解析成立，不是完整功能正确性证明。
 - `property_inconclusive`、`reset_kind_probes`：X/Z 或前态未知不得当作通过或确定失败；
   复位探针比较实际观察前态，不取模型预测末态。前态等于复位值时明确记为没有区分度。
 - `plan_hash`、`oracle_protocol=2`、`valid_observation`、`official_verification=false`、首个失配及有界完整输入历史。
   人类摘要有长度上限；必要输入历史保留在结构化 details 中。
+
+模型假设或公开属性存在不确定观察、且没有确定失配时，工具返回 `unavailable`；
+不确定观察与确定失配并存时返回 `failed`，首个失配仅引用确定的采样，结构化结果同时保留不确定计数。
 
 若旧候选已 lint 通过，替换必须有同一计划、相同受支持属性 ID 集合和完整观察，保住全部旧通过属性，
 严格减少失败属性，不损失已有接口/lint/综合通过证据、端口声明语义或复位探针区分覆盖。
