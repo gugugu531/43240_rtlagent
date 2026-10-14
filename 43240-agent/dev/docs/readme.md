@@ -19,6 +19,8 @@ PR #33 的审查修复、运行编号和本地证据见
 
 | 文档 | 内容 |
 | --- | --- |
+| [开发题集](design/datasets.md) | 公开题集转换、质量验证、题型与难度均衡筛选 |
+| [题集验收](notes/2026-10-14-balanced-datasets-validation.md)、[筛选统计](notes/2026-10-14-balanced-datasets-selection.md) | 258题全池检查、241题合格候选与60题均衡集 |
 | [记录格式](design/trace-schema.md) | trace 与完整模型证据 |
 | [日志查看器](design/log-viewer.md) | 在浏览器中查看执行流程、节点状态与响应 |
 | [远端管理](design/remote-tools.md) | 脚本使用，平台细节带历史实测范围 |
@@ -70,6 +72,7 @@ PR #33 的审查修复、运行编号和本地证据见
 笔记保存于 experiments/，原始数据仍在 dev/runs/；生成块不手改，人工假设与结论在块外。
 旧格式与新格式以各次记录为准。10 月 4 日旧格式记录保留在原路径 `dev/experiments/`，已补充历史口径说明并纳入版本管理；历史测量值与原始日志保持不变。
 
+- [20261014-114435-balanced-smoke-7cc6da00](experiments/20261014-114435-balanced-smoke-7cc6da00.md)：新增ChipBench题与均衡集配置的假模型流程检查，不代表功能正确率。
 - [20261007-221221-cloud-single-review-691f4b83](experiments/20261007-221221-cloud-single-review-691f4b83.md)：AMD 环境单题验证，不能外推完整题集或证明请求等价。
 - [20261004-212040-joint-cur-qwen3-8b-quick](../experiments/20261004-212040-joint-cur-qwen3-8b-quick.md)：旧实现联合实验；保留原表，得分与因果解释见文件顶部说明。
 
