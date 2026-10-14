@@ -1,0 +1,12 @@
+{
+  "task_id": "example_ex03_lfsr8",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "original_task_id": "ex03_lfsr8"
+}

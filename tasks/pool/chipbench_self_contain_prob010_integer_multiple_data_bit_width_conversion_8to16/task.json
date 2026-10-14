@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob010_integer_multiple_data_bit_width_conversion_8to16",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob010_integer_multiple_data_bit_width_conversion_8to16_prompt.txt": "810efd5d6147f2de52181e1d332899c742b963089ffa17e35ef5964007e8717a",
+      "Verilog Gen/dataset_self_contain/Prob010_integer_multiple_data_bit_width_conversion_8to16_ref.sv": "bf0e0e6d1d68088f88a903830fa29226a193ca5649a160f606435716e065ac69",
+      "Verilog Gen/dataset_self_contain/Prob010_integer_multiple_data_bit_width_conversion_8to16_test.sv": "f9f0f21e98dd19fc212254ed215161dd17e55b53a45ff6b3aab4fbd24d5aee12"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

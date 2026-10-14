@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob015_vending_machine2",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob015_vending_machine2_prompt.txt": "f8e4fbc59a6b27757a2e584110f28b85c98a2b308ecdb4b08201a79a070a0783",
+      "Verilog Gen/dataset_self_contain/Prob015_vending_machine2_ref.sv": "8296a948d76f26221733d731cc88b4fc4037fe90141921c415d7a1ad347f7988",
+      "Verilog Gen/dataset_self_contain/Prob015_vending_machine2_test.sv": "5375a4ba51dd2e43ea3f14e5e4e8aeb168ef3570a33e4d538fda6d142e20e138"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

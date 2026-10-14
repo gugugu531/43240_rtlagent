@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob002_extraneous_items_sequence_detect",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob002_extraneous_items_sequence_detect_prompt.txt": "54f0834bc27cbb624800af5edac02c56ecb39e758c6710bcacc7adebd19a822d",
+      "Verilog Gen/dataset_self_contain/Prob002_extraneous_items_sequence_detect_ref.sv": "17c2abd55801a0ce4ec87fe07df687082458f6fcec151739114bd4bbedcc0bc1",
+      "Verilog Gen/dataset_self_contain/Prob002_extraneous_items_sequence_detect_test.sv": "a2e922e9c0955e6b45a212e1f069979ed11184a9ead8c71c424d69bc5d37f666"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

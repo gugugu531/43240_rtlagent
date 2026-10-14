@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob005_signal_generator",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob005_signal_generator_prompt.txt": "d8d4c49e8e09a58682cd05b9dc25e9d9431bfbac47f2013a57945559a0bbefc1",
+      "Verilog Gen/dataset_self_contain/Prob005_signal_generator_ref.sv": "c3f5e014fd7e7fec8c72c687e060f307f8bb2fa812790fa4670523a5e48cfc87",
+      "Verilog Gen/dataset_self_contain/Prob005_signal_generator_test.sv": "8c32c190fbdde0d41c1d63508a1b3e37868f32939dc0a875aed2e34205836d7d"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

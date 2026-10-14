@@ -1,0 +1,85 @@
+Implement the module named TopModule with the specification below.
+
+Title: 4*4 Systolic Array Matrix Multiplier
+
+Objective:
+Design a hardware module that performs 4*4 matrix multiplication using a systolic array architecture. The implementation requires creating both a Processing Element (PE) sub-module and a top-level systolic array module. Matrix elements flow through a
+2D grid of PEs in a pipelined, wave-front manner so that each PE simultaneously computes one element of the result matrix C = A * B.
+
+Background:
+Systolic arrays are specialised parallel computing architectures where data flows rhythmically through a network of simple processing elements. For matrix multiplication C = A * B, matrix A flows from west to east while matrix B flows from north to south through a 4*4 grid of PEs. Each PE performs a multiply-accumulate (MAC) operation on every clock cycle and forwards the data it receives to its eastern and southern neighbours. Key features:
+- 16 Processing Elements arranged in a 4*4 grid
+- Each PE accumulates partial products for exactly one element of C
+- Correct computation relies on the systolic timing described below.
+
+Design Constraints:
+- Fixed 4*4 matrix size with 32-bit signed integer elements
+- Matrix A presented through west boundary (ports a_west0 to a_west3, one per row)
+- Matrix B presented through north boundary (ports b_north0 to b_north3, one per column)
+- Systolic timing: row i of A must be staggered by i clock cycles relative to row 0; column j of B must be staggered by j clock cycles relative to column 0
+- 64-bit accumulator per PE to prevent overflow
+- Reset (synchronous, active high) clears all PE accumulators and the cycle counter.
+- Computation is considered complete when done goes high; all 16 result outputs must be stable at that point.
+
+Key Components:
+Processing Element (PE):
+  Basic computational unit.
+  Inputs:  north_in[31:0], west_in[31:0], clk, rst
+  Outputs: south_out[31:0], east_out[31:0], result[63:0]
+  Operation per clock cycle:
+    result    += north_in * west_in   (64-bit accumulate; cleared on rst)
+    east_out  <= west_in              (forward A element eastward)
+    south_out <= north_in             (forward B element southward)
+
+Systolic Array (TopModule):
+  4*4 grid of PEs with the following connectivity:
+    PE[i][j].west_in  ← a_west[i]       if j == 0, else PE[i][j-1].east_out
+    PE[i][j].north_in ← b_north[j]      if i == 0, else PE[i-1][j].south_out
+    result[i*4+j]   ← PE[i][j].result
+
+Control Logic:
+A cycle counter increments every clock cycle after rst deasserts.
+done asserts when all 16 results are valid; done is not expected until cycle 10.
+
+Data Flow Pattern:
+- Matrix A elements fed row-wise from west with systolic stagger (row i delayed i cycles)
+- Matrix B elements fed column-wise from north with systolic stagger (col j delayed j cycles)
+- Each PE[i][j] accumulates N partial products: C[i][j] = Σ_k A[i][k]*B[k][j]
+
+
+Sub-Module: pe (Processing Element)
+
+Processing Element (PE) Interface:
+
+module pe (
+    input  [31:0] north_in, west_in,
+    input         clk, rst,
+    output reg [31:0] south_out, east_out,
+    output reg [63:0] result
+);
+
+Design Name: TopModule
+
+Systolic Array Design Signature:
+
+module TopModule (
+    input  [31:0] a_west0, a_west1, a_west2, a_west3,
+    input  [31:0] b_north0, b_north1, b_north2, b_north3,
+    input         clk, rst,
+    output reg    done,
+    output [63:0] result0,  result1,  result2,  result3,
+    output [63:0] result4,  result5,  result6,  result7,
+    output [63:0] result8,  result9,  result10, result11,
+    output [63:0] result12, result13, result14, result15
+);
+
+Done Signal Protocol:
+PE[i][j]'s last partial product (k = N-1) arrives at that PE at clock cycle i + j + (N-1).  The worst case is PE[3][3]: cycle 3 + 3 + 3 = 9 (0-indexed).
+For a synchronous design where accumulation is registered, the final result at PE[3][3] is stable at the RISING EDGE of cycle 10.
+
+Therefore, done must NOT be asserted before all 16 result outputs are stable. done is asserted when the internal cycle counter reaches the appropriate count (implementation-dependent, but ≥ 10 cycles from first data presented).
+
+The testbench polls done every clock cycle and captures the 16 result outputs immediately after done goes high. done must remain high (or results must remain stable) until at least the next rising clock edge after it first asserts.
+
+Reset Behaviour:
+rst = 1 (synchronous) for at least 1 full clock cycle clears all PE accumulators and the cycle counter. done must be 0 while rst = 1. After rst deasserts, data may be presented starting from the very next rising edge.

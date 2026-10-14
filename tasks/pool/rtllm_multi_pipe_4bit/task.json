@@ -1,0 +1,28 @@
+{
+  "task_id": "rtllm_multi_pipe_4bit",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "rtllm",
+    "url": "https://github.com/hkust-zhiyao/RTLLM",
+    "commit": "51ed553d0ffd32797a1a0a13e051656bf302c81f",
+    "files": {
+      "Arithmetic/Multiplier/multi_pipe_4bit/design_description.txt": "81d819692c9df2fbf8664a882cc319ba0baee22876c69e4e4ea02ba35c382db3",
+      "Arithmetic/Multiplier/multi_pipe_4bit/verified_multi_pipe_4bit.v": "0d8037af028cf6186de5f19a962883b1d061e4583cb85ea5aa97d53d6513372d",
+      "Arithmetic/Multiplier/multi_pipe_4bit/testbench.v": "db977283522383b6cdc089932bb371fb3e43f13695345cb7f02325ed8b8e0793"
+    }
+  },
+  "adaptations": [
+    "统一顶层为 TopModule / RefModule / tb；子模块分别命名",
+    "保留上游断言；一次完整测试台判定计为一个样本，不代表逐拍覆盖",
+    "失败信息置位，防止失败后无条件打印 Passed 的假通过",
+    "未到达判定出口的提前结束或超时不得通过",
+    "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
+  ]
+}

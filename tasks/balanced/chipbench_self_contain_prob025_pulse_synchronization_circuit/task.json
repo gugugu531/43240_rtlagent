@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob025_pulse_synchronization_circuit",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob025_pulse_synchronization_circuit_prompt.txt": "41129303939f14763da45f2cdc94014b39b3fc24271297209c0dccc06f9d30de",
+      "Verilog Gen/dataset_self_contain/Prob025_pulse_synchronization_circuit_ref.sv": "28a154e7ddba516d921e2e6484abc8d996e0ad69632a981d7fee8dd18d46f100",
+      "Verilog Gen/dataset_self_contain/Prob025_pulse_synchronization_circuit_test.sv": "372c79a4e96c758aa2f37ea337909d081c8887ef1fc00f26c92344d5755fab3c"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

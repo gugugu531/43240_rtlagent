@@ -1,0 +1,27 @@
+{
+  "task_id": "archxbench_level_5_systolic_gemm",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "archxbench",
+    "url": "https://github.com/sureshpurini/ArchXBench",
+    "commit": "0db0d0de25aad5238393d51bd97ce952e579fa1a",
+    "files": {
+      "level-5/systolic_gemm/problem-description.txt": "f1cb553929ffc65210b867312b3fc8946b06876cca7248699e3623021b238ba9",
+      "level-5/systolic_gemm/design-specs.txt": "b6fa35a32972265a1d39ea7a68b3383b4628fdea94a4a70d50c3a56660dac2d6",
+      "level-5/systolic_gemm/tb.v": "90ad93673dfe256a2c933da8c7b9e49d72a4045472dff2fd914c98ee6f32feb9"
+    },
+    "variant": "local_reference_adapter"
+  },
+  "adaptations": [
+    "本地独立参考实现；本地替换文件式测试台",
+    "Python整数矩阵乘法生成8组测试，含上游两组、零、单位阵、有符号边界和固定随机输入",
+    "检查复位、完成信号、16路结果和结果稳定性；不等同上游原始分数"
+  ]
+}
