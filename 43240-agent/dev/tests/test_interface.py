@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import sys
 import unittest
 
@@ -118,8 +119,15 @@ class InterfaceCheckTests(unittest.TestCase):
 
 
 class PublicPromptRegressionTests(unittest.TestCase):
+    # These regressions cover the original VerilogEval fixtures, not the new
+    # mixed-source benchmark pool. Preserve original task IDs in assertions.
+    task_root = REPO_ROOT / "tasks" / "verilogeval"
+
+    def _task_dir(self, task: str) -> Path:
+        return self.task_root / ("verilogeval_" + task.lower())
+
     def _prompt(self, task: str) -> str:
-        return (REPO_ROOT / "tasks" / task / "prompt.txt").read_text()
+        return (self._task_dir(task) / "prompt.txt").read_text()
 
     def test_public_port_list_examples(self):
         cases = {
@@ -161,7 +169,7 @@ class PublicPromptRegressionTests(unittest.TestCase):
     def test_known_prompt_direction_error_stays_non_blocking(self):
         prompt = self._prompt("Prob031_dff")
         source = (
-            REPO_ROOT / "tasks" / "Prob031_dff" / "reference" / "solution.sv"
+            self._task_dir("Prob031_dff") / "reference" / "solution.sv"
         ).read_text()
 
         result = check_interface_result(source, "", prompt)
@@ -172,10 +180,12 @@ class PublicPromptRegressionTests(unittest.TestCase):
 
     def test_all_public_prompt_parse_exceptions_are_intentional_bugfix_tasks(self):
         unparsed = set()
-        for path in sorted((REPO_ROOT / "tasks").glob("*/prompt.txt")):
+        paths = sorted(self.task_root.glob("*/prompt.txt"))
+        self.assertTrue(paths)
+        for path in paths:
             spec = parse_prompt_interface(path.read_text())
             if not spec.parsed:
-                unparsed.add(path.parent.name)
+                unparsed.add(json.loads((path.parent / "task.json").read_text())["original_task_id"])
 
         self.assertEqual(unparsed, {
             "Prob062_bugs_mux2",
@@ -185,7 +195,7 @@ class PublicPromptRegressionTests(unittest.TestCase):
 
     def test_all_public_reference_module_headers_parse(self):
         failures = {}
-        paths = sorted((REPO_ROOT / "tasks").glob("*/reference/solution.sv"))
+        paths = sorted(self.task_root.glob("*/reference/solution.sv"))
         for path in paths:
             spec = parse_module_interface(path.read_text())
             if not spec.parsed:

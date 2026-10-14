@@ -26,7 +26,7 @@ still works. They never pretend to have checked something they did not.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 import re
 import signal
@@ -67,6 +67,7 @@ class ToolResult:
     failure_kind: str = "unknown"
     diagnostic_tool: str | None = None
     tool_version: str | None = None
+    details: dict = field(default_factory=dict)
 
     def trace_dict(self) -> dict[str, object]:
         fields: dict[str, object] = {
@@ -360,6 +361,7 @@ def _timeout_output(exc: subprocess.TimeoutExpired) -> str:
 
 def _build_result(tool: str, outcomes: Sequence[_CommandOutcome],
                   work: str, keep_work: bool, log_dir=None, redactor=None) -> ToolResult:
+    from agent.services.repair_feedback import extract_diagnostics
     commands = tuple(outcome.command for outcome in outcomes)
     final = outcomes[-1]
     full_output = "\n".join(outcome.output for outcome in outcomes)
@@ -393,6 +395,7 @@ def _build_result(tool: str, outcomes: Sequence[_CommandOutcome],
         failure_kind=classify_tool_failure(full_output) if final.status == "failed" else "unknown",
         diagnostic_tool=os.path.basename(final.command[0]) if final.command else None,
         tool_version=version_match.group(1) if version_match else None,
+        details={'repair_diagnostics': extract_diagnostics(full_output)},
     )
 
 
@@ -457,6 +460,7 @@ def _scratch_dir() -> str:
 
 _INTERESTING = (
     "ERROR:", "CRITICAL WARNING:", "error:",
+    "WARNING: [Synth 8-3848]",
     "Synthesis finished", "Synthesis failed", "Mismatches:",
 )
 
@@ -488,6 +492,9 @@ def classify_tool_failure(output: str) -> str:
         return 'environment'
     # Match primary source diagnostics, not generic follow-on errors such as
     # "module ignored". Environment errors above always take precedence.
+    if re.search(r'ERROR:\s*\[VRFC 10-3818\][^\n]*driven by invalid combination of procedural drivers',
+                 output, re.IGNORECASE):
+        return 'code'
     if re.search(r'ERROR: \[VRFC 10-(?:1280|9336)\]', output, re.IGNORECASE):
         return 'code'
     if re.search(r'ERROR: \[VRFC 10-1219\][^\n]*part-select direction is opposite from prefix index direction',

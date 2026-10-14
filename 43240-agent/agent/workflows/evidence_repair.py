@@ -21,7 +21,8 @@ class EvidenceRepair(RepairLoop):
                          timeout_s=timeout_s, use_skills=False,
                          max_request_retries=max_request_retries,
                          max_model_calls=max_model_calls,
-                         minimum_action_s=minimum_action_s)
+                         minimum_action_s=minimum_action_s,
+                         repair_output_drivers=False)
         self.max_feedback_chars = max_feedback_chars
         self.generate = build_node('rtl_generate', max_tokens=max_tokens,
                                    temperature=temperature, top_p=1.0,

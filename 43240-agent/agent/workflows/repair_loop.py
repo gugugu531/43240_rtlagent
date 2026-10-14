@@ -9,6 +9,8 @@ from agent.core.state import RunStateView, SelectionDecision
 from agent.nodes.generate import GenerateInput
 from agent.nodes.extract import ExtractInput
 from agent.nodes.check import CheckInput
+from agent.services.repair_feedback import (tool_repair_feedback, output_driver_warnings,
+    output_driver_feedback, driver_repair_improves)
 
 
 @dataclass(frozen=True)
@@ -46,7 +48,8 @@ class RepairLoop(Component):
     def __init__(self, max_rounds: int = 3, max_tokens: int = 4096,
                  temperature: float = 0.2, timeout_s: float = 180.0,
                  use_skills: bool = True, max_request_retries: int = 1,
-                 max_model_calls: int | None = None, minimum_action_s: float = 0.05):
+                 max_model_calls: int | None = None, minimum_action_s: float = 0.05,
+                 repair_output_drivers: bool = True):
         if isinstance(max_rounds, bool) or not isinstance(max_rounds, int) or max_rounds <= 0:
             raise ValueError('max_rounds must be a positive integer')
         if max_model_calls is None:
@@ -62,6 +65,10 @@ class RepairLoop(Component):
         self.temperature, self.timeout_s, self.use_skills = temperature, timeout_s, use_skills
         self.max_request_retries, self.max_model_calls = max_request_retries, max_model_calls
         self.minimum_action_s = minimum_action_s
+        if type(repair_output_drivers) is not bool:
+            raise ValueError('repair_output_drivers must be boolean')
+        self.repair_output_drivers = repair_output_drivers
+        self._output_top = None
         self.generate = build_node('rtl_generate', max_tokens=max_tokens, temperature=temperature,
                                    timeout_s=timeout_s, prompt_style='repair', use_skills=use_skills)
         self.extract = build_node('rtl_extract')
@@ -85,6 +92,19 @@ class RepairLoop(Component):
         current_id = state.selected_candidate_id
         if not eligible:
             return SelectionDecision(None, current_id is not None, 'no_eligible_candidate', ())
+        current = next((entry for entry in eligible if entry[0] == current_id), None)
+        if current and self.repair_output_drivers and self._output_top:
+            old_checks = [c for c in state.checks if c.candidate_id == current_id]
+            if output_driver_warnings(state.candidates[current_id].code, self._output_top, old_checks):
+                improved = [entry for entry in eligible if entry[1] >= current[1] and
+                    entry[1][0] and entry[1][1] and driver_repair_improves(
+                        state.candidates[current_id].code, state.candidates[entry[0]].code,
+                        self._output_top, old_checks,
+                        [c for c in state.checks if c.candidate_id == entry[0]])]
+                if improved:
+                    chosen = max(improved, key=lambda entry: entry[1])
+                    return SelectionDecision(chosen[0], True, 'output_driver_improved', chosen[2])
+                return SelectionDecision(current_id, False, 'output_driver_fallback', current[2])
         strongest = max(rank for _, rank, _ in eligible)
         choices = [entry for entry in eligible if entry[1] == strongest]
         chosen = next((entry for entry in choices if entry[0] == current_id), choices[0])
@@ -109,8 +129,9 @@ class RepairLoop(Component):
                 '; '.join(extraction.diagnostics) + '。请输出完整 module/endmodule。')
 
     def build_check_feedback(self, ctx, checks) -> str:
-        """Hook for experimental workflows; default to the existing bounded summaries."""
-        return '\n\n'.join(check.summary for check in checks if check.status != 'passed')
+        """Hook for experiments; default uses bounded own-tool root diagnostics."""
+        candidate = ctx.state.candidates.get(checks[-1].candidate_id) if checks else None
+        return tool_repair_feedback(candidate.code if candidate else '', checks)
 
     def restore(self, ctx):
         return None
@@ -122,6 +143,7 @@ class RepairLoop(Component):
         return ()
 
     def run(self, ctx):
+        self._output_top = ctx.task.top
         repair_target = None
         feedback, reason = '', 'round_limit'
         calls, repairs = 0, 0
@@ -170,6 +192,7 @@ class RepairLoop(Component):
             result = ctx.execute(self.extract, ExtractInput(reply, round,
                 repair_target.id if repair_target else None, 'repair' if repair_target else 'generate'))
             checks = []
+            warnings = []
             if result.candidate is None:
                 choice = decide('extraction', reply.call_id)
                 if choice.action == 'repair':
@@ -193,21 +216,37 @@ class RepairLoop(Component):
                             checks.append(synth)
                             select()
                             if synth.status == 'passed':
-                                self.after_round(ctx, reply, result, checks,
-                                    FailureDecision('stop', 'synth_passed', synth.id), round)
-                                return ctx.finish(reason='synth_passed')
+                                warnings = (output_driver_warnings(latest.code, ctx.task.top, [synth])
+                                            if self.repair_output_drivers else [])
+                                if warnings:
+                                    ctx.emit('synthesis_output_warning', candidate_id=latest.id,
+                                             warnings=warnings, synthesis_completed=True,
+                                             functional_verified=False, retain_candidate=True)
+                                else:
+                                    state = ctx.state
+                                    selected = state.candidates.get(state.selected_candidate_id)
+                                    unresolved = (self.repair_output_drivers and selected and
+                                        output_driver_warnings(selected.code, ctx.task.top,
+                                            [c for c in state.checks if c.candidate_id == selected.id]))
+                                    stop = 'warning_repair_unverified' if unresolved else 'synth_passed'
+                                    self.after_round(ctx, reply, result, checks,
+                                        FailureDecision('stop', stop, synth.id), round)
+                                    return ctx.finish(reason=stop, status='stopped' if unresolved else 'completed')
                 except BudgetExhausted:
                     self.after_round(ctx, reply, result, checks,
                         FailureDecision('stop', 'deadline', checks[-1].id if checks else reply.call_id), round)
                     return ctx.finish(reason='deadline', status='stopped')
                 last = checks[-1]
-                choice = decide(last.classify(), last.id)
+                choice = decide('code' if warnings else last.classify(), last.id)
                 if choice.action == 'repair':
                     feedback = self.build_check_feedback(ctx, checks)
+                    if warnings:
+                        feedback += output_driver_feedback(warnings)
                     optional_pieces = self.repair_pieces(ctx, checks)
             self.after_round(ctx, reply, result, checks, choice, round)
             if choice.action != 'repair':
-                reason = ('verification_unavailable' if choice.reason == 'environment' else choice.reason)
+                reason = ('synth_output_warning' if warnings and choice.reason != 'deadline' else
+                          'verification_unavailable' if choice.reason == 'environment' else choice.reason)
                 break
             repairs += 1
         return ctx.finish(reason=reason, status='stopped')
