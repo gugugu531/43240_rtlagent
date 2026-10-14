@@ -11,7 +11,7 @@ import shlex
 import shutil
 import sys
 
-from datasets import ROOT, DATA, check_task, code_only, write_json
+from datasets import ROOT, DATA, TASKS, POOL, BALANCED, check_task, code_only, write_json
 from validate_datasets import fingerprint
 
 CATEGORIES = {
@@ -334,15 +334,16 @@ def build(args):
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--pool',type=Path,default=DATA/'pool')
+    ap.add_argument('--pool',type=Path,default=POOL)
     ap.add_argument('--validation',type=Path,default=ROOT/'dev/runs/dataset-validation/full')
     ap.add_argument('--size',type=int,default=60)
-    ap.add_argument('--out',type=Path,default=DATA/'balanced')
+    ap.add_argument('--out',type=Path,default=BALANCED)
     ap.add_argument('--materialize',action='store_true')
     ap.add_argument('--report',type=Path,help='生成中文统计；目标须位于dev/docs/')
     args=ap.parse_args()
     if args.size<1:ap.error('--size 必须大于0')
-    if not args.out.resolve().is_relative_to(ROOT/'dev'):ap.error('输出必须位于dev/')
+    if not any(args.out.resolve().is_relative_to(root) for root in (ROOT/'dev',TASKS)):
+        ap.error('题库输出必须位于tasks/或开发区dev/')
     if args.report and not args.report.resolve().is_relative_to(ROOT/'dev/docs'):
         ap.error('统计文档必须位于dev/docs/')
     build(args)

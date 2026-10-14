@@ -15,6 +15,9 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 REPO = ROOT.parent
 DATA = ROOT / 'dev/datasets'
+TASKS = REPO / 'tasks'
+POOL = TASKS / 'pool'
+BALANCED = TASKS / 'balanced'
 sys.path.insert(0, str(ROOT))
 from agent.core.interface import parse_module_interface
 
@@ -322,8 +325,8 @@ def check_task(path):
 
 def convert(args):
     out = args.out.resolve()
-    if not out.is_relative_to(ROOT / 'dev'):
-        raise ValueError('参考答案必须留在 dev/')
+    if not any(out.is_relative_to(root) for root in (ROOT / 'dev', TASKS)):
+        raise ValueError('题库输出必须位于 tasks/ 或开发区 dev/')
     if out.exists() and any(out.iterdir()):
         raise ValueError('输出目录非空；使用新的目录，避免覆盖已有题目')
     out.mkdir(parents=True, exist_ok=True)
@@ -375,7 +378,7 @@ def main():
     sub = ap.add_subparsers(dest='command', required=True)
     p = sub.add_parser('convert')
     p.add_argument('--upstream', type=Path, default=DATA/'upstream')
-    p.add_argument('--out', type=Path, default=DATA/'pool')
+    p.add_argument('--out', type=Path, default=POOL)
     args = ap.parse_args()
     convert(args)
 
