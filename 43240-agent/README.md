@@ -57,6 +57,8 @@
 | `agent/services/vivado.py` | 带进程组清理和结构化结果的 lint、综合工具 |
 | `agent/services/repair_feedback.py` | 摘要截断前收集自身工具根因、提供词法赋值导航，并保守比较顶层输出无驱动证据 |
 | `agent/services/port_signature.py` | 警告修复专用的保守端口声明语义比较；不支持的声明视为未知 |
+| `agent/services/behavior.py`、`timing.py`、`plan_format.py`、`literal_spec.py`、`spec_ports.py` | 可选规格自测基础：校验受支持端口、时序和计划，程序生成测试台并区分公开属性与模型假设；默认流程不调用 |
+| `agent/nodes/behavior.py`、`agent/workflows/spec_selection.py` | 显式导入的计划/自测 Node 与可调用候选保护函数；不注册或启用新的 Workflow |
 | `agent/recording/` | 保存模型与动作证据、trace、脱敏及通用运行/模型统计 |
 | `agent/prompts/skills.py` | 加载技能包，按工具报错挑选相关技能 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
@@ -208,6 +210,15 @@ packed/unpacked 范围（含边界方向）；只忽略 wire/reg/logic 类型修
 通用接口解析器的 high 置信度不证明完整端口语义。诊断缺失、截断或格式未知时也保留旧稿。
 警告减少不代表功能正确。可用 `repair_output_drivers: false` 关闭；`evidence_repair`、E1/E2
 保持该警告触发关闭，共享的编译错误归因和修复提示更新仍适用。
+
+另提供可选规格自测基础，**尚未接入上述任何默认或实验工作流**。显式导入
+`agent.nodes.behavior` 可使用 `spec_test_plan` 和 `spec_behavior_check` Node；动作仍由 Workflow
+通过 `ctx.execute()` 调度。计划只看公开题面与接口，完整支持格式的二值真值表可程序化枚举，
+其他期望值均标为模型假设。程序校验后生成自己的测试台，不执行模型编写的测试代码或读取官方 TB。
+自测仅支持无符号标量/一维降序向量；时序部分限单时钟、明确复位和唯一输出寄存器组。
+可调用保护函数只依据同一计划下严格改善的受支持属性，保留旧的工具通过证据、端口语义和探针覆盖；
+模型期望值分数不能单独推翻可编译候选。未知、计划拒绝、自测通过都不等于官方功能判定。
+开发接口、支持范围和限制见[规格自测基础](dev/docs/design/spec-test-foundation.md)。
 
 可选 `evidence_repair` 复用同一套候选选择和失败归因，但固定为一份初始候选加最多一次修复。它通过
 `structured_feedback` Node 把提取或检查失败整理成证据编号、阶段、状态、归因、稳定错误码和有限摘要；
