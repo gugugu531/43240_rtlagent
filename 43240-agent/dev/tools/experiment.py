@@ -19,6 +19,7 @@ from agent.recording.metrics import CompletedSample, ModelMetric, RuntimeMetric,
 from agent.recording.redaction import Redactor
 from agent.services.processes import ProcessExecutor, ProcessRequest
 from .metrics.judge import JudgeMetric
+from .tasksets import task_index
 
 ROOT = Path(__file__).resolve().parents[2]
 REPO = ROOT.parent
@@ -109,18 +110,27 @@ def select_tasks(selection: TaskSelection) -> TaskManifest:
     if not root.is_dir(): raise ConfigError('tasks.root must be an existing directory')
     if selection.ids is not None and selection.list_path is not None:
         raise ConfigError('tasks.ids and tasks.list are mutually exclusive')
+    try:
+        directories, index = task_index(root)
+    except (OSError, ValueError):
+        raise ConfigError('cannot index task directories or metadata') from None
     if selection.ids is not None: names = selection.ids
     elif selection.list_path is not None: names = _names(selection.list_path)
-    else: names = tuple(sorted(p.name for p in root.iterdir() if p.is_dir() and (p/'prompt.txt').is_file()))
+    else: names = tuple(p.name for p in directories)
     if not names or len(set(names)) != len(names): raise ConfigError('task selection must be nonempty and unique')
     excluded_names = set(_names(selection.exclude_path)) if selection.exclude_path else set()
-    selected, excluded = [], []
+    selected, excluded, seen = [], [], set()
     for name in names:
         if not re.fullmatch(r'[A-Za-z0-9_-]+', name): raise ConfigError('task ids must be directory names')
-        directory = (root/name).resolve()
-        if not directory.is_relative_to(root) or not (directory/'prompt.txt').is_file():
-            raise ConfigError('selected task does not exist or escapes tasks.root')
-        if name in excluded_names:
+        matches = index.get(name, [])
+        if len(matches) != 1:
+            raise ConfigError('selected task is missing or ambiguous: '+name)
+        directory = matches[0].resolve()
+        if directory in seen:
+            raise ConfigError('multiple task ids select the same directory')
+        seen.add(directory)
+        aliases = {key for key, paths in index.items() if directory in paths}
+        if aliases & excluded_names:
             excluded.append({'task_id': name, 'reason': 'exclude_list', 'source': str(selection.exclude_path)})
         else: selected.append({'task_id': name, 'directory': str(directory), 'inputs': task_hashes(directory)})
     if not selected: raise ConfigError('all selected tasks were excluded')

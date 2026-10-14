@@ -481,14 +481,14 @@ trace 末行被打断时，原片段保存为 `trace_partial.txt`。
 
 ```bash
 # 以下命令均在 43240-agent/ 下执行。
-LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/agent-single
+LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-single
 
 # 显式选择配置与 Workflow。
-./run.sh ../tasks/ex03_lfsr8 /tmp/agent-repair \
+./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-repair \
   --config config/example.yaml --workflow repair_loop
 
 # 可直接调用 Python 入口；同样经过 Supervisor。
-python3 -m agent.main --input ../tasks/ex03_lfsr8 --output /tmp/agent-python \
+python3 -m agent.main --input ../tasks/example/example_ex03_lfsr8 --output /tmp/agent-python \
   --config config/example.yaml --workflow single_generate
 ```
 
@@ -514,11 +514,11 @@ python3 -m agent.main --input ../tasks/ex03_lfsr8 --output /tmp/agent-python \
 ```bash
 # 从示例复制一份开发配置；-n 避免覆盖已经存在的个人配置。
 cp -n config/example.yaml dev/configs/my-agent.yaml
-./run.sh ../tasks/ex03_lfsr8 /tmp/agent-personal --config dev/configs/my-agent.yaml
+./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-personal --config dev/configs/my-agent.yaml
 
 # 也可以通过环境变量选择；后续命令会继续继承该设置。
 export AGENT_CONFIG=dev/configs/my-agent.yaml
-./run.sh ../tasks/ex03_lfsr8 /tmp/agent-env-config
+./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-env-config
 ```
 
 `config/default.yaml` 已改名为 `config/example.yaml`。省略配置参数的默认运行已同步使用新路径；
@@ -685,7 +685,7 @@ class CountThenGenerate(Component):
 在方案目录运行：
 
 ```bash
-LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/custom-out \
+LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/custom-out \
   --import-module agent.workflows.custom_example --workflow count_then_generate
 ```
 
@@ -796,8 +796,8 @@ Supervisor 只在 Worker 停止后接管 trace，校验恢复检查点中的哈�
 
 | experiment 字段 | 默认值或要求 |
 | --- | --- |
-| `tasks.root` | 实验必填，题目根目录；相对 YAML 所在目录解析 |
-| `tasks.ids` / `tasks.list` | 题名列表 / 每行一个题名的清单文件；两者互斥；都未指定时枚举题目 |
+| `tasks.root` | 实验必填，支持 `tasks/` 按来源分组或单个来源目录；相对 YAML 所在目录解析 |
+| `tasks.ids` / `tasks.list` | 题号列表 / 每行一个题号的TXT清单文件（可跨来源，兼容原题号别名）；两者互斥；都未指定时枚举题目 |
 | `tasks.exclude` | 默认 `dev/configs/exclude.txt`，CLI 选题也不绕过排除 |
 | `modes` | `[agent]`；真实服务可加入 `baseline`；mock 不允许 baseline |
 | `samples` | `1`，每题每模式的采样数，正整数 |
@@ -946,7 +946,7 @@ Dockerfile 已复制 config/ 与 baseline.py；官方基础镜像仍是占位项
 
 ```bash
 python3 dev/tools/submission.py --stage /tmp/agent-manual-submission \
-  --task ../tasks/ex03_lfsr8 --output /tmp/agent-manual-submission-smoke
+  --task ../tasks/example/example_ex03_lfsr8 --output /tmp/agent-manual-submission-smoke
 ```
 
 暂存目标必须不存在且位于源码树外；这里的暂存不会发布或部署。

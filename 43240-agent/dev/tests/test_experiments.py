@@ -54,6 +54,50 @@ class ExperimentTests(unittest.TestCase):
             old=manifest.digest;(task/'prompt.txt').write_text('changed')
             self.assertNotEqual(old,select_tasks(TaskSelection(root/'tasks',('one',))).digest)
 
+    def test_source_lists_aliases_and_exclusions(self):
+        with tempfile.TemporaryDirectory() as t:
+            root=Path(t); tasks=root/'tasks'
+            for source,name,alias in [('a','a_one','OldOne'),('b','b_two','OldTwo')]:
+                task=tasks/source/name;task.mkdir(parents=True)
+                (task/'prompt.txt').write_text(name)
+                (task/'task.json').write_text(json.dumps({'original_task_id':alias}))
+            selected=root/'selected.txt';selected.write_text('# 跨来源选题\na_one\n\nOldTwo\n')
+            manifest=select_tasks(TaskSelection(tasks,list_path=selected))
+            self.assertEqual([Path(r['directory']).parent.name for r in manifest.tasks],['a','b'])
+            excluded=root/'exclude.txt';excluded.write_text('OldOne\n')
+            manifest=select_tasks(TaskSelection(tasks,list_path=selected,exclude_path=excluded))
+            self.assertEqual([r['task_id'] for r in manifest.tasks],['OldTwo'])
+            self.assertEqual(len(select_tasks(TaskSelection(tasks/'a')).tasks),1)
+            with self.assertRaises(ConfigError):
+                select_tasks(TaskSelection(tasks,('a_one','OldOne')))
+            (tasks/'b'/'b_two'/'task.json').write_text(json.dumps({'original_task_id':'OldOne'}))
+            with self.assertRaises(ConfigError):
+                select_tasks(TaskSelection(tasks,('OldOne',)))
+
+    def test_remote_client_uses_source_lists_without_network(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location('dataset_submit_client',ROOT/'dev/tools/remote/submit_client.py')
+        client=importlib.util.module_from_spec(spec);spec.loader.exec_module(client)
+        with tempfile.TemporaryDirectory() as t:
+            root=Path(t); task=root/'tasks'/'source'/'new_id';task.mkdir(parents=True)
+            (task/'prompt.txt').write_text('prompt')
+            (task/'task.json').write_text('{"original_task_id":"old_id"}')
+            selected=root/'list.txt';selected.write_text('# selection\nold_id\n')
+            self.assertEqual(client.list_tasks(str(root/'tasks'),str(selected)),[str(task)])
+            selected.write_text('old_id\nnew_id\n')
+            with self.assertRaises(ValueError):client.list_tasks(str(root/'tasks'),str(selected))
+            selected.write_text('missing\n')
+            with self.assertRaises(ValueError):client.list_tasks(str(root/'tasks'),str(selected))
+
+    def test_source_directory_cannot_escape_root(self):
+        with tempfile.TemporaryDirectory() as t:
+            root=Path(t); outside=root/'outside';outside.mkdir()
+            (outside/'prompt.txt').write_text('example')
+            tasks=root/'tasks';(tasks/'a').mkdir(parents=True)
+            (tasks/'a'/'linked').symlink_to(outside,target_is_directory=True)
+            with self.assertRaises(ConfigError):
+                select_tasks(TaskSelection(tasks,('linked',)))
+
     def test_parallel_samples_use_shared_runtime_and_do_not_start_judge(self):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t);self.setup_task(root);config=self.config(root);exp=parse_experiment(config)

@@ -1,6 +1,6 @@
 {
   "generated": true,
-  "command": "python3 43240-agent/dev/tools/balance_datasets.py --size 60 --report 43240-agent/dev/docs/notes/2026-10-14-balanced-datasets-selection.md",
+  "command": "python3 43240-agent/dev/tools/balance_datasets.py --size 60",
   "note": "自动生成，不要手改。难度为题面估计，不是模型通过率。原始验证日志位于dev/runs/dataset-validation/full。",
   "requested_size": 60,
   "converted": 258,

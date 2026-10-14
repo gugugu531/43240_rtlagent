@@ -36,7 +36,7 @@
 | `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
 | `dev/tools/submission.py` | 按明确清单检查、暂存方案并在没有 dev 的目录中验证默认入口 |
 | `dev/tools/run.py` | 开发侧统一任务选择、采样调度与可选指标入口 |
-| `dev/tools/datasets.py`、`balance_datasets.py` | 题集转换与均衡筛选；题库位于仓库根目录 `tasks/pool/`、`tasks/balanced/`，不随方案打包，见[题集说明](dev/docs/design/datasets.md) |
+| `dev/tools/datasets.py`、`balance_datasets.py` | 题集转换与均衡筛选；题库位于仓库根目录 `tasks/<来源>/<题号>/`，选题只维护 TXT 清单，不随方案打包，见[题集说明](dev/docs/design/datasets.md) |
 | `dev/tools/log_viewer.html` | 本地日志查看器，导入输出目录后查看节点、工具调用与完整响应 |
 | `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
 | `agent/workflows/repair_loop.py` | 修复流程，自带候选选择 `choose()` 与失败处理 `decide()`，可由子类替换 |
@@ -227,13 +227,13 @@ E1 的 `evidence_a0` 使用方案 A 同一首次提示与提取，只保留首�
 
 ```bash
 # run.sh 默认使用 single_generate
-LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/out
+LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/out
 
 # 两个位置参数不变，通过运行条件选择可选流程
-LLM_BACKEND=mock AGENT_WORKFLOW=repair_loop ./run.sh ../tasks/ex03_lfsr8 /tmp/out-repair
+LLM_BACKEND=mock AGENT_WORKFLOW=repair_loop ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/out-repair
 
 # 方案 A：结构化反馈，最多修复一次（真实检查需要 Vivado）
-LLM_BACKEND=mock AGENT_WORKFLOW=evidence_repair ./run.sh ../tasks/ex03_lfsr8 /tmp/out-evidence
+LLM_BACKEND=mock AGENT_WORKFLOW=evidence_repair ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/out-evidence
 
 # Python 入口也可直接选择，并显式导入用户扩展模块
 python3 -m agent.main --input <task_dir> --output <out_dir> \
@@ -417,7 +417,7 @@ single_generate 的采样常量固定；其他 Workflow 的温度、输出上限
 
 ```bash
 python3 dev/tools/submission.py --stage /tmp/agent-submission \
-  --task ../tasks/ex03_lfsr8 --output /tmp/agent-submission-smoke
+  --task ../tasks/example/example_ex03_lfsr8 --output /tmp/agent-submission-smoke
 ```
 
 暂存目标必须不存在，且位于源码目录外。复制范围明确包含 Agent、默认配置、技能、服务、模型

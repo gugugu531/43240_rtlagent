@@ -8,10 +8,9 @@ import json
 from pathlib import Path
 import re
 import shlex
-import shutil
 import sys
 
-from datasets import ROOT, DATA, TASKS, POOL, BALANCED, check_task, code_only, write_json
+from datasets import ROOT, DATA, TASKS, check_task, code_only, write_json
 from validate_datasets import fingerprint
 
 CATEGORIES = {
@@ -240,8 +239,7 @@ def balanced_selection(rows, size):
 def selection_report(summary, catalog):
     lines=['# 均衡题集筛选结果', '',
            '类型：自动生成的验证与筛选统计。难度来自题面估计，不是模型实测通过率。', '',
-           '不要手改；以下为生成时在仓库根目录执行的命令。仅重新筛选和生成统计时去掉',
-           '`--materialize`；复制题目要求输出目录为空，或用 `--out` 指定新目录。', '',
+           '不要手改；以下为生成时在仓库根目录执行的命令。筛选只生成TXT清单和统计，不复制题目。', '',
            '```bash', summary['command'], '```', '',
            f"共登记 {len(catalog)} 道来源记录；其中 {summary['converted']} 道已整理为现有格式，"
            f"{summary['deferred']} 道保留未转换原因。质量验证及去重后可用 {summary['eligible']} 道，"
@@ -271,8 +269,6 @@ def selection_report(summary, catalog):
 
 
 def build(args):
-    if args.materialize and args.out.exists() and any(args.out.iterdir()):
-        raise ValueError('均衡集输出非空；请指定新目录，不覆盖已有内容')
     raw=json.loads((DATA/'conversion.json').read_text())['tasks']
     overrides=json.loads((DATA/'labels.json').read_text()) if (DATA/'labels.json').exists() else {}
     catalog=[]
@@ -281,7 +277,7 @@ def build(args):
         if row['status']!='converted':
             row.update(eligible=False, exclusions=['not_converted'])
             catalog.append(row);continue
-        path=args.pool/row['task_id']
+        path=args.tasks/row['dataset']/row['task_id']
         row['format_errors']=check_task(path)
         row.update(annotate(row['task_id'],(path/'prompt.txt').read_text()))
         custom=overrides.get(row['task_id'],{})
@@ -323,10 +319,8 @@ def build(args):
     if args.report:
         args.report.parent.mkdir(parents=True,exist_ok=True)
         args.report.write_text(selection_report(summary,catalog))
-    if args.materialize:
-        for r in selected:
-            shutil.copytree(args.pool/r['task_id'],args.out/r['task_id'])
-    config=ROOT/'dev/configs/balanced.txt'
+    config=args.list
+    config.parent.mkdir(parents=True,exist_ok=True)
     config.write_text('# 自动生成：python3 dev/tools/balance_datasets.py --size '+str(args.size)+'\n'+
                       '\n'.join(r['task_id'] for r in selected)+'\n')
     print(json.dumps({k:summary[k] for k in ('converted','deferred','eligible','selected','after')},ensure_ascii=False,indent=2))
@@ -334,16 +328,15 @@ def build(args):
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--pool',type=Path,default=POOL)
+    ap.add_argument('--tasks',type=Path,default=TASKS)
     ap.add_argument('--validation',type=Path,default=ROOT/'dev/runs/dataset-validation/full')
     ap.add_argument('--size',type=int,default=60)
-    ap.add_argument('--out',type=Path,default=BALANCED)
-    ap.add_argument('--materialize',action='store_true')
+    ap.add_argument('--list',type=Path,default=ROOT/'dev/configs/balanced.txt',help='输出选题TXT清单')
     ap.add_argument('--report',type=Path,help='生成中文统计；目标须位于dev/docs/')
     args=ap.parse_args()
     if args.size<1:ap.error('--size 必须大于0')
-    if not any(args.out.resolve().is_relative_to(root) for root in (ROOT/'dev',TASKS)):
-        ap.error('题库输出必须位于tasks/或开发区dev/')
+    if not any(args.list.resolve().is_relative_to(root) for root in (ROOT/'dev',TASKS)):
+        ap.error('选题清单必须位于tasks/或开发区dev/')
     if args.report and not args.report.resolve().is_relative_to(ROOT/'dev/docs'):
         ap.error('统计文档必须位于dev/docs/')
     build(args)

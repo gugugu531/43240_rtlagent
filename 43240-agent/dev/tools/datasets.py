@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 from pathlib import Path
 import re
@@ -11,15 +12,16 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tarfile
 
 ROOT = Path(__file__).resolve().parents[2]
 REPO = ROOT.parent
 DATA = ROOT / 'dev/datasets'
 TASKS = REPO / 'tasks'
-POOL = TASKS / 'pool'
-BALANCED = TASKS / 'balanced'
 sys.path.insert(0, str(ROOT))
 from agent.core.interface import parse_module_interface
+
+ORIGINAL_COMMIT = '7f1014925d5b83e737db02fb08045014a1ec4f54'
 
 SOURCES = {
     'chipbench': ('https://github.com/zhongkaiyu/ChipBench', 'b4ba3a06759804ec88c26c3cf15b28b9a90b3443'),
@@ -323,64 +325,104 @@ def check_task(path):
     return errors
 
 
+def convert_original(dataset, out):
+    """从仓库固定提交恢复赛事原始输入；不依赖已迁移或已删除的旧目录。"""
+    archive = subprocess.check_output(['git', '-C', str(REPO), 'archive', ORIGINAL_COMMIT, 'tasks'])
+    records = []
+    with tarfile.open(fileobj=io.BytesIO(archive)) as source:
+        files = {m.name: source.extractfile(m).read() for m in source.getmembers() if m.isfile()}
+    for name in sorted(n for n in files if n.endswith('/task.json')):
+        original = Path(name).parent.name
+        group = 'verilogeval' if original.startswith('Prob') else 'example'
+        if group != dataset:
+            continue
+        tid = group + '_' + original.lower()
+        dest = out/tid
+        prefix = str(Path(name).parent) + '/'
+        raw = {n.removeprefix(prefix): content for n,content in files.items() if n.startswith(prefix)}
+        for relative, content in raw.items():
+            target = dest/relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+        meta = json.loads(raw['task.json'])
+        meta.update(task_id=tid, original_task_id=original)
+        write_json(dest/'task.json', meta)
+        records.append(dict(task_id=tid, dataset=dataset, original_task_id=original, status='converted',
+                            source=dict(path=prefix.rstrip('/'), git_commit=ORIGINAL_COMMIT,
+                                        files={n:hashlib.sha256(b).hexdigest() for n,b in sorted(raw.items())})))
+    return records
+
+
 def convert(args):
     out = args.out.resolve()
-    if not any(out.is_relative_to(root) for root in (ROOT / 'dev', TASKS)):
+    if not any(out.is_relative_to(root) for root in (ROOT/'dev', TASKS)):
         raise ValueError('题库输出必须位于 tasks/ 或开发区 dev/')
-    if out.exists() and any(out.iterdir()):
-        raise ValueError('输出目录非空；使用新的目录，避免覆盖已有题目')
-    out.mkdir(parents=True, exist_ok=True)
+    chosen = [args.dataset] if args.dataset else [*SOURCES, 'verilogeval', 'example']
+    for dataset in chosen:
+        target = out/dataset
+        if target.exists() and any(target.iterdir()):
+            raise ValueError(f'{target}: 来源目录非空；用 --out 指定新目录，避免覆盖题目')
     records = []
-    for dataset in SOURCES:
-        base = args.upstream / dataset
+    for dataset in chosen:
+        target = out/dataset
+        target.mkdir(parents=True, exist_ok=True)
+        if dataset not in SOURCES:
+            records += convert_original(dataset, target)
+            continue
+        base = args.upstream/dataset
         head = subprocess.check_output(['git', '-C', str(base), 'rev-parse', 'HEAD'], text=True).strip()
         if head != SOURCES[dataset][1]:
             raise ValueError(f'{dataset}: 上游版本不符 {head}')
         fn = {'chipbench': convert_chipbench, 'rtllm': convert_rtllm, 'cvdp': convert_cvdp}.get(dataset)
         if fn:
-            records += fn(base, out)
+            records += fn(base, target)
         else:
             from archxbench_adapter import convert_archxbench
-            converted = convert_archxbench(base, out, (save_task, source_record, rename, DATA))
+            converted = convert_archxbench(base, target, (save_task, source_record, rename, DATA))
             converted_ids = {r['task_id'] for r in converted}
             records += converted + [r for r in inventory_archxbench(base) if r['task_id'] not in converted_ids]
         license_path = next(x for x in [base/'LICENSE', base/'LICENSE.md'] if x.is_file())
-        dst = DATA / 'licenses' / (dataset + '.txt')
+        dst = DATA/'licenses'/(dataset+'.txt')
         dst.parent.mkdir(exist_ok=True, parents=True)
         shutil.copyfile(license_path, dst)
         if (base/'NOTICE').exists():
             shutil.copyfile(base/'NOTICE', DATA/'licenses'/(dataset+'-notice.txt'))
-    for p in sorted((REPO/'tasks').glob('*/task.json')):
-        src = p.parent
-        # 统一池使用小写目录名，原始题集保持原样。
-        tid = ('verilogeval_' if src.name.startswith('Prob') else 'example_') + src.name.lower()
-        shutil.copytree(src, out/tid)
-        meta = json.loads(p.read_text())
-        meta.update(task_id=tid, original_task_id=src.name)
-        write_json(out/tid/'task.json', meta)
-        records.append(dict(task_id=tid, dataset='verilogeval' if src.name.startswith('Prob') else 'example',
-                            original_task_id=src.name, status='converted',
-                            source=dict(path=str(src.relative_to(REPO)),
-                                        files={str(f.relative_to(src)): digest(f) for f in sorted(src.rglob('*')) if f.is_file()})))
     for row in records:
         if row['status'] == 'converted':
-            row['format_errors'] = check_task(out/row['task_id'])
-    write_json(DATA/'conversion.json', dict(command=shlex.join(['python3', *sys.argv]),
+            row['path'] = row['dataset']+'/'+row['task_id']
+            row['format_errors'] = check_task(out/row['path'])
+    previous = json.loads(args.manifest.read_text()).get('tasks', []) if args.manifest.exists() else []
+    combined = [r for r in previous if r['dataset'] not in chosen] + records
+    write_json(args.manifest, dict(command=shlex.join(['python3', *sys.argv]), layout='by_source',
                generated=True, note='自动生成，不要手改；尚未证明参考答案或测试台正确。',
                converter_files={str(p.relative_to(ROOT)): digest(p) for p in
-                                [Path(__file__), Path(__file__).with_name('archxbench_adapter.py'),
-                                 *sorted((DATA/'adapters').rglob('*.sv'))]}, tasks=records))
-    print(json.dumps({s: sum(r['status']==s for r in records) for s in ('converted','deferred')}, ensure_ascii=False))
+                                [Path(__file__), Path(__file__).with_name('dataset_docs.py'), Path(__file__).with_name('archxbench_adapter.py'),
+                                 *sorted((DATA/'adapters').rglob('*.sv'))]}, tasks=combined))
+    from dataset_docs import write_source_docs
+    write_source_docs(out, combined, chosen)
+    print(json.dumps({s:sum(r['status']==s for r in records) for s in ('converted','deferred')}, ensure_ascii=False))
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest='command', required=True)
     p = sub.add_parser('convert')
+    p.add_argument('--dataset', choices=[*SOURCES, 'verilogeval', 'example'])
     p.add_argument('--upstream', type=Path, default=DATA/'upstream')
-    p.add_argument('--out', type=Path, default=POOL)
+    p.add_argument('--out', type=Path, default=TASKS, help='来源目录的父目录')
+    p.add_argument('--manifest', type=Path, default=DATA/'conversion.json')
+    d = sub.add_parser('docs', help='按现有来源清单生成各来源目录的说明与导入脚本')
+    d.add_argument('--out', type=Path, default=TASKS)
     args = ap.parse_args()
-    convert(args)
+    if args.command == 'docs':
+        if not any(args.out.resolve().is_relative_to(root) for root in (ROOT/'dev', TASKS)):
+            ap.error('题库说明必须位于tasks/或开发区dev/')
+        from dataset_docs import write_source_docs
+        write_source_docs(args.out, json.loads((DATA/'conversion.json').read_text())['tasks'])
+    else:
+        if not args.manifest.resolve().is_relative_to(ROOT/'dev'):
+            ap.error('来源清单必须位于dev/')
+        convert(args)
 
 
 if __name__ == '__main__':

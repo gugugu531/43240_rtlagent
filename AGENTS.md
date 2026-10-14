@@ -31,7 +31,7 @@
 
 ```bash
 # 用假模型检查流程能否跑通（不需要 GPU 和 Vivado）
-cd 43240-agent && LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/out
+cd 43240-agent && LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/out
 
 # 本地判定（需要 Vivado）
 selftest/run_selftest.sh --agent 43240-agent --tasks <题目目录>
@@ -41,7 +41,7 @@ python3 dev/tools/run.py --config dev/configs/smoke.yaml --task ex03_lfsr8
 python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 
 # 官方参考答案链路验证；输出只放开发区
-../selftest/run_selftest.sh --reference --out dev/runs/reference-check
+../selftest/run_selftest.sh --reference --tasks ../tasks/verilogeval --out dev/runs/reference-check
 
 # 检查提交文件完整性
 python3 dev/tools/submission.py
