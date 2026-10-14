@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob014_sequence_generator",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob014_sequence_generator_prompt.txt": "b949a4b4a1740347a52d875309c20ddb13c95970c95300dfc4bbb62c63542725",
+      "Verilog Gen/dataset_self_contain/Prob014_sequence_generator_ref.sv": "4f56701038d778fdedecde4c45abfe0a2eadc8aa1a75b6006f0a329604261a5a",
+      "Verilog Gen/dataset_self_contain/Prob014_sequence_generator_test.sv": "a8cb707f4eacff24347037d2e8d370c274408ebbf0c8f99189ecc8232bebe4cf"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

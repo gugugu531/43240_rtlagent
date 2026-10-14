@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob023_gray_code_counter",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob023_gray_code_counter_prompt.txt": "2b3beb5c8dcc98551723246a9fd2ebb7f98f1c3f046d2ad75217f0735e852a84",
+      "Verilog Gen/dataset_self_contain/Prob023_gray_code_counter_ref.sv": "5b170ff277fa3911d28c3de98c0c4a737427824c315c9a9ad3f90d86bd293cfb",
+      "Verilog Gen/dataset_self_contain/Prob023_gray_code_counter_test.sv": "529ed5cf664e803eedbe0e6eabbea78450a523356c34cfa91db50058357ec0dc"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

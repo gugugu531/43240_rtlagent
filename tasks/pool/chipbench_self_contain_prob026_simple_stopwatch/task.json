@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob026_simple_stopwatch",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob026_simple_stopwatch_prompt.txt": "7bc3e1c953fce6b2da6e6e84c02094e531e96e0bd2a36155a924f06ec0561c39",
+      "Verilog Gen/dataset_self_contain/Prob026_simple_stopwatch_ref.sv": "ff89b3919c914c710a56ba797973e77a30abc75c153b44dd611dcc66b9e41945",
+      "Verilog Gen/dataset_self_contain/Prob026_simple_stopwatch_test.sv": "a7b845ef98d7759646f2818d226836707c02103f995a972220298754478340f9"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

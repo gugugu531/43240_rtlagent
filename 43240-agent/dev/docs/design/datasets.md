@@ -28,7 +28,8 @@
 | 当前 `tasks/` | 每文件SHA-256 | 156道VerilogEval和3道示例全部复制到统一池，原文件不修改 |
 
 许可证与NOTICE保存在 `dev/datasets/licenses/`。来源URL、提交版本和逐文件SHA-256保存在
-`conversion.json`。上游仓库、转换后的大量文件及运行日志只留在本地；工具、许可证、清单和适配源码进入Git。
+`conversion.json`。`tasks/pool/`和`tasks/balanced/`纳入Git版本管理；
+上游下载仓库和运行日志仍只留在本地。工具、许可证、清单和适配源码保存在Git中。
 
 ArchXBench上游没有完整RTL参考答案。此次补充的三个答案明确标记为本地独立实现，不能当作上游参考答案。
 平方根沿用上游50组输入与数学比较；矩阵乘法采用Python整数运算生成8组向量，覆盖上游两组、负数和边界；

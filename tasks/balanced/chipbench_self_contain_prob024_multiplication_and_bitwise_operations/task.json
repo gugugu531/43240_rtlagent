@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob024_multiplication_and_bitwise_operations",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob024_multiplication_and_bitwise_operations_prompt.txt": "8167b5e4c5b217474ce513276ac84936e68f69fa9ae3e0703ddb04002ad54098",
+      "Verilog Gen/dataset_self_contain/Prob024_multiplication_and_bitwise_operations_ref.sv": "90fe2833e4c89fb1b0617baf2bc6b905ad89691c1d843a1cad826bb3a0a02a74",
+      "Verilog Gen/dataset_self_contain/Prob024_multiplication_and_bitwise_operations_test.sv": "5b4f22bb3bc29c0c18be2e52598698fd5551d4b5df2d65dc81c55edf86b4a411"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

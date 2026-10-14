@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob033_traffic_lights",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob033_traffic_lights_prompt.txt": "c4892dcce7e66c5a2e54f36e5e4d6eacdedac11f7009976b501ca841a30154af",
+      "Verilog Gen/dataset_self_contain/Prob033_traffic_lights_ref.sv": "eedf1403cdd59421a991cba2a6dbfc6f5e315738da50fbef380ec34964b5cde7",
+      "Verilog Gen/dataset_self_contain/Prob033_traffic_lights_test.sv": "87894dea474fbd24297c0f7bcc71fae048b6463ce2b2273f599a314353cc8f4f"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

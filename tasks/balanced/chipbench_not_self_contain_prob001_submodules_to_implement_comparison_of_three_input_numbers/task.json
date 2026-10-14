@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_not_self_contain_prob001_submodules_to_implement_comparison_of_three_input_numbers",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_not_self_contain/Prob001_submodules_to_implement_comparison_of_three_input_numbers_prompt.txt": "93a8375f0d36076d15e875d3f7c3aa1bdf9ea3c9b48d4ee6087d6f0e57845d3b",
+      "Verilog Gen/dataset_not_self_contain/Prob001_submodules_to_implement_comparison_of_three_input_numbers_ref.sv": "5f7fdd352b11e635873f9a351967b78679ad9fd81d24d3d9884824b5aa105641",
+      "Verilog Gen/dataset_not_self_contain/Prob001_submodules_to_implement_comparison_of_three_input_numbers_test.sv": "101e5e99d8ed70a0b2f150843e8e9f61099681e4a711395dc47237e7a5f883e4"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

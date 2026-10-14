@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob012_state_machine_overlapping_sequence_detection",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob012_state_machine_overlapping_sequence_detection_prompt.txt": "9acc29bd4012a71e10d37887acaa564dcf43f2577fb361dd6a8c74b068a8d789",
+      "Verilog Gen/dataset_self_contain/Prob012_state_machine_overlapping_sequence_detection_ref.sv": "e4c7ab708664d612cf3c4ed163329d236c01719171c533d17623e718d47e2a0e",
+      "Verilog Gen/dataset_self_contain/Prob012_state_machine_overlapping_sequence_detection_test.sv": "238d4d7b89936a3f6abb522da8e8bc9f318d06f88ad1d4c3b2b6dda4a559a214"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob031_johnson_counter",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob031_johnson_counter_prompt.txt": "9d46ade40d2dfd081fd074b30f3d1d48e97e244455718fec56844ec5b6010001",
+      "Verilog Gen/dataset_self_contain/Prob031_johnson_counter_ref.sv": "f7d9e559fcd477f13a8e4e6142d14f2ab7b3ba8787b2acd7bc26d07854301d1e",
+      "Verilog Gen/dataset_self_contain/Prob031_johnson_counter_test.sv": "992e849a02a14da02d295c0553aa3b272f70c4414e4be25dde9fa4984e17edb7"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}
