@@ -221,6 +221,26 @@ class RtlToolchain:
 
     # ----------------------------------------------------------------- synth
 
+    def behavior_fingerprint(self):
+        """Self-test reuse also depends on the simulator executable."""
+        import hashlib
+        base = self.fingerprint()
+        search = self.config.bin_dir if self.config.bin_dir is not None else os.environ.get('PATH', '')
+        xsim = shutil.which('xsim', path=search)
+        if not base or not xsim:
+            return None
+        try:
+            info = os.stat(os.path.realpath(xsim))
+            return hashlib.sha256(repr((base, os.path.realpath(xsim), info.st_dev, info.st_ino,
+                info.st_size, info.st_mtime_ns, info.st_ctime_ns)).encode()).hexdigest()
+        except OSError:
+            return None
+
+    def behavior(self, source, top, plan, timeout_s=60.0):
+        """Optional controlled self-test; never invoked by existing workflows."""
+        from agent.services.behavior import run_behavior
+        return run_behavior(self, source, top, plan, timeout_s)
+
     def synth(self, source: str, top: str,
               timeout_s: float = 900.0) -> ToolResult:
         if not self.available:

@@ -89,16 +89,21 @@ class ToolService:
     def synth(self, candidate, top, *, timeout_s=900.0):
         return self._run('synth', candidate, top, timeout_s)
 
-    def _run(self, kind, candidate, top, timeout_s):
+    def behavior(self, candidate, plan, *, timeout_s=60.0):
+        return self._run('behavior', candidate, plan.top, timeout_s, plan=plan)
+
+    def _run(self, kind, candidate, top, timeout_s, *, plan=None):
         timeout = self._budget.timeout_s(timeout_s)
         check_id = None
         start = time.monotonic()
         try:
             if self._toolchain is None:
                 self._toolchain = self._factory()
-            fingerprint = getattr(self._toolchain, 'fingerprint', None)
+            fingerprint = getattr(self._toolchain,
+                                  'behavior_fingerprint' if kind == 'behavior' else 'fingerprint', None)
             fingerprint = fingerprint() if callable(fingerprint) else fingerprint
-            key = (CheckKey(self._task_hash, candidate.code_hash, kind, digest([top, timeout_s]),
+            parameters = [top, timeout_s, plan.fingerprint] if plan is not None else [top, timeout_s]
+            key = (CheckKey(self._task_hash, candidate.code_hash, kind, digest(parameters),
                             str(fingerprint)) if fingerprint and self._task_hash else None)
             reused = self._reuse(key, candidate)
             if reused:
@@ -106,7 +111,9 @@ class ToolService:
             check_id = self._allocate_id()
             self._emit('check_started', check_id=check_id, candidate_id=candidate.id, kind=kind,
                        executed=True)
-            result = getattr(self._toolchain, kind)(candidate.code, top, timeout_s=timeout)
+            result = (self._toolchain.behavior(candidate.code, top, plan, timeout_s=timeout)
+                      if kind == 'behavior' else
+                      getattr(self._toolchain, kind)(candidate.code, top, timeout_s=timeout))
         except Exception as exc:
             check = CheckResult(check_id or self._allocate_id(), candidate.id, kind, 'error',
                                 f'check service failed ({type(exc).__name__})', rc=1,

@@ -20,6 +20,7 @@
 | --- | --- |
 | [注释配置](../../config/example.yaml) | 配置字段与示例；覆盖顺序见手册 |
 | [运行契约](design/agent-runtime.md) | 上下文、诊断、候选搜索、token 预算、初始检查点重放 |
+| [规格自测基础](design/spec-test-foundation.md) | 可选计划、时序、自建测试台和候选保护接口；尚未接入现有工作流 |
 | [记录格式](design/trace-schema.md) | trace 事件与模型证据字段 |
 | [日志查看器](design/log-viewer.md) | 浏览运行节点、请求与响应 |
 | [远端管理](design/remote-tools.md) | 云端生命周期与远端实验操作；平台实测有日期限制 |
