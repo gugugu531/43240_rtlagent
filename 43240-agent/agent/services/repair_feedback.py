@@ -1,6 +1,7 @@
 """Bounded evidence from the current DUT and its own tool observations only."""
 from __future__ import annotations
 import re
+from agent.services.port_signature import port_signature
 
 
 def extract_diagnostics(log: str, limit=32):
@@ -76,8 +77,8 @@ def output_driver_evidence(code, top, checks):
                 r'Net [A-Za-z_][A-Za-z0-9_$]*(?:\[\d+\])? in module/entity '
                 r'[A-Za-z_][A-Za-z0-9_$]* does not have driver\.\s*(?:\[[^\n]+\])?', diagnostic['message']):
             return None
-    ports = tuple((p.name, p.direction, p.width, p.range_text) for p in interface.ports)
-    if not any(p.direction == 'output' for p in interface.ports):
+    ports = port_signature(code, top)
+    if ports is None or not any(p.direction == 'output' for p in interface.ports):
         return None
     return dict(ports=ports, undriven=frozenset(w['signal'] for w in
                 output_driver_warnings(code, top, [latest])), check_id=latest.id)

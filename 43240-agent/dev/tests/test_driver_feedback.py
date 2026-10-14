@@ -121,8 +121,68 @@ class FeedbackEvidenceTests(unittest.TestCase):
         self.assertFalse(driver_repair_improves(code, code, 'TopModule', [synth_check('old', bit0)],
                                                [synth_check('new', bit1)]))
 
+    def test_signedness_and_every_array_dimension_are_preserved(self):
+        old, clean = synth_check('old', WARN), synth_check('new', '')
+        cases = (
+            ('input signed [7:0] a', 'input [7:0] a'),
+            ('input [7:0] a', 'input signed [7:0] a'),
+            ('input signed [7:0] a', 'input unsigned [7:0] a'),
+            ('input [7:0] a [0:3]', 'input [7:0] a [0:1]'),
+            ('input [7:0][1:0] a', 'input [7:0][3:0] a'),
+            ('input [7:0][1:0] a', 'input [7:0][0:1] a'),
+            ('input [7:0] a [0:3][2:0]', 'input [7:0] a [0:3][0:2]'),
+            ('input [7:0] a [0:3]', 'input [7:0][0:3] a'),
+            ('input signed [7:0] a, b', 'input signed [7:0] a, input [7:0] b'),
+        )
+        for before, after in cases:
+            with self.subTest(before=before, after=after):
+                first = f'module TopModule({before}, output y); endmodule'
+                fixed = f'module TopModule({after}, output y); endmodule'
+                self.assertFalse(driver_repair_improves(first, fixed, 'TopModule', [old], [clean]))
+
+    def test_full_supported_shape_keeps_net_variable_corrections_and_formatting(self):
+        old, clean = synth_check('old', WARN), synth_check('new', '')
+        first = ('module TopModule(input wire signed [7:0][1:0] a [0:3][2:0], '
+                 'b [1:2], output reg unsigned y); endmodule')
+        fixed = ('module TopModule(input logic signed [ 7 : 0 ][ 1 : 0 ] a [ 0 : 3 ][2:0], '
+                 'b [1:2], output wire y); endmodule')
+        self.assertTrue(driver_repair_improves(first, fixed, 'TopModule', [old], [clean]))
+
+    def test_unsupported_or_redeclared_port_semantics_are_unknown(self):
+        old, clean = synth_check('old', WARN), synth_check('new', '')
+        cases = (
+            'module TopModule(a,y); input [7:0] a; output y; endmodule',
+            'module TopModule(input [7:0] a [], output y); endmodule',
+            'module TopModule(input [7:0] a [4], output y); endmodule',
+            'module TopModule(input [7:0] a [0:N], output y); endmodule',
+            'module TopModule(input bit [7:0] a, output y); endmodule',
+            'module TopModule(input tri [7:0] a, output y); endmodule',
+            'module TopModule #(parameter N=8)(input [7:0] a, output y); endmodule',
+            'module TopModule(input [7:0] a, output y); wire signed [7:0] a; endmodule',
+            '`default_nettype tri\nmodule TopModule(input a, output y); endmodule',
+        )
+        for code in cases:
+            with self.subTest(code=code):
+                self.assertFalse(driver_repair_improves(code, code, 'TopModule', [old], [clean]))
+
 
 class DriverWorkflowTests(unittest.TestCase):
+    def test_semantic_interface_changes_cannot_replace_old_candidate(self):
+        for before, after in (
+            ('input signed [7:0] a', 'input [7:0] a'),
+            ('input [7:0] a [0:3]', 'input [7:0] a [0:1]'),
+            ('input [7:0][1:0] a', 'input [7:0][3:0] a'),
+            ('input [7:0] a', 'input [7:0] a []'),
+        ):
+            first = f'module TopModule({before}, output y, output z); logic missing; assign z=1; endmodule\n'
+            fixed = f'module TopModule({after}, output y, output z); assign y=1; assign z=1; endmodule\n'
+            with self.subTest(before=before, after=after), tempfile.TemporaryDirectory() as temp:
+                result = run_repair(temp, FakeBackend([reply(first), reply(fixed)]), DriverTools(),
+                                    max_rounds=2, max_request_retries=0)
+                self.assertEqual(result.selected_candidate.code, first)
+                self.assertEqual(result.stop_reason, 'warning_repair_unverified')
+                self.assertTrue(any(e.get('reason') == 'output_driver_fallback' for e in events(temp)))
+
     def test_stronger_interface_rank_cannot_bypass_warning_repair_protection(self):
         from agent.core.candidate import CandidateFactory
         from agent.core.state import RunStateView
@@ -196,7 +256,7 @@ class DriverWorkflowTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get('RUN_VIVADO_TESTS') == '1', 'set RUN_VIVADO_TESTS=1 for real Vivado')
 class RealVivadoDriverTests(unittest.TestCase):
-    def run_workflow(self, first, fixed, interface='module TopModule(input a, output y);'):
+    def run_workflow(self, first, fixed, interface='module TopModule(input a, output y);', *, expected=None):
         from agent.core.config import ModelConfig, ToolConfig
         from agent.core.task import TaskSpec
         from agent.core.registry import build_workflow
@@ -212,9 +272,47 @@ class RealVivadoDriverTests(unittest.TestCase):
             trace = events(Path(temp) / 'output')
             diagnostics = [(e['tool'], e.get('status'), e.get('excerpt'), e.get('details'))
                            for e in trace if e['tool'] in ('lint', 'synth')]
-            self.assertEqual(result.selected_candidate.code, fixed, (result.stop_reason, diagnostics))
+            self.assertEqual(result.selected_candidate.code, fixed if expected is None else expected,
+                             (result.stop_reason, diagnostics))
             self.assertEqual(len(backend.requests), 2)
             return trace
+
+    def test_real_signedness_regression_is_rejected_and_existing_behavior_survives(self):
+        from agent.core.config import ToolConfig
+        from agent.services.processes import ProcessExecutor
+        from agent.services.vivado import RtlToolchain
+        import shutil
+        first = ('module TopModule(input signed [7:0] a, output y, output z); '
+                 'assign z=(a < 0); endmodule\n')
+        fixed = first.replace('endmodule', 'assign y=a[0]; endmodule')
+        broken = fixed.replace('input signed', 'input')
+        trace = self.run_workflow(first, broken,
+            'module TopModule(input signed [7:0] a, output y, output z);', expected=first)
+        self.assertTrue(any(e['tool'] == 'synth' and e.get('status') == 'passed' and
+                            e.get('candidate_id') == 'c002' for e in trace))
+        self.assertTrue(any(e.get('reason') == 'output_driver_fallback' for e in trace))
+        self.assertFalse(any(e.get('reason') == 'output_driver_improved' for e in trace))
+        # Independently demonstrate why warning removal alone is insufficient.
+        # This artificial TB is not an official task or reference answer.
+        tb = ('module agent_tb; reg signed [7:0] a; wire y,z; '
+              'TopModule dut(.a(a),.y(y),.z(z)); '
+              'initial begin a=8\'hff; #1; $display("SIGNED_RESULT=%b",z); $finish; end endmodule\n')
+        for code, expected_z in ((first, '1'), (broken, '0'), (fixed, '1')):
+            with self.subTest(expected_z=expected_z), tempfile.TemporaryDirectory() as temp:
+                Path(temp, 'design.sv').write_text(code + tb)
+                toolchain = RtlToolchain(config=ToolConfig(bin_dir=os.environ['VIVADO_BIN'], temp_dir=temp),
+                                        executor=ProcessExecutor())
+                xsim = shutil.which('xsim', path=os.environ['VIVADO_BIN'])
+                self.assertIsNotNone(xsim)
+                for command in ([toolchain.xvlog, '--sv', 'design.sv'],
+                                [toolchain.xelab, 'agent_tb', '-s', 'signature_snapshot', '-timescale', '1ns/1ps'],
+                                [xsim, 'signature_snapshot', '-runall']):
+                    observed = toolchain._command(command, temp, 60)
+                    self.assertEqual(observed.status, 'ok', observed.output[-2000:])
+                self.assertIn('SIGNED_RESULT=' + expected_z, observed.output)
+        trace = self.run_workflow(first, fixed,
+            'module TopModule(input signed [7:0] a, output y, output z);')
+        self.assertTrue(any(e.get('reason') == 'output_driver_improved' for e in trace))
 
     def test_real_undriven_warning_repair_has_verified_synthesis_improvement(self):
         # Keep one output live: an entirely empty design may fail synthesis before
