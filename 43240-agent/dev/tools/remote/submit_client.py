@@ -35,6 +35,7 @@ import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AGENT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
@@ -45,6 +46,8 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "analysis"))
 import analyze  # noqa: E402
 import record  # noqa: E402
+sys.path.insert(0, AGENT_ROOT)
+from dev.tools.tasksets import task_index  # noqa: E402
 
 _print_lock = threading.Lock()
 
@@ -104,14 +107,23 @@ def check_health(url: str, token: str) -> str:
     return str(body.get("model"))
 
 
-def list_tasks(tasks_dir: str) -> list[str]:
-    out = []
-    for name in sorted(os.listdir(tasks_dir)):
-        d = os.path.join(tasks_dir, name)
-        if os.path.isfile(os.path.join(d, "task.json")) and \
-                os.path.isfile(os.path.join(d, "prompt.txt")):
-            out.append(d)
-    return out
+def list_tasks(tasks_dir: str, task_list: str | None = None) -> list[str]:
+    directories, index = task_index(Path(tasks_dir))
+    if task_list is None:
+        names = [p.name for p in directories]
+    else:
+        names = [line.strip() for line in Path(task_list).read_text().splitlines()
+                 if line.strip() and not line.lstrip().startswith('#')]
+    selected = []
+    for name in names:
+        matches = index.get(name, [])
+        if len(matches) != 1:
+            raise ValueError('题号不存在或不唯一：'+name)
+        path = str(matches[0].resolve())
+        if path in selected:
+            raise ValueError('清单重复选择同一道题：'+name)
+        selected.append(path)
+    return selected
 
 
 def solve_one(args, run_dir: str, mode: str, task_dir: str, k: int) -> dict:
@@ -181,6 +193,7 @@ def main() -> int:
     ap.add_argument("--token", default=os.environ.get("FPGACHINA_TOKEN")
                     or renv.get("FPGACHINA_TOKEN", ""))
     ap.add_argument("--tasks", default=os.path.join(REPO_ROOT, "tasks"))
+    ap.add_argument("--task-list", help="按TXT清单选择题目，每行一个题号")
     ap.add_argument("--modes", default="agent,baseline")
     ap.add_argument("--samples", type=int, default=1)
     ap.add_argument("--deadline", type=int, default=360, help="deadline_s，单题时间上限（秒）")
@@ -193,7 +206,7 @@ def main() -> int:
     if not args.token:
         sys.exit("✗ 没有令牌：请用 --token 指定，或在 remote.env 中设置 FPGACHINA_TOKEN")
 
-    tasks = list_tasks(args.tasks)[: args.limit or None]
+    tasks = list_tasks(args.tasks, args.task_list)[: args.limit or None]
     if not tasks:
         sys.exit(f"✗ {args.tasks} 下没有题目")
     modes = [m.strip() for m in args.modes.split(",") if m.strip()]

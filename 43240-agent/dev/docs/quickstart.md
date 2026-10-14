@@ -21,10 +21,10 @@ python3 -m pip install -r requirements.txt
 
 ## 2. 跑通一道题
 
-仓库示例题的输入文件是 `../tasks/ex03_lfsr8/prompt.txt`。接口约束已经在题面内，不要求另外准备 `interface.txt`。
+仓库示例题的输入文件是 `../tasks/example/example_ex03_lfsr8/prompt.txt`。接口约束已经在题面内，不要求另外准备 `interface.txt`。
 
 ```bash
-LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/agent-quickstart \
+LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-quickstart \
   --config config/example.yaml --workflow single_generate
 ```
 
@@ -56,7 +56,7 @@ export LLM_BACKEND=openai
 export LLM_BASE_URL=http://127.0.0.1:8000/v1
 export LLM_MODEL='替换为服务公布的模型名'
 export MODEL_NAME="$LLM_MODEL"
-./run.sh ../tasks/ex03_lfsr8 /tmp/agent-real --config config/example.yaml
+./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-real --config config/example.yaml
 ```
 
 `single_generate` 与 baseline 一样使用 `MODEL_NAME`；未设时查询 `/models`，失败后用 `default`，
@@ -70,7 +70,7 @@ export MODEL_NAME="$LLM_MODEL"
 
 ```bash
 cp -n config/example.yaml dev/configs/my-agent.yaml
-./run.sh ../tasks/ex03_lfsr8 /tmp/agent-custom --config dev/configs/my-agent.yaml
+./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-custom --config dev/configs/my-agent.yaml
 ```
 
 同一字段的覆盖顺序是：**内置默认值 → YAML → 支持的环境变量 → 命令行参数**。
@@ -92,7 +92,7 @@ YAML 的相对路径以配置文件所在目录为基准；移动文件后重新
 已连通真实模型，并初始化好 Vivado 的环境与授权后运行：
 
 ```bash
-./run.sh ../tasks/ex03_lfsr8 /tmp/agent-repair \
+./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-repair \
   --config dev/configs/my-agent.yaml --workflow evidence_repair
 ```
 

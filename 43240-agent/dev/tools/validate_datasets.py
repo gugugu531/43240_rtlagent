@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import tempfile
 
-from datasets import ROOT, REPO, POOL, code_only, check_task, write_json, parse_module_interface
+from datasets import ROOT, REPO, TASKS, code_only, check_task, write_json, parse_module_interface
 
 
 def fingerprint(path):
@@ -110,13 +110,20 @@ def run_one(path, out, rerun):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--pool', type=Path, default=POOL)
+    ap.add_argument('--tasks', type=Path, default=TASKS)
+    ap.add_argument('--list', type=Path, help='按TXT清单选题')
     ap.add_argument('--out', type=Path, default=ROOT/'dev/runs/dataset-validation/full')
     ap.add_argument('--prefix', default='')
     ap.add_argument('--jobs', type=int, default=4)
     ap.add_argument('--rerun', action='store_true')
     args = ap.parse_args()
-    paths = sorted(p.parent.resolve() for p in args.pool.glob(args.prefix + '*/task.json'))
+    from dev.tools.experiment import TaskSelection, select_tasks
+    manifest = select_tasks(TaskSelection(args.tasks, list_path=args.list))
+    paths = [Path(row['directory']) for row in manifest.tasks if Path(row['directory']).name.startswith(args.prefix)]
+    if not paths:
+        ap.error('没有匹配的题目')
+    if args.jobs < 1:
+        ap.error('--jobs 必须大于0')
     args.out = args.out.resolve()
     args.out.mkdir(parents=True, exist_ok=True)
     results = []

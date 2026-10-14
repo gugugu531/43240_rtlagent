@@ -3,9 +3,9 @@
 # mock 只检查流程，生成的代码不代表正确解答。
 #
 # 用法（在 43240-agent/ 下运行）：
-#   ./run.sh ../tasks/ex03_lfsr8 /tmp/agent-example --config config/example.yaml
-#   AGENT_CONFIG=config/example.yaml ./run.sh ../tasks/ex03_lfsr8 /tmp/agent-example
-#   LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/agent-example
+#   ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-example --config config/example.yaml
+#   AGENT_CONFIG=config/example.yaml ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-example
+#   LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-example
 #
 # 自定义时可将此文件复制到 dev/configs/my-agent.yaml，再通过 --config 指定。
 # 复制后需重新核对相对路径：YAML 中的相对路径以配置文件目录为基准，
