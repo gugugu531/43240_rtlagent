@@ -14,7 +14,8 @@
 ## 必须遵守
 
 - 不修改 `43240-agent/baseline.py` 和 `43240-agent/run_baseline.sh`
-- 参考答案只能放在 `43240-agent/dev/`，不能进入 `agent/`、`skill/` 或其他提交文件
+- 参考答案允许放在仓库根目录的 `tasks/` 题库目录或 `43240-agent/dev/` 开发区，可纳入 Git 版本管理；
+  不得进入 `agent/`、`skill/`、模型提示或其他参赛方案文件，`tasks/` 和 `dev/` 均不得纳入参赛方案打包
 - 提交目录中的文件名只用英文小写字母、数字、下划线或连字符
 - 不提交 API key、令牌、`remote.env`、`selftest/env.sh`
 - 不直接向 `main` 提交或推送：改动在单独的分支上完成，通过 PR 合并（见规范的 Git 与 PR 一节）

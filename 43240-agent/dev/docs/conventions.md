@@ -5,8 +5,10 @@
 主办方原始文件只读：根目录 README.md、SCORING.md、REPORT_TEMPLATE.md、.gitignore，以及
  docs/、selftest/、example/。不得修改 43240-agent/baseline.py 和 run_baseline.sh。
 
-43240-agent/ 是参赛方案；dev/ 是开发区，不随方案提交。参考答案、测试台和官方判定信息只能
-留在开发区或主办方判定链路，不能进入 Agent、技能、提示或其他提交文件。
+43240-agent/ 是参赛方案；dev/ 是开发区，不随方案提交。参考答案允许放在仓库根目录的
+tasks/ 题库目录或 43240-agent/dev/ 开发区，可纳入 Git 版本管理。参考答案、测试台和官方判定信息
+只能留在题库、开发区或主办方判定链路，不能进入 Agent、技能、模型提示或其他参赛方案文件。
+tasks/ 和 dev/ 均不得纳入参赛方案打包；纳入 Git 版本管理不等于纳入参赛方案。
 方案断网运行，依赖和开源模型权重必须预先准备；具体比赛要求以 SCORING.md 为准。
 
 不得提交 API key、Cookie、令牌、remote.env、cloud.state、selftest/env.sh、模型权重或运行日志。
