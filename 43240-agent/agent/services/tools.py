@@ -119,7 +119,7 @@ class ToolService:
                             'passed' if result.status == 'ok' else result.status,
                             result.summary, blocking=result.status == 'failed' and result.failure_kind == 'code',
                             rc=result.rc, elapsed_s=result.elapsed_s, command=result.command,
-                            details={'failure_kind': result.failure_kind, 'executed': True,
+                            details={**result.details, 'failure_kind': result.failure_kind, 'executed': True,
                                      'diagnostic_tool': result.diagnostic_tool,
                                      'tool_version': result.tool_version or (self._identity or {}).get('tools', {}).get(
                                          result.diagnostic_tool, {}).get('version')},

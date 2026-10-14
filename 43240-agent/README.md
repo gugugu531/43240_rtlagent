@@ -7,6 +7,7 @@
 > **当前状态：** 已建立 Registry、Python Workflow、Node、逐题运行上下文和运行器。
 > 默认 Workflow 为 `single_generate`，复用 baseline 的 RTL 提示、采样常量和提取函数，不加载技能或执行工具。
 > `repair_loop` 提供可选的多轮检查与修复，按证据选择答案、区分失败原因并限制重试。
+> `repair_loop` 默认在原有预算内尝试修复明确的顶层输出无驱动警告；新稿实际通过编译、综合，接口不变且完整诊断中的缺陷严格减少才替换旧稿。缺失、截断或不支持的证据保留旧稿；这不代表功能验证。可用 `repair_output_drivers: false` 关闭。E1/E2 及 `evidence_repair` 保持关闭，避免改变既有实验的警告触发条件；编译错误归因和修复提示的更新仍适用于这些流程。
 > `evidence_repair` 是方案 A 的最小实验骨架：结构化诊断、最多一次修复，不使用 ICL、规划、RAG 或 testbench。
 > 方案 A 的生成参数对齐 baseline（8192 tokens、temperature 0、top_p 1、300 秒）；失败修复保留完整旧候选，回退原因单独记录。
 > 上下文装配保留原提示，记录消息哈希、实际模板计数和整段省略；默认只观察 token 用量，可显式开启累计限额。
@@ -59,6 +60,7 @@
 | `agent/core/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
 | `agent/recording/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
 | `agent/services/vivado.py` | 接口检查，以及带进程组清理和结构化结果的 lint、综合工具 |
+| `agent/services/repair_feedback.py` | 摘要截断前收集自身工具根因、提供词法赋值导航，并保守比较顶层输出无驱动证据 |
 | `agent/recording/` | 保存模型与动作证据、trace、脱敏及通用运行/模型统计 |
 | `agent/prompts/skills.py` | 加载技能包，按工具报错挑选相关技能 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
