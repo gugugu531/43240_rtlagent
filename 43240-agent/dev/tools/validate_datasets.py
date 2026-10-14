@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import tempfile
 
-from datasets import ROOT, REPO, DATA, code_only, check_task, write_json, parse_module_interface
+from datasets import ROOT, REPO, POOL, code_only, check_task, write_json, parse_module_interface
 
 
 def fingerprint(path):
@@ -110,7 +110,7 @@ def run_one(path, out, rerun):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--pool', type=Path, default=DATA/'pool')
+    ap.add_argument('--pool', type=Path, default=POOL)
     ap.add_argument('--out', type=Path, default=ROOT/'dev/runs/dataset-validation/full')
     ap.add_argument('--prefix', default='')
     ap.add_argument('--jobs', type=int, default=4)

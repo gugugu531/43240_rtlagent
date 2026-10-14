@@ -7,8 +7,11 @@
 
 将公开RTL生成题整理为现有六文件契约，再从原有题目和新增题目中选择题型与难度覆盖更均匀的子集。
 当前完整池258题，质量验证及去重后可用241题，默认均衡集60题。基础、进阶、复杂各20题。
-所有题面、测试台、参考答案和目录清单都留在 `dev/datasets/`。正式求解代码不导入这些工具。
-根目录 `tasks/`、主办方判定代码及两个baseline保持不变。求解器仍只读取题面；不新增 `interface.txt`。
+完整题库位于仓库根目录 `tasks/pool/`，均衡子集位于 `tasks/balanced/`。
+来源清单、许可证、适配源码和上游下载仍位于 `43240-agent/dev/datasets/`，验证日志仍位于开发区。
+本次按用户要求将两个题库目录从开发区迁入 `tasks/`，逐题内容指纹保持一致，已有验证结果继续有效。
+`tasks/`下原有的159道题、主办方判定代码及两个baseline保持不变。
+题库不随参赛方案打包；求解器仍只读取题面，不新增 `interface.txt`。
 
 每题包含 `prompt.txt`、`top.txt`、`task.json`、`ref.sv`、`tb.sv`、`reference/solution.sv`。
 顶层统一为 `TopModule`、`RefModule` 和 `tb`。测试台输出 `Mismatches: <n> in <m> samples`。
@@ -80,6 +83,7 @@ ChipBench与RTLLM按逐题主考点登记；VerilogEval使用题面规则和明�
 在 `43240-agent/` 下操作。将表中四个上游仓库分别放到
 `dev/datasets/upstream/{chipbench,rtllm,archxbench,cvdp}`，检出表中完整提交号。
 转换器会拒绝其他版本。输出目录必须不存在或为空，避免覆盖已有题目。
+以下命令默认转换到`../tasks/pool/`，验证和筛选均读取该目录，`--materialize`复制到`../tasks/balanced/`。
 
 ```bash
 python3 dev/tools/datasets.py convert
@@ -91,7 +95,7 @@ python3 dev/tools/balance_datasets.py --size 60 --materialize
 已完成且题目指纹相同的结果可以复用；`--rerun`强制复验。`--prefix`支持按题名前缀选择。
 长时间本机验证时应阻止休眠；不需要启动GPU实例或调用模型。
 
-`pool/`是全部已转换题目，`balanced/`是入选题的实际文件副本，不依赖符号链接。
+仓库根目录的`tasks/pool/`是全部已转换题目，`tasks/balanced/`是入选题的实际文件副本，不依赖符号链接。
 现有运行器可将 `experiment.tasks.root` 指向其中任一目录；筛选清单为 `dev/configs/balanced.txt`。
 `task.json`和其他判定文件只供开发侧官方判定使用，不得注入模型提示或修复上下文。
 题面保留来源的表达方式，RTLLM及ArchXBench不一定采用VerilogEval的端口项目列表；
@@ -99,7 +103,7 @@ python3 dev/tools/balance_datasets.py --size 60 --materialize
 
 ```bash
 # 验证均衡集的参考答案，沿用官方入口
-../selftest/run_selftest.sh --reference --tasks dev/datasets/balanced \
+../selftest/run_selftest.sh --reference --tasks ../tasks/balanced \
   --out dev/runs/balanced-reference
 
 # 单元测试只检查转换与筛选契约
@@ -114,7 +118,7 @@ LLM_BACKEND=openai python3 dev/tools/run.py --config dev/configs/balanced.yaml \
   --metrics runtime model judge --tag balanced-evaluation
 ```
 
-`balanced.yaml`读取完整池和`balanced.txt`清单，因此不要求复制后的`balanced/`存在。
+`balanced.yaml`读取`tasks/pool/`和`balanced.txt`清单，因此不要求复制后的`tasks/balanced/`存在。
 想更改题量可重新运行筛选器，例如`--size 90`；原始池和质量验证记录可复用。
 `--report`可以把自动统计写入`dev/docs/`，现有目录非空时去掉`--materialize`即可仅更新清单和统计。
 

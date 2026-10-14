@@ -36,7 +36,7 @@
 | `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
 | `dev/tools/submission.py` | 按明确清单检查、暂存方案并在没有 dev 的目录中验证默认入口 |
 | `dev/tools/run.py` | 开发侧统一任务选择、采样调度与可选指标入口 |
-| `dev/tools/datasets.py`、`balance_datasets.py` | 开发题集转换、来源登记与题型/难度均衡筛选；参考答案仅留开发区，见[题集说明](dev/docs/design/datasets.md) |
+| `dev/tools/datasets.py`、`balance_datasets.py` | 题集转换与均衡筛选；题库位于仓库根目录 `tasks/pool/`、`tasks/balanced/`，不随方案打包，见[题集说明](dev/docs/design/datasets.md) |
 | `dev/tools/log_viewer.html` | 本地日志查看器，导入输出目录后查看节点、工具调用与完整响应 |
 | `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
 | `agent/workflows/repair_loop.py` | 修复流程，自带候选选择 `choose()` 与失败处理 `decide()`，可由子类替换 |
