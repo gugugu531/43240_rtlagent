@@ -4,7 +4,7 @@
 #   ./remote_selftest.sh [--tag NAME] [run_selftest.sh options...]
 #
 #   ./remote_selftest.sh --tag smoke
-#   ./remote_selftest.sh --tag veval --tasks ../../../tasks --samples 5
+#   ./remote_selftest.sh --tag veval --tasks ../../../tasks/verilogeval --samples 5
 #
 # Brings the tunnel up if needed, points agent AND baseline at the remote vLLM,
 # then runs selftest/run_selftest.sh against this agent. Artefacts go to
@@ -49,7 +49,7 @@ python3 "$REMOTE_HERE/record.py" meta "$RUN_DIR" remote_selftest "${ARGS[@]}"
 echo "✓ 运行目录       dev/runs/$RUN_ID"
 
 # Relative --tasks paths are resolved by run_selftest.sh from the caller's cwd.
-"$SELFTEST_DIR/run_selftest.sh" --agent "$AGENT_ROOT" --out "$RUN_DIR" "${ARGS[@]}" \
+"$SELFTEST_DIR/run_selftest.sh" --tasks "$REPO_ROOT/tasks/verilogeval" --agent "$AGENT_ROOT" --out "$RUN_DIR" "${ARGS[@]}" \
     2>&1 | tee "$RUN_DIR/selftest.log"
 
 python3 "$DEV_ROOT/tools/analysis/analyze.py" "$RUN_DIR" >/dev/null || true

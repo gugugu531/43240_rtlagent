@@ -7,10 +7,12 @@
 
 将公开RTL生成题整理为现有六文件契约，再从原有题目和新增题目中选择题型与难度覆盖更均匀的子集。
 当前完整池258题，质量验证及去重后可用241题，默认均衡集60题。基础、进阶、复杂各20题。
-完整题库位于仓库根目录 `tasks/pool/`，均衡子集位于 `tasks/balanced/`。
-来源清单、许可证、适配源码和上游下载仍位于 `43240-agent/dev/datasets/`，验证日志仍位于开发区。
-本次按用户要求将两个题库目录从开发区迁入 `tasks/`，逐题内容指纹保持一致，已有验证结果继续有效。
-`tasks/`下原有的159道题、主办方判定代码及两个baseline保持不变。
+题目按来源保存在仓库根目录 `tasks/<来源>/<题号>/`，每题只保留一份。
+六个来源目录及导入范围见[题库索引](../../../../tasks/index.md)，各目录内有已导入、未导入清单、导入方法和脚本。
+均衡集只保留 `dev/configs/balanced.txt`；新增选题方案只需维护另一个TXT，不创建题目副本目录。
+来源清单、许可证、适配源码和上游下载位于 `43240-agent/dev/datasets/`，验证日志仍位于开发区。
+原有159题改为带来源前缀的小写题号；原始题号保存在 `task.json` 中，旧TXT仍可使用这些别名。
+本次迁移所有258题的六文件内容未变，已有验证结果继续有效。主办方判定代码及两个baseline未修改。
 题库不随参赛方案打包；求解器仍只读取题面，不新增 `interface.txt`。
 
 每题包含 `prompt.txt`、`top.txt`、`task.json`、`ref.sv`、`tb.sv`、`reference/solution.sv`。
@@ -25,10 +27,10 @@
 | [RTLLM](https://github.com/hkust-zhiyao/RTLLM) | `51ed553d0ffd32797a1a0a13e051656bf302c81f` | 50道；保留断言和激励，外部向量按原值嵌入，统一名称和结束判定 |
 | [ArchXBench](https://github.com/sureshpurini/ArchXBench) | `0db0d0de25aad5238393d51bd97ce952e579fa1a` | 登记71道；定点平方根、4×4脉动阵列矩阵乘法和AES流水线提供本地独立参考，其他68道记录未转换原因 |
 | [CVDP公开样例](https://github.com/NVlabs/cvdp_benchmark) | `8e894cf74414ab1eaea1e2b4e80a02f123df07b6` | 检查5道带答案样例；转换1道RTL生成题，另外4道属于补丁、测试台生成或文字解释任务 |
-| 当前 `tasks/` | 每文件SHA-256 | 156道VerilogEval和3道示例全部复制到统一池，原文件不修改 |
+| 本仓库赛事原题 | `7f1014925d5b83e737db02fb08045014a1ec4f54`及每文件SHA-256 | 156道VerilogEval和3道示例分别放入来源目录；可从固定提交恢复 |
 
 许可证与NOTICE保存在 `dev/datasets/licenses/`。来源URL、提交版本和逐文件SHA-256保存在
-`conversion.json`。`tasks/pool/`和`tasks/balanced/`纳入Git版本管理；
+`conversion.json`。六个来源目录及TXT清单纳入Git版本管理；
 上游下载仓库和运行日志仍只留在本地。工具、许可证、清单和适配源码保存在Git中。
 
 ArchXBench上游没有完整RTL参考答案。此次补充的三个答案明确标记为本地独立实现，不能当作上游参考答案。
@@ -83,29 +85,42 @@ ChipBench与RTLLM按逐题主考点登记；VerilogEval使用题面规则和明�
 
 在 `43240-agent/` 下操作。将表中四个上游仓库分别放到
 `dev/datasets/upstream/{chipbench,rtllm,archxbench,cvdp}`，检出表中完整提交号。
-转换器会拒绝其他版本。输出目录必须不存在或为空，避免覆盖已有题目。
-以下命令默认转换到`../tasks/pool/`，验证和筛选均读取该目录，`--materialize`复制到`../tasks/balanced/`。
+转换器会拒绝其他版本。每个输出来源目录必须不存在或为空，避免覆盖已有题目。
+以下命令在开发区重建全部来源，用独立清单记录重建过程；不会覆盖正式题库。
+单来源重建可运行 `python3 ../tasks/<来源>/import.py --out ... --manifest ...`，或向统一转换器传 `--dataset`。
 
 ```bash
-python3 dev/tools/datasets.py convert
+python3 dev/tools/datasets.py convert --out dev/runs/reimport --manifest dev/runs/reimport/conversion.json
+# 以下读取正式的 ../tasks/，不会创建子集副本
 python3 dev/tools/validate_datasets.py --jobs 4
-python3 dev/tools/balance_datasets.py --size 60 --materialize
+python3 dev/tools/balance_datasets.py --size 60
 ```
 
 验证需要可正常工作的Vivado，所有结果放在 `dev/runs/dataset-validation/full/`。
 已完成且题目指纹相同的结果可以复用；`--rerun`强制复验。`--prefix`支持按题名前缀选择。
 长时间本机验证时应阻止休眠；不需要启动GPU实例或调用模型。
 
-仓库根目录的`tasks/pool/`是全部已转换题目，`tasks/balanced/`是入选题的实际文件副本，不依赖符号链接。
-现有运行器可将 `experiment.tasks.root` 指向其中任一目录；筛选清单为 `dev/configs/balanced.txt`。
+实验配置的 `experiment.tasks.root` 指向 `tasks/`，`experiment.tasks.list` 指向选题TXT。
+两者的相对路径均相对YAML文件解析；TXT每行一个全局唯一题号，允许空行和整行 `#` 注释。
+跨来源题号可以混写；`tasks.ids` 保留单题调试用途，与 `tasks.list` 互斥。不指定两者时枚举根目录下全部题目。
+也可将根目录指向某个来源，用该目录的 `imported.txt` 选取全部已导入题。
+旧原题号别名同样可用；别名冲突、重复选择同一题或目录越界会报错。排除清单也识别原题号别名。
+`joint-full.yaml`用 `original.txt` 保持原有159题范围，再应用原来的排除清单。
+
+```yaml
+experiment:
+  tasks:
+    root: ../../../tasks
+    list: balanced.txt
+```
+
 `task.json`和其他判定文件只供开发侧官方判定使用，不得注入模型提示或修复上下文。
 题面保留来源的表达方式，RTLLM及ArchXBench不一定采用VerilogEval的端口项目列表；
 目录契约与评测接口相同，不表示题面被改写为相同文风。
 
 ```bash
-# 验证均衡集的参考答案，沿用官方入口
-../selftest/run_selftest.sh --reference --tasks ../tasks/balanced \
-  --out dev/runs/balanced-reference
+# 按TXT验证均衡集；每题仍调用未修改的官方判定
+python3 dev/tools/validate_datasets.py --list dev/configs/balanced.txt
 
 # 单元测试只检查转换与筛选契约
 python3 -m unittest discover -s dev/tests -p test_datasets.py -v
@@ -119,9 +134,14 @@ LLM_BACKEND=openai python3 dev/tools/run.py --config dev/configs/balanced.yaml \
   --metrics runtime model judge --tag balanced-evaluation
 ```
 
-`balanced.yaml`读取`tasks/pool/`和`balanced.txt`清单，因此不要求复制后的`tasks/balanced/`存在。
-想更改题量可重新运行筛选器，例如`--size 90`；原始池和质量验证记录可复用。
-`--report`可以把自动统计写入`dev/docs/`，现有目录非空时去掉`--materialize`即可仅更新清单和统计。
+`balanced.yaml`读取`tasks/`和`balanced.txt`。想更改题量可重新运行筛选器，例如`--size 90`；
+`--list dev/configs/my-selection.txt`指定输出清单，质量验证记录可复用。
+`--report`可以把自动统计写入`dev/docs/`；不再提供复制子集的选项。
+
+原始 `selftest/run_selftest.sh` 只支持平铺题目目录，直接调用时传某个来源目录（例如 `--tasks ../tasks/verilogeval`）。
+跨来源或按TXT的测评使用 `dev/tools/run.py`，参考答案验证使用上述 `validate_datasets.py --list`。
+验证器仅在单题判定期间建立临时工作目录，完成后删除，不维护选题副本。
+旧远端自测包装器默认使用 `tasks/verilogeval/`；远端投题客户端支持 `--tasks <根目录> --task-list <TXT>`。
 
 不同测试集的题型、测试覆盖和改编程度不同，实验报告应同时给出来源分项结果，
 不要把这个混合题集的通过率写成VerilogEval、RTLLM、ArchXBench或CVDP的官方成绩。

@@ -14,7 +14,8 @@
 ## 必须遵守
 
 - 不修改 `43240-agent/baseline.py` 和 `43240-agent/run_baseline.sh`
-- 参考答案只能放在 `43240-agent/dev/`，不能进入 `agent/`、`skill/` 或其他提交文件
+- 参考答案允许放在仓库根目录的 `tasks/` 题库目录或 `43240-agent/dev/` 开发区，可纳入 Git 版本管理；
+  不得进入 `agent/`、`skill/`、模型提示或其他参赛方案文件，`tasks/` 和 `dev/` 均不得纳入参赛方案打包
 - 提交目录中的文件名只用英文小写字母、数字、下划线或连字符
 - 不提交 API key、令牌、`remote.env`、`selftest/env.sh`
 - 不直接向 `main` 提交或推送：改动在单独的分支上完成，通过 PR 合并（见规范的 Git 与 PR 一节）
@@ -31,7 +32,7 @@
 
 ```bash
 # 用假模型检查流程能否跑通（不需要 GPU 和 Vivado）
-cd 43240-agent && LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/out
+cd 43240-agent && LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/out
 
 # 本地判定（需要 Vivado）
 selftest/run_selftest.sh --agent 43240-agent --tasks <题目目录>
@@ -41,7 +42,7 @@ python3 dev/tools/run.py --config dev/configs/smoke.yaml --task ex03_lfsr8
 python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 
 # 官方参考答案链路验证；输出只放开发区
-../selftest/run_selftest.sh --reference --out dev/runs/reference-check
+../selftest/run_selftest.sh --reference --tasks ../tasks/verilogeval --out dev/runs/reference-check
 
 # 检查提交文件完整性
 python3 dev/tools/submission.py

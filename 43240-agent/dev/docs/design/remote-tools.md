@@ -1,10 +1,10 @@
 # 远端管理工具
 
-脚本位于 dev/tools/remote/，配置位于该目录的 remote.env。第五阶段仅迁移路径并将联合实验接入
-统一 run.py，没有启动云端或改变推理服务默认参数。平台与环境说明来自下面注明的历史实测，
-不代表本轮重新确认。最新 GPU 诊断见[验证记录](../notes/2026-10-05-gpu-diagnosis-and-model-validation.md)。
+脚本位于 dev/tools/remote/，配置位于该目录的 remote.env。本文维护当前脚本入口；
+平台与镜像经验均以文中实测日期为界，不代表现在的资源、价格或兼容性。
+历史故障与验证见[历史索引](../notes/index.md)，来源目录与选题规则见[题集说明](datasets.md)。
 
-# remote/ — 用远端服务器测试
+## 用远端服务器测试
 
 各部分运行的位置：**远端服务器只运行 vLLM（模型推理服务）；智能体、投题接口和
 Vivado 判定都在本机运行。** 两边通过 SSH 隧道连接。
@@ -57,8 +57,8 @@ export LLM_MODEL="${LLM_MODEL:-deepseek-chat}"
 ./tunnel.sh status          # 查看隧道是否正常、当前模型名
 ```
 
-远端运行的就是提交方案里的那份 `serve/vllm.sh`，所以测试时的服务配置和
-`MODEL.md` 中声明的一致。
+远端以提交方案的 `serve/vllm.sh` 为基础，可受 `REMOTE_STRIP_ARGS` 和远端环境覆盖影响。
+实验记录应保存实际参数；不能仅因脚本来源相同就认定与 `MODEL.md` 声明一致。
 
 ## 使用 AMD Radeon Cloud 实例
 
@@ -197,14 +197,14 @@ LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../run.py \
 ## 日常跑分
 
 ```bash
-./remote_selftest.sh --tag smoke --tasks ../../../../tasks --samples 1
+./remote_selftest.sh --tag smoke --tasks ../../../../tasks/example --samples 1
 ./remote_selftest.sh --tag veval-s5 --samples 5
 ```
 
 除 `--tag` 外，其余参数原样传给 `selftest/run_selftest.sh`，默认题目目录是仓库根目录
-的 `tasks/`。需要并行跑分、逐个样本的失败原因时，改用
-`./remote_eval.sh --config ../../configs/remote-smoke.yaml`（见 [`dev/docs/design/historical-analysis.md`](historical-analysis.md)）。方案（agent）和基线（baseline）在同一次运行中使用同一个推理服务，算出
-的增益才可信。
+的 `tasks/verilogeval/`；官方入口只支持平铺的单来源目录。跨来源 TXT 选题或并行实验改用
+`./remote_eval.sh --config ../../configs/balanced.yaml`（需配置真实模型；见[开发实验](../user-manual.md#12-开发实验与指标)）。方案（agent）和基线（baseline）需使用同一个推理服务，
+还要核对题集、请求与预算；差值的解释范围见[指标说明](experiment-reading.md)。
 
 ## 模拟评测当天投题
 

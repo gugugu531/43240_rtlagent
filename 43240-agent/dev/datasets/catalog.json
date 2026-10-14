@@ -19,6 +19,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_cpu_ip_prob001_controller",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -135,6 +136,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_cpu_ip_prob002_alu",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -253,6 +255,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_cpu_ip_prob003_regfile",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -369,6 +372,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_cpu_ip_prob004_branch_unit",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -487,6 +491,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_cpu_ip_prob005_alu_controller",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -603,6 +608,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_cpu_ip_prob006_pc_reg",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -721,6 +727,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_cpu_ip_prob007_div",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -840,6 +847,7 @@
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译",
         "沿用上游统计变量，统一最终统计行"
       ],
+      "path": "chipbench/chipbench_cpu_ip_prob008_chapter12_ctrl",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -959,6 +967,7 @@
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译",
         "沿用上游统计变量，统一最终统计行"
       ],
+      "path": "chipbench/chipbench_cpu_ip_prob009_cp0_reg",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -1075,6 +1084,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_not_self_contain_prob001_submodules_to_implement_comparison_of_three_input_numbers",
       "format_errors": [],
       "category": "logic",
       "category_reason": "逐题核对主考点：组合逻辑与布尔推导",
@@ -1195,6 +1205,7 @@
         "补入题面公开子模块 decoder_38",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_not_self_contain_prob002_implement_full_subtractor_using_three_to_eight_decoder",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -1313,6 +1324,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_not_self_contain_prob003_asynchronous_fifo",
       "format_errors": [],
       "category": "memory",
       "category_reason": "逐题核对主考点：存储器与队列",
@@ -1432,6 +1444,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_not_self_contain_prob004_synchronous_fifo",
       "format_errors": [],
       "category": "memory",
       "category_reason": "逐题核对主考点：存储器与队列",
@@ -1555,6 +1568,7 @@
         "补入题面公开子模块 mux_2X1",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_not_self_contain_prob005_8_bit_alu",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -1677,6 +1691,7 @@
         "补入题面公开子模块 ALU",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_not_self_contain_prob006_cpu_top",
       "format_errors": [],
       "category": "processor",
       "category_reason": "逐题核对主考点：处理器部件",
@@ -1797,6 +1812,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob000_four-to-one_multiplexer",
       "format_errors": [],
       "category": "logic",
       "category_reason": "逐题核对主考点：组合逻辑与布尔推导",
@@ -1915,6 +1931,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob001_continuous_input_sequence_detect",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -2031,6 +2048,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob002_extraneous_items_sequence_detect",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -2147,6 +2165,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob003_non-overlapping_sequence_detect",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -2263,6 +2282,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob004_continuous_input_sequence_detect2",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -2379,6 +2399,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob005_signal_generator",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -2497,6 +2518,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob006_data_serial-to-parallel_circuit",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -2613,6 +2635,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob007_data_accumulation_output",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -2729,6 +2752,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob008_non-integer_data_width_conversion_24to128",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -2845,6 +2869,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob009_non-integer_data_width_conversion_8to12",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -2961,6 +2986,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob010_integer_multiple_data_bit_width_conversion_8to16",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -3079,6 +3105,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob011_4-bit_carry_look-ahead_adder_circuit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -3195,6 +3222,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob012_state_machine_overlapping_sequence_detection",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -3311,6 +3339,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob013_least_common_multiple",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -3367,6 +3396,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob014_sequence_generator",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "逐题核对主考点：寄存器、移位与边沿",
@@ -3483,6 +3513,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob015_vending_machine2",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -3599,6 +3630,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob016_odd-number_division_with_a_duty_cycle_of_half",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -3715,6 +3747,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob017_arbitrary_fractional_frequency_division",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -3833,6 +3866,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob020_write_state_machine_two_stage",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -3949,6 +3983,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob023_gray_code_counter",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -4065,6 +4100,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob024_multiplication_and_bitwise_operations",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -4181,6 +4217,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob025_pulse_synchronization_circuit",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -4299,6 +4336,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob026_simple_stopwatch",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -4415,6 +4453,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob027_settable_counter",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -4531,6 +4570,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob028_up_and_down_counter",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -4647,6 +4687,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob030_simple_implementation_ram",
       "format_errors": [],
       "category": "memory",
       "category_reason": "逐题核对主考点：存储器与队列",
@@ -4763,6 +4804,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob031_johnson_counter",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -4879,6 +4921,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob032_pipeline_multiplier",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -4998,6 +5041,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob033_traffic_lights",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -5114,6 +5158,7 @@
         "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
         "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
       ],
+      "path": "chipbench/chipbench_self_contain_prob034_gaming_machine_billing_program",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -5233,6 +5278,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_accu",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -5352,6 +5398,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_adder_16bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -5473,6 +5520,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_adder_32bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -5592,6 +5640,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_adder_8bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -5711,6 +5760,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_adder_bcd",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -5830,6 +5880,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_adder_pipe_64bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -5951,6 +6002,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_comparator_3bit",
       "format_errors": [],
       "category": "logic",
       "category_reason": "逐题核对主考点：组合逻辑与布尔推导",
@@ -6072,6 +6124,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_comparator_4bit",
       "format_errors": [],
       "category": "logic",
       "category_reason": "逐题核对主考点：组合逻辑与布尔推导",
@@ -6193,6 +6246,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_div_16bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -6312,6 +6366,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_radix2_div",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -6433,6 +6488,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_multi_16bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -6554,6 +6610,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_multi_8bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -6674,6 +6731,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_multi_booth_8bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -6793,6 +6851,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_multi_pipe_4bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -6915,6 +6974,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_multi_pipe_8bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -7037,6 +7097,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_fixed_point_adder",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -7160,6 +7221,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_fixed_point_substractor",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -7283,6 +7345,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_float_multi",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -7406,6 +7469,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_sub_64bit",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -7527,6 +7591,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_jc_counter",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -7646,6 +7711,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_counter_12",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -7765,6 +7831,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_ring_counter",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -7884,6 +7951,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_up_down_counter",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -8003,6 +8071,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_fsm",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -8122,6 +8191,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_sequence_detector",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -8246,6 +8316,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_asyn_fifo",
       "format_errors": [],
       "category": "memory",
       "category_reason": "逐题核对主考点：存储器与队列",
@@ -8369,6 +8440,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_lifobuffer",
       "format_errors": [],
       "category": "memory",
       "category_reason": "逐题核对主考点：存储器与队列",
@@ -8488,6 +8560,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_lfsr",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "逐题核对主考点：寄存器、移位与边沿",
@@ -8609,6 +8682,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_barrel_shifter",
       "format_errors": [],
       "category": "logic",
       "category_reason": "逐题核对主考点：组合逻辑与布尔推导",
@@ -8730,6 +8804,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_right_shifter",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "逐题核对主考点：寄存器、移位与边沿",
@@ -8851,6 +8926,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_freq_div",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -8971,6 +9047,7 @@
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖",
         "将测试台中的checker实例改名，兼容SystemVerilog保留字"
       ],
+      "path": "rtllm/rtllm_freq_divbyeven",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -9092,6 +9169,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_freq_divbyfrac",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -9211,6 +9289,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_freq_divbyodd",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -9333,6 +9412,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_calendar",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -9452,6 +9532,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_edge_detect",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "逐题核对主考点：寄存器、移位与边沿",
@@ -9573,6 +9654,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_parallel2serial",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -9694,6 +9776,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_pulse_detect",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -9813,6 +9896,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_serial2parallel",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -9932,6 +10016,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_synchronizer",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -10055,6 +10140,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_traffic_light",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "逐题核对主考点：状态机与协议识别",
@@ -10174,6 +10260,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_width_8to16",
       "format_errors": [],
       "category": "interface",
       "category_reason": "逐题核对主考点：跨时钟域与数据接口",
@@ -10293,6 +10380,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_ram",
       "format_errors": [],
       "category": "memory",
       "category_reason": "逐题核对主考点：存储器与队列",
@@ -10414,6 +10502,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_rom",
       "format_errors": [],
       "category": "memory",
       "category_reason": "逐题核对主考点：存储器与队列",
@@ -10536,6 +10625,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_alu",
       "format_errors": [],
       "category": "processor",
       "category_reason": "逐题核对主考点：处理器部件",
@@ -10658,6 +10748,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_clkgenerator",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -10714,6 +10805,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_instr_reg",
       "format_errors": [],
       "category": "processor",
       "category_reason": "逐题核对主考点：处理器部件",
@@ -10835,6 +10927,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_pe",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "逐题核对主考点：算术运算",
@@ -10955,6 +11048,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_signal_generator",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -11076,6 +11170,7 @@
         "未到达判定出口的提前结束或超时不得通过",
         "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
       ],
+      "path": "rtllm/rtllm_square_wave",
       "format_errors": [],
       "category": "counter",
       "category_reason": "逐题核对主考点：计数与定时",
@@ -11197,6 +11292,7 @@
       "adaptations": [
         "本地独立参考实现；测试保留上游50组输入、浮点数学对照和原容差"
       ],
+      "path": "archxbench/archxbench_level_3_newton_raphson_sqrt",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "定点除法、缩放和Newton-Raphson迭代",
@@ -11318,6 +11414,7 @@
         "Python整数矩阵乘法生成8组测试，含上游两组、零、单位阵、有符号边界和固定随机输入",
         "检查复位、完成信号、16路结果和结果稳定性；不等同上游原始分数"
       ],
+      "path": "archxbench/archxbench_level_5_systolic_gemm",
       "format_errors": [],
       "category": "dsp",
       "category_reason": "空间并行或信号处理",
@@ -11441,6 +11538,7 @@
         "本地替换文件式测试台；上游Python AES模型生成64组嵌入向量，含标准已知答案、边界和固定种子随机输入",
         "检查逐拍吞吐、输入空拍、密钥逐块变化、复位及输出顺序；不等同上游原始分数"
       ],
+      "path": "archxbench/archxbench_level_6_aes_encryption",
       "format_errors": [],
       "category": "crypto",
       "category_reason": "AES密钥扩展及十轮流水线",
@@ -12992,6 +13090,7 @@
         "由原随机种子抽测扩大为全部255个非零种子，逐拍及周期检查；成绩不等同原始CVDP",
         "仅代表公开样例，不代表完整CVDP题集"
       ],
+      "path": "cvdp/cvdp_copilot_lfsr_0001",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -13097,6 +13196,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob001_zero",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "65e8a508e7516cd11202df8271f3716fdf75579ddf4481f1f19d784eab1865aa",
           "ref.sv": "7f4686eac875da1029bdaa5198b47a5390dc2def846cb58cad07907bd32f40f4",
@@ -13106,6 +13206,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob001_zero",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -13211,6 +13312,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob002_m2014_q4i",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "a0601f4419bb72d417d3f2055038e3d13da325450d747d15b3388a59c4534737",
           "ref.sv": "f6014e877c9f539ca4dc485bc751c18e5c14017c77f599a0980fcb70b912ad51",
@@ -13220,6 +13322,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob002_m2014_q4i",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -13325,6 +13428,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob003_step_one",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "1b7802be74dc7541eed946e2b725af1492311b2e2047b5930ba2fdbba5789b1d",
           "ref.sv": "937aeed69765ee339ed853e0876bb2c5da178269e03870b9ed43da6f4dbb2dd3",
@@ -13334,6 +13438,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob003_step_one",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -13439,6 +13544,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob004_vector2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "aef8c7d02cead97be7bac17962fb01695ec8eeb8f14ffb1bbc84c0609f468941",
           "ref.sv": "db26922b65f2629f191df37254f0c5e93992f2c920b58a64e78e538a9ad5d53b",
@@ -13448,6 +13554,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob004_vector2",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -13553,6 +13660,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob005_notgate",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "ced67c6b0a03eea114af723f840d43f6de7e1ac4a78ad03a7f19e2947796fb51",
           "ref.sv": "b9c7af094411e46248398822c76728653300163f17595b16379f7e475d60cfcf",
@@ -13562,6 +13670,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob005_notgate",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -13667,6 +13776,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob006_vectorr",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "331f929cac6b509ae292f8f34147c02322201cecfee89089169add44edd75631",
           "ref.sv": "45cdcb65da3b4a2c7bdc46f0b17cdd288350fdf724553b5eec8f34d42616c42c",
@@ -13676,6 +13786,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob006_vectorr",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -13781,6 +13892,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob007_wire",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "66bddd42bbef08707ef94137f7412be8edd05be845a481aac03ef518a7d06192",
           "ref.sv": "46917be81598f8050958f924ea23056f5c06350d76d0c5dd6a625cd65986f735",
@@ -13790,6 +13902,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob007_wire",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -13895,6 +14008,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob008_m2014_q4h",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "eea38fd29cb89fdf2c5279e061c8e4a6aa878f34bb7acef9f52dfec6ac8b41b0",
           "ref.sv": "46917be81598f8050958f924ea23056f5c06350d76d0c5dd6a625cd65986f735",
@@ -13904,6 +14018,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob008_m2014_q4h",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -14011,6 +14126,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob009_popcount3",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "0bd6133eff566f5d7e856eff881a19c99cf50a0048c9b22c581e561a57aa6334",
           "ref.sv": "69e2707f010de1da3f810a77c8805da28b04ac6c56438290f3d8fa177a39561c",
@@ -14020,6 +14136,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob009_popcount3",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "统计输入置位个数",
@@ -14125,6 +14242,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob010_mt2015_q4a",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "e319b2e027face7e739f68f6d07cb74b5b7434d13a2657f81d7ddc69e7662eda",
           "ref.sv": "f9d234ca574a9b0df09f733c0fc9d08b3ff52fe3dd019ec5ae66d2a7c10c00a6",
@@ -14134,6 +14252,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob010_mt2015_q4a",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -14239,6 +14358,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob011_norgate",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "2138a484cbc2cc053b2eb1d2da39f4c5df8b6cad543a647592374cbb137a0d71",
           "ref.sv": "7e159a8077f15779839547fe079d25ee534f87a8b4b63680ef1741bc4f262b3b",
@@ -14248,6 +14368,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob011_norgate",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -14353,6 +14474,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob012_xnorgate",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "7090296c4926ff971d2833bb262a7275d8a912a6d9294a5662a9d9c1f49772e4",
           "ref.sv": "736544bb20a35ff13647fb0029f4b06cacd5279614e6ff977758cfadb114ce8d",
@@ -14362,6 +14484,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob012_xnorgate",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -14467,6 +14590,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob013_m2014_q4e",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "3de1b3e5f824b258416e9cbf20302ac4368505b254d92d96c920b2393c3c1b84",
           "ref.sv": "9dbd9a718fb163bbb60d876b23518c9eb8d211dfc5f891aac87920da3b5b36b0",
@@ -14476,6 +14600,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob013_m2014_q4e",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -14581,6 +14706,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob014_andgate",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "a6a97c19d37245380fcc425b7dbbce89d58df27fa2158dabafacf0439c2f06cb",
           "ref.sv": "cc937bac282c0018ca6a42e009f710be1f1824f55403a762810f67a2aa2f14df",
@@ -14590,6 +14716,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob014_andgate",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -14695,6 +14822,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob015_vector1",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "90371e4cda825d0c9b91c4190e54af968d1965cc70ff12f719bc700853ea0ef6",
           "ref.sv": "4a3dc3bccaa6dfb1ab3731d11ce0b3253985dcad32d10294f665871afb00afdf",
@@ -14704,6 +14832,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob015_vector1",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -14809,6 +14938,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob016_m2014_q4j",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "7e58d2584f0c3bf82b95b13e02767166bad91722543a2e707863bf70ce3d78aa",
           "ref.sv": "dbfde2547444cd93dd259aa37ac84ae811e0bf36c656c404594129d5683d536c",
@@ -14818,6 +14948,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob016_m2014_q4j",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "数值运算、乘加或迭代算术",
@@ -14923,6 +15054,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob017_mux2to1v",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "7d26af8b07ed3ef8ccff4dfc870c2e1e76d70bc29cdb1e8d63a4a326a834558e",
           "ref.sv": "1e45bcb124de9c52b905bf1fd7c13e67648a3730c693fd3f86974c6a219f7505",
@@ -14932,6 +15064,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob017_mux2to1v",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -15037,6 +15170,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob018_mux256to1",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "be77589368b38522b5fd13903285275b6b0b8f164e381b2141a31bc18a2c4c1e",
           "ref.sv": "0b292d75ef9e56274a3143e5d99bfb3ccfa0f592831487036060568640d56713",
@@ -15046,6 +15180,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob018_mux256to1",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -15151,6 +15286,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob019_m2014_q4f",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "f74a64fb5f4c2ff6f9a373cb3e2039c7236527f483c7f0065e995912c4f10a48",
           "ref.sv": "c92c3177993007c8cb6d72fa96527a70431a66dc655c3b422bb94ed9c9ca9c29",
@@ -15160,6 +15296,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob019_m2014_q4f",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -15265,6 +15402,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob020_mt2015_eq2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "8e79d28d49b58cd9b45a28905b264f8f89470fdacb8ac1a9ad1b5b9fc9947b3d",
           "ref.sv": "3a6624ece9483f19d94f1b361e7d648cb359cf1b17b91e4836e9a72c7b6144ae",
@@ -15274,6 +15412,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob020_mt2015_eq2",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -15379,6 +15518,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob021_mux256to1v",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "904685c8e846176d3e86ada25fc1c0cb77465fdcb00928767a960ab86820477a",
           "ref.sv": "1e40712c23700dcb47156ce6fa7809ed417fafd52e8583c323cab5a5e5fd4788",
@@ -15388,6 +15528,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob021_mux256to1v",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -15493,6 +15634,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob022_mux2to1",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "7fb588f50297f2781d5052ae4c185373de33bf0135f76b4bbbdc41ca15e880d2",
           "ref.sv": "7903c8758323f1f61f3aa91c96acdbcfe50df0e1f9af86dff8d744de865c3af0",
@@ -15502,6 +15644,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob022_mux2to1",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -15607,6 +15750,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob023_vector100r",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "1e49970508e362eda0154016e64b7ab34bedf9f5857a6c842953c078d1041f4f",
           "ref.sv": "368942232ed60c40af48fe467b9982458d2719db5b9af74242bc6fb7f0960263",
@@ -15616,6 +15760,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob023_vector100r",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -15721,6 +15866,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob024_hadd",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "f0d1602437f5c78d945340abf063e018ad3ef92fdbb37655f096e2d658775a45",
           "ref.sv": "b0a112b4445b7e2b0fbcc6dbd5960bf026c62283b695b656bd61378377340c00",
@@ -15730,6 +15876,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob024_hadd",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "数值运算、乘加或迭代算术",
@@ -15835,6 +15982,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob025_reduction",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "7e67d68a0704d12d1762b18201b7331f2705a22dd4ca7f16f0df744d4e92ae7e",
           "ref.sv": "2c3ed80d11c32321cb8c416c36ab78514880592e99f20a53b794cdf0944240be",
@@ -15844,6 +15992,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob025_reduction",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -15949,6 +16098,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob026_alwaysblock1",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "82a54220d1334827664f95bdee719a34a83beca7b67485c3ea0dbc03e2979e4a",
           "ref.sv": "8c56a4c015ef90a231d4ed1ccd661696fed4cd6e123dc45fc768f187608d129a",
@@ -15958,6 +16108,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob026_alwaysblock1",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -16063,6 +16214,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob027_fadd",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "7f6de3957cfa040d3c6e631e093bf2a7056e33a6292c6f77fee00555e128efc2",
           "ref.sv": "8607c120d36481ba0a8c2f6b8d71af7a7ba27b4850781b0b7326020b4046ac30",
@@ -16072,6 +16224,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob027_fadd",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "数值运算、乘加或迭代算术",
@@ -16177,6 +16330,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob028_m2014_q4a",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "920201bdc75adddda9a99d958228a3a20fb30a67a910e31677ca672efe683ed2",
           "ref.sv": "fbf798876b0646c79e038691f58cec42fa536a59fc616b462b7115aa7fc2f8b8",
@@ -16186,6 +16340,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob028_m2014_q4a",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -16291,6 +16446,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob029_m2014_q4g",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "2f7c7400dd10f3ef5cd01d2b9911a71944a9b152f59e6eecb599366b16cedd02",
           "ref.sv": "46c5adb0e545bcbeba7d3041aca7f51df223640e7dab8c8d6baa3a45d8181228",
@@ -16300,6 +16456,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob029_m2014_q4g",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -16405,6 +16562,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob030_popcount255",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "6f2c25077ea420dfc191a7ebe72bf4be9aeba60ab529a25783bde9fdf8c14f43",
           "ref.sv": "9159b1dda6cad0c06ec47be5bbd680dd13007eacd0ee6832c443550c8283c9bb",
@@ -16414,6 +16572,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob030_popcount255",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "统计输入置位个数",
@@ -16519,6 +16678,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob031_dff",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "a73fd8610997b5649750121e66dfbef9bd9ecf937cdbb5288a5c2458cb612775",
           "ref.sv": "fbfa1604c31f03dca7217b6d4f2ce1b67e85898ec94195ea3dc460868a186e40",
@@ -16528,6 +16688,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob031_dff",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -16633,6 +16794,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob032_vector0",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "bd050e3e0890dbc6a89cfd92fe39580dd66057919739673284cb9c77720dd1c7",
           "ref.sv": "afae7d42f345cf72d691d2b908e2294c99dab71f447b0906d11947a4ef1749e3",
@@ -16642,6 +16804,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob032_vector0",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -16747,6 +16910,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob033_ece241_2014_q1c",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "ec5cb95277d63a90e3dfdd15d889d8f6b7f2a1349445001815f7c38aee198662",
           "ref.sv": "70556fcdfe57e54f5a7fe358919e697074cbf7b5f06c305b94e5b4ca8bab61ce",
@@ -16756,6 +16920,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob033_ece241_2014_q1c",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "有符号加法和溢出标志",
@@ -16863,6 +17028,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob034_dff8",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "98eec05bc0ada9de32cf30ec6dcf5a38106d63d3fbe29e250296177a3f35b757",
           "ref.sv": "f2cefccbae78a8cd532c6b66eb75eb08b60cf11497b3f89bd09bcb9d892fef69",
@@ -16872,6 +17038,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob034_dff8",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -16977,6 +17144,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob035_count1to10",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "b39464243ceab41b1518c5a71590528e88221783f8857a3909f8bc110ed2c742",
           "ref.sv": "16a12abd3a6d1fef7f92b3e13af89c47560f9f7ec5a529270312854946784655",
@@ -16986,6 +17154,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob035_count1to10",
       "format_errors": [],
       "category": "counter",
       "category_reason": "计数、分频或定时控制",
@@ -17091,6 +17260,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob036_ringer",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "e4c8c65e72759a9bea40ed32fb56095e177c1a2c4d5a67b092c0e7ada96bc6fc",
           "ref.sv": "8bd1d42c007b2b463cf8888fd8109197ab8ce53059206ce6cf1589dfc4ad0cc5",
@@ -17100,6 +17270,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob036_ringer",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -17205,6 +17376,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob037_review2015_count1k",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "f8d580f10f24aa932f019001376b4fac67ed8c8cb92c12a61f4727727e6a3b55",
           "ref.sv": "bedfffe16c74a3b58ff1021594cefc719320bc14422e7b74d12e80fe1952644e",
@@ -17214,6 +17386,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob037_review2015_count1k",
       "format_errors": [],
       "category": "counter",
       "category_reason": "计数、分频或定时控制",
@@ -17319,6 +17492,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob038_count15",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "353a7ccf4557a41fa339e1ca7b01310762af759e0b98adb842923085468a3509",
           "ref.sv": "189870e9a4af7d545ae06dfff5284ef5a61595f48cb469dabaf473bbccb95872",
@@ -17328,6 +17502,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob038_count15",
       "format_errors": [],
       "category": "counter",
       "category_reason": "计数、分频或定时控制",
@@ -17433,6 +17608,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob039_always_if",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "063c58e77ce457de08f144801aeefe493b45e910f5edb7aa3c513a5f3e070cd7",
           "ref.sv": "5df164fd820436852f95bc1ee0067a09412148acea85b288cb7c0a8bcb0ac630",
@@ -17442,6 +17618,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob039_always_if",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -17547,6 +17724,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob040_count10",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "c9ba23833b16716abf967241974a10df2c58badafa105df2b2eb78732281605f",
           "ref.sv": "483155e5ba707375665d5f67910c053b1b3955db9b4aad743bf2d70f41da45c6",
@@ -17556,6 +17734,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob040_count10",
       "format_errors": [],
       "category": "counter",
       "category_reason": "计数、分频或定时控制",
@@ -17661,6 +17840,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob041_dff8r",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "a3d960860349a395c8646e9d1cb6bc68b22cae1f233bd79d704ba133dd735afc",
           "ref.sv": "43fd5e0d5b05deb692cbf8480c4b52011f89021bcdf329cb9e3a984d9e6e825c",
@@ -17670,6 +17850,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob041_dff8r",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -17775,6 +17956,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob042_vector4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "b3df3a7f45b7dc139328bbcb53753e80f680e713392f54426751dc000ad4410a",
           "ref.sv": "5408b5220777f5a212a7678a353718e6374fa967530895182c22ca7b346f7c3a",
@@ -17784,6 +17966,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob042_vector4",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -17891,6 +18074,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob043_vector5",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "1c6d7d4cfbf2615e27847cddd44f51ef5c1d75b75c880bfe1243a6eb1c144a98",
           "ref.sv": "fc887ea1b3d3b1a43c2ebbc6a6d321c12c4cdee70007bf9bb4690b29198f815e",
@@ -17900,6 +18084,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob043_vector5",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -18005,6 +18190,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob044_vectorgates",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "d158c421fc64ac5584eacb30dc97d72e2414afb98f4513ae8b1f44c2d81adf9e",
           "ref.sv": "c985c4e754baf171526e86dd8f130549132e148da7db7e3348c079162d8f8353",
@@ -18014,6 +18200,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob044_vectorgates",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -18119,6 +18306,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob045_edgedetect2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "6926a568cc4f9885b107d72eb0ab2768957f15251407130d74c7c8ee218421ed",
           "ref.sv": "8b54c0faa026c483b2eb6fdd30f131e954366022d5d951a1ccd343e057f58df8",
@@ -18128,6 +18316,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob045_edgedetect2",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -18233,6 +18422,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob046_dff8p",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "8d2be8695011a40bcbaa78e3ffa24c63ee9f2fd349a7264f4212b4203d65aab6",
           "ref.sv": "24e7078cf9aeaf5730228768d2d5131e5ff8095fdcf41e2f819cc6712cb28a72",
@@ -18242,6 +18432,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob046_dff8p",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -18347,6 +18538,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob047_dff8ar",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "4bb7ccb9d35ecebc427faef3f5f49ef299b836d155a9f6e043b85733797559ef",
           "ref.sv": "f904723d115e2409c3918d8e6d61e5604103fbca231e56a2468e4e1019fb52ce",
@@ -18356,6 +18548,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob047_dff8ar",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -18461,6 +18654,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob048_m2014_q4c",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "ae20355332a04f14e1140b621eda499fdf251dae669234b0488efbbe322471a6",
           "ref.sv": "f143bdbb4847f35b5baa02f4c8c0242fd244b3daaf1306edd57e2c2c1c5dd908",
@@ -18470,6 +18664,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob048_m2014_q4c",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -18575,6 +18770,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob049_m2014_q4b",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "a139a3e4276ed6f2eed7357d56c6e343444553dc5459e9c1044bc56d45dc252a",
           "ref.sv": "26f5732a1453de02b751e206f3e5d162253838f49f836289f25667d5be109c59",
@@ -18584,6 +18780,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob049_m2014_q4b",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -18689,6 +18886,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob050_kmap1",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "ab68419fe30787c66c542412521df0cebef2f07bff88fba151d9a7628a163140",
           "ref.sv": "d8f2229363c7ae8748c8d9b2efb025bd5eb297f5aa9bb49a30dea271f68e8b2b",
@@ -18698,6 +18896,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob050_kmap1",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -18803,6 +19002,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob051_gates4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "412e2ab6036708799c94a15e1795f31749e15ecaf1324ccf1a55410484fe5f0b",
           "ref.sv": "6a1464e8f8d123092f0f437595d66df72e182f1b9d01405c623613d409fc20b6",
@@ -18812,6 +19012,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob051_gates4",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -18917,6 +19118,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob052_gates100",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "643ad810ba9b168a80339d15de0e3667e78c930f4b956f6cac4c56e6cfc1e58d",
           "ref.sv": "dcf314f2a0e23b9b47ec355193bf79d8b113cf0999883f712bb95a7335fd3e14",
@@ -18926,6 +19128,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob052_gates100",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -19031,6 +19234,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob053_m2014_q4d",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "75ce70d6df0c0c256399c46dc0a7e95b1936445dad1f87d1157943e5e8b1e082",
           "ref.sv": "2f78ec8c604efe45f02c1ed0715b79904767ecaead2e4abef29d6c96571e6537",
@@ -19040,6 +19244,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob053_m2014_q4d",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -19147,6 +19352,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob054_edgedetect",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "a24103ba08a3714b868e13a00a1af2bf5da14b226881f463bb97a007c2ae28ce",
           "ref.sv": "85fac5a17004cf8c6ae544ba6a3410eb38e66672c4e41cf980ac5fbe24197096",
@@ -19156,6 +19362,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob054_edgedetect",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -19261,6 +19468,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob055_conditional",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "6c814ec3408f8bb6dbd6a5b313865be4eec60c600ab365cfd64599067004ab2e",
           "ref.sv": "2df6d288e7b4439de40d0225546cf1df4a17075bd577a73e6faf25f0ba6d0a2d",
@@ -19270,6 +19478,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob055_conditional",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -19377,6 +19586,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob056_ece241_2013_q7",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "280a99f12ed4a92809232e0a427f6b963e7540457152f78b76c4072ac3ec2b83",
           "ref.sv": "8cc3ad47597d42a9969f00a8268f3e487bc404418060217843f7d12603d92232",
@@ -19386,6 +19596,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob056_ece241_2013_q7",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -19491,6 +19702,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob057_kmap2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "fb99ca0bb9ca4f8b8cf1ddccdf92445f3dc2290790d7cb191762fd586563ac30",
           "ref.sv": "83158896f78e373b197b40a8637334b78a01c740a0df0b2da65452a076bdc4d8",
@@ -19500,6 +19712,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob057_kmap2",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -19605,6 +19818,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob058_alwaysblock2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "07f0cde83c2bfe3e674b4d5c0d235c43bba5de2bdc91e7fe83955adf5f6603f0",
           "ref.sv": "392bc7b761c4c825747e1b85b0dcb9ebb37a6ef14844f807daf992ddd56bf7b6",
@@ -19614,6 +19828,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob058_alwaysblock2",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -19719,6 +19934,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob059_wire4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "fcfa60b027300183d13685020e02742493592e11fed4bc249bfc0984848941ac",
           "ref.sv": "8d0689bd426e7410c382db87eb0395146ee9cf07803e20c8d8227751827cd70e",
@@ -19728,6 +19944,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob059_wire4",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -19833,6 +20050,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob060_m2014_q4k",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "d7ff6cadcb13f99e2c2b8ad0e7111750891e604b2859e528a6ddafc3a16160f9",
           "ref.sv": "483aa7cd86a26bfcc85ba4771341653cd341815820b7a23105e2579143c0c1ac",
@@ -19842,6 +20060,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob060_m2014_q4k",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -19947,6 +20166,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob061_2014_q4a",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "133102fbb0e75979b400e55b401369bfbdecf1dae0e17541d6aae6013d1a8a9d",
           "ref.sv": "e3a96e912df4645f611ffbc8f596e7506af1bce98806dcdfd8ebb449a26cc583",
@@ -19956,6 +20176,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob061_2014_q4a",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -20061,6 +20282,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob062_bugs_mux2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "ff343761ad461b4953acdfa3b4a4396a67ba1370940afec1d691816e5a719d09",
           "ref.sv": "3735cd6a576c3ab365e0b42bcd95198b6ce609792a0ad7cb1765e12667417436",
@@ -20070,6 +20292,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob062_bugs_mux2",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -20177,6 +20400,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob063_review2015_shiftcount",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "63406fd0057cb02334fe57c93d36d40e0620d79b92315dc74e541b6e27714f7a",
           "ref.sv": "745be14ac6cf96b9dfb2df944ecd6d1f9edadbcd3c740610711ad8ce1f562376",
@@ -20186,6 +20410,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob063_review2015_shiftcount",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "移位与减计数模式配合",
@@ -20291,6 +20516,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob064_vector3",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "7a3b9f9be64bccb7cbb3473723f14435fde95ef67aea8ba02454154d414669a9",
           "ref.sv": "8bc8223b5ae69ce879121668936bcf71d42baf79e2b5c85f99203e19352c6cb8",
@@ -20300,6 +20526,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob064_vector3",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -20405,6 +20632,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob065_7420",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "3f8b70fb3e7ab1ba5dd6071b1df33aa341aa3df0b0ef62c47368332ffa0c264f",
           "ref.sv": "62ddb5fcc18bf18f0fc1f265d8de802f739f7217a96674b76b53139e0bc654fa",
@@ -20414,6 +20642,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob065_7420",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -20519,6 +20748,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob066_edgecapture",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "2bb8c2a3924a55b05d6418cb2e5f3de95ad460e005222f939728ae249b3d9ab5",
           "ref.sv": "e36bcc084d7672e3f76f3c485f386b9ae02341252cb27e3c4605d54a227af1fe",
@@ -20528,6 +20758,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob066_edgecapture",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -20633,6 +20864,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob067_countslow",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "7d5c5f0315488172942b3ac24146c3c5ad0923d8d0d38b883605401ea3ceff8a",
           "ref.sv": "0370512ff67ccc07b5159d1516972c5875b5c2d73bbe25349fb223978bc944f6",
@@ -20642,6 +20874,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob067_countslow",
       "format_errors": [],
       "category": "counter",
       "category_reason": "计数、分频或定时控制",
@@ -20747,6 +20980,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob068_countbcd",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "d07a0faa22e69220c1f5157bc83452c9da9fcf48266b499ab597d248f718df69",
           "ref.sv": "699702b0cbd8dead9301675e70fe23b847a58a81d5757e87af0abd26163f01ec",
@@ -20756,6 +20990,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob068_countbcd",
       "format_errors": [],
       "category": "counter",
       "category_reason": "计数、分频或定时控制",
@@ -20861,6 +21096,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob069_truthtable1",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "00918bf9f8f25eb0f139fc4f2f4f61d3a1ff7100f326a972a1045a57dedfda4c",
           "ref.sv": "4eb73956209794bdbb8b183514aa9cbd47ea71c54261c4a60fcebe2f8491af8b",
@@ -20870,6 +21106,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob069_truthtable1",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -20975,6 +21212,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob070_ece241_2013_q2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "36edd698b1fd99b305621ddadc71b36618e1030322d82e8d8dea0a256d0cd47c",
           "ref.sv": "0e4448a046ef77c67a55bdc2d71cd1cd26db714b9ee658b1e539b25a65485024",
@@ -20984,6 +21222,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob070_ece241_2013_q2",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -21089,6 +21328,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob071_always_casez",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "4ceaf47c8abdece25bd08f9ba4b24d42d6a6680ff4de831e74fc3a51901fbfc3",
           "ref.sv": "00e69b3385011c20361f76a5f68aa225b0c1fda479444c429e0f24653f4773d5",
@@ -21098,6 +21338,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob071_always_casez",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -21203,6 +21444,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob072_thermostat",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "64cd711191554d9fb48433475c6a46a6ae7371782184f11a49c6aad35ce53614",
           "ref.sv": "11ab9eccf4df5719e600eca68d15eafd612aecec668a0ff97951f5637d56fd1b",
@@ -21212,6 +21454,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob072_thermostat",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -21317,6 +21560,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob073_dff16e",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "0734499b3f75cc1c7bec2f2c966598bf40fbae11e78b0863bec334117166e12d",
           "ref.sv": "ab78eb454f39cd6ac58c849a103d0f1bfb2bb51cbf5f9fdf89ebf38bdd9accbd",
@@ -21326,6 +21570,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob073_dff16e",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -21431,6 +21676,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob074_ece241_2014_q4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "6ffd8afcede4162326fd66bd0786f65c0cda97edc8e135882f64739e82494fab",
           "ref.sv": "6d58fe4253a0a4feaba24aa013ecd96fb54be1fd7b77eb026bb5355a30714055",
@@ -21440,6 +21686,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob074_ece241_2014_q4",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -21545,6 +21792,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob075_counter_2bc",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "7f7aad2139b0c16597d061d00e3625201baf323e76462ba0aa9a46bae432df4a",
           "ref.sv": "eb3bcfc472f3979166157b577fa6ecae67722ae22eafd409a57b35c92590d0b7",
@@ -21554,6 +21802,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob075_counter_2bc",
       "format_errors": [],
       "category": "counter",
       "category_reason": "计数、分频或定时控制",
@@ -21659,6 +21908,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob076_always_case",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "a1c38d6e5e90e523135e2425a7ca2f20c028017edf992919ae03fd5f0c8423ae",
           "ref.sv": "bc2d160effd6fbaf591d8adaab32f897fcc0479ea8ddb8d1eb92fb3b59cf3d23",
@@ -21668,6 +21918,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob076_always_case",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -21773,6 +22024,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob077_wire_decl",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "f138952bc51720a2221755ee9b15434cfdcc9db8379ae2f4f510a2e3f444d7b3",
           "ref.sv": "e1a5eb13111766369624ce34b5f91393b9d4cb5f9a77fc304713d884a86b172b",
@@ -21782,6 +22034,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob077_wire_decl",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -21887,6 +22140,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob078_dualedge",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "c84065f4fdbe3966699b4d07a1f5649228d8add34bbc29455cd4e4d1e6703649",
           "ref.sv": "7c9a025f6e11670872f06fed927fb111485bc71f8c52d7fe579508db230460a1",
@@ -21896,6 +22150,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob078_dualedge",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -22001,6 +22256,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob079_fsm3onehot",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "1c757265241898d2b61736d62949da334428beac09478e156e525525523b8322",
           "ref.sv": "0dd374e8dee82065d86e5dac85d17d78f323bc8cf511f465887b046ac0dd6795",
@@ -22010,6 +22266,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob079_fsm3onehot",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -22115,6 +22372,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob080_timer",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "bb825e6a1f14f32410a388a66b1b076c2c0880ae1add25ea9aa86ac88fa64a46",
           "ref.sv": "14b34884220ceb1058f834d04d86cdd7b2798163f8e816ad7ed3ea146cf05f41",
@@ -22124,6 +22382,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob080_timer",
       "format_errors": [],
       "category": "counter",
       "category_reason": "计数、分频或定时控制",
@@ -22229,6 +22488,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob081_7458",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "ab21a56d5a55f25b0fa1759856838a070404c87c8820f74b01ea20e77cba58e9",
           "ref.sv": "52520a46c4bbfca19859a9ed1f7ad4b0de970c0f9aedf7d8fed688013fa7a547",
@@ -22238,6 +22498,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob081_7458",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -22343,6 +22604,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob082_lfsr32",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "ded0eb64be590a27fc5aa3d3b9ff2dc536358be38e4d2617bb628aa0a927b23d",
           "ref.sv": "cfe347370987a792745fcc0e2b69f3aae151f144606dc4337c4c14a959259941",
@@ -22352,6 +22614,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob082_lfsr32",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -22395,6 +22658,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob083_mt2015_q4b",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "db4f67d5ee607642475e1bfa32c23d81bc9ab9f31236fe85669b9623aae7a33e",
           "ref.sv": "bc3e16ff3466e559770a931c4f21532e30465c4efe5f2b01f9e101838245eedf",
@@ -22404,6 +22668,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob083_mt2015_q4b",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -22511,6 +22776,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob084_ece241_2013_q12",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "763224468048febabad5448e937efcef108f8201fe6fc66be94b564bdfae2edc",
           "ref.sv": "1ad7a305d588235457ccdff541b1892141c0eb2b9cf23f903d583328f3686d2d",
@@ -22520,6 +22786,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob084_ece241_2013_q12",
       "format_errors": [],
       "category": "memory",
       "category_reason": "存储、读写或队列边界",
@@ -22625,6 +22892,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob085_shift4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "6e0cd2bb97d812b937f6a6350a357595791e29ae7d1a33e32db8afafc882db3b",
           "ref.sv": "35074d1c6ac73241a4acdcc48712e78e83f571f4016949c7de33c0f6ed3c4564",
@@ -22634,6 +22902,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob085_shift4",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -22739,6 +23008,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob086_lfsr5",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "d80ef1985077f91f8b5712edc028e001e58f2c4878d7e60d4fe16a935bfb743b",
           "ref.sv": "f2e92f3eb73c77bfdcf81b00cbc032cea78d888428e11235c4eae04897d8ac6f",
@@ -22748,6 +23018,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob086_lfsr5",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -22853,6 +23124,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob087_gates",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "404f1c9881e084f81ca448fa937fca58b40c10cd7d9073077fc77bf87954331e",
           "ref.sv": "fd05947bb790cc30fbc348bd272053377e718611affdd86892a1922edec454f2",
@@ -22862,6 +23134,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob087_gates",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -22967,6 +23240,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob088_ece241_2014_q5b",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "2a08ee13b6a38d2a292660113f4bd537780959ef93800a23db351c3a6bb77935",
           "ref.sv": "bb9b731de5e52fabceb4649ec9e7808cba9decd96453c027261bf6bd2eb65aaa",
@@ -22976,6 +23250,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob088_ece241_2014_q5b",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -23081,6 +23356,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob089_ece241_2014_q5a",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "a002e5d6bce44ce40736f7890a7d34c42a21efec1ae1711c3c427910afb4930a",
           "ref.sv": "20bb4160d4b8b0df960e93ff9b92e91ece068747b4c5e291923ecf904b7dd140",
@@ -23090,6 +23366,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob089_ece241_2014_q5a",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -23195,6 +23472,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob090_circuit1",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "52dfdb0623b2db4ec0f891986e1aa77697667f992afba8a37a9e2fa7595df2d5",
           "ref.sv": "9ed56f8134868536916665f10e183bdb3d931f3d05c3e68607b48c40ef6e020e",
@@ -23204,6 +23482,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob090_circuit1",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -23311,6 +23590,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob091_2012_q2b",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "732664944f75e5be1edbf66a4f6b45ec3f284b3a185adc4a7b4a570749e4df22",
           "ref.sv": "e860212c593a717f8517c2141034dace45baa3bd0c3f0d7e553b54f7200bcb7f",
@@ -23320,6 +23600,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob091_2012_q2b",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -23425,6 +23706,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob092_gatesv100",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "76932dfae004b5e362ecde55bc854cc4bf23833c50e1e26135f4c376eef3a103",
           "ref.sv": "36690beaaf8abb586c82b92a044ede887859ed2d69cbf48ed7b4e889cc8c32b3",
@@ -23434,6 +23716,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob092_gatesv100",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -23539,6 +23822,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob093_ece241_2014_q3",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "03515acee8e86665f27dc2a5a66ccee1c588c3ba02cfb7bf2e8a5bcacbc449fa",
           "ref.sv": "338ff59874541b90c096c9c935cd91a0c98e5b9af4dcbf0d4a76b074b89ffae3",
@@ -23548,6 +23832,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob093_ece241_2014_q3",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -23653,6 +23938,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob094_gatesv",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "dfb9dd04884185fa9a64343ae6c5e4949e87298765cf4a1588c4071fcf7e8f7f",
           "ref.sv": "5a9bf7d169021df9c52559b115ec3aa89d26f68c3beefa85ed8f0b7a2b01cb0f",
@@ -23662,6 +23948,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob094_gatesv",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -23767,6 +24054,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob095_review2015_fsmshift",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "9d1afc1b097126c6ef10723068bca13c10776d5e19abd17ef56b6c1621c94c3f",
           "ref.sv": "a0926e66cc422a056dcaa0e090a7d43be84aaed96e119e4ba762a78a0c87f84a",
@@ -23776,6 +24064,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob095_review2015_fsmshift",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -23881,6 +24170,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob096_review2015_fsmseq",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "1feaeed74015b7e6de46497214d3ab3ad0e6c5cb11ae82ee20ab6a7f0fd4f459",
           "ref.sv": "0fb569e05f0af10285612204baabc9997637a47106bee5de8c4afc7e4fb4bfbd",
@@ -23890,6 +24180,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob096_review2015_fsmseq",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -23995,6 +24286,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob097_mux9to1v",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "1afcd4a270cb1bfd82888b6d7d43eb712401eb230926be2ad2260f9d1f9a9864",
           "ref.sv": "a10b25340da2e2672812f18e364dfc1a2d5cfb07630081de665cd2895664f55f",
@@ -24004,6 +24296,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob097_mux9to1v",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -24109,6 +24402,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob098_circuit7",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "433999a6780ab6d0c2462f244f24c35ab2a9fdcc7a6b5194fb3619fa1da420c0",
           "ref.sv": "cb38f9b572a019c4e5925cf2065d2dd6173dde23c7b8101ebf48ddcaca421ef9",
@@ -24118,6 +24412,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob098_circuit7",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -24225,6 +24520,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob099_m2014_q6c",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "5067e16b05fb7652c1224db56ff3cccfc0ba30165acdc9be3a366a151286f22e",
           "ref.sv": "ae1b704ee3babb1883baedc5632cfaaa2d696f27513435985abc534394e9d233",
@@ -24234,6 +24530,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob099_m2014_q6c",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -24274,6 +24571,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob100_fsm3comb",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "367576f3744273fa27698eb45201ae6bf5895586ac4f30acb3a98eaa91969609",
           "ref.sv": "d4a2719711748110fc288874c24d0c73a42a3edbc687e0a8aae8c6b7e1665c1e",
@@ -24283,6 +24581,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob100_fsm3comb",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -24388,6 +24687,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob101_circuit4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "425d44465c3b24b43ee7a6c22ee2afbb62390fcb1e2d311f087fe23ce1391513",
           "ref.sv": "bceb52d9d227b2e42ea82749a7c732373a611021a2bd28c1996210b4ceac777c",
@@ -24397,6 +24697,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob101_circuit4",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -24504,6 +24805,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob102_circuit3",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "87b3c7af87e87527d7987a162c7cd1ef327ddf373716e57b1ca15f22cd31a8f7",
           "ref.sv": "d8104a89e278f4a7c4f3dc58401bcf8f1d30a24c3d09d26b43685044f43c6130",
@@ -24513,6 +24815,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob102_circuit3",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -24620,6 +24923,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob103_circuit2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "9a37cf0414627d76e83ac9cf9ab880ad36b0c3a65900cbde4af1dced7a0519f4",
           "ref.sv": "511b67fcdbfc3bde1cbe45b99b618c33dbd439e7108ae601f8ab0de58b2bcce1",
@@ -24629,6 +24933,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob103_circuit2",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -24736,6 +25041,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob104_mt2015_muxdff",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "b700ad339dcb61fc8ff1360a5f2ea51330e208f186e673703e908e6e32ec963e",
           "ref.sv": "257c3835380c39315cefe2325abc26ac916c4a47423ce2eacb32569add966f1c",
@@ -24745,6 +25051,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob104_mt2015_muxdff",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -24852,6 +25159,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob105_rotate100",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "95b3ea82338e8fecb877ed170c3f42090642f2b31195c503a91fe579fa0fb300",
           "ref.sv": "20e49d5acbe2ec4a90074e17e9aabd0305bd4e32922df8f712c898a3e842a1b8",
@@ -24861,6 +25169,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob105_rotate100",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -24966,6 +25275,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob106_always_nolatches",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "26153acccc730dda30ff59c2cee6638726472925632bf0b8e1ecbef4b83be2b4",
           "ref.sv": "c224ca40684f97dd739096b361e1d85155a07ae5faf9548c12575d6f0f347ad6",
@@ -24975,6 +25285,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob106_always_nolatches",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -25080,6 +25391,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob107_fsm1s",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "bb516320cd51500cbc6bb569b07e5f9a4652f21bcdf182d7796d8713101dba5b",
           "ref.sv": "1d8b86049ccf6097e33d0b8f9aefb0c387e8e6eb5405c00e380ab10ece0fab0d",
@@ -25089,6 +25401,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob107_fsm1s",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -25194,6 +25507,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob108_rule90",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "65085aac72cea73970f7d92cabaabf9f40a593ca04e7c670f7a01396b834f9ad",
           "ref.sv": "65419cbb139b74225b3d35c2c5c054034d082de3f5f9c00b7bb79d0b48d845db",
@@ -25203,6 +25517,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob108_rule90",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -25308,6 +25623,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob109_fsm1",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "127960ef1ecf51068854f4a9f0bf34ec43c574e7f59b9075f2f3e0f56a453905",
           "ref.sv": "ce88cef46ddad703f97411a5528fc3515a7fd6a008b06b485dda6cb4cd9f59b5",
@@ -25317,6 +25633,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob109_fsm1",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -25422,6 +25739,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob110_fsm2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "eb812d63c40447e26adfaaa4bb450087cdaaed983d4b20933086f31d5efce701",
           "ref.sv": "6971540f20cfd7d212f76470f91469ccc24dae102e62a387b8aabef10a98b9b4",
@@ -25431,6 +25749,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob110_fsm2",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -25536,6 +25855,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob111_fsm2s",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "4c743cb578b346ee96e7a815ea443d9681ecf243296a0873c4bbdea17e87bf07",
           "ref.sv": "780259ce81e0cdd77a9222c7a0fd43775643e1a2d0a98b37185cadff0bf446ae",
@@ -25545,6 +25865,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob111_fsm2s",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -25650,6 +25971,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob112_always_case2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "74b004064a6c4acb9b9e468eb926ab2024535e81f93a72aec8aae82c7714cb44",
           "ref.sv": "1381f5ab0ed243628965c0d2c89bd792f0455a6c9a8e3b113fa380e2590e94ec",
@@ -25659,6 +25981,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob112_always_case2",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -25764,6 +26087,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob113_2012_q1g",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "e42ab939c081bad1cde006e2a8dbe8b1bdfa0662eadfaa9d6e89cf16298d2872",
           "ref.sv": "239672bcaa22524d777b1fa180695033550e19a10990aaeb47319673cc318892",
@@ -25773,6 +26097,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob113_2012_q1g",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -25878,6 +26203,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob114_bugs_case",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "b9e52c804faf075140f08473a98adb8ab2aae071764d4bc639974f82fbca79aa",
           "ref.sv": "97aaf43498481511ccc8ca815b33703d0e9a41a732cd36af420cd26083b4db4e",
@@ -25887,6 +26213,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob114_bugs_case",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -25994,6 +26321,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob115_shift18",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "cd0d2a3dc129d051c1d14ff362080647c499afdbd30f02f34f90e8cc16cf7f50",
           "ref.sv": "e477ab1ff3a1f29bea20089690d7944606c863bb3347e373a31b96feb421aa64",
@@ -26003,6 +26331,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob115_shift18",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -26108,6 +26437,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob116_m2014_q3",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "3d8d0cc41a100868740c17748d2b8c5fb88b47f5f73756dc34ac985406ec00c3",
           "ref.sv": "71fc30b8d528205b1d97db9c6c0eeec7f936dbda016ab7a4a0e28ad80533988d",
@@ -26117,6 +26447,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob116_m2014_q3",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -26222,6 +26553,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob117_circuit9",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "2eb596b31568b596396abc7c7e13074af362e46e28c37b29f3058cc084871240",
           "ref.sv": "4cac8fde1519b37da67a5761b3be4b8a3036ec0c0a5f3af8ff9b467c3fb0d79f",
@@ -26231,6 +26563,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob117_circuit9",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -26338,6 +26671,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob118_history_shift",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "e72c6d66e3f54adb1979b14d7eaefc2dd47bdedcee3eee8ef9801ac01034f03f",
           "ref.sv": "d12c500ae7ce613237d33f611f5339c9673c2f4ad0b61b3de4d2677efec05c00",
@@ -26347,6 +26681,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob118_history_shift",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "移位历史和流水线回滚优先级",
@@ -26454,6 +26789,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob119_fsm3",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "8e4c0d00e91f93f8cf138d86e89cddc2df55b191cc9de395e2a0691ef838a907",
           "ref.sv": "d5bb13b70966b6608ec015e2db06e0e346d39954cc6566bf03497d89128e7c6d",
@@ -26463,6 +26799,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob119_fsm3",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -26568,6 +26905,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob120_fsm3s",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "53168f829532880b5d978f18b047ee1b15c5966a4c5e36e8d7a9b037bc98e205",
           "ref.sv": "298b3f24aedd73776017b86b1a50f48d8a45fe314eda28204a31ae30a46462dc",
@@ -26577,6 +26915,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob120_fsm3s",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -26682,6 +27021,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob121_2014_q3bfsm",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "8cda306e07d2fe9b9dad5edda49ed41626d5a4b3cb8c855136c2593ac08185be",
           "ref.sv": "b990b318e05e2ecb38de41b928533ec10ac3b2648b7ddd4149f97bbc69b4c63b",
@@ -26691,6 +27031,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob121_2014_q3bfsm",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -26798,6 +27139,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob122_kmap4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "4d7f79f4347970cc89dfaa13b1ce0f276c6519a3d3da2c5b955f81d35a5258bb",
           "ref.sv": "4094b301b666c925eb833a38df14836c24f6e90f56d1903a4c3db1e4a6c6d01e",
@@ -26807,6 +27149,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob122_kmap4",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -26912,6 +27255,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob123_bugs_addsubz",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "4a3fe2bb89fd6a900bb178371f882742219f00348612d9b6254100c22fb94b7b",
           "ref.sv": "7669a9ce6ae5f5ab094ac215fd29f6891733813ad143488ea3daa22c7477a649",
@@ -26921,6 +27265,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob123_bugs_addsubz",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "数值运算、乘加或迭代算术",
@@ -27028,6 +27373,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob124_rule110",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "f4a7902439723cf6fe810a8e8af7421c22648d74e209a40c193dc30b57885d15",
           "ref.sv": "c95a474c70bb071b1b8adc0c23a86822928a2c7cb20fde28b8e48cd6a19aad81",
@@ -27037,6 +27383,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob124_rule110",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -27142,6 +27489,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob125_kmap3",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "4d696e1344f8b8625b370f6397a4e20e6f0912955c29265489be4ed9bc8b4e72",
           "ref.sv": "6107e4bf0de50f7d2f3856331c2df2cbf0b84baf776e0213774b0c7caacd340c",
@@ -27151,6 +27499,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob125_kmap3",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -27256,6 +27605,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob126_circuit6",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "8da64a7c5a6a3fc7408ba9ae471800fd2adcc3db458b915c7ab2bb43dc9d5804",
           "ref.sv": "d169f6f498141715387a5c30198f9167a62785b7cea08af043bfe587951134e9",
@@ -27265,6 +27615,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob126_circuit6",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -27372,6 +27723,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob127_lemmings1",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "504f9c83438f725a615d58d6df4304cd8ebc8bb1795b8b5de4796eb64dc63529",
           "ref.sv": "92c8b0e80f637209925cea25d328f114857342e50f04494e2b01177cfb91181d",
@@ -27381,6 +27733,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob127_lemmings1",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -27486,6 +27839,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob128_fsm_ps2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "f032b3f2156951a5e561009df870886d5f4c519c1fd48e42a81c3c31685a76ac",
           "ref.sv": "88fd53ff936047b70a0407ec1c4eb55d74d05a80ef4fa45997a288daae8d4d6d",
@@ -27495,6 +27849,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob128_fsm_ps2",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -27600,6 +27955,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob129_ece241_2013_q8",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "05737e38778fc60d7e8402aa02db8a9ecca7a2561bbd7dc4bb6f7a4ad4d1e2c7",
           "ref.sv": "ec3cb4240ae0cccc86355da25ec423cb4375ff93764e24a9cc8f7112c6199a20",
@@ -27609,6 +27965,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob129_ece241_2013_q8",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -27714,6 +28071,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob130_circuit5",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "34908489d18bfa0fd202c449254ce925d23711847a18d3adb82e5a2bca0b4885",
           "ref.sv": "ff30762866bbad676b81e88155ccfa397eb716030369dbb7e9f330a1e6e24867",
@@ -27723,6 +28081,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob130_circuit5",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -27830,6 +28189,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob131_mt2015_q4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "d55a61f91d21970570e43bda22bab5e4ce46e9c36cfd29518408cf619847956b",
           "ref.sv": "66766f4d76de82a4304bb779e84e53a7410f1f9389abe32e4758a5200bccf2bd",
@@ -27839,6 +28199,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob131_mt2015_q4",
       "format_errors": [],
       "category": "logic",
       "category_reason": "组合映射、选择、门逻辑或布尔推导",
@@ -27947,6 +28308,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob132_always_if2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "483df3c3429e04e199e8c6d84fe4ac6cf4eaa3fe5320a42c1d82b49a7f764c8f",
           "ref.sv": "5d7b5e97e5f038c0c13d3f06634095f23b50b946223ee7ec398483e0a74dc36e",
@@ -27956,6 +28318,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob132_always_if2",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "数值运算、乘加或迭代算术",
@@ -28063,6 +28426,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob133_2014_q3fsm",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "304f1942dede3ead058c8600830a66e495a0c3c91ef710a136431bfe8bf52b56",
           "ref.sv": "3c52c08d38debcd7e09092f2e7cf82e0497e058a9584ece479d1c3a4957afef1",
@@ -28072,6 +28436,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob133_2014_q3fsm",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -28177,6 +28542,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob134_2014_q3c",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "cf8e17fd763ed4ee319bad0f417ced92a0e86bf2676a371cac2ae7a2fb9d3fb5",
           "ref.sv": "e8f7dd4d8b139ada2d4bd2a1881772e7a76815539909f4f5e8e279c0e4b011a1",
@@ -28186,6 +28552,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob134_2014_q3c",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -28291,6 +28658,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob135_m2014_q6b",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "217778564275b1fda5a5216b45d4a777b8ba47bf39a35ff1a1136ba690607ca7",
           "ref.sv": "1982076dae0458a47cf365dee5d2a052fe2a2368de3799a4a0bb9dbdb4d6d9ee",
@@ -28300,6 +28668,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob135_m2014_q6b",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -28405,6 +28774,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob136_m2014_q6",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "3bbc66259fa265f27cfe10874fa306ba699dddbdfa4938390e28eae5f9da6a7f",
           "ref.sv": "0ff92e703252cea2b8e21cadb9abd43ac5705285093588482ed484195432bd05",
@@ -28414,6 +28784,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob136_m2014_q6",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -28519,6 +28890,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob137_fsm_serial",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "b495f3d2c8471a19e9fbdebbe66ccb051a71513191510e68373a73ae61dda224",
           "ref.sv": "5344c780c84e0360c6a5d86963b22ce411db7dbdb14058cc949fe0bdc76ffd4b",
@@ -28528,6 +28900,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob137_fsm_serial",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -28633,6 +29006,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob138_2012_q2fsm",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "3a464e98020fdcb8c306daea19b7e3e9d8d4c781d1be587b60d8c16de13fd767",
           "ref.sv": "d4fc98953061961badc2b9fae62831f301f986b6ba1a963ece1c183ad4cd7808",
@@ -28642,6 +29016,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob138_2012_q2fsm",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -28747,6 +29122,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob139_2013_q2bfsm",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "d17f77a10705f82d4f3542fb4f5044c52440f3b14353bcc3d0910cda5e086074",
           "ref.sv": "402d30bac3c3565f2b88cf78d76f8a80f0469df5594ffd2e8fac39f4008e0806",
@@ -28756,6 +29132,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob139_2013_q2bfsm",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -28861,6 +29238,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob140_fsm_hdlc",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "eeed8b4469b2326097c139849b53dd84b20327140281d3192cbb57722a05bb9e",
           "ref.sv": "3479ed45a237f4997354f47f7ac7fabd149346dcea6da5be7e6bfb9fd0c3453c",
@@ -28870,6 +29248,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob140_fsm_hdlc",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -28975,6 +29354,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob141_count_clock",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "997e74673f7bf5d30bfd0411872cebf5bfceaf2597111374a8d1ae2bdade670d",
           "ref.sv": "f5a25764de883c636b06856ea7e6a4628c1c5b69b004025da10e3ae205adcac4",
@@ -28984,6 +29364,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob141_count_clock",
       "format_errors": [],
       "category": "counter",
       "category_reason": "计数、分频或定时控制",
@@ -29027,6 +29408,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob142_lemmings2",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "14147a2beffb61676005886713e1ad92545ead0f1816c028582ec55bb24011d2",
           "ref.sv": "d12d0d89d1ca10c260297a0b5e01e619272eb817d3aa18da9528008d9a34db70",
@@ -29036,6 +29418,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob142_lemmings2",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -29141,6 +29524,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob143_fsm_onehot",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "a0b4c8718528c66ace00a8c5e3dc9e2e99825ff30f27bfb40a42c3247b20966d",
           "ref.sv": "713dafd41effad29c326f7e3592115be3394a9de809f5849cbe349add87219f1",
@@ -29150,6 +29534,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob143_fsm_onehot",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -29255,6 +29640,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob144_conwaylife",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "68e251e9dc6a8f27bf9df96be64724e016bae8c744fdca2e82bddea0455e34d7",
           "ref.sv": "ae55a613d8532489d5643a6b72f462da5dda4b6d10838de2f3c09dfc7a8c1820",
@@ -29264,6 +29650,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob144_conwaylife",
       "format_errors": [],
       "category": "dsp",
       "category_reason": "空间并行或信号处理",
@@ -29369,6 +29756,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob145_circuit8",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "23bfd1a73372399348f6039e2e018e7eea3ef80fcf57d52fd33a271d7f857cae",
           "ref.sv": "fe08ece4bcb44739f21976e1371936460bdad7b5e97583a01e605460895ce392",
@@ -29378,6 +29766,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob145_circuit8",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -29485,6 +29874,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob146_fsm_serialdata",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "0e6a140952828feb2fee68f8a7fa7817326f7a545f893b4c6313e82634a83251",
           "ref.sv": "530a38bea8b90455f64bf9cf022b417e02dbdbe7ef2a5bfa61a7c3c38f52f208",
@@ -29494,6 +29884,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob146_fsm_serialdata",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -29599,6 +29990,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob147_circuit10",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "d0d056e2f2b29bc5e0c54d9aba1ae8005309796e9820b1e8e006dfd1f002e037",
           "ref.sv": "2dcf39be47b8847f2e6a831112633d3a917efd2ba45268488155a0d27dc8c9b7",
@@ -29608,6 +30000,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob147_circuit10",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",
@@ -29715,6 +30108,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob148_2013_q2afsm",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "26a3dba59e7f4a87d2c8984dfd1b69873d37d39b4c38c2d3237763c991bdfdac",
           "ref.sv": "8d9517c9f3e10906de5849675419e92605b04ead1a1b74b0df6a7785ff5197d6",
@@ -29724,6 +30118,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob148_2013_q2afsm",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -29829,6 +30224,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob149_ece241_2013_q4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "40e719e97a3ddcc6a81d9289d3f2ff53295b866f1fa277b6e748382a01cfb8ad",
           "ref.sv": "e31ed6b179de4a33384b70182dc83a894ba4db0da08ab72945f3dd6f60788e06",
@@ -29838,6 +30234,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob149_ece241_2013_q4",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "水位控制需要记忆上升或下降趋势",
@@ -29943,6 +30340,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob150_review2015_fsmonehot",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "9ffa0bd75f680d514876ae02104fb9773d8e2c411fdb292253663596775353c1",
           "ref.sv": "8c98048c249e46db3a8f2f1ea48633e73b96a61428e5d3b0c57b3f22adcb83d9",
@@ -29952,6 +30350,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob150_review2015_fsmonehot",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -30057,6 +30456,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob151_review2015_fsm",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "95e65a451132e25e0e5c2f07755a346dcba9d4cc3193cefdcf8b3a7c2151fa3b",
           "ref.sv": "d3fc9c0014ed8345665a3b2b429e63ffd383ab7e3f9ae9096c122f78f1b2c00d",
@@ -30066,6 +30466,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob151_review2015_fsm",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -30171,6 +30572,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob152_lemmings3",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "81e7c729a6a7ed1691722fd400e9199978c422a991e4f32f0c9326b3f52694d7",
           "ref.sv": "5c906d944feb771b438f3caa560deb964cc6b1cff178ff6ba7f7d4a3a2ebf6b0",
@@ -30180,6 +30582,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob152_lemmings3",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -30285,6 +30688,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob153_gshare",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "dd55cf721c46e80eecc8a0eb5865b8991896a4e275c0af07b9c5ab5ac6427ba2",
           "ref.sv": "12d54877b5d0a2e71bc084cbc79c8b68363d2a739b073969f7e2221da6b38a98",
@@ -30294,6 +30698,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob153_gshare",
       "format_errors": [],
       "category": "processor",
       "category_reason": "处理器控制、运算或预测部件",
@@ -30401,6 +30806,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob154_fsm_ps2data",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "18ee138f40d5af58c771a99b6e0a1d5ae41ce605f228d3625d8f1a7380c4cb99",
           "ref.sv": "366c2db7618fb43718229b1ed4d5e65a948566a7be6945f99a9160bde7a2df6a",
@@ -30410,6 +30816,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob154_fsm_ps2data",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -30517,6 +30924,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob155_lemmings4",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "1d25cc5847422b984326e537bf301b4e647e95206d53020cfd8e20c7d9ef7f94",
           "ref.sv": "a238a1a879b4b4213bedf9bb47a23ece031df6a3d9cb836c5c42769141ae522c",
@@ -30526,6 +30934,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob155_lemmings4",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -30631,6 +31040,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/Prob156_review2015_fancytimer",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "af37348496f1dd3fce803bdf00f761de7e6beed692bbd0f2e80cf755381eae38",
           "ref.sv": "78880798ded59a844303b26057a9bc891242d41b81fb3bc6b8c17e149af4c604",
@@ -30640,6 +31050,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "verilogeval/verilogeval_prob156_review2015_fancytimer",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -30683,6 +31094,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/ex01_popcount8",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "9dd4a51171649f8af9bb7af372f9594bbe309f1e413f190dac85d33aea20b967",
           "ref.sv": "926d41534e538afc2e52a53f6330ffc2ddd6ee3b340a42e129028e89eb7a8bd1",
@@ -30692,6 +31104,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "example/example_ex01_popcount8",
       "format_errors": [],
       "category": "arithmetic",
       "category_reason": "统计输入置位个数",
@@ -30797,6 +31210,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/ex02_detect_1101",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "9b6811cec90f6783423915248a1eaab557cb76f1b1028a0ca72ade46c39dbd58",
           "ref.sv": "8919104c1f08262580447e1eadb22d5cfda6cadaad3dcfd062f862a20f445084",
@@ -30806,6 +31220,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "example/example_ex02_detect_1101",
       "format_errors": [],
       "category": "fsm",
       "category_reason": "状态转移或协议时序识别",
@@ -30911,6 +31326,7 @@
       "status": "converted",
       "source": {
         "path": "tasks/ex03_lfsr8",
+        "git_commit": "7f1014925d5b83e737db02fb08045014a1ec4f54",
         "files": {
           "prompt.txt": "08edec4feda726f82fffd030c68737a9177e9904963993ed3fbea707cf519830",
           "ref.sv": "a10d18001fb56e15f1c6f42cf4d8f73c4eddc618bffeab985c90191c35ccf443",
@@ -30920,6 +31336,7 @@
           "top.txt": "9cf5a7413b67098afd503a3100b5dc8b4ca79c2f1e0326f4272e80c86c406368"
         }
       },
+      "path": "example/example_ex03_lfsr8",
       "format_errors": [],
       "category": "sequential",
       "category_reason": "状态存储、移位或边沿逻辑",

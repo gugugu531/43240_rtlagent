@@ -1,6 +1,6 @@
 # Agent User Manual：配置、运行、输入输出与扩展
 
-本文是当前 Agent 框架的完整使用手册，按 2026-10-09 工作区实现核对。首次使用先读
+本文是当前 Agent 框架的完整使用手册，按 2026-10-14 工作区实现核对。首次使用先读
 [Quickstart](quickstart.md)，配置可直接参照 [example.yaml](../../config/example.yaml)。
 [开发规范](conventions.md)单独维护协作要求；历史笔记和实验保留当时结论，不代替当前用法。
 
@@ -116,7 +116,7 @@ flowchart TB
 | 请求模型名 | single_generate：`MODEL_NAME` → `/models` 第一项 → `default`；其他流程：YAML `model` / `LLM_MODEL` | 普通模型配置默认 `mock-model`；统一实验将配置模型名传给两个模式的 `MODEL_NAME` | `services/model.py` 解析并记录实际请求模型 |
 | **模型 API key 的环境变量名** | YAML `api_key_env` | 默认 `LLM_API_KEY`，允许改为其他合法环境变量名 | `core/configuration.py` 根据这个名字去环境中读取实际密钥 |
 | **模型 API key 的实际值** | 上一行指定的环境变量，例如 `LLM_API_KEY` | 未设置时为空；single_generate 与 baseline 一样不发送认证头 | `core/configuration.py` 放入 `ModelConfig`；普通请求在非空时加入 `Authorization: Bearer ...` |
-| 模型服务调用超时 | YAML `timeout_s` / `LLM_TIMEOUT_S` | 省略或 null 时 single_generate、evidence_repair 为 300 秒，其余为 180 秒；显式值及剩余预算仍限制调用 | `services/model.py` 限制 HTTP 调用时间 |
+| 模型服务调用超时 | YAML `timeout_s` / `LLM_TIMEOUT_S` | 省略或 null 时 single_generate、evidence_repair、evidence_a0/a1/a2 为 300 秒；search_*、repair_loop 等其余流程为 180 秒；显式值及剩余预算仍限制调用 | `services/model.py` 限制 HTTP 调用时间 |
 | **投题令牌的预期值** | 环境变量 `FPGACHINA_TOKEN`，部署者按主办方提供的令牌设置 | HTTP 服务必须配置；与模型 API key 是两项独立凭据 | `serve/serve_api.py` 启动加载模块时读取，用于验证入站投题请求 |
 
 **准确地说，当前 YAML 不支持直接填写 API key 值。** 它保存的是 `api_key_env`，实际值来自环境变量；核心配置读取器也不会自动加载 `.env` 或 `remote.env`。如果外层脚本读取这些文件，需要由该脚本把值导出到环境后再启动 Agent。
@@ -131,7 +131,7 @@ API key 用于连接模型服务，投题令牌用于接收主办方请求；两
 |---|---|---|---|
 | 输入、输出目录 | `run.sh` 的两个位置参数，转成 Python 的 `--input`、`--output`；HTTP 模式由服务创建临时目录 | 决定从哪里读取题目、在哪里保存结果 | `run.sh` 固定路径；`main.py` 接收；`task.py` 与 `recording/artifacts.py` 使用 |
 | 配置文件路径 | CLI（命令行参数）`--config`，其次 `AGENT_CONFIG` | 均未提供时为 `config/example.yaml` | `main.py`、`core/configuration.py` |
-| Workflow 名称 | YAML `workflow.type` / `AGENT_WORKFLOW` / CLI `--workflow` | `single_generate`；可选 `repair_loop`、`evidence_repair` | `configuration.py` 解析；`supervision.py` 的 Worker（求解子进程）通过 `core/registry.py` 构造实例 |
+| Workflow 名称 | YAML `workflow.type` / `AGENT_WORKFLOW` / CLI `--workflow` | `single_generate`；可选修复与候选对照见第 5.1 节 | `configuration.py` 解析；`supervision.py` 的 Worker（求解子进程）通过 `core/registry.py` 构造实例 |
 | 扩展模块 | YAML `imports` / CLI `--import-module` | 默认无；用于注册自定义 Workflow 或 Node | `core/registry.py` 导入模块，登记实现 |
 | 本地单题预算 | YAML `runtime.deadline_s` / `AGENT_DEADLINE_S` / CLI `--deadline-s` | 360 秒；还受 HTTP 请求剩余时限的上限约束 | `core/budget.py` 计算可用时间，`core/supervision.py` 强制停止 |
 | 清理预留时间 | YAML `runtime.reserve_s` / `AGENT_RESERVE_S` / CLI `--reserve-s` | 20 秒；从可供求解的时间中扣除 | `core/budget.py`、`core/supervision.py` |
@@ -179,7 +179,9 @@ Agent 通过 HTTP 调用已经启动的模型服务。若使用仓库中的示�
 | 显存比例与设备 | `GPU_UTIL` 默认 `0.90`；`HIP_VISIBLE_DEVICES` 默认 `0` | 控制模型服务使用的显存比例和可见设备 |
 | 额外服务参数 | `VLLM_EXTRA_ARGS`，默认空 | 例如指定 reasoning 解析方式，影响响应中正文与思考内容的分离 |
 
-这些是模型服务的启动输入，`run.sh` 不负责加载权重或启动 vLLM。健康检查中的 `MODEL_NAME` 只覆盖返回给调用者的模型显示名；真正发给模型服务的请求模型名由 `services.model.model` / `LLM_MODEL` 决定。
+这些是模型服务的启动输入，`run.sh` 不负责加载权重或启动 vLLM。HTTP 健康检查优先显示 `MODEL_NAME`，否则显示有效配置中的模型名。默认 `single_generate` 和原始 baseline
+也优先用 `MODEL_NAME` 发出模型请求，未设时查询 `/models`；其他流程使用 `services.model.model` / `LLM_MODEL`。
+统一实验会把有效模型名传给两个模式的 `MODEL_NAME`，详见第 12 章。
 
 ### 2.6 输入从哪里进入：汇总图
 
@@ -218,6 +220,23 @@ CLI、HTTP 子进程和实验样本共用配置解析接口；RunSpec 将模型�
 提供自定义 YAML 时，未填写的字段由 Python 内置默认值补齐，不是继续叠加 `example.yaml`。
 `example.yaml` 与内置默认运行值保持一致，但修改示例文件不会改变自定义配置的缺省来源。
 
+
+### 2.8 上下文、累计 token 与外置资料
+
+以下可选字段不改变默认单次生成策略，未配置时不启用累计限额或资料注入。字段说明与可复制的注释见
+[example.yaml](../../config/example.yaml)，严格计数、失败处理和来源约束以[运行接口](design/agent-runtime.md)为准。
+
+| 配置位置 | 用途 |
+| --- | --- |
+| `services.model.tokenizer_dir`、`tokenizer_sha256`、`template_sha256` | 本地 tokenizer 与模板计数及指纹核验，不下载或执行模型仓库代码 |
+| `services.model.context_limit`、`strict_context` | 上下文容量与严格计数；按完整片段省略可选资料 |
+| `services.model.token_total_limit`、`token_output_limit` | 整题累计输入加输出、累计输出限额，与单次输出上限分别处理 |
+| `services.model.enable_thinking` | 普通生成/修复请求的模板选项；默认 baseline_rtl 请求忽略它，并按实际请求计数 |
+| `services.knowledge.corpus_path` | 外置修复卡位置；仅支持资料检索的流程使用，无法读取或格式错误时记录原因并回退 |
+| `runtime.initial_state` | 支持重放的流程读取初始检查点，核验身份并扣除共享首次成本 |
+
+这些路径按 YAML 所在目录解析。未知 token 用量不当作零；开启严格限额需准备可用的本地计数资料。
+知识库内容单独提供，不随 Git 上传；参考答案、测试台和官方判定不能成为修复资料。
 
 ## 3. 默认单次生成的信息流
 
@@ -372,6 +391,19 @@ flowchart TD
 | repair_loop | max_rounds=3、max_tokens=4096、temperature=0.2、timeout_s=180、use_skills=true、max_request_retries=1 | 按接口 → lint → synth 检查，反馈修复、候选保护与有限请求重试 |
 | evidence_repair | max_tokens=8192、temperature=0、top_p=1、timeout_s=300、max_request_retries=1、max_feedback_chars=1600 | 方案 A；相同分层检查，结构化有限反馈，不用技能，最多修复一次；失败修复保留完整旧候选 |
 
+其他已实现流程如下；E1 指结构化修复与资料检索对照，E2 指修复次数与候选数量对照。
+
+| 流程 | 用途与入口 |
+| --- | --- |
+| `evidence_a0/a1/a2` | 同一首次提示，分别不修复、最多一次结构化修复、修复加短卡；直接选择注册名 |
+| `search_initial`、`search_r1/r2`、`search_r2_guided`、`search_c2/c3` | 保存共享起点、有限修复或独立候选；直接选择注册名 |
+| `single_generate_long_output` | 单次长输出对照；需显式导入 `agent.workflows.single_generate_long_output` |
+
+E1/E2 的参数、候选规则、初始检查点及停止点统一见[运行接口](design/agent-runtime.md)。
+`search_*` 的生成 Node 上限为 300 秒，但未显式配置的服务上限为 180 秒，实际调用取较小值。
+长输出对照的输出上限为 32768、Node 上限为 900 秒；若使用完整额度，还需显式配置
+`services.model.timeout_s: 900`、`runtime.deadline_s: 960`，并准备足够服务上下文；它不属于严格 baseline 请求等价结果。
+
 单次 Node 上限还受服务上限和剩余整题预算约束，不是总能使用 300 秒。直接注入 `ModelConfig()` 时其上限仍为 180 秒；标准配置入口根据 Workflow 决定默认值。
 repair_loop 的 max_model_calls 默认 max_rounds+max_request_retries。要换选择或失败策略，继承 `RepairLoop` 覆盖 `choose()` 或 `decide()`，注册为新的 Workflow 名称。
 它遇到综合通过停止，但综合通过不证明行为正确；完整文件修复尚无程序化 patch 应用。
@@ -380,6 +412,9 @@ repair_loop 的 max_model_calls 默认 max_rounds+max_request_retries。要换�
 RAG、Reflexion、波形或 testbench，供后续一次只改变一个变量的消融实验使用。
 
 ## 6. 候选与答案选择
+
+本节描述 `repair_loop`；`evidence_repair`、E1/E2 在全部检查失败时保留完整候选的回退规则见
+第 5.1 节和[运行接口](design/agent-runtime.md)，不能把这里的清空规则套用于所有流程。
 
 修复流程把三个角色分开管理：
 
@@ -481,14 +516,14 @@ trace 末行被打断时，原片段保存为 `trace_partial.txt`。
 
 ```bash
 # 以下命令均在 43240-agent/ 下执行。
-LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/agent-single
+LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-single
 
 # 显式选择配置与 Workflow。
-./run.sh ../tasks/ex03_lfsr8 /tmp/agent-repair \
+./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-repair \
   --config config/example.yaml --workflow repair_loop
 
 # 可直接调用 Python 入口；同样经过 Supervisor。
-python3 -m agent.main --input ../tasks/ex03_lfsr8 --output /tmp/agent-python \
+python3 -m agent.main --input ../tasks/example/example_ex03_lfsr8 --output /tmp/agent-python \
   --config config/example.yaml --workflow single_generate
 ```
 
@@ -514,11 +549,11 @@ python3 -m agent.main --input ../tasks/ex03_lfsr8 --output /tmp/agent-python \
 ```bash
 # 从示例复制一份开发配置；-n 避免覆盖已经存在的个人配置。
 cp -n config/example.yaml dev/configs/my-agent.yaml
-./run.sh ../tasks/ex03_lfsr8 /tmp/agent-personal --config dev/configs/my-agent.yaml
+./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-personal --config dev/configs/my-agent.yaml
 
 # 也可以通过环境变量选择；后续命令会继续继承该设置。
 export AGENT_CONFIG=dev/configs/my-agent.yaml
-./run.sh ../tasks/ex03_lfsr8 /tmp/agent-env-config
+./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-env-config
 ```
 
 `config/default.yaml` 已改名为 `config/example.yaml`。省略配置参数的默认运行已同步使用新路径；
@@ -597,7 +632,7 @@ Agent 与 baseline 必须使用同一模型服务；标准入口的 single_gener
 | --- | --- | --- |
 | TaskSpec | id、prompt、interface、top、expected_interface、raw_prompt、raw_interface | 原始字段保留目录输入的首尾空白供 baseline 节点使用；原字段和 top 推断供其他流程使用 |
 | ComponentSpec | name、module、implementation、parameters | 不可变元数据；不可描述参数为 unknown，不调用任意对象的 repr |
-| ModelRequest | messages、max_tokens、temperature、timeout_s、purpose、model、top_p、stream、profile | 容器从调用者分离；top_p 为 None 时不发送，stream 为 None 时不发送；baseline_rtl 请求不发送认证头 |
+| ModelRequest | messages、max_tokens、temperature、timeout_s、purpose、model、top_p、stream、profile、chat_template_kwargs、seed | 容器从调用者分离；top_p 为 None 时不发送，stream 为 None 时不发送；baseline_rtl 请求不发送认证头 |
 | ModelReply | call_id、content、model、request_id、finish_reason、usage、elapsed_s、response_artifact | 标准正文与原始 HTTP 响应分开；用量可以未知 |
 | ModelCallError | kind、retryable、status_code、call_id、elapsed_s、evidence | 传输、HTTP、JSON、协议或后端错误，不等同于 RTL 错误 |
 | Candidate | id、code、code_hash、source_call_id、parent_id、source_stage、round、extraction_status | 不可变代码与来源；检查记录独立保存 |
@@ -685,7 +720,7 @@ class CountThenGenerate(Component):
 在方案目录运行：
 
 ```bash
-LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/custom-out \
+LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/custom-out \
   --import-module agent.workflows.custom_example --workflow count_then_generate
 ```
 
@@ -705,7 +740,7 @@ LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/custom-out \
 | vivado_synth | CheckInput → CheckResult | timeout_s=900、minimum_s=0 |
 | structured_feedback | FeedbackInput → StructuredFeedback | max_summary_chars=1600 |
 
-GenerateInput 包含 task、feedback、parent、round。ExtractInput 包含 reply、round、parent_id、source_stage。
+GenerateInput 包含 task、feedback、parent、round，以及可选的 optional_pieces、seed。ExtractInput 包含 reply、round、parent_id、source_stage。
 ExtractionOutput 包含 extraction 和可空 candidate。CheckInput 包含 candidate。
 提取登记候选但不选择答案，检查 Node 返回证据而不决定修复。
 
@@ -796,8 +831,8 @@ Supervisor 只在 Worker 停止后接管 trace，校验恢复检查点中的哈�
 
 | experiment 字段 | 默认值或要求 |
 | --- | --- |
-| `tasks.root` | 实验必填，题目根目录；相对 YAML 所在目录解析 |
-| `tasks.ids` / `tasks.list` | 题名列表 / 每行一个题名的清单文件；两者互斥；都未指定时枚举题目 |
+| `tasks.root` | 实验必填，支持 `tasks/` 按来源分组或单个来源目录；相对 YAML 所在目录解析 |
+| `tasks.ids` / `tasks.list` | 题号列表 / 每行一个题号的TXT清单文件（可跨来源，兼容原题号别名）；两者互斥；都未指定时枚举题目 |
 | `tasks.exclude` | 默认 `dev/configs/exclude.txt`，CLI 选题也不绕过排除 |
 | `modes` | `[agent]`；真实服务可加入 `baseline`；mock 不允许 baseline |
 | `samples` | `1`，每题每模式的采样数，正整数 |
@@ -860,7 +895,7 @@ Python 可直接给 collect_metrics 传自定义 collector；当前实验 YAML/C
 未知 token 是 null，不是零；失败或中断调用不能推算用量。指标异常标为 error，不修改答案。
 工具环境失败标为 unavailable，官方聚合继续按原有 tool_error 规则排除，不能冒充有效零分。
 汇总复用 selftest/score.py；Agent/baseline 有效样本覆盖一致时才给出配对增益，不能单凭增益判断
-某个组件贡献。默认服务上限与原始 baseline 的 300 秒不同，remote-smoke 示例显式对齐为 300 秒。
+某个组件贡献。服务默认上限因 Workflow 而异；remote-smoke 示例显式设为 300 秒，实际请求仍受 Node 和整题预算约束。
 
 ```text
 dev/runs/<experiment_id>/
@@ -932,21 +967,23 @@ Dockerfile 已复制 config/ 与 baseline.py；官方基础镜像仍是占位项
 
 当前限制：
 
-- 没有历史提取/选择/完整流程重放、新实验自动比较和自动批量消融。
-- 没有行为检查、程序化 patch 修复和多候选搜索；内置 lint/synth 不证明功能正确。
+- 已支持 E1/E2 的初始检查点重放与有限候选对照；没有通用的历史提取/选择/完整流程重放、新实验自动比较和自动批量消融。
+- 已支持有限独立候选搜索；没有行为检查或程序化 patch 修复，内置 lint/synth 不证明功能正确。
 - 没有记录保存期限、磁盘上限和自动清理策略；中断可能留下工具临时目录。
 - 自定义 Python 指标没有独立进程硬监督；用户自行脱离进程组的后代不受保证。
 - 客户端结束不证明共享服务推理取消，backend_inference_cancelled 记录 unknown。
 - 最终模型、依赖与服务版本未锁定；模型声明、manifest 和 REPORT 仍有占位内容。
 - 当前框架做过小规模真实验证；本地 mock 回归不能代表最终比赛 GPU 或全题集收益。
 
-验收来源见[第五阶段记录](notes/2026-10-05-stage5-progress.md)与[真实模型单题实验](experiments/20261005-193024-stage4-real-single-ff1050ad.md)。
+近期运行接口验收见[PR #33 记录](notes/2026-10-14-pr33-review-validation.md)，默认生成的模型实验见
+[Qwen3 汇总](notes/2026-10-11-autodl-qwen3-results.md)。早期打包与单题证据见[历史索引](notes/index.md)。
+各记录只证明对应版本和范围，不将默认生成成绩视为 E1/E2 的收益。
 
 独立打包验证可在方案目录运行：
 
 ```bash
 python3 dev/tools/submission.py --stage /tmp/agent-manual-submission \
-  --task ../tasks/ex03_lfsr8 --output /tmp/agent-manual-submission-smoke
+  --task ../tasks/example/example_ex03_lfsr8 --output /tmp/agent-manual-submission-smoke
 ```
 
 暂存目标必须不存在且位于源码树外；这里的暂存不会发布或部署。
@@ -966,7 +1003,7 @@ python3 dev/tools/submission.py --stage /tmp/agent-manual-submission \
 | 模型连接失败或 HTTP 错误 | 核对 backend、模型名、地址、服务是否已启动、API key 环境变量名；查看 trace 中的 `llm/failed` 事件及 `response.json` 或 `response.txt` | `services/model.py` |
 | 模型有回复却没有候选 | 查看 `response.json` 和 trace 中的 `extract/result` 事件；可能只有 reasoning、模块不完整或正文为空 | `services/model.py`、`nodes/extraction.py` |
 | 提示输出被截断 | 看 `finish_reason`、提取诊断与 Workflow 的 `max_tokens`；同时核对模型服务上下文容量 | `nodes/generate.py`、`services/model.py` |
-| 默认没有 lint/synth 日志 | `single_generate` 本来就不调用工具；需要 `repair_loop`，或在开发实验单独启用 judge | `workflows/`、`dev/tools/metrics/judge.py` |
+| 默认没有 lint/synth 日志 | `single_generate` 本来就不调用工具；需要修复/候选流程，或在开发实验单独启用 judge | `workflows/`、`dev/tools/metrics/judge.py` |
 | 接口不一致但仍继续检查 | 从题面列表推断出的差异是非阻断提示；独立接口声明有不同约束等级 | `core/interface.py` |
 | Vivado 不可用 | 检查 `VIVADO_BIN` 或 PATH、初始化脚本、授权和工具日志；不是模型代码错误 | `services/vivado.py` |
 | 有答案但 Workflow stopped | 已选候选可保留；后续验证可能因环境、超时或调用上限停止，查看 stop_reason | `workflows/repair_loop.py`、`core/context.py` |

@@ -83,4 +83,4 @@ Supervisor 只在 Worker 停止后接管记录，追加 `supervisor/result`，�
 证据脱敏。run ID 由 Supervisor 生成后传给 Worker，因此两边不需要额外的交接文件。
 
 当前分析工具读取新版调用生命周期，并保留官方 baseline 分析。汇总 token 数只表示已知部分；
-统一指标与目录迁移已完成；回放暂缓。
+通用历史 trace 重放尚未实现。E1/E2 的初始检查点重放是另一项能力，见[运行接口](agent-runtime.md)。

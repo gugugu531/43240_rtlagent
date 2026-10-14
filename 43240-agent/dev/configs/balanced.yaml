@@ -11,7 +11,7 @@ runtime:
     level: full
 experiment:
   tasks:
-    root: ../../../tasks/pool
+    root: ../../../tasks
     list: balanced.txt
   modes: [agent]
   samples: 1

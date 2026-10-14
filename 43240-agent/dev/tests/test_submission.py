@@ -31,7 +31,7 @@ class SubmissionTests(unittest.TestCase):
         self.assertTrue(any(f['path']=='config/example.yaml' for f in manifest.files))
         for row in manifest.files:
             self.assertEqual(row['sha256'], hashlib.sha256((staged/row['path']).read_bytes()).hexdigest())
-        result = smoke_submission(staged, ROOT.parent/'tasks/ex03_lfsr8', self.work/'mock')
+        result = smoke_submission(staged, ROOT.parent/'tasks/example/example_ex03_lfsr8', self.work/'mock')
         self.assertTrue(result.ok)
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_POST(self):
@@ -46,7 +46,7 @@ class SubmissionTests(unittest.TestCase):
         try:
             env=dict(os.environ,LLM_BASE_URL=f'http://127.0.0.1:{server.server_port}/v1',LLM_MODEL='local-test')
             env.pop('PYTHONPATH',None)
-            completed=subprocess.run([str(staged/'run_baseline.sh'),str(ROOT.parent/'tasks/ex03_lfsr8'),str(self.work/'baseline')],
+            completed=subprocess.run([str(staged/'run_baseline.sh'),str(ROOT.parent/'tasks/example/example_ex03_lfsr8'),str(self.work/'baseline')],
                                       env=env,cwd=staged,capture_output=True,timeout=10)
             self.assertEqual(completed.returncode,0)
             self.assertIn('module TopModule', (self.work/'baseline/solution.v').read_text())
