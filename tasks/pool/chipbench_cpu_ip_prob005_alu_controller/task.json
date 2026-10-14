@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_cpu_ip_prob005_alu_controller",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_cpu_ip/Prob005_ALU_Controller_prompt.txt": "09981eb6478a2757873ff09ae0fd19ecceeb5edc715d6d567353c6408af6a24a",
+      "Verilog Gen/dataset_cpu_ip/Prob005_ALU_Controller_ref.sv": "d8cf11d7745ddd6e03925503341779e3297aa469365c174aa3b832093c2d392a",
+      "Verilog Gen/dataset_cpu_ip/Prob005_ALU_Controller_test.sv": "13bf6ce73dee04e64f4feda3c0f6ccc31ba332ba9ef00992ebecff38d1b283fb"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

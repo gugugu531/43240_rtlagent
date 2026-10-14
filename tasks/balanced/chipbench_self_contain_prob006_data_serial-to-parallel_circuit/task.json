@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob006_data_serial-to-parallel_circuit",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob006_data_serial-to-parallel_circuit_prompt.txt": "71a54fa908d518f5521261d8c852fb239b68a92c334956a13012aba172a42243",
+      "Verilog Gen/dataset_self_contain/Prob006_data_serial-to-parallel_circuit_ref.sv": "612a1b3f8d00bf6b1491dffd0e6e7b759bae9f77dc4758f66490d4c5cd53509d",
+      "Verilog Gen/dataset_self_contain/Prob006_data_serial-to-parallel_circuit_test.sv": "4776f8717c833f570327b21afc2570a3cfbe0d99c4377b6294feb3b44a71762d"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

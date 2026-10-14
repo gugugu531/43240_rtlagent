@@ -1,0 +1,25 @@
+{
+  "task_id": "cvdp_copilot_lfsr_0001",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "cvdp",
+    "url": "https://github.com/NVlabs/cvdp_benchmark",
+    "commit": "8e894cf74414ab1eaea1e2b4e80a02f123df07b6",
+    "files": {
+      "example_dataset/cvdp_v1.1.0_example_nonagentic_code_generation_no_commercial_with_solutions.jsonl": "ab4a25cbc7c9827db560e45219058e313081a83f4859b9d8e2c84fd832f258ef"
+    },
+    "variant": "local_cocotb_to_sv_adapter"
+  },
+  "adaptations": [
+    "保留上游参考RTL和规格，Cocotb改写为独立SystemVerilog测试台",
+    "由原随机种子抽测扩大为全部255个非零种子，逐拍及周期检查；成绩不等同原始CVDP",
+    "仅代表公开样例，不代表完整CVDP题集"
+  ]
+}

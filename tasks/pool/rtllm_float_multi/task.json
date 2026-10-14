@@ -1,0 +1,28 @@
+{
+  "task_id": "rtllm_float_multi",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "rtllm",
+    "url": "https://github.com/hkust-zhiyao/RTLLM",
+    "commit": "51ed553d0ffd32797a1a0a13e051656bf302c81f",
+    "files": {
+      "Arithmetic/Other/float_multi/design_description.txt": "b5b52a39d155ff8bec4a95148ac3f3be9b6ac803b53ed8d139c9ba49a8852df7",
+      "Arithmetic/Other/float_multi/verified_float_multi.v": "b22bf486597af9c3fdc3f8913a3fff291482a9387eff57f64644fa0a65e6c6c3",
+      "Arithmetic/Other/float_multi/testbench.v": "db695b8279956680f1ce48e364b0a3f3aae82d442af50fea069905bb5b3c2195"
+    }
+  },
+  "adaptations": [
+    "统一顶层为 TopModule / RefModule / tb；子模块分别命名",
+    "保留上游断言；一次完整测试台判定计为一个样本，不代表逐拍覆盖",
+    "失败信息置位，防止失败后无条件打印 Passed 的假通过",
+    "未到达判定出口的提前结束或超时不得通过",
+    "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob034_gaming_machine_billing_program",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob034_gaming_machine_billing_program_prompt.txt": "5eef138d9dcdbb740b7e617d2afaa4afa3fff620909bfdf42a4d06c7204c3d10",
+      "Verilog Gen/dataset_self_contain/Prob034_gaming_machine_billing_program_ref.sv": "643e8ac80f2e1c25ccd43f96da646203717373f4e885c592112c74240edd3284",
+      "Verilog Gen/dataset_self_contain/Prob034_gaming_machine_billing_program_test.sv": "b00933ad999364cc522fd733b4c4e28b3efae0b2a3d04d0a7021e1d0499f5d7c"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "task_id": "rtllm_radix2_div",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "rtllm",
+    "url": "https://github.com/hkust-zhiyao/RTLLM",
+    "commit": "51ed553d0ffd32797a1a0a13e051656bf302c81f",
+    "files": {
+      "Arithmetic/Divider/radix2_div/design_description.txt": "4d05a33590edb04685a6c0f3caf32e0ceef55814f682a0165a35cbb6cb071ce4",
+      "Arithmetic/Divider/radix2_div/verified_radix2_div.v": "9d2d1bb5901e121303328cc8a9faa23190f3d999192b040d71c97716fd78ca1c",
+      "Arithmetic/Divider/radix2_div/testbench.v": "ac148e3a5c599d0c487bc178943f3352ec8878bea27b5240853ecb802e0eb602"
+    }
+  },
+  "adaptations": [
+    "统一顶层为 TopModule / RefModule / tb；子模块分别命名",
+    "保留上游断言；一次完整测试台判定计为一个样本，不代表逐拍覆盖",
+    "失败信息置位，防止失败后无条件打印 Passed 的假通过",
+    "未到达判定出口的提前结束或超时不得通过",
+    "上游外部测试向量按原值嵌入测试台，避免运行目录依赖"
+  ]
+}

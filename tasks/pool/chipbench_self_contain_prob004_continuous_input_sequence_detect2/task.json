@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_self_contain_prob004_continuous_input_sequence_detect2",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_self_contain/Prob004_continuous_input_sequence_detect2_prompt.txt": "a2c5981eddbd0190296547cd44a89cea31c7f3080529f6cbc11b82663b453d47",
+      "Verilog Gen/dataset_self_contain/Prob004_continuous_input_sequence_detect2_ref.sv": "1afd127863915b223dae44c8a71c8aef962af016c57c6b13884e78f8e182e6ca",
+      "Verilog Gen/dataset_self_contain/Prob004_continuous_input_sequence_detect2_test.sv": "5cbf2a4dd83568d8ba7fd7e21cf9f8f4545e384bbafe4ea2370eb0a94f1d7a75"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}

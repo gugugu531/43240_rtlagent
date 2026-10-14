@@ -1,0 +1,20 @@
+Implement the module named TopModule described below. Include every required helper module in your answer.
+
+Please act as a professional Verilog designer.
+
+A Linear Feedback Shift Register (TopModule) designed for generating pseudo-random sequences. This 4-bit TopModule uses a specific feedback mechanism to produce a sequence of bits that appears random.
+
+Module name:
+    TopModule
+
+Input ports:
+    clk: Clock signal to synchronize the shifting operation.
+    rst: Active high reset signal to initialize the register.
+
+Output ports:
+    out [3:0]: 4-bit output representing the current state of the TopModule.
+
+Implementation:
+The TopModule operates on the principle of shifting bits and applying feedback based on the XOR of specific bits in the register.
+The feedback is calculated by XORing the most significant bit (out[3]) and the second most significant bit (out[2]). The result is inverted to produce the feedback signal.
+On the rising edge of the clock (clk), if the reset (rst) is high, the register is initialized to zero. Otherwise, the bits in the register are shifted left, and the new feedback value is inserted at the least significant bit (LSB).

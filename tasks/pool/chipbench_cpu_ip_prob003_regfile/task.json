@@ -1,0 +1,25 @@
+{
+  "task_id": "chipbench_cpu_ip_prob003_regfile",
+  "top": "TopModule",
+  "part": "xczu3eg-sbva484-1-e",
+  "period_ns": 5,
+  "reference_module": "ref.sv",
+  "testbench": "tb.sv",
+  "tb_top": "tb",
+  "extra_files": [],
+  "reference": "reference/solution.sv",
+  "source": {
+    "dataset": "chipbench",
+    "url": "https://github.com/zhongkaiyu/ChipBench",
+    "commit": "b4ba3a06759804ec88c26c3cf15b28b9a90b3443",
+    "files": {
+      "Verilog Gen/dataset_cpu_ip/Prob003_RegFile_prompt.txt": "025ad6a8e3cde323eaaeab96b0500e1a3fee0c5f5864cc8f4a9f159a26d2ffc2",
+      "Verilog Gen/dataset_cpu_ip/Prob003_RegFile_ref.sv": "6f62f0750b941784fbce208595cdb5e1e29ce60c9b006ffdccea1f5ffba75904",
+      "Verilog Gen/dataset_cpu_ip/Prob003_RegFile_test.sv": "6b96d327d8f9a864e56c88e160f5ea869e291d627cf5ac2a036b6b7fcaf1f5b5"
+    }
+  },
+  "adaptations": [
+    "参考侧子模块独立命名，避免待测实现借用参考侧子模块",
+    "补入上游测试台及题面宏定义，仅用于参考答案独立编译"
+  ]
+}
