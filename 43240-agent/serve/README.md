@@ -1,96 +1,90 @@
-# serve/
+# 推理服务与投题接口
 
-推理服务与投题接口。两者跑在同一个实例里，互不干扰。
+以下命令在 `43240-agent/` 下运行，按 2026-10-14 实现核对。
+推理服务使用本机 8000 端口，投题接口使用 7860 端口；启动参数最终须与 `model/MODEL.md`、`REPORT.md` 的声明一致。
+完整方案入口见 [README](../README.md)。
 
+## 不需要 GPU 的流程检查
+
+```bash
+LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-smoke
 ```
-  8000   vllm.sh        推理服务   绑 127.0.0.1，不暴露
-  7860   serve_api.py   投题接口   绑 127.0.0.1，经 rc-tunnel 对外
+
+这是开发工作区示例，题库不随方案打包。假模型只验证流程，不能证明 RTL 功能正确。
+
+## 启动本地模型
+
+准备本地权重、依赖和工具后，在一个终端启动服务：
+
+```bash
+MODEL=/models/Qwen3-8B ./serve/vllm.sh
 ```
 
----
-
-## 开发期：不需要 GPU
+在另一个终端配置 Agent：
 
 ```bash
 export LLM_BACKEND=openai
-export LLM_BASE_URL=https://api.deepseek.com/v1     # 或任意 OpenAI 兼容端点
-export LLM_API_KEY=sk-xxxxxxxx
-export LLM_MODEL=deepseek-coder
-```
-
-无需启动 `vllm.sh`，`agent/llm.py` 将直接访问所配置的端点。
-
-## 正式提交：必须是本地权重
-
-```bash
-MODEL=/models/Qwen3-8B ./serve/vllm.sh &
-
-export LLM_BACKEND=openai
-export LLM_BASE_URL=http://localhost:8000/v1        # 换成本机
-export LLM_API_KEY=dummy
+export LLM_BASE_URL=http://127.0.0.1:8000/v1
+export MODEL_NAME=Qwen3-8B
 export LLM_MODEL=Qwen3-8B
 ```
 
-智能体代码无需改动，差异仅在于三个环境变量。但提示词与重试策略未必可以直接平移，商用
-API 与本地小模型在输出长度、指令遵循、代码格式稳定性上差异明显，围绕前者调好的东西
-换到后者常常直接失效。尽早跑一次本地模型。
+`vllm.sh` 以权重目录的最后一级名称作为服务模型名。`MODEL_NAME` 用于 baseline 和默认
+`single_generate` 路径；其他模型路径使用 `LLM_MODEL`。这里同时设置，避免更换流程时请求不同模型。
+`MAX_LEN`、`GPU_UTIL`、`VLLM_EXTRA_ARGS` 会改变服务行为，必须记录实际值；默认值不代表最终选型。
+Agent 与 baseline 必须连接同一服务。正式运行使用预先准备的本地权重，不能依赖外部模型 API。
 
-## 起投题接口
+## 开发期连接带鉴权的模型端点
+
+默认 `single_generate` 的 baseline 兼容路径不发送 Authorization 头。需要模型端点鉴权时，
+开发实验可显式选择 `evidence_repair` 或 `repair_loop`，再配置 `LLM_API_KEY` 和 `LLM_MODEL`：
 
 ```bash
-export FPGACHINA_TOKEN=<赛事方发的令牌>
-export MODEL_NAME=Qwen3-8B
-uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
+export AGENT_WORKFLOW=evidence_repair
+export LLM_BACKEND=openai
+export LLM_BASE_URL='https://your-model-endpoint.example/v1'
+export LLM_API_KEY='替换为开发端点密钥'
+export LLM_MODEL='替换为服务实际模型名'
+```
 
-# 让外面能访问到：平台只接管绑在 127.0.0.1 上的 HTTP 服务
+这些是需替换的配置示例。模型端点鉴权与下面的投题令牌是两件事；不要把密钥写入 Git。
+外部模型上的结果不能替代本地目标模型与 GPU 验证。
+
+## 启动投题接口
+
+设置好模型后启动接口。默认流程可显式设回 `single_generate`；选择其他流程时按其预算和工具要求配置。
+
+```bash
+export AGENT_WORKFLOW=single_generate
+export FPGACHINA_TOKEN='替换为赛事投题令牌'
+export AGENT_RECORD_ROOT=/tmp/agent-records
+uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
+```
+
+检查接口：
+
+```bash
+curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://127.0.0.1:7860/v1/health
+```
+
+响应的 `track` 为 `rtl`。`ready: true` 只表明接口完成配置读取，不证明模型、Vivado 或整个求解链路已就绪；
+还应运行单题检查。`vram_gb` 是接口查询时的值，不是完整评测期间的峰值。
+
+Radeon Cloud 环境的既有部署方式是将投题接口绑定到环回地址，再通过平台隧道暴露：
+
+```bash
 /var/run/secrets/frp-self-service/install
 "$HOME/.local/bin/rc-tunnel" expose --port 7860
 ```
 
-自测：
+仅暴露投题接口，8000 端口用于内部模型调用。平台差异与历史环境验证见开发区的
+[远端管理](../dev/docs/design/remote-tools.md)；独立提交包不包含开发区。
 
-```bash
-curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://localhost:7860/v1/health
-# {"ready":true,"track":"rtl","model":"Qwen3-8B","vram_gb":21.4}
-```
+## 时间、文件与运行维护
 
-`track` 必须是 `"rtl"`，赛事方投题前会核对，不符即拒投。
-
----
-
-## 几处容易踩的地方
-
-**绑 `127.0.0.1`，不是 `0.0.0.0`。** Radeon Cloud 的 `rc-tunnel` 只接管绑在环回口上的
-HTTP 服务，绑 `0.0.0.0` 平台不接管。绑错了服务本身是活的，但外面永远打不进来，在赛事方
-那边看起来和挂掉没有区别，而失败不重投。
-
-**只暴露 7860 一个端口。** 平台限制一个 notebook 同时只能暴露一个端口。vLLM 的 8000
-由智能体经 `127.0.0.1` 内部调用，不要去暴露。**同时参加两个赛道的队伍需要两台 VM。**
-
-**令牌检查不是可选项。** 平台给出的公网 app URL 不带业务层鉴权，没有令牌检查，任何人
-拿到网址都能投题。
-
-**工程与中间文件落本地盘。** `AGENT_TMP` 默认 `/tmp`。云平台的 `/workspace` 是 NFS，
-Vivado 综合产生的大量小文件写在上面极慢。这不是优化建议。
-
-**服务要能连续跑数百次请求不重启。** 评测期间挂了就是 L0，赛事方不重投。注意每题之后
-清理临时目录与子进程，别把磁盘写满。
-
-**自己先超时，别让赛事方超时。** `serve_api.py` 把子进程超时设为 `deadline_s - 5`，
-到点回收并返回已有的最好结果。赛事方侧超时一定是 L0，自己先停至少还有 L1/L2 的可能。
-
----
-
-## 跨代架构的已知问题
-
-验证阶段的 gfx1100（W7900）与决赛的 gfx1201（R9700）是两代架构，预编译内核与 wheel
-不通用。基础镜像里已给出可用配置，但以下几条应当知悉：
-
-1. **跨卡张量并行与流水并行在 gfx1201 上不可用**，无 XGMI，集合通信库无法可靠启动。
-   四卡的推荐用法是每卡一个独立实例、四路并发。
-2. **FP8 存在「硬件有、软件未必用得上」的情况。** gfx1201 具备 FP8 E4M3 矩阵指令，
-   但部分框架缺少该架构的平台检测，会将 FP8 权重静默反量化为 FP32，导致算力浪费，
-   而且没有任何告警。
-3. **部分算子库在 RDNA 4 上不工作**，须显式关闭。
-4. **在 gfx1100 上做 FP8 量化只省显存、不获加速**，该架构无 FP8 矩阵指令。验证阶段
-   测到的量化收益不能直接外推到决赛。
+- `AGENT_TMP` 默认 `/tmp`，中间工程应使用本地盘，避免网络文件系统拖慢 Vivado。
+- 接口从收到请求起计算剩余时间，扣除准备时间，并预留 `min(0.25, deadline_s × 0.1)` 秒用于返回。
+  子进程接收剩余硬期限；内部运行预算还受配置的清理预留和单次调用超时约束。超时后恢复已保存的选择，不能保证一定得到可用答案。
+- 投题接口和模型端点分别管理鉴权。公网地址不能代替业务令牌检查。
+- 持续运行时检查临时文件、记录目录和子进程回收，先完成连续请求验证。云端实例用完立即释放。
+- 不同 GPU 架构、量化内核和服务版本必须分别验证；历史机器上可启动或测得的速度不直接外推到比赛环境。

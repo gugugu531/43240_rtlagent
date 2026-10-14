@@ -1,3 +1,5 @@
+> 2026-10-14 整理补注：以下保留当时记录与测量值。旧得分、pass@5 和比较范围见[指标说明](../design/experiment-reading.md)。
+
 # 20260925-184802-joint-A7-codev-r1-7b-quick
 
 | 项 | 值 |

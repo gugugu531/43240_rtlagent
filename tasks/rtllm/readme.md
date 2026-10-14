@@ -24,6 +24,8 @@ python3 tasks/rtllm/import.py --out 43240-agent/dev/runs/reimport-rtllm --manife
 
 ## 如何选题
 
+当前目录布局与跨来源选题见[题库索引](../index.md)。
+
 只维护TXT清单，每行一个题号，支持空行与`#`注释；不创建选题副本目录。
 本来源全量清单为[imported.txt](imported.txt)。跨来源清单可混写题号，实验配置的题目根目录设为`tasks/`。
 

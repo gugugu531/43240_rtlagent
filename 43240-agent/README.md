@@ -4,24 +4,19 @@
 调用本地部署的大模型生成 Verilog / SystemVerilog 代码，可选用 Vivado 检查并反复修改，
 最后输出 `solution.v`。
 
-> **当前状态：** 已建立 Registry、Python Workflow、Node、逐题运行上下文和运行器。
-> 默认 Workflow 为 `single_generate`，复用 baseline 的 RTL 提示、采样常量和提取函数，不加载技能或执行工具。
-> `repair_loop` 提供可选的多轮检查与修复，按证据选择答案、区分失败原因并限制重试。
-> `evidence_repair` 是方案 A 的最小实验骨架：结构化诊断、最多一次修复，不使用 ICL、规划、RAG 或 testbench。
-> 方案 A 的生成参数对齐 baseline（8192 tokens、temperature 0、top_p 1、300 秒）；失败修复保留完整旧候选，回退原因单独记录。
-> 上下文装配保留原提示，记录消息哈希、实际模板计数和整段省略；默认只观察 token 用量，可显式开启累计限额。
-> 严格配额先预留实际可用输出额度，再装配可选片段；工具版本查询使用独立临时目录。
-> E1（结构化修复与资料检索对照）提供 `evidence_a0/a1/a2`：同提示首份候选、结构化修复、修复加短卡（包含适用条件和验证记录的简短修复资料）；支持经过来源校验的初始阶段重放。
-> E2（修复次数与候选数量对照）提供 `search_r1/r2/c2/c3`：最多一/两次修复或两/三份独立候选，使用明确 seed（随机种子）、共享首次成本和自身证据选择；采样由 Agent 自身声明（默认 temperature 0.6、top_p 0.95），仅 E2 反馈统一工具临时路径。位选方向诊断 VRFC 10-1219 归为代码错误。
-> E2 的三次调用流程支持直接启动和从初始检查点重放：首个请求完成并建立检查点后，在第三次调用前或提前停止时保存 `stop_after_two.json`，只含当时求解信息和实际调用数；不追加推理或读取判定结果。首个请求失败、未形成检查点时不生成该停止点。
-> 知识库内容单独保存在本地，不随 Git 上传；通过 `services.knowledge.corpus_path` 指定。未配置时修复流程不注入资料。`search_r2_guided` 用于与最多两次修复比较，按每轮最新自身错误检索。
-> 修复提示明确区分接口属性与变量类型：保持模块名、端口名、方向、位宽和顺序，遵守题面类型约束；允许按编译诊断修正变量声明。此澄清只影响修复请求，首次提示不变。
-> 重放的工具身份只包含工具文件、配置及库、许可证、语言等相关环境；切换 Workflow 不改变身份，工具或相关配置变化仍拒绝重放。格式错误的外置知识库记录 `corpus_unavailable` 并继续原修复提示。
-> `enable_thinking` 只向普通生成/修复请求传递；默认 `single_generate` 使用 `baseline_rtl`，不传该选项，本地计数也使用模板默认选项，并记录配置被忽略。
-> 正式入口使用独立 Worker 和 Supervisor 管理时间、信号与工具进程，支持中断恢复。
-> 已提供 YAML 配置与统一实验入口，支持指定单题、重复采样、独立并发和可选判定指标。
-> 真实模型小规模验证已完成；模型与服务仍未最终确定，全量收益和历史重放尚未验证。
-> 首次运行见 [Quickstart](dev/docs/quickstart.md)，完整用法、输入来源与模块职责见 [User Manual](dev/docs/user-manual.md)，历史证据见[文档索引](dev/docs/readme.md)。
+当前默认 `single_generate` 复用官方 baseline 的 RTL 提示、采样和提取规则，不加载技能或执行工具。
+正式入口通过独立 Worker 和 Supervisor 管理预算、进程和中断恢复；模型与推理服务尚未最终确定。
+
+| 流程 | 用途 | 验证边界 |
+| --- | --- | --- |
+| `single_generate` | 单次生成，作为默认入口 | 请求与提取对齐 baseline；完成不代表功能正确 |
+| `repair_loop`、`evidence_repair` | 多轮修复或最多一次结构化修复 | 使用自身接口、编译和综合证据；不读取官方判定 |
+| `evidence_a0/a1/a2` | E1：结构化修复与资料检索对照 | 支持初始检查点重放；完整题集收益仍需独立验证 |
+| `search_initial`、`search_r1/r2/r2_guided/c2/c3` | E2：有限修复与独立候选对照 | 支持共享起点、停止点及显式随机种子；不是已确定的提交策略 |
+| `single_generate_long_output` | 长输出额度对照，需显式导入扩展 | 改变输出和超时额度，不作为严格 baseline 请求等价结果 |
+
+基本运行、模型连接和输出说明见下文；这些说明随方案包交付。开发工作区中可进一步阅读
+[Quickstart](dev/docs/quickstart.md)、[User Manual](dev/docs/user-manual.md)和[文档索引](dev/docs/readme.md)。
 
 ---
 
@@ -59,7 +54,7 @@
 | `agent/core/interface.py` | 结构化解析 ANSI、非 ANSI 接口并输出逐字段差异 |
 | `agent/core/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
 | `agent/recording/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
-| `agent/services/vivado.py` | 接口检查，以及带进程组清理和结构化结果的 lint、综合工具 |
+| `agent/services/vivado.py` | 带进程组清理和结构化结果的 lint、综合工具 |
 | `agent/recording/` | 保存模型与动作证据、trace、脱敏及通用运行/模型统计 |
 | `agent/prompts/skills.py` | 加载技能包，按工具报错挑选相关技能 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
@@ -171,7 +166,7 @@ HTTP 请求只发送 baseline 的字段，不附加 `stream` 或认证头。请�
 不表示代码完整或正确。`repair_loop` 继续使用原来的提示、请求参数和结构化提取节点。
 
 通过标准入口运行时，`services.model.timeout_s` 省略或为 `null` 表示按 Workflow 取默认值：
-`single_generate`、`evidence_repair` 为 300 秒，其余为 180 秒。显式服务上限和整题剩余预算仍可缩短调用，
+`single_generate`、`evidence_repair`、`evidence_a0/a1/a2` 为 300 秒，其余（包括 `search_*`）为 180 秒。显式服务上限和整题剩余预算仍可缩短调用，
 Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig()` 仍显式使用其 180 秒上限。
 模型发现最多等 30 秒，也受服务上限和剩余预算约束，耗时计入整题预算，不算一次生成调用。
 
@@ -220,6 +215,18 @@ E1 的 `evidence_a0` 使用方案 A 同一首次提示与提取，只保留首�
 复用自身检查并扣除共享首次时间与 token 成本，不读取官方 judge 或参考答案。
 所有求解仍经 run.sh/Supervisor；开发实验和隔离判定在 dev 中调度。三组都是实验变体，默认流程未切换。
 
+E2 的 `search_r1/r2` 最多修复一/两次，`search_c2/c3` 最多生成两/三份独立候选；
+`search_initial` 保存初始检查点，`search_r2_guided` 按每轮自身错误检索外置短卡。
+采样在 Python 中声明，默认 temperature=0.6、top_p=0.95、base_seed=20261013，逐次 seed 递增。
+未配置知识库时不增加资料；通过 YAML 的 `services.knowledge.corpus_path` 指定本地资料，
+缺失或格式错误时记录原因并继续原修复提示。资料内容单独提供，不随 Git 上传。
+三次调用流程建立初始检查点后，会在第三次调用前或提前停止时保存 `stop_after_two.json`；
+它记录共享前缀的真实状态，不额外调用模型，不可把共享成本重复相加。
+
+上下文保留题面、接口、完整候选和反馈，可选资料按整段装配。`services.model` 下可设置
+本地 tokenizer、上下文容量和累计 token 限额，默认不启用累计限额。未知用量不算零。
+`enable_thinking` 只影响普通生成/修复请求；默认 `baseline_rtl` 不传该选项，计数也按模板默认值。
+
 新增上下文、诊断、短卡检索和候选策略的接口约定见
 [Agent 运行接口](dev/docs/design/agent-runtime.md)。
 
@@ -261,34 +268,20 @@ Worker 停止后追加记录，不伪造模型或 Node 的结束。关闭模型�
 
 ## 4. trace.jsonl 记录的内容
 
-每行一个 JSON 对象，并自动带有以下公共字段。trace 不再单独记录格式版本；
-运行元数据中的 Git commit（7 位短 hash）就能确定写出它的代码版本。
+每行一个 JSON 对象，以 `run_id`、递增 `seq`、Unix 时间戳 `ts`、类别 `tool` 和事件 `event` 关联过程。
+代码版本记录于运行元数据中的 Git 短 commit；不另设 trace 格式版本。
 
-| 字段 | 含义 |
+| 需要追踪什么 | 事件与关联编号 |
 | --- | --- |
-| `run_id` | 本次 Agent 运行的标识，同一文件内保持一致 |
-| `seq` | 从 1 开始连续递增的事件编号 |
-| `ts` | 写入事件时的 Unix 时间戳 |
-| `tool` | 事件来源或类别 |
+| 配置、题目和记录目录 | `run/metadata`、`run/recording` |
+| 模型请求和结果 | `llm/started/succeeded/failed`，以 `call_id` 关联 |
+| 动作和嵌套步骤 | `node` 生命周期，以 `execution_id` 关联 |
+| 提取、候选与最终答案 | `extract`、`candidate/create/select`，保留来源调用与候选编号 |
+| 接口、lint、综合与复用 | 检查编号、状态及日志引用；复用不算新工具执行 |
+| 决策、预算和结束清理 | `workflow`、`budget`、`supervisor/result` |
 
-各类事件自己的字段如下：
-
-| `tool` | 何时写入 | 主要字段 |
-| --- | --- | --- |
-| `run` | 记录初始化与运行元数据 | 记录等级与详细记录目录、题目 ID、Workflow 描述、服务与预算配置、配置来源、Git 短 commit 与 dirty 状态 |
-| `node` | 动作开始与结束 | 开始事件带 `execution_id`、父执行、组件参数与输入摘要；结束事件只带耗时，以及输出摘要或错误 |
-| `workflow` | 流程自定义事件 | 决策理由、提示资源哈希及自定义诊断 |
-| `agent` | 开始、结束、出错、综合通过、提前停止 | `event`（start / done / error / accept / stop）、模型配置 |
-| `env` | 开始时 | `vivado_available`：本机是否找到 Vivado |
-| `skills` | 加载时、每次注入时 | 加载了哪些技能；本轮注入了哪些 |
-| `llm` | 调用开始与结束 | `event=started/succeeded/failed`、`call_id`、`purpose`、`tokens_in`、`tokens_out`、`finish_reason`、`elapsed_s`、错误分类与证据引用 |
-| `extract` | 每次解析模型回复 | `status`、`complete`、`target_module_found`、`module_names`、`multiple_blocks`、`suspected_truncation`、`diagnostics`；不记录代码正文 |
-| `candidate` | 候选创建和选择时 | `candidate_id`、`source_call_id`、`parent_id`、`code_hash`、`reason` |
-| `check_interface` | 每次检查接口 | `check_id`、`candidate_id`、统一状态、`blocking`、接口详情与摘要 |
-| `lint`、`synth` | 每次调用 Vivado 工具 | `check_id`、`candidate_id`、`command`、统一状态、`rc`、耗时、摘要及可用日志路径 |
-| `process` | 自定义外部动作的开始与结束 | `process_id`、命令、超时、状态与耗时 |
-| `supervisor` | Worker 停止并清理后 | 停止原因、退出码、选择恢复、未回收进程、后端推理取消状态 |
-| `budget` | 时间不够而停止时 | `reason` |
+完整字段约定在开发工作区的[记录格式](dev/docs/design/trace-schema.md)维护。
+没有结束事件的调用保持未知，模型正文和完整工具日志按引用保存于详细记录。
 
 `agent/recording/` 在写入前统一隐藏 API key、Cookie、Authorization、已知秘密与 URL
 中的凭据。原始正文保存在详细记录中，trace 只保存摘要与引用；必要 trace 写入失败视为
@@ -352,7 +345,7 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 | `LLM_BASE_URL` | 无 | 模型服务地址，`openai` 后端必填 |
 | `LLM_API_KEY` | 空 | 本地推理服务可以随便填 |
 | `LLM_MODEL` | `mock-model` | mock、修复流程及统一实验配置的模型名；直接运行 single_generate 使用 MODEL_NAME 或发现服务模型 |
-| `LLM_TIMEOUT_S` | 按 Workflow | single_generate 默认 300 秒，其余 180 秒；显式值限制单次调用 |
+| `LLM_TIMEOUT_S` | 按 Workflow | single_generate、evidence_repair、evidence_a0/a1/a2 默认 300 秒，其他 180 秒；显式值限制单次调用 |
 | `AGENT_CONFIG` | `config/example.yaml` | YAML 配置路径；相对路径按调用者当前目录解析 |
 | `VIVADO_BIN` | PATH | 显式 Vivado 可执行文件目录 |
 | `AGENT_WORKFLOW` | `single_generate` | 已注册 Workflow 名称 |
@@ -380,7 +373,7 @@ single_generate 的采样常量固定；其他 Workflow 的温度、输出上限
 2. 工具诊断只识别少数明确的代码错误，未知错误默认停止；完整日志支持继续分析。
 3. 修复仍返回完整文件，技能按日志字符串匹配，工具摘要仍较粗糙。
 4. 硬监督依赖 Linux；自由启动的脱离进程组子进程不受保证。共享模型服务的推理取消没有协议支持。
-5. 历史重放、自动消融比较尚未实现；已支持 YAML 配置、统一实验入口和可选指标。
+5. 已支持 E1/E2 初始检查点重放；通用历史完整流程重放、自动消融比较尚未实现。
 6. 详细记录没有自动清理策略。强制中断可能没有完整的逻辑检查结论或留下临时工作目录，但保留已写的进程输出。
 7. 模型与服务尚未最终确定；混合思考模型需要合适的服务端正文与 reasoning 分离配置。
 

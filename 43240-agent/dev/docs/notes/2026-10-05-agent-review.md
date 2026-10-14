@@ -1,3 +1,5 @@
+> 2026-10-14 整理补注：以下问题和统计针对当时实现，原结论保留。当前行为见[运行契约](../design/agent-runtime.md)及[审查修复验收](2026-10-14-pr33-review-validation.md)；修复收益的解释边界见[指标说明](../design/experiment-reading.md)。
+
 > **文档状态：归档审查：问题针对表中历史源码版本。** 历史证据保留，当前框架用法与限制以[详细参考](../user-manual.md)为准。
 
 # Agent 框架审查记录
