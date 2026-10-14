@@ -89,7 +89,7 @@ def parse_plan(text: str, task: TaskSpec, *, max_steps=32) -> TestPlan:
             timing_raw[field] = resolve_basis(timing_raw.get(field), task.prompt)
     timing = parse_timing(timing_raw, task, inputs, outputs)
     rows = (cycle_steps(raw['cycles'], timing, inputs, max_steps=max_steps,
-                        prompt=task.prompt, reset_basis=(timing_raw or {}).get('reset_basis'))
+                        reset_basis=(timing_raw or {}).get('reset_basis'))
             if 'cycles' in raw else raw['steps'])
     if not isinstance(rows, list) or not 1 <= len(rows) <= max_steps:
         raise ValueError('invalid step count')
@@ -121,11 +121,7 @@ def parse_plan(text: str, task: TaskSpec, *, max_steps=32) -> TestPlan:
         if type(delay) is not int or not 1 <= delay <= 1000:
             raise ValueError('wait_ns must be an integer from 1 to 1000')
         if expected:
-            # Scheduler-produced reset checks already hold verified source spans.
-            if 'cycles' in raw and index == 1:
-                basis = timing.reset_basis
-            else:
-                basis = specification_quote(resolve_basis(basis, task.prompt), task.prompt)
+            basis = specification_quote(resolve_basis(basis, task.prompt), task.prompt)
         elif not isinstance(basis, str) or len(basis) > 2000:
             raise ValueError('invalid specification basis')
         assertions += len(expected)
@@ -204,6 +200,7 @@ def analyze_trace(output: str, plan: TestPlan):
     if len(samples) != len(plan.steps) or f'AGENT_DONE|{len(plan.steps)}' not in output.splitlines():
         raise ValueError('simulation completion or sample count missing')
     hypothesis_mismatches, hypothesis_assertions, first = 0, 0, None
+    hypothesis_inconclusive = 0
     properties, first_property = [], None
     initialized = False
     reset_probes = []
@@ -272,10 +269,12 @@ def analyze_trace(output: str, plan: TestPlan):
         for name, expected in step.expected:
             if name in property_names:
                 continue  # Literal reset checks are properties, not model oracles.
-            hypothesis_assertions += 1
             actual = samples[index][name]
-            equal = known(actual) and int(actual, 16) == expected
-            if not equal:
+            if not known(actual):
+                hypothesis_inconclusive += 1
+                continue
+            hypothesis_assertions += 1
+            if int(actual, 16) != expected:
                 hypothesis_mismatches += 1
                 if first is None:
                     first = mismatch(index, name, expected, actual, step.basis, 'model_spec_hypothesis')
@@ -285,6 +284,7 @@ def analyze_trace(output: str, plan: TestPlan):
                 assertions=hypothesis_assertions + property_assertions,
                 mismatches=hypothesis_mismatches + property_mismatches,
                 hypothesis_assertions=hypothesis_assertions, hypothesis_mismatches=hypothesis_mismatches,
+                hypothesis_inconclusive=hypothesis_inconclusive,
                 property_assertions=property_assertions, property_mismatches=property_mismatches,
                 property_inconclusive=sum(p['status'] == 'inconclusive' for p in properties),
                 property_checks=properties, first_property_mismatch=first_property,
@@ -348,6 +348,7 @@ def run_behavior(toolchain, source: str, top: str, plan: TestPlan, timeout_s: fl
                    f"Assertions={details['assertions']}, mismatches={details['mismatches']}. "
                    f"Model-hypothesis mismatches={details['hypothesis_mismatches']}; "
                    f"contract-property mismatches={details['property_mismatches']}; "
+                   f"inconclusive hypotheses={details['hypothesis_inconclusive']}; "
                    f"inconclusive properties={details['property_inconclusive']}. "
                    'Properties depend on certified public literals or the parsed timing contract; '
                    'this is not a proof of complete specification correctness.')
@@ -355,9 +356,9 @@ def run_behavior(toolchain, source: str, top: str, plan: TestPlan, timeout_s: fl
             summary += '\nFirst mismatch: ' + json.dumps(first, ensure_ascii=False)
         if len(summary) > TOOL_SUMMARY_LIMIT:
             summary = summary[:TOOL_SUMMARY_LIMIT] + '\n[self-test summary truncated; structured history retained in details]'
-        if not first and details['property_inconclusive']:
+        if not first and (details['property_inconclusive'] or details['hypothesis_inconclusive']):
             return replace(result, status='unavailable', failure_kind='test',
-                           summary=summary + '\nProperty observation is inconclusive, not a self-test pass.',
+                           summary=summary + '\nObservation is inconclusive, not a self-test pass.',
                            details=details)
         return replace(result, status='failed' if first else 'ok', failure_kind='behavior' if first else 'unknown',
                        summary=summary, details=details)

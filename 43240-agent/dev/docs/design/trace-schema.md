@@ -36,6 +36,13 @@ trace 不记录格式版本。需要确定格式时，看 `run/metadata` 中 `gi
 `reused_from_check_id` 指向原检查；不计为新工具执行。`workflow/check_started` 与完成结果按 check ID 合并，
 只有开始事件时记为未完成尝试。模型正文不内联到 trace；摘要最多 2000 字符。
 
+可选 `behavior` 检查的 `details` 将模型假设和公开属性分开统计：
+`hypothesis_assertions`、`property_assertions` 只计已知观察，
+`hypothesis_mismatches`、`property_mismatches` 只计确定失配；
+`hypothesis_inconclusive`、`property_inconclusive` 分别统计无法判定的观察，不计入前两类。
+总 `assertions` 和 `mismatches` 分别为两类已知计数之和。旧记录缺少不确定计数字段时应视为未知，
+不能补成零。`first_mismatch` 只指向确定失配。支持范围与状态判定见[规格自测基础](spec-test-foundation.md)。
+
 `run/recording` 记录等级和详细目录，`run/metadata` 记录题目 ID、Workflow 类型与参数、公开服务配置、运行预算、
 配置生效值及来源（`configuration`，实验样本另有指向实验配置的 `parent_config`）与 Git 信息。
 Git commit 只记 7 位短 hash。Git 不可用时记录未知，也可以通过构建环境注入 commit 和 dirty 状态；注入完整 hash 时同样截成 7 位。

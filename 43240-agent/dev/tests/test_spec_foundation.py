@@ -155,6 +155,34 @@ class ObservingTools:
 
 
 class ToolBoundaryTests(unittest.TestCase):
+    def test_unknown_hypotheses_remain_inconclusive_through_tool_result(self):
+        task = TaskSpec.from_text('comb', 'The output y equals input a.', TASK.interface)
+        plan = parse_plan(json.dumps(dict(steps=[
+            dict(inputs={'a': 0}, expected={'y': 0}, wait_ns=1, basis=[0]),
+            dict(inputs={'a': 1}, expected={'y': 1}, wait_ns=1, basis=[0])])), task)
+        for values, expected_status, assertions, mismatches, unknown in (
+                (['x', 'z'], 'unavailable', 0, 0, 2),
+                (['0', 'x'], 'unavailable', 1, 0, 1),
+                (['x', '0'], 'failed', 1, 1, 1),
+                (['0', '1'], 'ok', 2, 0, 0)):
+            with self.subTest(values=values), tempfile.TemporaryDirectory() as temp:
+                tools = SimpleNamespace(config=ToolConfig(temp_dir=temp), available=True,
+                    xvlog='xvlog', xelab='xelab', log_dir=None, redactor=None,
+                    _command=Mock(side_effect=[
+                        _CommandOutcome(('tool',), 0, 'ok', 0, '') for _ in range(3)] + [
+                        _CommandOutcome(('xsim',), 0, 'ok', 0, samples(plan, values))]))
+                with patch('agent.services.behavior.shutil.which', return_value='/fake/xsim'):
+                    result = run_behavior(tools, BAD, 'TopModule', plan, 10)
+                self.assertEqual(result.status, expected_status)
+                self.assertEqual(result.details['hypothesis_assertions'], assertions)
+                self.assertEqual(result.details['hypothesis_mismatches'], mismatches)
+                self.assertEqual(result.details['hypothesis_inconclusive'], unknown)
+                self.assertEqual(result.details['mismatches'], mismatches)
+                if mismatches:
+                    self.assertEqual(result.details['first_mismatch']['step'], 1)
+                else:
+                    self.assertIsNone(result.details['first_mismatch'])
+
     def test_unsupported_candidate_port_shape_cannot_be_observed_as_a_pass(self):
         tools = SimpleNamespace(_command=Mock())
         plan = literal_truth_table_plan(TASK)

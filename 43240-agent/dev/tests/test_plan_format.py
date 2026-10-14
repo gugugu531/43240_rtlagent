@@ -27,6 +27,32 @@ def fixture(edge='posedge', active=1, kind='synchronous'):
 
 
 class PlanFormatTests(unittest.TestCase):
+    def test_nonadjacent_reset_evidence_survives_both_scheduled_checks(self):
+        task, raw = fixture()
+        prompt = task.prompt.replace('\n\nThe reset',
+            '\n\nData input data is four bits wide.\n\nThe reset')
+        task = TaskSpec.from_text('separated', prompt, task.interface)
+        raw['timing']['reset_basis'] = [1, 3]
+        plan = parse_plan(json.dumps(raw), task)
+        for step in (plan.steps[1], plan.steps[-1]):
+            self.assertEqual(step.basis, plan.timing.reset_basis)
+            self.assertEqual(dict(step.expected), {'q': 3})
+        # Fragment validation must still reject invented evidence.
+        raw['timing']['reset_basis'] = [evidence_catalog(prompt)[1], 'Invented reset priority.']
+        with self.assertRaisesRegex(ValueError, 'verbatim'):
+            parse_plan(json.dumps(raw), task)
+
+    def test_positive_and_negative_edges_cannot_use_combinational_plans(self):
+        for edge in ('positive', 'negative'):
+            task = TaskSpec.from_text('edge',
+                f'On the {edge} edge of tick, q takes the value of d.',
+                'module TopModule(input tick, input d, output q);')
+            self.assertIn('SEQUENTIAL plan format', plan_messages(task)[0]['content'])
+            raw = dict(timing=dict(kind='combinational'), steps=[
+                dict(inputs=dict(tick=0, d=1), expected=dict(q=1), wait_ns=1, basis=[0])])
+            with self.subTest(edge=edge), self.assertRaisesRegex(ValueError, 'temporal'):
+                parse_plan(json.dumps(raw), task)
+
     def test_decimal_strings_are_only_representation_not_new_evidence(self):
         task=TaskSpec.from_text('comb','The output y equals input a.',
                                'module TopModule(input [7:0] a, output [7:0] y);')
