@@ -73,7 +73,7 @@ def load_builtin_components() -> None:
                      'agent.nodes.baseline', 'agent.workflows.single_generate',
                      'agent.workflows.repair_loop', 'agent.workflows.evidence_repair',
                      'agent.nodes.guidance', 'agent.workflows.evidence_ablation',
-                     'agent.workflows.search_ablation'))
+                     'agent.workflows.search_ablation', 'agent.workflows.spec_repair'))
 
 
 def build_node(name: str, **params) -> Node:

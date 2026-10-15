@@ -37,6 +37,8 @@
 
 | 记录 | 状态与范围 |
 | --- | --- |
+| [第四批实验工作流接入计划](2026-10-15-experimental-workflows-plan.md) | 已获用户认可；保留原计划，当前实现见实验工作流专题 |
+| [第四批实验工作流接入验收](2026-10-15-experimental-workflows-validation.md) | 本地实现；新增流程与真实工具验证、已有短截止测试失败对照，不是性能实验 |
 | [Agent 框架重设计方案](2026-10-05-agent-redesign-plan.md) | 历史设计或验证；计划不等于已实现 |
 | [Agent 框架审查记录](2026-10-05-agent-review.md) | 历史设计或验证；计划不等于已实现 |
 | [GPU 诊断与真实模型验证](2026-10-05-gpu-diagnosis-and-model-validation.md) | 历史设计或验证；计划不等于已实现 |
