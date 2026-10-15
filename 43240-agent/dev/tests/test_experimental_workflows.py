@@ -16,6 +16,7 @@ from agent.core.model import ModelCallError, ModelReply
 from agent.core.registry import build_workflow
 from agent.core.runner import Runner, RunOptions
 from agent.core.task import TaskSpec
+from agent.core.tokens import TokenCount
 from agent.nodes.behavior import BehaviorNode
 from agent.services.behavior import analyze_trace
 from agent.services.repair_feedback import extract_diagnostics
@@ -220,6 +221,42 @@ class ExperimentalTests(unittest.TestCase):
                 imported = [e for e in events(temp) if e.get('event') == 'initial_replayed']
                 self.assertEqual(len(imported), 1)
                 self.assertEqual(imported[0]['initial_calls'], 1)
+
+    def test_token_limited_initial_replays_under_same_policy_without_double_charging(self):
+        configs = [(ModelConfig(token_output_limit=4096), TokenCount(), None),
+                   (ModelConfig(token_total_limit=4160), TokenCount(64, 'exact'), 4160)]
+        for config, prediction, charged_total in configs:
+            with patch('agent.core.tokens.UnavailableCounter.count', return_value=prediction):
+                for workflow in ['tool_feedback', 'spec_test_repair', 'behavior_divergence']:
+                    with self.subTest(config=config, workflow=workflow):
+                        first, _, _, origin = self.run_flow([reply(GOOD)], workflow=workflow, config=config)
+                        path = Path(origin, 'initial.json')
+                        initial = json.loads(path.read_text())
+                        self.assertEqual(initial['requests'][0]['request']['max_tokens'], 4096)
+                        result, backend, _, output = self.run_flow([], workflow=workflow, config=config,
+                            params={'initial_state': str(path)})
+                        self.assertEqual((result.status, result.stop_reason), (first.status, first.stop_reason))
+                        self.assertEqual(result.selected_candidate.code, GOOD)
+                        self.assertEqual(len(backend.requests), 0)
+                        final = next(e['snapshot'] for e in events(output)
+                                     if e.get('tool') == 'tokens' and e.get('event') == 'final')
+                        self.assertEqual(final['calls'], 1)
+                        self.assertEqual(final['charged_output'], 4096)
+                        self.assertEqual(final['charged_total'], charged_total)
+
+    def test_initial_replay_still_rejects_changed_effective_output_cap(self):
+        _, _, _, origin = self.run_flow([reply(GOOD)], workflow='tool_feedback')
+        backend = FakeBackend([])
+        with tempfile.TemporaryDirectory() as output:
+            result = Runner(ModelConfig(), backend_factory=lambda _: backend,
+                toolchain_factory=ExperimentTools).run(TASK,
+                    lambda: build_workflow('tool_feedback', max_tokens=4096,
+                        initial_state=str(Path(origin, 'initial.json'))),
+                    options=RunOptions(Path(output), deadline_s=120, reserve_s=0))
+            self.assertEqual(result.status, 'error')
+            self.assertTrue(any(e.get('excerpt') == 'experimental initial sampling differs'
+                                for e in events(output)))
+            self.assertEqual(len(backend.requests), 0)
 
     def test_existing_a0_synthesis_success_does_not_skip_new_self_test(self):
         _, _, _, origin = self.run_flow([reply(BAD)], workflow='evidence_a0')

@@ -6,6 +6,7 @@
 
 | 记录 | 状态与范围 |
 | --- | --- |
+| [PR #39 审查问题修复验证](2026-10-15-pr39-review-fixes.md) | token 限额下的检查点重放与 Vivado PATH 测试入口修复；含全量和真实工具验证 |
 | [AutoDL Qwen3 baseline 测试与思考输出额度补测](2026-10-11-autodl-qwen3-results.md) | 有日期的验证记录；范围以正文与补注为准 |
 | [Qwen3 思考模式输出额度补测](2026-10-11-qwen3-output-budget.md) | 有日期的验证记录；范围以正文与补注为准 |
 | [均衡题集筛选结果](2026-10-14-balanced-datasets-selection.md) | 有日期的验证记录；范围以正文与补注为准 |
