@@ -12,6 +12,7 @@
 | `single_generate` | 单次生成，作为默认入口 | 请求与提取对齐 baseline；完成不代表功能正确 |
 | `repair_loop`、`evidence_repair` | 多轮修复或最多一次结构化修复 | 使用自身接口、编译和综合证据；不读取官方判定 |
 | `evidence_a0/a1/a2` | E1：结构化修复与资料检索对照 | 支持初始检查点重放；完整题集收益仍需独立验证 |
+| `tool_feedback`、`spec_test_repair`、`behavior_divergence` | 可选实验：工具反馈、规格自测、双候选行为分歧 | 分别最多 2/3/4 次模型请求；默认入口不变，不以模型期望或候选一致性证明正确 |
 | `search_initial`、`search_r1/r2/r2_guided/c2/c3` | E2：有限修复与独立候选对照 | 支持共享起点、停止点及显式随机种子；不是已确定的提交策略 |
 | `single_generate_long_output` | 长输出额度对照，需显式导入扩展 | 改变输出和超时额度，不作为严格 baseline 请求等价结果 |
 
@@ -36,6 +37,7 @@
 | `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
 | `agent/workflows/repair_loop.py` | 修复流程，自带候选选择 `choose()` 与失败处理 `decide()`，可由子类替换 |
 | `agent/workflows/evidence_repair.py` | 方案 A；复用修复流程的检查和选择，只注入有限结构化诊断并最多修复一次 |
+| `agent/workflows/spec_repair.py` | 三个可选实验入口，共用方案 A 首稿/检查点，但独立编排自测、修复和候选保护 |
 | `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
 | `agent/core/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
 | `agent/prompts/context.py` | 保留必须上下文，按真实 chat template 计数并装配可选完整片段 |
@@ -211,7 +213,8 @@ packed/unpacked 范围（含边界方向）；只忽略 wire/reg/logic 类型修
 警告减少不代表功能正确。可用 `repair_output_drivers: false` 关闭；`evidence_repair`、E1/E2
 保持该警告触发关闭，共享的编译错误归因和修复提示更新仍适用。
 
-另提供可选规格自测基础，**尚未接入上述任何默认或实验工作流**。显式导入
+另提供可选规格自测基础，现由 `spec_test_repair` 和 `behavior_divergence` 显式使用，
+**不接入默认入口和已有 E1/E2 等流程**。显式导入
 `agent.nodes.behavior` 可使用 `spec_test_plan` 和 `spec_behavior_check` Node；动作仍由 Workflow
 通过 `ctx.execute()` 调度。计划只看公开题面与接口，完整支持格式的二值真值表可程序化枚举，
 其他期望值均标为模型假设。程序校验后生成自己的测试台，不执行模型编写的测试代码或读取官方 TB。
@@ -222,6 +225,13 @@ packed/unpacked 范围（含边界方向）；只忽略 wire/reg/logic 类型修
 同样按时序规格处理。模型假设采样中的 X/Z 单独记录为不确定观察，不计入已判定断言或失配；
 没有确定失配但存在不确定观察时，自测返回不可用。
 开发接口、支持范围和限制见[规格自测基础](dev/docs/design/spec-test-foundation.md)。
+
+三个新增实验入口分别为 `tool_feedback`（最多 2 次模型请求）、`spec_test_repair`（最多 3 次）和
+`behavior_divergence`（最多 4 次），各最多修复一次、不自动重试；真值表枚举不占模型请求。
+首稿共用方案 A 的消息和提取，不等同官方 baseline。直接启动保存 `initial.json`，也可恢复同一首稿，
+恢复时扣除已有时间和 token 成本。修复稿完成必要检查后才参与选择；编译修复后必须进入所需的自测阶段。
+双候选分歧只记录，不用投票或一致性裁决。规格组不以纯综合警告或综合代码错误绕过严格属性保护。
+显式配置、调用和失败边界见[可选实验工作流](dev/docs/design/experimental-workflows.md)；尚无正式题集增益结论。
 
 可选 `evidence_repair` 复用同一套候选选择和失败归因，但固定为一份初始候选加最多一次修复。它通过
 `structured_feedback` Node 把提取或检查失败整理成证据编号、阶段、状态、归因、稳定错误码和有限摘要；
