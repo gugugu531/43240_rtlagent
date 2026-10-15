@@ -1,5 +1,6 @@
 """Opt-in real Vivado integration using synthetic circuits and fixed replies."""
 import json
+from dataclasses import replace
 import os
 from pathlib import Path
 import sys
@@ -22,7 +23,7 @@ class RealExperimentalTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
         backend = FakeBackend(outcomes)
         result = Runner(ModelConfig(), backend_factory=lambda _:backend,
-            tool_config=ToolConfig(bin_dir=os.environ['VIVADO_BIN'], temp_dir=temp.name)).run(
+            tool_config=replace(ToolConfig.from_env(), temp_dir=temp.name)).run(
                 task, lambda:build_workflow(workflow),
                 options=RunOptions(Path(temp.name,'output'), deadline_s=300, reserve_s=0))
         self.assertNotEqual(result.status, 'error')

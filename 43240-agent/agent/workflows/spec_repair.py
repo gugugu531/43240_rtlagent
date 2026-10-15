@@ -12,6 +12,7 @@ from agent.core.model import ModelCallError
 from agent.core.registry import WORKFLOW_REGISTRY, build_node
 from agent.core.replay import load_initial, save_initial
 from agent.core.state import SelectionDecision
+from agent.core.tokens import TokenCount, TokenLedger
 from agent.nodes.behavior import BehaviorInput, PlanResult
 from agent.nodes.check import CheckInput
 from agent.nodes.extract import ExtractInput
@@ -103,8 +104,13 @@ class ExperimentalRepair(Component):
             if len(requests) != 1:
                 raise ValueError('experimental workflows require exactly one initial request')
             request = requests[0]['request']
+            # Reconstruct the first-call allowance with an empty ledger; imported
+            # costs remain charged in ctx.llm.tokens. Budgets may clamp the cap.
+            prediction = data['tokens']['entries'][requests[0]['call_id']]['prediction']
+            initial_cap = TokenLedger(ctx.llm.tokens.policy).allowance(
+                TokenCount(**prediction), self.max_tokens)
             if (request['temperature'] != 0 or request['top_p'] != 1
-                    or request['max_tokens'] != self.max_tokens or request.get('seed') is not None
+                    or request['max_tokens'] != initial_cap or request.get('seed') is not None
                     or request['profile'] != 'default'):
                 raise ValueError('experimental initial sampling differs')
             if any(c.kind not in ('interface', 'lint', 'synth') for c in checks):
