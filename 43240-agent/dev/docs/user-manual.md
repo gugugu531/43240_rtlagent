@@ -904,7 +904,9 @@ Python 可直接给 collect_metrics 传自定义 collector；当前实验 YAML/C
 
 未知 token 是 null，不是零；失败或中断调用不能推算用量。指标异常标为 error，不修改答案。
 工具环境失败标为 unavailable，官方聚合继续按原有 tool_error 规则排除，不能冒充有效零分。
-汇总复用 selftest/score.py；Agent/baseline 有效样本覆盖一致时才给出配对增益，不能单凭增益判断
+等级汇总复用 selftest/score.py；增益由开发区按当前上游的归一化公式计算，满分线 0.6。
+`gain_g` 和 `gain_score` 为现行字段，`gain_ratio` 与兼容的 `gain` 均为倍数诊断。
+Agent/baseline 有效样本覆盖一致时才给出配对增益，不能单凭增益判断
 某个组件贡献。服务默认上限因 Workflow 而异；remote-smoke 示例显式设为 300 秒，实际请求仍受 Node 和整题预算约束。
 
 ```text

@@ -84,7 +84,10 @@ def write_summary(run_dir: str) -> str | None:
         lines.append(f"| {mode} | {s['scored_tasks']}/{s['tasks']} | {s['set_score']:.3f} "
                      f"| {s['pass@5']:.3f} | {s['level_counts']} | {s['tool_errors']} |")
     lines.append("")
-    if "gain" in score:
+    if "gain_g" in score:
+        lines.append(f"归一化增益 g：{score['gain_g']}，增益得分 {score.get('gain_score')} / 40"
+                     f"（满分线 {score.get('gain_full_mark')}，配对覆盖 {score.get('paired_coverage')}）")
+    elif "gain" in score:
         lines.append(f"增益：{score['gain']} 倍，增益得分 {score.get('gain_score')} / 40"
                      f"（满分线 {score.get('gain_full_mark')} 为占位值）")
     if "wallclock" in score:

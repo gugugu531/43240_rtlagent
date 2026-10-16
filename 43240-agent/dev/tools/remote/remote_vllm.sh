@@ -41,7 +41,7 @@ case "${1:-status}" in
               # around it, or stop kills the shell and leaves vLLM running.
               { ${REMOTE_ACTIVATE:+$REMOTE_ACTIVATE &&} \
                 exec env MODEL='$REMOTE_MODEL' PORT='$REMOTE_VLLM_PORT' MAX_LEN='${REMOTE_MAX_LEN:-32768}' \
-                    GPU_UTIL='${REMOTE_GPU_UTIL:-0.90}' $REMOTE_EXTRA_ENV \
+                    GPU_UTIL='${REMOTE_GPU_UTIL:-}' $REMOTE_EXTRA_ENV \
                     setsid nohup ./vllm.sh; } > vllm.log 2>&1 < /dev/null &
               echo \$! > vllm.pid
               echo \"✓ vLLM 已启动（进程号 \$(cat vllm.pid)），日志 $REMOTE_DIR/vllm.log\""

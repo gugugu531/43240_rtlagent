@@ -69,7 +69,7 @@
 | `serve/start.sh` | 常驻服务唯一入口：检查已运行的推理服务，否则独立启动并等待就绪；补充本地 EDA 临时目录清理 |
 | `serve/vllm.sh` | 启动本地推理服务的脚本（示例使用 vLLM，见第 5 节） |
 | `model/MODEL.md`、`manifest.json` | 模型与方案的声明，须如实填写 |
-| `REPORT.md` | 设计报告（尚未编写，目前是示例原文） |
+| `REPORT.md` | 当前方案报告草稿；正式模型、结果和失败分析待填写 |
 | `Dockerfile`、`requirements.txt` | 基于官方基础镜像构建运行环境 |
 | `dev/` | 团队开发文档与测试脚本，**不随方案提交**（已被 `.dockerignore` 排除） |
 
@@ -455,12 +455,26 @@ single_generate 的采样常量固定；其他 Workflow 的温度、输出上限
 
 可以用 `diff -r ../example . -x dev -x .dockerignore` 查看完整差异。
 
+## 封存与提交要求
+
+以下按上游提交 `9df1767` 核对，时间均为北京时间 2026 年。
+10 月 16 日至 30 日为验证窗口；10 月 31 日 10:00 主办方从 Gitee 私有仓库默认分支拉取封存，
+随后开始投题，服务需提前就绪；11 月 4 日 18:00 前在大赛系统提交报告与同一 Gitee 仓库链接。
+赛事仓库及导出目录命名为 `43240_rtlagent`，邀请 `Vickyiii`（`daisycw@126.com`）为只读或以上协作者。
+当前开发目录不必改名，GitHub 开发仓库的 PR 不代替赛事封存。
+
+权重不进入 Git；MODEL.md 必须填写公开权重地址和固定 revision。镜像、模型与实测信息仍有
+占位项，当前包不是已完成封存准备的方案。REPORT.md 是当前方案草稿，不能把流程检查写成能力结论。
+完整要求见[上游封存说明](https://gitee.com/Vickyiii/rtlagent2026/blob/9df176717fec16751d02f4fb5c67dbd40a22fc15/docs/SUBMISSION.md)。
+本地根目录 SCORING.md 等主办方文档是只读旧快照，现行评分采用归一化增益 g，满分线为 0.6，
+不能使用旧的倍数对数公式；当前对齐状态与待办见开发区[提交核对](dev/docs/design/submission.md)。
+
 ## 提交目录检查
 
 开发文档统一见 [dev/docs/readme.md](dev/docs/readme.md)，远程管理位于 dev/tools/remote/。
 
 ```bash
-python3 dev/tools/submission.py --stage /tmp/agent-submission \
+python3 dev/tools/submission.py --stage /tmp/43240_rtlagent \
   --task ../tasks/example/example_ex03_lfsr8 --output /tmp/agent-submission-smoke
 ```
 

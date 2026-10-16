@@ -59,6 +59,11 @@ export LLM_MODEL="${LLM_MODEL:-deepseek-chat}"
 
 远端以提交方案的 `serve/vllm.sh` 为基础，可受 `REMOTE_STRIP_ARGS` 和远端环境覆盖影响。
 实验记录应保存实际参数；不能仅因脚本来源相同就认定与 `MODEL.md` 声明一致。
+2026-10-16 更新：REMOTE_GPU_UTIL 默认留空，采用 vllm.sh 的 30 GB 自动预算；
+已有 remote.env 中显式设定的 0.90 仍会覆盖预算，运行前需核对目标卡容量与峰值。
+当前脚本已根据 vLLM 帮助信息选择新旧日志开关；下方 9 月的参数剥离例子是历史处理，
+不要对当前脚本继续配置 REMOTE_STRIP_ARGS=--disable-log-requests。正式容器统一通过 start.sh 启动，
+本工具是开发侧远端进程管理，不替代赛事部署入口。
 
 ## 使用 AMD Radeon Cloud 实例
 
@@ -215,9 +220,10 @@ LLM_MODEL=Qwen3-8B MODEL_NAME=Qwen3-8B python3 ../run.py \
 ```
 
 两种测试的目的不同：日常跑分检查「方案做得好不好」，模拟投题检查「服务能不能按
-`docs/API_CONTRACT.md` 的约定正常工作」，包括令牌验证、`track` 字段、原样返回
-`task_id`、在 `deadline_s`（单题时间上限）内返回、连续请求不出错。这里在客户端测得
-的耗时，和赛事方计分用的墙钟时间（从发出请求到收到响应的实际时间）是同一个算法。
+[上游接口契约](https://gitee.com/Vickyiii/rtlagent2026/blob/9df176717fec16751d02f4fb5c67dbd40a22fc15/docs/API_CONTRACT.md)的约定正常工作」，包括令牌验证、`track` 字段、原样返回
+`task_id`、202 任务编号、每 2 秒查询状态及连续请求不出错。
+客户端从投题到查到 done 计时，包含排队；deadline_s + 20 秒仍未完成记传输失败，不重投。
+客户端的本地判定耗时不计入投题墙钟。增益采用 g 与 0.6 满分线；旧 selftest 直接输出仍是旧公式。
 
 提交前至少完整跑一次模拟投题。评测当天也可以用 `--url` 指向 rc-tunnel（Radeon Cloud
 平台把本地端口暴露到公网的工具）分配的公网地址，做最后一次检查。

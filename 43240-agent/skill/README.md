@@ -12,13 +12,18 @@
 `SKILL.md` 的写法与 AMD 官方的智能体技能一致（`hls-flattenable`、`hls-line-buffer`
 等）。**正文用英文**，与官方保持一致；仓库其余文档仍为中文。
 
-这样做有一个直接好处：**官方技能可以原样拷进 `skill/` 目录直接用**，
-`agent/prompts/skills.py` 的加载器对两者通用，已实测。
+现有加载器支持本文展示的 frontmatter 和正文格式；导入外部技能时须核对具体文件、
+许可证、适用工具与触发方式，不能把格式可读等同于已验证修复收益。
 
-官方技能仓库：https://github.com/amd/skills
+2026-10-16 按上游参考资料更新来源：
 
-需注意官方技能主要面向 HLS，RTL 侧的技能大多需自行编写，这既是负担亦是机会，因为
-本 track 的工程质量项正是看这个。
+| 来源 | 上游说明的用途 |
+| --- | --- |
+| [AMD Ross 技能库](https://github.com/Xilinx/ross-ai-assistant) | FPGA 设计，含 Vivado / Vitis HLS，可作为方案技能来源 |
+| [AMD Skills](https://github.com/amd/skills) | ROCm 与模型量化，供开发期编码助手使用 |
+
+这里只列候选来源，未自动导入或宣称完整兼容。正式方案技能仍需有工具版本、失败证据和明确边界。
+默认 `single_generate` 不加载任何技能，是否启用由选定 Workflow 决定。
 
 ---
 

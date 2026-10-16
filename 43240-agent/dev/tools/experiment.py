@@ -243,7 +243,13 @@ def summarize_experiment(samples, *, planned=0, status='completed'):
         valid = lambda mode: {(s.task_id,s.index) for s in samples if s.mode==mode and
                               any(m.name=='judge' and m.status=='ok' for m in s.metrics)}
         comparable = valid('agent') == valid('baseline') and bool(valid('agent'))
+        from dev.tools.scoring import normalized_gain
+        gain_g, gain_points = normalized_gain(a['set_score'], b['set_score'])
         result['comparison'] = {'paired_coverage':comparable,
+             'gain_g':gain_g if comparable else None,
+             'gain_score':gain_points if comparable else None,
+             'gain_full_mark':0.6,
+             'gain_ratio':a['set_score']/b['set_score'] if comparable and b['set_score'] else None,
              'gain':a['set_score']/b['set_score'] if comparable and b['set_score'] else None,
              'baseline_timeout_s':300, 'note':'single_generate 对齐 baseline RTL 请求与提取；预算与实际条件见逐样本记录'}
     return result
