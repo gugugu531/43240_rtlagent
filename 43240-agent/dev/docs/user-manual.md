@@ -95,8 +95,8 @@ flowchart TB
 | 接口约束 `interface` | 请求可带模块声明；本地对应可选的 `interface.txt`。**正式 RTL 评测题集此字段为空，接口约束位于题面内** | `serve/serve_api.py` 写文件；`task.py` 读取；`core/interface.py` 解析；`prompts/builder.py` 组装提示 | 非空时加入；题面中的接口随题面一起进入 |
 | 题目编号 `task_id` | 主办方请求必填。本地优先使用环境变量 `AGENT_TASK_ID`，否则用题目目录名 | `serve/serve_api.py` 将编号写入子进程环境；`main.py` 传给 `task.py`；记录模块用于关联本题 | 不单独加入 |
 | 运行模式 `mode` | 主办方请求，默认 `agent`；`baseline` 表示走原始基线 | `serve/serve_api.py` 选择 `run.sh` 或 `run_baseline.sh` | 否，只决定入口 |
-| 单题时限 `deadline_s` | 主办方请求，默认 360 秒，覆盖请求准备、执行、清理和结果读取 | `serve/serve_api.py` 扣除已用时间和返回预留，经 `--hard-deadline-s` 传入；`configuration.py` 缩小运行预算；`supervision.py` 执行监督 | 否 |
-| 请求标识 `nonce` | 主办方提供的一次性字符串，接口默认空字符串 | `serve/serve_api.py` 的请求对象接受该字段，但当前求解实现没有继续使用、传给模型或返回它 | 否 |
+| 单题时限 `deadline_s` | 主办方请求，默认 360 秒，覆盖排队、请求准备、执行、清理和结果读取 | `serve/serve_api.py` 扣除已用时间和返回预留，经 `--hard-deadline-s` 传入；`configuration.py` 缩小运行预算；`supervision.py` 执行监督 | 否 |
+| 请求标识 `nonce` | 主办方提供的一次性字符串，接口默认空字符串 | `serve/serve_api.py` 用非空 nonce 去重，重复投递返回原任务；不传给模型 | 否 |
 | 请求鉴权头 `Authorization` | 主办方发送 `Bearer <投题令牌>` | `serve/serve_api.py` 与部署环境中的 `FPGACHINA_TOKEN` 比较，验证是否允许投题 | 否 |
 
 **接口内容与接口检查结论需要区分。** `agent/core/interface.py` 优先解析非空的独立接口文本；没有时尝试解析题面的端口列表。独立接口声明不匹配可阻断后续检查；题面端口列表不匹配目前作为提示，不直接阻断。没有解析出预期接口时会记录跳过，不能当作通过。修改题中嵌入的旧代码也不会自动被当成权威接口声明。
@@ -173,13 +173,14 @@ Agent 通过 HTTP 调用已经启动的模型服务。若使用仓库中的示�
 
 | 信息 | 来源和默认值 | 用途 |
 |---|---|---|
-| 本地模型权重路径 | 环境变量 `MODEL`，默认 `/models/Qwen3-8B` | vLLM 加载事先准备的权重；默认对外模型名取该路径的最后一段 |
+| 本地模型权重路径 | 环境变量 `MODEL`，默认 `/models/Qwen3-8B` | vLLM 加载事先准备的权重；服务名优先取 `MODEL_NAME`，否则取路径最后一段 |
 | 监听端口 | `PORT`，默认 `8000` | 决定模型服务端口；Agent 的 `LLM_BASE_URL` 需与之对应 |
 | 上下文长度上限 | `MAX_LEN`，默认 `32768` | 模型服务的上下文容量，与 Agent 的单次输出 token 上限是不同参数 |
-| 显存比例与设备 | `GPU_UTIL` 默认 `0.90`；`HIP_VISIBLE_DEVICES` 默认 `0` | 控制模型服务使用的显存比例和可见设备 |
+| 显存比例与设备 | 默认由 `VRAM_BUDGET_GB=30` 和卡容量计算；显式 `GPU_UTIL` 优先；`HIP_VISIBLE_DEVICES` 默认 `0` | 控制模型服务使用的显存比例和可见设备 |
 | 额外服务参数 | `VLLM_EXTRA_ARGS`，默认空 | 例如指定 reasoning 解析方式，影响响应中正文与思考内容的分离 |
 
-这些是模型服务的启动输入，`run.sh` 不负责加载权重或启动 vLLM。HTTP 健康检查优先显示 `MODEL_NAME`，否则显示有效配置中的模型名。默认 `single_generate` 和原始 baseline
+这些是模型服务的启动输入，统一通过 `serve/start.sh` 启动，服务就绪后返回；支持重复执行。
+`run.sh` 不负责加载权重或启动 vLLM。HTTP 健康检查优先显示 `MODEL_NAME`，否则显示有效配置中的模型名。默认 `single_generate` 和原始 baseline
 也优先用 `MODEL_NAME` 发出模型请求，未设时查询 `/models`；其他流程使用 `services.model.model` / `LLM_MODEL`。
 统一实验会把有效模型名传给两个模式的 `MODEL_NAME`，详见第 12 章。
 
@@ -462,16 +463,19 @@ RAG、Reflexion、波形或 testbench，供后续一次只改变一个变量的�
 
 ### 7.1 HTTP 对外返回什么
 
-`serve/serve_api.py` 不直接序列化内部的 `WorkflowResult`。它等待子进程结束，读取输出文件，返回以下信息：
+`serve/serve_api.py` 不直接序列化内部的 `WorkflowResult`。`POST /v1/solve` 立即返回 202 和任务编号；`GET /v1/jobs/{job_id}` 查询状态。
+任务在后台串行执行，完成后读取输出文件，查询接口返回以下信息：
 
 | 返回字段 | 内容来源 | 用途 |
 |---|---|---|
+| `job_id` | HTTP 服务生成的任务编号 | 投题返回后用于查询 |
+| `status` | `queued`、`running`、`done` | 仅 `done` 带下列结果字段 |
 | `task_id` | 原请求的题目编号 | 与主办方请求对应 |
 | `solution` | `solution.v` 的文件内容 | 提交代码；没有答案时为空字符串 |
-| `trace` | `trace.jsonl` 的文件内容，是 JSONL 文本字符串 | 返回调用与运行记录 |
+| `trace` | `trace.jsonl` 与可选服务层事件，是 JSONL 文本字符串 | 返回调用与运行记录 |
 | `elapsed_s` | HTTP 服务本地计时 | 耗时参考；正式计时由主办方完成 |
 
-HTTP 请求结束后临时目录会被删除。默认位于该目录内的详细记录也会随之消失；配置到外部 `AGENT_RECORD_ROOT` 的详细记录可以保留。详细记录目录不会随 HTTP 响应自动返回。
+后台求解结束后临时目录会被删除。默认位于该目录内的详细记录也会随之消失；配置到外部 `AGENT_RECORD_ROOT` 的详细记录可以保留。详细记录目录不会随 HTTP 响应自动返回。
 
 ### 7.2 保存与恢复由谁负责
 
@@ -566,7 +570,7 @@ YAML 文件挪动后需重新核对相对路径。`AGENT_RECORD_ROOT` 等环境�
 
 ### 8.3 HTTP 服务与两个鉴权方向
 
-先配置实际模型服务，再设置 `FPGACHINA_TOKEN` 和需要保留的记录路径，启动：
+先配置实际模型服务并运行 `./serve/start.sh`，再设置 `FPGACHINA_TOKEN` 和需要保留的记录路径，启动：
 
 ```bash
 export FPGACHINA_TOKEN='替换为主办方令牌或本地测试令牌'
@@ -585,8 +589,8 @@ curl --fail-with-body http://127.0.0.1:7860/v1/health \
   -H "Authorization: Bearer ${FPGACHINA_TOKEN}"
 ```
 
-健康响应包含 `ready`、`track`、`model`、`vram_gb`。当前健康检查验证 Agent 配置能解析，
-不实际执行推理或 Vivado，因此 `ready: true` 不能代替完整单题验证。
+健康响应包含 `ready`、`track`、`model`、`vram_gb`。健康检查核对配置、后台 Worker 与模型列表；
+模型不匹配或不可用返回 503。它不执行实际推理或 Vivado，仍不能代替完整单题验证。
 
 可在本地保存如下投题请求为 `/tmp/agent-solve-request.json`，内容是演示题而非参考答案：
 
@@ -606,14 +610,20 @@ curl --fail-with-body http://127.0.0.1:7860/v1/solve \
   -H "Authorization: Bearer ${FPGACHINA_TOKEN}" \
   -H 'Content-Type: application/json' \
   --data-binary @/tmp/agent-solve-request.json
+# 202 响应中的 job_id 用于查询，直到状态为 done。
+curl --fail-with-body http://127.0.0.1:7860/v1/jobs/<job_id> \
+  -H "Authorization: Bearer ${FPGACHINA_TOKEN}"
 ```
 
 正式 RTL 投题的 `interface` 为空，接口位于题面；本地演示使用显式接口是为了容易看清字段含义。
-请求与响应字段来源分别见第 2、7 章；完整外部契约见 [API_CONTRACT.md](../../../docs/API_CONTRACT.md)。
+请求与响应字段来源分别见第 2、7 章；完整外部契约见[上游 API_CONTRACT.md](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)；
+本地只读文档是旧快照，当前启动与查询用法见 [serve/README.md](../../serve/README.md)。
 鉴权失败、请求字段校验失败与正常求解后返回空答案是不同情况。
 
-HTTP 时间预算从请求处理开始，涵盖输入准备、执行、清理和结果读取，不提供额外的最小 5 秒执行窗口。
-HTTP 时限只能缩小配置预算。请求结束清理临时目录，需保留详细记录时使用外部记录根目录。
+HTTP 时间预算从投题起算，涵盖排队、输入准备、执行、清理和结果读取，不提供额外的最小 5 秒执行窗口。
+排队耗尽时限不启动子进程，直接完成并返回空答案。非空 nonce 重复投递不重复解题。
+任务和 nonce 结果保留在单个进程内，重启后清空；uvicorn 只启动一个 Worker，不使用热重载。
+HTTP 时限只能缩小配置预算。后台任务结束清理临时目录，需保留详细记录时使用外部记录根目录。
 共享模型服务收到客户端断开后是否仍在推理无法由进程退出证明，记录中的取消状态可能为 unknown。
 
 ### 8.4 原始 baseline 与 Agent 配置边界

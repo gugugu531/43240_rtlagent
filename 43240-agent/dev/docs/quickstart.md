@@ -128,7 +128,7 @@ LLM_BACKEND=mock python3 dev/tools/run.py --config dev/configs/smoke.yaml \
 命令会打印实验目录，先读其中的 `summary.md`。结果位于 `dev/runs/`，实验笔记位于 `dev/docs/experiments/`。
 正式功能判定需要另行启用 `judge` 指标和 Vivado，详见 [开发实验](user-manual.md#12-开发实验与指标)。
 
-提供主办方投题接口时，在新终端进入方案目录，配置好模型，再设置投题令牌和记录目录：
+提供主办方投题接口时，在新终端进入方案目录，配置好模型并执行一次 `./serve/start.sh`，再设置投题令牌和记录目录：
 
 ```bash
 export FPGACHINA_TOKEN='替换为主办方提供的令牌'
@@ -136,7 +136,8 @@ export AGENT_RECORD_ROOT=/tmp/agent-http-records
 uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
 ```
 
-请求需要携带 Bearer 令牌。该令牌与模型 API key 不同；HTTP 请求结束会清理临时目录，独立记录根目录可保留详细证据。
+请求需要携带 Bearer 令牌。该令牌与模型 API key 不同；投题立即返回任务编号，再查询结果。后台任务结束会清理临时目录，
+独立记录根目录可保留详细证据。使用默认的一个 uvicorn Worker，不启用热重载。
 接口字段及请求示例见 [HTTP 与命令行](user-manual.md#8-命令行与-http-使用)。
 
 ## 8. 遇到问题先看哪里

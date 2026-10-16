@@ -183,14 +183,14 @@ class TransportCancellationTests(unittest.TestCase):
                             AGENT_RESERVE_S='0.05', AGENT_RECORD_ROOT=str(Path(temp, 'records'))), \
                  patch.object(serve_api, 'TOKEN', 'test-token'), patch.object(serve_api, 'SCRATCH', temp):
                 started = time.monotonic()
-                result = serve_api.solve(serve_api.SolveRequest(task_id='blocked', prompt='Implement TopModule.',
-                                          deadline_s=1), authorization='Bearer test-token')
+                solution, trace_text = serve_api._solve(serve_api.SolveRequest(task_id='blocked',
+                    prompt='Implement TopModule.', deadline_s=1), started)
                 self.assertLess(time.monotonic() - started, 1.3)
                 self.assertTrue(arrived.is_set())
-                trace = [json.loads(line) for line in result['trace'].splitlines()]
+                trace = [json.loads(line) for line in trace_text.splitlines()]
                 self.assertTrue(any(e['tool'] == 'supervisor' for e in trace))
                 self.assertFalse(any(e['tool'] == 'llm' and e['event'] == 'succeeded' for e in trace))
-                self.assertEqual(set(result), {'task_id', 'solution', 'trace', 'elapsed_s'})
+
 
 
 

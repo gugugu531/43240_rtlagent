@@ -66,6 +66,7 @@
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
 | `skill/` | 技能包，每条技能一个目录，格式见 `skill/README.md` |
 | `serve/serve_api.py` | 评测当天赛事方投题用的 HTTP 接口 |
+| `serve/start.sh` | 常驻服务唯一入口：检查已运行的推理服务，否则独立启动并等待就绪；补充本地 EDA 临时目录清理 |
 | `serve/vllm.sh` | 启动本地推理服务的脚本（示例使用 vLLM，见第 5 节） |
 | `model/MODEL.md`、`manifest.json` | 模型与方案的声明，须如实填写 |
 | `REPORT.md` | 设计报告（尚未编写，目前是示例原文） |
@@ -101,16 +102,27 @@
 
 评测当天，赛事方通过 HTTP 逐题投题。`serve/serve_api.py` 把每次请求写成一个临时
 题目目录，调用 `run.sh`（`mode=baseline` 时调用 `run_baseline.sh`），再把结果返回。
-接口格式见仓库根目录的 `docs/API_CONTRACT.md`。
+接口按[上游 2026-10-15 版本契约](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)实现；
+本地只读的 `docs/API_CONTRACT.md` 是旧快照，启动与查询示例见 [serve/README.md](serve/README.md)。
 
 ```bash
+export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8000/v1
+export MODEL=/models/Qwen3-8B MODEL_NAME=Qwen3-8B LLM_MODEL=Qwen3-8B
+./serve/start.sh
 export FPGACHINA_TOKEN=<令牌>
 uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
 ```
 
-HTTP 时间从请求处理开始计算，覆盖输入准备、执行、进程清理与结果读取，不再使用 5 秒超时下限。
+`POST /v1/solve` 立即以 202 返回 `job_id`、`task_id` 和 `queued` 状态；
+`GET /v1/jobs/{job_id}` 返回 `queued`、`running` 或带有答案与 trace 的 `done`。三个端点均校验令牌。
+非空 `nonce` 的重复投递返回原任务，不重复求解。任务按顺序执行；时间从投题起算，包含排队、
+输入准备、执行与清理，排队超时直接返回空答案。任务与去重信息保存在单个 HTTP 进程内，重启后清空；
+启动 uvicorn 时使用默认的一个 Worker，不使用多 Worker 或热重载。
+
 Agent 的 Supervisor 管理 Worker 与通过公开服务启动的工具进程；shell 转发 SIGTERM。baseline
-只增加外部进程组监督，原始脚本、模型提示和 trace 不变。
+只增加外部进程组监督；HTTP 服务在 Linux 下接管并回收孤儿进程，超时与退出时清理任务进程组。
+原始 baseline 脚本和模型提示保持不变，HTTP trace 可追加服务层超时或错误事件。
+健康检查会核对 Worker 与所配置的模型是否可用；它不替代完整求解和 Vivado 验证。
 
 ### 调用大模型
 
@@ -344,7 +356,9 @@ trace 同时用于三件事：工程质量评分、赛事方核对生成结果�
 
 服务只能监听 `127.0.0.1`，不能对外暴露；对外只暴露投题接口的 7860 端口。
 
-`serve/vllm.sh` 通过环境变量设置：`MODEL`（权重路径）、`PORT`、`MAX_LEN`、`GPU_UTIL`，
+`serve/start.sh` 启动并等待常驻服务；`serve/vllm.sh` 读取
+`MODEL`（权重路径）、`MODEL_NAME`（服务模型名）、`PORT`、`MAX_LEN`、
+`VRAM_BUDGET_GB`（默认 30 GB，据卡容量计算比例）、`GPU_UTIL`（显式覆盖比例），
 以及 `VLLM_EXTRA_ARGS`（额外的 vLLM 参数，默认为空，例如 `--reasoning-parser qwen3`）。
 服务参数同时影响方案和基线，最终采用的参数要写进 `model/MODEL.md`。
 
