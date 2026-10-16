@@ -10,6 +10,7 @@ import sys
 from unittest.mock import patch
 import subprocess
 import tempfile
+import time
 import unittest
 
 
@@ -89,15 +90,14 @@ class RunContractTests(unittest.TestCase):
                 "the following interface.\n - input a\n - output q\n")
             with patch.dict(os.environ, env), patch.object(serve_api, "TOKEN", "test-token"), \
                     patch.object(serve_api, "SCRATCH", str(root)):
-                result = serve_api.solve(request, authorization="Bearer test-token")
-            self.assertEqual(set(result), {"task_id", "solution", "trace", "elapsed_s"})
-            self.assertIn("module TopModule", result["solution"])
+                solution, trace = serve_api._solve(request, time.monotonic())
+            self.assertIn("module TopModule", solution)
             tasks = list(records.glob('*/task.json'))
             self.assertEqual(len(tasks), 1)
             self.assertEqual(json.loads(tasks[0].read_text())['task_id'], 'single-test')
             self.assertTrue((tasks[0].parent/'calls/m001/response.txt').is_file())
             self.assertEqual(set(root.iterdir()), {records, root / "isolated_bin"})
-            events = [json.loads(line) for line in result['trace'].splitlines()]
+            events = [json.loads(line) for line in trace.splitlines()]
             done = next(e for e in events if e['tool'] == 'agent' and e['event'] == 'done')
             self.assertEqual(done['candidate_id'], 'c001')
             self.assertTrue(any(e.get('candidate_id') == 'c001' and e.get('source_call_id') == 'm001'

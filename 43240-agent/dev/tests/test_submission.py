@@ -25,6 +25,8 @@ class SubmissionTests(unittest.TestCase):
     def test_isolated_agent_and_baseline_entries(self):
         staged = self.work/'submission'
         manifest = stage_submission(ROOT, staged)
+        self.assertTrue((staged/'serve/start.sh').is_file())
+        self.assertTrue(os.access(staged/'serve/start.sh', os.X_OK))
         self.assertFalse((staged/'dev').exists())
         self.assertFalse((staged/'__pycache__').exists())
         self.assertEqual((staged/'baseline.py').read_bytes(), (ROOT/'baseline.py').read_bytes())

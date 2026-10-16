@@ -6,6 +6,11 @@
 
 ## 对外 trace
 
+HTTP 返回的 trace 还可在原有内容后追加 `tool=submission` 的服务层事件：
+`expired`（排队或准备耗尽时限）、`failed`（异常类型）、`process_result`（进程超时或失败）、
+`cancelled`（服务关闭）和 `cleanup_incomplete`（回收未完成）。它们不属于 Agent 的 run/seq 序列，
+不伪造模型调用完成；正常完成时不添加服务事件。
+
 `trace.jsonl` 必须存在，每行一个 JSON 对象。公共字段包括
 `run_id`、递增的 `seq`、Unix 时间戳 `ts`、事件类别 `tool` 和动作 `event`。
 
