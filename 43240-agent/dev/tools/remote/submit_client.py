@@ -12,14 +12,14 @@ Follows docs/API_CONTRACT.md to the letter:
     and check that a request without the token is rejected
   - POST /v1/solve per task and sample, mode "agent" and "baseline" against the
     same endpoint, interface always "" (the evaluation set never sends one),
-    client timeout deadline_s + 20
-  - wall clock measured here, request sent to response received -- the number
+    then GET /v1/jobs/<job_id> every 2 seconds until done; total timeout deadline_s + 20
+  - wall clock measured here, submission sent to done observed -- the number
     that scores, unlike the self-reported elapsed_s
   - any transport failure (timeout, disconnect, bad JSON, task_id not echoed)
     counts as L0, no retry
 
-Outputs use selftest/out's layout, so judge.py and score.py grade them
-unchanged. Defaults come from remote.env; only the standard library is used.
+Outputs keep selftest/out's layout. Judging and level aggregation are
+unchanged; current normalized gains are computed in dev/tools/scoring.py. Defaults come from remote.env; only the standard library is used.
 """
 
 from __future__ import annotations
@@ -48,6 +48,8 @@ import analyze  # noqa: E402
 import record  # noqa: E402
 sys.path.insert(0, AGENT_ROOT)
 from dev.tools.tasksets import task_index  # noqa: E402
+from dev.tools.scoring import score_results  # noqa: E402
+from urllib.parse import quote  # noqa: E402
 
 _print_lock = threading.Lock()
 
@@ -141,22 +143,41 @@ def solve_one(args, run_dir: str, mode: str, task_dir: str, k: int) -> dict:
         "interface": "",
         "deadline_s": args.deadline,
     }
-    t0 = time.time()
+    t0 = time.monotonic()
     error = None
+    body = None
+    job_id = None
+    expires = t0 + args.deadline + 20
     try:
         status, body = http("POST", args.url + "/v1/solve", args.token, req,
-                            args.deadline + 20)
-        if status != 200:
-            error = f"HTTP {status}: {str(body)[:200]}"
-        elif not isinstance(body, dict):
-            error = f"响应不是 JSON 对象：{str(body)[:200]}"
-        elif body.get("task_id") != tid:
-            error = f"task_id 未原样带回：{body.get('task_id')!r}"
-        elif not isinstance(body.get("solution"), str) or not isinstance(body.get("trace"), str):
-            error = "solution / trace 字段缺失或不是字符串"
+                            min(10, max(0.001, expires - time.monotonic())))
+        if status != 202 or not isinstance(body, dict):
+            raise ValueError(f"投题响应不是 202 JSON：HTTP {status}")
+        if body.get("task_id") != tid or body.get("status") not in ("queued", "running", "done"):
+            raise ValueError("投题响应的 task_id 或 status 不正确")
+        job_id = body.get("job_id")
+        if not isinstance(job_id, str) or not job_id:
+            raise ValueError("job_id 缺失或不是非空字符串")
+        while True:
+            remaining = expires - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("投题后 deadline_s + 20 秒内未完成")
+            status, body = http("GET", args.url + "/v1/jobs/" + quote(job_id, safe=""),
+                                args.token, None, min(10, remaining))
+            if status != 200 or not isinstance(body, dict):
+                raise ValueError(f"查询响应不是 200 JSON：HTTP {status}")
+            if body.get("job_id") != job_id or body.get("task_id") != tid:
+                raise ValueError("查询响应未原样带回 job_id / task_id")
+            if body.get("status") == "done":
+                if not isinstance(body.get("solution"), str) or not isinstance(body.get("trace"), str):
+                    raise ValueError("solution / trace 字段缺失或不是字符串")
+                break
+            if body.get("status") not in ("queued", "running"):
+                raise ValueError("查询响应的 status 不正确")
+            time.sleep(min(2, max(0, expires - time.monotonic())))
     except Exception as exc:  # timeout, reset, DNS ... all L0 per contract
         body, error = None, f"{type(exc).__name__}: {exc}"
-    wall = round(time.time() - t0, 2)
+    wall = round(time.monotonic() - t0, 2)
 
     ok = error is None
     solution = body["solution"] if ok else ""
@@ -165,7 +186,7 @@ def solve_one(args, run_dir: str, mode: str, task_dir: str, k: int) -> dict:
     with open(os.path.join(dst, "trace.jsonl"), "w", encoding="utf-8") as fh:
         fh.write(body["trace"] if ok else "")
     info = {"task_id": tid, "mode": mode, "sample": k, "wall_s": wall,
-            "reported_elapsed_s": body.get("elapsed_s") if ok else None,
+            "job_id": job_id, "reported_elapsed_s": body.get("elapsed_s") if ok else None,
             "transport_error": error, "solution_bytes": len(solution)}
     with open(os.path.join(dst, "response.json"), "w", encoding="utf-8") as fh:
         json.dump(info, fh, ensure_ascii=False, indent=2)
@@ -225,7 +246,7 @@ def main() -> int:
     with ThreadPoolExecutor(max_workers=max(1, args.concurrency)) as pool:
         infos = list(pool.map(lambda j: solve_one(args, run_dir, *j), jobs))
 
-    # Sum of request round trips only: local judging runs in the same worker and
+    # Sum of submission-to-done walls only: local judging runs in the same worker and
     # must not leak into the number the cost item is scored on.
     walls = [i["wall_s"] for i in infos]
     total = round(sum(walls), 1)
@@ -239,16 +260,12 @@ def main() -> int:
     if args.no_judge:
         return 0
     score_path = os.path.join(run_dir, "score.json")
-    subprocess.run([sys.executable, os.path.join(SELFTEST, "score.py"),
-                    "--results", os.path.join(run_dir, "results"), "--json", score_path])
-    try:
-        with open(score_path, encoding="utf-8") as fh:
-            score = json.load(fh)
-        score["wallclock"] = wallclock
-        with open(score_path, "w", encoding="utf-8") as fh:
-            json.dump(score, fh, ensure_ascii=False, indent=2)
-    except (OSError, ValueError):
-        pass
+    score = score_results(os.path.join(run_dir, "results"))
+    score["wallclock"] = wallclock
+    with open(score_path, "w", encoding="utf-8") as fh:
+        json.dump(score, fh, ensure_ascii=False, indent=2)
+    log(f"能力 {score.get('capability_score')} / 30，归一化增益 {score.get('gain_g')}，"
+        f"增益得分 {score.get('gain_score')} / 40；配对覆盖 {score.get('paired_coverage')}")
     analyze.analyze(run_dir)
     record.write_summary(run_dir)
     return 0

@@ -145,3 +145,17 @@ LLM_BACKEND=openai python3 dev/tools/run.py --config dev/configs/balanced.yaml \
 
 不同测试集的题型、测试覆盖和改编程度不同，实验报告应同时给出来源分项结果，
 不要把这个混合题集的通过率写成VerilogEval、RTLLM、ArchXBench或CVDP的官方成绩。
+
+## 2026-10-16 上游缺陷题口径补充
+
+上游提交 `9df1767` 的 [selftest/README.md](https://gitee.com/Vickyiii/rtlagent2026/blob/9df176717fec16751d02f4fb5c67dbd40a22fc15/selftest/README.md)
+列出 4 道参考判定缺陷与 7 道题面/参考不一致，建议合计排除 11 道、按 145 道报告。
+本地受保护自测文档只列旧清单，不能据此认为只有 1 道缺陷。
+
+- 参考判定缺陷：Prob099_m2014_q6c、Prob082_lfsr32、Prob141_count_clock、Prob156_review2015_fancytimer。
+- 题面/参考不一致：Prob093_ece241_2014_q3、Prob149_ece241_2013_q4、Prob062_bugs_mux2、
+  Prob034_dff8、Prob053_m2014_q4d、Prob104_mt2015_muxdff、Prob078_dualedge。
+
+该清单用于开发侧选题和声明分母，不进入求解提示或技能。当前 258/241/60 的历史验证与清单
+保持原样；参考 L3 与负例检查无法证明题面和参考的所有语义一致，不能声称现有筛选自动排除了上述全部问题。
+未来报告须明确采用哪份清单，不把旧实验的 152 道范围写成上游建议的 145 道。

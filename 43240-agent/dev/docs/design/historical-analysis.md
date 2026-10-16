@@ -16,6 +16,9 @@
 [run.py](../user-manual.md#12-开发实验与指标)。旧 run_eval.py 已移除；参考答案链路验证改用官方
 selftest/run_selftest.sh --reference，并将输出放 dev/runs/。
 
+2026-10-16 补充：旧 overview 和 selftest/score.py 仍保留倍数/对数评分，
+历史记录不重算。现行归一化增益由统一实验和模拟投题客户端在开发区计算，见[指标说明](experiment-reading.md)。
+
 以下命令在 43240-agent/ 中运行：
 
 ```bash

@@ -19,6 +19,7 @@
 | 文档 | 维护内容 |
 | --- | --- |
 | [注释配置](../../config/example.yaml) | 配置字段与示例；覆盖顺序见手册 |
+| [赛事要求与提交核对](design/submission.md) | 最新评分、封存时间、Gitee 要求与仍待完成的事项 |
 | [运行契约](design/agent-runtime.md) | 上下文、诊断、候选搜索、token 预算、初始检查点重放 |
 | [规格自测基础](design/spec-test-foundation.md) | 可选计划、时序、自建测试台和候选保护接口；由独立实验入口显式使用 |
 | [可选实验工作流](design/experimental-workflows.md) | 显式选择工具反馈、规格自测或双候选分歧；默认入口不变 |
@@ -28,6 +29,8 @@
 | [历史分析工具](design/historical-analysis.md) | 旧格式统计工具的适用范围 |
 
 ## 最近的验证与证据
+
+- [上游文档与开发工具复查](notes/2026-10-16-upstream-document-audit.md)：评分、封存与报告遗漏、异步客户端、回归及推送前审查。
 
 - [上游投题接口与启动要求对齐](notes/2026-10-16-upstream-serving-alignment.md)：异步投题、常驻入口、回归与独立打包验证。
 
