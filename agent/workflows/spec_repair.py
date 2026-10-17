@@ -95,33 +95,39 @@ class ExperimentalRepair(Component):
         if not interface.blocking and self._latest(ctx, candidate, 'lint') is None:
             ctx.execute(self.lint, CheckInput(candidate))
 
+    def _validate_initial(self, ctx, data, checks):
+        requests = data['requests']
+        if len(requests) != 1:
+            raise ValueError('experimental workflows require exactly one initial request')
+        request = requests[0]['request']
+        # Reconstruct the first-call allowance with an empty ledger; imported
+        # costs remain charged in ctx.llm.tokens. Budgets may clamp the cap.
+        prediction = data['tokens']['entries'][requests[0]['call_id']]['prediction']
+        initial_cap = TokenLedger(ctx.llm.tokens.policy).allowance(
+            TokenCount(**prediction), self.max_tokens)
+        if (request['temperature'] != 0 or request['top_p'] != 1
+                or request['max_tokens'] != initial_cap or request.get('seed') is not None
+                or request['profile'] != 'default'):
+            raise ValueError('experimental initial sampling differs')
+        if any(c.kind not in ('interface', 'lint', 'synth') for c in checks):
+            raise ValueError('initial checkpoint must precede behavioral experiments')
+
+    def _restore_initial(self, ctx, path):
+        data, reply, result, checks = load_initial(path, ctx, self.extract)
+        self._validate_initial(ctx, data, checks)
+        self._round = 1
+        if result.candidate:
+            ctx.select_candidate(result.candidate.id, reason='initial_replay_fallback')
+            self._compile(ctx, result.candidate)
+        ctx.emit('experimental_initial', source='validated_checkpoint',
+                 calls=self._calls(ctx), official_baseline_equivalent=False)
+        return result
+
     def _initial(self, ctx):
         configured = getattr(ctx, 'configuration', {}).get('effective', {}).get('runtime', {}).get('initial_state')
         path = self.initial_state or configured
         if path:
-            data, reply, result, checks = load_initial(path, ctx, self.extract)
-            requests = data['requests']
-            if len(requests) != 1:
-                raise ValueError('experimental workflows require exactly one initial request')
-            request = requests[0]['request']
-            # Reconstruct the first-call allowance with an empty ledger; imported
-            # costs remain charged in ctx.llm.tokens. Budgets may clamp the cap.
-            prediction = data['tokens']['entries'][requests[0]['call_id']]['prediction']
-            initial_cap = TokenLedger(ctx.llm.tokens.policy).allowance(
-                TokenCount(**prediction), self.max_tokens)
-            if (request['temperature'] != 0 or request['top_p'] != 1
-                    or request['max_tokens'] != initial_cap or request.get('seed') is not None
-                    or request['profile'] != 'default'):
-                raise ValueError('experimental initial sampling differs')
-            if any(c.kind not in ('interface', 'lint', 'synth') for c in checks):
-                raise ValueError('initial checkpoint must precede behavioral experiments')
-            self._round = 1
-            if result.candidate:
-                ctx.select_candidate(result.candidate.id, reason='initial_replay_fallback')
-                self._compile(ctx, result.candidate)
-            ctx.emit('experimental_initial', source='validated_checkpoint',
-                     calls=self._calls(ctx), official_baseline_equivalent=False)
-            return result
+            return self._restore_initial(ctx, path)
         identity = ctx.tools.identify()
         reply, result = self._generate(ctx)
         if result.candidate:
@@ -155,28 +161,30 @@ class ExperimentalRepair(Component):
         if candidate is None:
             return
         self._compile(ctx, candidate)
-        if self._passed(ctx, candidate, 'lint'):
-            if self.use_behavior:
-                self._ensure_plan(ctx)
-                if self._plan is None:
-                    self._ready.add(candidate.id)
-                    return
-                observed = self._latest(ctx, candidate, 'behavior')
-                if observed is None:
-                    observed = ctx.execute(self.behavior, BehaviorInput(candidate, self._plan))
-                # A failed/inconclusive self-test is not a license to skip to synthesis.
-                if not (self._observation(observed) and observed.status == 'passed'):
-                    if self._observation(observed) and observed.status == 'failed':
-                        self._ready.add(candidate.id)
-                    return
-            if self._latest(ctx, candidate, 'synth') is None:
-                ctx.execute(self.synth, CheckInput(candidate))
-            if not self._passed(ctx, candidate, 'synth'):
+        if not self._passed(ctx, candidate, 'lint'):
+            self._ready.add(candidate.id)
+            return
+        if self.use_behavior:
+            self._ensure_plan(ctx)
+            if self._plan is None:
+                self._ready.add(candidate.id)
                 return
-            warnings = output_driver_warnings(candidate.code, ctx.task.top, self._checks(ctx, candidate))
-            if warnings:
-                ctx.emit('synthesis_output_warning', candidate_id=candidate.id, warnings=warnings,
-                         synthesis_completed=True, functional_verified=False, retain_candidate=True)
+            observed = self._latest(ctx, candidate, 'behavior')
+            if observed is None:
+                observed = ctx.execute(self.behavior, BehaviorInput(candidate, self._plan))
+            # A failed/inconclusive self-test is not a license to skip to synthesis.
+            if not (self._observation(observed) and observed.status == 'passed'):
+                if self._observation(observed) and observed.status == 'failed':
+                    self._ready.add(candidate.id)
+                return
+        if self._latest(ctx, candidate, 'synth') is None:
+            ctx.execute(self.synth, CheckInput(candidate))
+        if not self._passed(ctx, candidate, 'synth'):
+            return
+        warnings = output_driver_warnings(candidate.code, ctx.task.top, self._checks(ctx, candidate))
+        if warnings:
+            ctx.emit('synthesis_output_warning', candidate_id=candidate.id, warnings=warnings,
+                     synthesis_completed=True, functional_verified=False, retain_candidate=True)
         # A deadline inside any step leaves the new candidate out of selection.
         self._ready.add(candidate.id)
 
@@ -184,20 +192,26 @@ class ExperimentalRepair(Component):
         state = ctx.state
         current = state.candidates.get(state.selected_candidate_id)
         if self.use_behavior:
-            # The foundation excludes code-failed candidates before ranking.
-            # Do not let a synthesis error make an already compilable incumbent
-            # disappear and thereby bypass its strict property protection.
-            if current and self._passed(ctx, current, 'lint') and any(
-                    c.classify() == 'code' for c in self._checks(ctx, current)):
-                ctx.emit('selection_decision', candidate_id=current.id, changed=False,
-                         reason='protected_compilable_code_failure', evidence_ids=())
-                return
-            view = replace(state, candidates={k:v for k,v in state.candidates.items()
-                                             if k in self._ready or k == state.selected_candidate_id})
-            decision = choose_spec_candidate(view, plan_hash=self._plan.fingerprint if self._plan else None)
-            if decision.candidate_id is None and current:
-                decision = SelectionDecision(current.id, False, 'complete_unverified_fallback', ())
-            return ctx.apply_selection(decision)
+            return self._choose_spec(ctx, state, current)
+        self._choose_tools(ctx, state, current)
+
+    def _choose_spec(self, ctx, state, current):
+        # The foundation excludes code-failed candidates before ranking.
+        # Do not let a synthesis error make an already compilable incumbent
+        # disappear and thereby bypass its strict property protection.
+        if current and self._passed(ctx, current, 'lint') and any(
+                c.classify() == 'code' for c in self._checks(ctx, current)):
+            ctx.emit('selection_decision', candidate_id=current.id, changed=False,
+                     reason='protected_compilable_code_failure', evidence_ids=())
+            return
+        view = replace(state, candidates={k:v for k,v in state.candidates.items()
+                                         if k in self._ready or k == state.selected_candidate_id})
+        decision = choose_spec_candidate(view, plan_hash=self._plan.fingerprint if self._plan else None)
+        if decision.candidate_id is None and current:
+            decision = SelectionDecision(current.id, False, 'complete_unverified_fallback', ())
+        return ctx.apply_selection(decision)
+
+    def _choose_tools(self, ctx, state, current):
         # Tool-only strategy: latest evidence and stable ties; warnings need their
         # own strict proof. Never use a partial repair or discard a complete fallback.
         eligible = []
