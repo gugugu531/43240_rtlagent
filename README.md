@@ -1,415 +1,473 @@
-# 嵌赛FPGA赛道-AMD RTL/HLS 本地智能体设计赛道 - RTL track 参考仓库
+# 43240_rtlagent — RTL 赛道参赛方案
 
-本仓库是 **RTL track** 的参考仓库，提供一套可跑通的最小示范方案、示例题目、
-本地自测脚本，以及一个把 VerilogEval v2 转成本仓库格式的脚本。
+本目录是队伍 43240 的参赛方案，也是最终提交给赛事方的目录。方案读入一道题的题面，
+调用本地部署的大模型生成 Verilog / SystemVerilog 代码，可选用 Vivado 检查并反复修改，
+最后输出 `solution.v`。
 
-HLS track 另有仓库 `hlsagent2026`，两个 track 独立排名、独立评奖，
-**推荐只选其一**。
+当前默认 `single_generate` 复用官方 baseline 的 RTL 提示、采样和提取规则，不加载技能或执行工具。
+正式入口通过独立 Worker 和 Supervisor 管理预算、进程和中断恢复；模型与推理服务尚未最终确定。
 
-**有疑问先查 [常见问题（FAQ）](./docs/FAQ.md)**，涵盖参赛与环境、题集与判定、模型与方案、
-评测执行、合规五类问题。其余文档：
+| 流程 | 用途 | 验证边界 |
+| --- | --- | --- |
+| `single_generate` | 单次生成，作为默认入口 | 请求与提取对齐 baseline；完成不代表功能正确 |
+| `repair_loop`、`evidence_repair` | 多轮修复或最多一次结构化修复 | 使用自身接口、编译和综合证据；不读取官方判定 |
+| `evidence_a0/a1/a2` | E1：结构化修复与资料检索对照 | 支持初始检查点重放；完整题集收益仍需独立验证 |
+| `tool_feedback`、`spec_test_repair`、`behavior_divergence` | 可选实验：工具反馈、规格自测、双候选行为分歧 | 分别最多 2/3/4 次模型请求；默认入口不变，不以模型期望或候选一致性证明正确 |
+| `search_initial`、`search_r1/r2/r2_guided/c2/c3` | E2：有限修复与独立候选对照 | 支持共享起点、停止点及显式随机种子；不是已确定的提交策略 |
+| `single_generate_long_output` | 长输出额度对照，需显式导入扩展 | 改变输出和超时额度，不作为严格 baseline 请求等价结果 |
 
-| 文档 | 内容 |
+本 Git 仓库根目录即参赛方案包，可独立克隆、部署。工作区的开发工具、题库、官方判定器和实验记录位于仓库之外。
+
+---
+
+## 1. 目录结构
+
+| 路径 | 作用 |
 | --- | --- |
-| [docs/FAQ.md](./docs/FAQ.md) | 常见问题 |
-| [docs/SUBMISSION.md](./docs/SUBMISSION.md) | 代码封存与仓库提交（Gitee 或 GitHub） |
-| [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) | 投题接口契约、运行环境与已知问题 |
-| [SCORING.md](./SCORING.md) | 评分细则 |
-
-
-> **重要：在 Radeon Cloud 实例上先设置 Vivado / Vitis 授权变量。** 当前镜像没有预设授权
-> 服务地址，不设置时仿真、综合与 HLS 签不出授权，判定会全部卡在最低几级，且不报明显错误。
-> 实例重启后 `~/.bashrc` 会还原为镜像默认（见 FAQ「实例配置」一问），所以变量写进持久盘上的
-> `/workspace/env.sh`，`~/.bashrc` 只负责加载它：
->
-> ```bash
-> cat > /workspace/env.sh <<'EOF'
-> export XILINXD_LICENSE_FILE=${XILINXD_LICENSE_FILE:-2100@vivado-lic.fpgachina.svc.cluster.local}
-> export FLEXLM_TIMEOUT=${FLEXLM_TIMEOUT:-300000000}
-> export EDA_TMP=/var/tmp/eda AGENT_TMP=/var/tmp SELFTEST_TMP=/var/tmp
-> EOF
-> echo 'source /workspace/env.sh' >> ~/.bashrc    # 每次实例重启后重新执行这一行
-> source /workspace/env.sh
-> ```
->
-> 第三行把 EDA 工作目录从 `/tmp` 移到本地盘 `/var/tmp`：实例上的 `/tmp` 是 4 GB 内存盘，连续
-> 运行容易写满。令牌 `FPGACHINA_TOKEN` 等需要长期保留的变量也写进 `/workspace/env.sh`。
-> notebook 第 0 步会自动设置，但只对 notebook 内有效；在终端里运行 `run.sh`、投题服务与
-> 自测脚本时须用上面的命令。投题服务启动前就要设好，服务会把这两个变量传给智能体调用的
-> EDA 工具。用镜像自带的 llama.cpp 时另需一个变量，见 FAQ「llama.cpp」一问。
-
----
-
-## 重要时间节点
-
-| 时间节点 | 时间（北京时间）                 | 说明                                                           |
-| -------- | -------------------------------- | -------------------------------------------------------------- |
-| 竞赛报名 | 9 月 22 日截止                   |                                                                |
-| 作品设计 | 9 月 22 日 — 10 月 15 日         | 开发阶段不限平台，可自备算力                                   |
-| 验证窗口 | 10 月 16 日 — 10 月 30 日        | 在 Radeon Cloud 上验证方案可运行，完成仓库协作者邀请           |
-| 令牌发放 | 10 月 20 日（预计）              | 投题令牌发到各队注册 Radeon Cloud 时登记的邮箱，用于提前测通 |
-| 代码封存 | **10 月 31 日 10:00**            | 赛事方拉取各队 Gitee / GitHub 私有仓库，此后的推送不计入       |
-| 评测投题 | 10 月 31 日 10:00 起             | 封存后随即开始，所有队伍同时、按轮投题，服务须在此前就绪       |
-| 作品提交 | **11 月 4 日 18:00**             | 设计报告与系统提交，系统中须填写仓库链接                       |
-| 竞赛决赛 | 另行公告                         |                                                                |
-
-代码封存与仓库提交的具体做法见 [docs/SUBMISSION.md](./docs/SUBMISSION.md)。
-
-未注明的节点以大赛官方公布为准，见 http://www.fpgachina.cn/ 。
+| `run.sh` | 单题入口：从任意当前目录读取一道题，输出代码和工具调用记录 |
+| `run_baseline.sh`、`baseline.py` | 基线入口，赛事方提供，**不得修改** |
+| `agent/main.py` | 单题参数解析、配置装配与已注册 Workflow 选择 |
+| `config/example.yaml` | 带逐项中文注释的配置示例，也是正式入口默认配置；组件参数由 Python Workflow 定义 |
+| `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
+| `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
+| `agent/workflows/repair_loop.py` | 修复流程，自带候选选择 `choose()` 与失败处理 `decide()`，可由子类替换 |
+| `agent/workflows/evidence_repair.py` | 方案 A；复用修复流程的检查和选择，只注入有限结构化诊断并最多修复一次 |
+| `agent/workflows/spec_repair.py` | 三个可选实验入口，共用方案 A 首稿/检查点，但独立编排自测、修复和候选保护 |
+| `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
+| `agent/core/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
+| `agent/prompts/context.py` | 保留必须上下文，按真实 chat template 计数并装配可选完整片段 |
+| `agent/core/tokens.py` | 每题 token 账本；未知保持未知，可选累计输入输出/输出限额 |
+| `agent/core/diagnostic.py` | 自身工具诊断、工具与版本、错误码及可核实的候选行号 |
+| `agent/core/replay.py` | 只含求解信息的初始检查点，核验输入/源码/工具身份并扣除共享成本 |
+| `agent/workflows/evidence_ablation.py` | E1 三组，复用同一个修复循环；不使用 judge 选择候选 |
+| `agent/services/knowledge.py` | 加载外置的已验证修复卡，按完整错误码、工具、版本及可选诊断文本条件检索 |
+| `agent/workflows/` | 默认单次生成、可选修复循环及用户实验 Workflow |
+| `agent/nodes/` | 生成、提取、接口、lint 与综合动作 |
+| `agent/nodes/baseline.py` | `single_generate` 专用节点，导入未修改的 baseline 规则，保留原始题面和提取结果 |
+| `agent/prompts/builder.py` | 组装直接生成或修复提示，以及可选技能注入 |
+| `agent/core/` | 模型、任务、组件、检查与结果契约，以及注册表、预算和运行元数据 |
+| `agent/services/` | 模型、工具、检查缓存和进程服务；模型不自动重试，工具按需初始化 |
+| `agent/nodes/extraction.py` | 结构化提取代码，识别目标模块、多草稿与截断回复 |
+| `agent/core/interface.py` | 结构化解析 ANSI、非 ANSI 接口并输出逐字段差异 |
+| `agent/core/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
+| `agent/recording/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
+| `agent/services/vivado.py` | 带进程组清理和结构化结果的 lint、综合工具 |
+| `agent/services/repair_feedback.py` | 摘要截断前收集自身工具根因、提供词法赋值导航，并保守比较顶层输出无驱动证据 |
+| `agent/services/port_signature.py` | 警告修复专用的保守端口声明语义比较；不支持的声明视为未知 |
+| `agent/services/behavior.py`、`timing.py`、`plan_format.py`、`literal_spec.py`、`spec_ports.py` | 可选规格自测基础：校验受支持端口、时序和计划，程序生成测试台并区分公开属性与模型假设；默认流程不调用 |
+| `agent/nodes/behavior.py`、`agent/workflows/spec_selection.py` | 显式导入的计划/自测 Node 与可调用候选保护函数；不注册或启用新的 Workflow |
+| `agent/recording/` | 保存模型与动作证据、trace、脱敏及通用运行/模型统计 |
+| `agent/prompts/skills.py` | 加载技能包，按工具报错挑选相关技能 |
+| `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
+| `skill/` | 技能包，每条技能一个目录，格式见 `skill/README.md` |
+| `serve/serve_api.py` | 评测当天赛事方投题用的 HTTP 接口 |
+| `serve/start.sh` | 常驻服务唯一入口：检查已运行的推理服务，否则独立启动并等待就绪；补充本地 EDA 临时目录清理 |
+| `serve/vllm.sh` | 启动本地推理服务的脚本（示例使用 vLLM，见第 5 节） |
+| `model/MODEL.md`、`manifest.json` | 模型与方案的声明，须如实填写 |
+| `REPORT.md` | 当前方案报告草稿；正式模型、结果和失败分析待填写 |
+| `Dockerfile`、`requirements.txt` | 基于官方基础镜像构建运行环境 |
 
 ---
 
-## 竞赛内容
+## 2. 运行方式
 
-### 参赛对象
-
-不限本科生与研究生，报名时如实登记学历信息即可。
-
-### 赛题任务
-
-提交一套**可本地部署的完整方案**，在断网沙箱中自行完成从读题到产出 RTL 代码的
-全过程。
-
-方案须包含以下五个组成部分，缺一不可：
-
-| 组成             | 内容                                                   |
-| ---------------- | ------------------------------------------------------ |
-| **模型**   | 可本地部署的开源权重，须声明来源与版本                 |
-| **推理栈** | 推理后端及其服务配置                                   |
-| **智能体** | 控制流、重试策略、上下文管理、工具编排                 |
-| **技能包** | 提示词模板、校验脚本、踩坑清单等领域知识的组织         |
-| **基线**   | 绕过智能体与技能包的单次直接生成脚本，供赛事方计量增益 |
-
-题目于评测时逐道分发，队伍无法获得完整题集，亦无法预知后续题目。
-
-### 技术要求
-
-- **目标语言**：Verilog / SystemVerilog
-- **工具版本**：Vivado 2026.1（赛事方基础镜像内，以赛前公告为准）
-- **目标器件**：`xczu3eg-sbva484-1-e`（Zynq UltraScale+ ZU3EG），时钟约束 5 ns
-- **显存约束**：模型须在**单张 32 GB 卡**上完整容纳，不允许跨卡
-- **判定口径**：三级递进，逐级判定，全部在 AMD 工具链上完成
-
-```
-L1 可编译（xvlog + xelab）  →  L2 仿真通过（xsim，逐拍比对）  →  L3 可综合（synth_design）
-```
-
-- **不引入第三方工具**：没有 iverilog、Verilator、Yosys，也没有形式验证工具
-- **上下文配置**：不作统一约束，但须在 `MODEL.md` 与设计报告中如实声明
-- **允许微调**：微调权重须开源并声明来源；亦允许直接使用已有的硬件专用开源模型
-
----
-
-## 开发前须知
-
-开发阶段可使用队伍自备的商用 LLM API，正式提交则不允许。
-
-决赛在断网沙箱中运行，容器无法连接任何外部服务。`MODEL.md` 中声明的须为一份可本地
-部署的开源权重，评分中占 40 分的增益项亦以该模型的裸跑结果为基线。
-
-为此，本仓库的示范方案将 LLM 后端设计为可替换。**开发、验证、提交三个阶段共用
-同一份智能体代码**，差异仅在于 LLM 后端的三个环境变量：
-
-```
-     ┌──────────┐       ┌──────────┐       ┌──────────┐
-     │ [1] 开发 │ ────> │ [2] 验证 │ ────> │ [3] 提交 │
-     └──────────┘       └────┬─────┘       └──────────┘
-          ^                  │
-          └──────────────────┘
-        判定级别不理想 -> 回去改 agent / skill -> 再验一轮
-```
-
-请务必在验证窗口之前把这一圈转够几轮。若开发全程使用商用 API，直至提交阶段方才
-发现方案在本地权重下不成立，将没有回退时间。
-
-```
-┌─ [1] 开 发    商用 API 起步 ──────────────────────────────────────────┐
-│  LLM_BACKEND=openai                                                   │
-│  LLM_BASE_URL=https://api.deepseek.com/v1    <-- 任意 OpenAI 兼容 API │
-│  LLM_API_KEY=sk-xxxxxxxx                                              │
-│                                                                       │
-│  产出   agent/   控制流、重试策略、上下文管理、工具编排               │
-│         skill/   提示词模板、校验脚本、踩坑清单                       │
-│                                                                       │
-│  不需要 GPU，不需要 Vivado。此阶段只确认链路贯通：                    │
-│      LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/out           │
-└───────────────────────────────────────────────────────────────────────┘
-                                    │
-                       改环境变量，指向本地模型
-                                    ▼
-┌─ [2] 验 证    本地开源权重 + Vivado ──────────────────────────────────┐
-│  LLM_BASE_URL=http://localhost:8000/v1       <-- 本机 vLLM，开源权重  │
-│                                                                       │
-│             ┌──> run.sh          ──┐  智能体 + 技能包                 │
-│    tasks/ ──┤                      ├──> selftest/run_selftest.sh      │
-│             └──> run_baseline.sh ──┘  赛事方基线，不得改动            │
-│                                                                       │
-│  判定（Vivado，逐级递进，每题取所达到的最高级）                       │
-│      xvlog + xelab  ──> L1 可编译    系数 0.2                         │
-│      xsim 逐拍比对  ──> L2 仿真通过  系数 0.7                         │
-│      synth_design   ──> L3 可综合    系数 1.0                         │
-│                                                                       │
-│  两条链路都要跑：增益 g = (方案 − 基线) / (1 − 基线)，占 40 分。      │
-│  只跑方案不跑基线，这 40 分为零。                                     │
-│  级别不理想就回到 [1]：改控制流、补技能包，再验一轮。                 │
-└───────────────────────────────────────────────────────────────────────┘
-                                    │
-                    example/ 就是提交结构，改个名打包
-                                    ▼
-┌─ [3] 提 交    断网沙箱，一次性 ───────────────────────────────────────┐
-│  <队伍编号>_rtlagent/                                                 │
-│    ├─ Dockerfile         基于赛事方基础镜像构建                       │
-│    ├─ manifest.json      机器可读的方案声明                           │
-│    ├─ model/MODEL.md     来源、版本、量化方式、显存、上下文           │
-│    ├─ agent/  skill/  serve/                                          │
-│    ├─ run.sh             单题入口，产出 solution.v                    │
-│    ├─ run_baseline.sh    基线入口，绕过智能体与技能包                 │
-│    └─ REPORT.md          设计报告，失败分析是工程质量项重点           │
-│                                                                       │
-│  断网沙箱内运行：不联网、不下载、连续数百次请求中途不重启。           │
-│  失败不予重试；超时、断连、返回格式错误一律按 L0 计。                 │
-└───────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 评分标准
-
-### 四项权重
-
-| 评测项                                | 权重 |
-| ------------------------------------- | ---: |
-| 能力：题集加权通过率                  |   30 |
-| 增益：相对同模型裸跑基线的提升        |   40 |
-| 代价：墙钟效率                        |   10 |
-| 智能体与技能包的工程质量              |   20 |
-| 合计                                  |  100 |
-
-权重最高的评测项为增益而非通过率。选用能力更强的模型可直接抬高绝对通过率，但该部分
-提升源于模型本身；增益项以所选模型的裸跑结果为基线，考察方案在此之上额外带来的提升
-幅度。
-
-### 分级折算
-
-取每题所达到的最高级别，按系数折算：
-
-| 级别            | 系数 |
-| --------------- | ---: |
-| L0 未通过       |    0 |
-| L1 可编译       |  0.2 |
-| L2 仿真通过     |  0.7 |
-| L3 可综合       |  1.0 |
-
-```
-题集得分 = Σ(题目系数) / 题数
-能力得分 = 30 × 题集得分
-增益 g   = (方案题集得分 − 基线题集得分) / (1 − 基线题集得分)
-增益得分 = 40 × min(g / 0.6, 1)
-```
-
-**计分采用 pass@1**，pass@5 作为稳定性诊断单独列出，不计入总分。
-
-L1 至 L2 的系数跨度为 0.5，为分级表中最大的一级。该级对应功能正确性的判定，而参考
-测试台不予下发，参赛智能体无法获得，此为本赛道的核心考察点之一。
-
-### 具体评分细则
-
-[SCORING.md](./SCORING.md)
-
----
-
-## 快速开始
-
-以下步骤不依赖 GPU，亦无需安装 Vivado，可先行验证链路是否贯通。
-
-在 Radeon Cloud 实例上，可改用 [notebooks/rtl_quickstart.ipynb](./notebooks/rtl_quickstart.ipynb)
-逐格完成环境检查、判定链路校验、投题服务自测与本地模型运行。
+### 单题入口
 
 ```bash
-git clone <本仓库地址> && cd rtlagent2026
-pip install -r example/requirements.txt
-
-# ① 桩模式：不联网、不要 key，验证 run.sh 的输入输出契约
-cd example
-LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/out
-ls /tmp/out          # solution.v  trace.jsonl
-
-# ② 接入自备的 LLM API
-export LLM_BACKEND=openai
-export LLM_BASE_URL=https://api.deepseek.com/v1
-export LLM_API_KEY=sk-xxxxxxxx
-export LLM_MODEL=deepseek-coder
-./run.sh ../tasks/ex03_lfsr8 /tmp/out
-
-# ③ 装了 Vivado 之后，跑一遍分级判定
-cd ../selftest
-cp env.sh.example env.sh && vi env.sh      # 填自己的 Vivado 安装路径
-./run_selftest.sh --reference              # 先确认判定链路是通的
-./run_selftest.sh                          # 再运行参赛方案
-
-# ④ 用 VerilogEval v2 做真正的自测（156 道题）
-python3 veval_import.py \
-    --src /path/to/verilog-eval/dataset_spec-to-rtl \
-    --out ../tasks_veval
-./run_selftest.sh --tasks ../tasks_veval --samples 5
+./run.sh <题目目录> <输出目录>
+./run_baseline.sh <题目目录> <输出目录>     # 基线，参数相同
 ```
 
-判定需要 Vivado。未安装时 `run_selftest.sh` 仅进行结构检查并如实报告，不会在缺少工具
-的情况下给出判定结果，亦不会退回 iverilog 等其他工具。Vivado 的安装由队伍自行完成，
-本仓库不提供安装指导。
+| 文件 | 说明 |
+| --- | --- |
+| `<题目目录>/prompt.txt` | 题面。模块名和端口清单写在题面里 |
+| `<题目目录>/interface.txt` | 模块声明。**评测题集不提供**，读不到时按空处理 |
+| `<输出目录>/solution.v` | 生成的代码。做不出来时是空文件 |
+| `<输出目录>/trace.jsonl` | 工具调用记录，每行一个 JSON 对象，见第 4 节 |
+| `<输出目录>/records/<run_id>/` | 默认完整模型记录；也可以配置到独立根目录 |
+| `<详细记录目录>/candidates/<候选编号>.v` | `full` 模式保存候选代码；来源、父候选和哈希记录在 trace 的 `candidate/create` 事件中 |
+| `<输出目录>/selection.json` | 恢复检查点，包含候选正文、来源、哈希和选择原因，所有模式均写入 |
 
-**默认 Linux 环境。** Windows 用户建议在 WSL2 中使用本仓库，脚本未在原生 Windows
-上验证。
+`run.sh` 无论成功失败都以退出码 0 结束，并保证两个输出文件存在。这样「没做出来」
+（空文件）和已有答案能够区分开，错误类别另记入 trace。`solution.v` 在运行开始时即创建为空文件，之后通过
+同目录临时文件和原子替换更新，进程在模型或 Vivado 调用中被终止时也不会留下半个文件。
 
----
+### HTTP 接口
 
-## 提交要求
+评测当天，赛事方通过 HTTP 逐题投题。`serve/serve_api.py` 把每次请求写成一个临时
+题目目录，调用 `run.sh`（`mode=baseline` 时调用 `run_baseline.sh`），再把结果返回。
+接口按[上游 2026-10-17 版本契约](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)实现；
+本地 `docs/API_CONTRACT.md` 已同步到同一版本，启动与查询示例见 [serve/README.md](serve/README.md)。
 
-### 1. 方案包（必须）
-
-目录名与文件名**一律使用纯英文**，小写字母、数字、下划线或连字符，中文只出现在
-文件正文中。
-
-```
-<队伍编号>_rtlagent/
-├── Dockerfile              # 基于官方基础镜像构建
-├── manifest.json           # 机器可读的方案声明
-├── model/
-│   └── MODEL.md            # 模型来源、版本、量化方式、显存占用、上下文配置
-├── agent/                  # 智能体源码
-├── skill/                  # 技能包
-├── serve/                  # 推理服务配置与启动脚本
-│   └── start.sh            # 拉起全部常驻进程，就绪后返回
-├── run.sh                  # 单题入口：读题 → 产出代码
-├── run_baseline.sh         # 基线入口：同一推理服务，绕过智能体与技能包
-└── REPORT.md               # 设计报告
+```bash
+export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8000/v1
+export MODEL=/models/Qwen3-8B MODEL_NAME=Qwen3-8B LLM_MODEL=Qwen3-8B
+./serve/start.sh
+export FPGACHINA_TOKEN=<令牌>
+uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
 ```
 
-[example/](./example/) 即按上述结构组织，可直接作为起点。
+`POST /v1/solve` 立即以 202 返回 `job_id`、`task_id` 和 `queued` 状态；
+`GET /v1/jobs/{job_id}` 返回 `queued`、`running` 或带有答案与 trace 的 `done`。三个端点均校验令牌。
+非空 `nonce` 的重复投递返回原任务，不重复求解。任务按顺序执行；时间从投题起算，包含排队、
+输入准备、执行与清理，排队超时直接返回空答案。任务与去重信息保存在单个 HTTP 进程内，重启后清空；
+启动 uvicorn 时使用默认的一个 Worker，不使用多 Worker 或热重载。
 
-### 2. 基线入口（必须）
+Agent 的 Supervisor 管理 Worker 与通过公开服务启动的工具进程；shell 转发 SIGTERM。baseline
+只增加外部进程组监督；HTTP 服务在 Linux 下接管并回收孤儿进程，超时与退出时清理任务进程组。
+原始 baseline 脚本和模型提示保持不变，HTTP trace 可追加服务层超时或错误事件。
+健康检查会核对 Worker 与所配置的模型是否可用；它不替代完整求解和 Vivado 验证。
 
-`run_baseline.sh` 与 `run.sh` 使用**同一推理服务、同一模型、同一上下文配置**，但绕过
-智能体与技能包，提示词仅含题目本身，单次生成、不重试、不调用工具。
+### 调用大模型
 
-**没有可运行的基线，增益项 40 分不得分。**
+`agent/services/model.py` 支持两种后端，由环境变量 `LLM_BACKEND` 选择：
 
-### 3. 设计报告（必须）
+- `mock`：不联网的假模型，按题面端口生成一个输出恒为 0 的空模块，只用来检查流程是否
+  跑得通
+- `openai`：任何 OpenAI 兼容的 `/chat/completions` 接口，开发时可以是商用 API，
+  提交时必须是本地推理服务
 
-见 [REPORT_TEMPLATE.md](./REPORT_TEMPLATE.md)。其中**失败分析**是工程质量项的评定重点。
+模型服务用 `ModelRequest` 接收 messages、输出上限、温度、超时和用途，返回 `ModelReply`。
+超时、连接失败、HTTP 错误、非法 JSON 与响应格式错误通过 `ModelCallError.kind` 区分。
+每次调用分配 `m001` 形式的 ID，未知 token 用量为 `null`，mock 不伪造 HTTP 响应或用量。
+服务不自动重试。实际调用超时取 Node 上限、服务上限与本题剩余时间中的较小值。
+采样参数由 Python Workflow 构造 Node 时显式传入，服务配置不再承担采样策略。
 
-### 4. 代码封存与评测（必须）
+开发记录默认使用 `full`。每次运行在 `<输出目录>/records/<run_id>/` 中创建独立记录：
 
-- 10 月 31 日 10:00 前，方案推送到 Gitee 或 GitHub 的私有仓库，并邀请赛事方账号为协作者：
-  Gitee 为 `Vickyiii`（`daisycw@126.com`），GitHub 为 `vickyiii`。赛事方在该时刻拉取的版本即为封存版本
-- 同一时刻之前，按封存版本启动投题服务，并报送服务端点网址。投题令牌预计 10 月 20 日
-  发到各队注册 Radeon Cloud 时登记的邮箱
-- 11 月 4 日 18:00 前，在大赛系统中提交设计报告与仓库链接
-
-详见 [docs/SUBMISSION.md](./docs/SUBMISSION.md)。
-
-接口格式见 [docs/API_CONTRACT.md](./docs/API_CONTRACT.md)。该契约于赛前固定，此后不再变更。
-
-### 5. 演示视频（必须）
-
-在 Radeon Cloud 实例的界面上演示自己的作品：智能体的工作流如何构建（服务如何启动、一道题
-如何从投题走到产出代码与判级）、设计的创新点是什么、为什么这样设计。时长与格式按大赛官方
-要求，随作品一并在大赛系统中提交。
-
-### 6. 大模型协作记录（必须）
-
-按大赛统一要求提交，写入设计报告的「大模型协作记录」一节（`REPORT_TEMPLATE.md` 第 12 节），
-需要涵盖：
-
-- 协助开发所用的大模型与工具的名称、版本
-- 设计创新点的来源：哪些来自大模型的建议，哪些来自队伍自己的判断
-- 大模型给出正确建议的地方
-- 大模型给出错误建议的地方，以及是怎样发现的
-- 如何验证与判别，最终达成设计（用了哪些工具、测试、对拍或实测数据）
-
----
-
-## 提交检查清单
-
-- [ ] `Dockerfile` 基于官方基础镜像，可在干净环境中重建
-- [ ] **模型是本地开源权重，不是商用 API**
-- [ ] 实测单卡显存占用不超过 32 GB
-- [ ] 断网条件下可完整运行，无外部依赖下载
-- [ ] `MODEL.md` 已写明来源、版本号或校验和、量化方式、实测显存、上下文配置
-- [ ] 若经微调：权重已开源，链接可达，训练数据来源已说明
-- [ ] 干净容器中运行 `serve/start.sh` 后，`run.sh` 可接受单题输入并产出 `solution.v`，无需人工介入
-- [ ] 常驻进程全部由 `serve/start.sh` 以 `setsid` 拉起，`run.sh` 不在后台启动常驻进程
-- [ ] `run_baseline.sh` 可运行，且确实绕过智能体与技能包
-- [ ] `trace.jsonl` 记录了每一次工具调用
-- [ ] 单题运行时间在墙钟上限内
-- [ ] 智能体源码与技能包齐全，技能包含 `README.md`
-- [ ] 设计报告含模型选择理由、智能体设计说明与**失败分析**
-- [ ] 已用 `selftest/` 在本地跑通一轮
-- [ ] 仓库为私有，已邀请赛事方账号为协作者（Gitee `Vickyiii` / GitHub `vickyiii`），默认分支即为要提交的版本
-- [ ] `MODEL.md` 已写明权重的仓库地址与版本号（revision），该地址可公开访问
-- [ ] 演示视频已录制，时长与格式符合大赛官方要求
-- [ ] 设计报告含「大模型协作记录」一节
-- [ ] 目录名与文件名全为英文
-
----
-
-## 注意事项
-
-1. 参考测试台不下发给智能体。判定 L2 所用的测试台由赛事方掌握，该测试台同时例化参考
-   实现与被测模块并逐拍比对，参赛智能体无法获得，此为本赛道拟考察的内容之一。
-2. 接口书写错误的代价高于算法实现错误。参考测试台按具名端口例化被测模块，端口名或
-   模块名书写错误将导致详细描述失败，该题计为 L0；而功能实现错误仍可得 L1 的 0.2 分。
-3. 未能求解时应返回空字符串，不应报错，以使未能求解与服务异常在协议层面可以区分。
-4. 失败不予重试。超时、连接断开与返回格式错误一律按 L0 计，赛事方不再重投。
-5. 参赛服务须能连续处理数百次请求，中途不得重启。
-6. 禁止硬编码答案、外部检索与绕过模型。GPU 利用率全程接近零者进入人工复核。
-7. 抄袭行为零容忍，发现代码雷同者取消参赛资格。
-
----
-
-## 仓库结构
-
-```
-rtlagent2026/
-├── README.md              # 本文件
-├── SCORING.md             # 分级系数、四项权重、增益公式、算分示例
-├── REPORT_TEMPLATE.md             # 设计报告模板
-├── docs/
-│   ├── API_CONTRACT.md         # /v1/health、/v1/solve、/v1/jobs、trace.jsonl 格式
-│   ├── FAQ.md                  # 常见问题
-│   └── SUBMISSION.md           # 代码封存与仓库提交
-├── example/               # 最小示范方案，按提交结构写，可直接作起点
-├── tasks/                 # 3 道示例题目，题面为英文，与评测题集同形
-├── notebooks/             # Radeon Cloud 上手 notebook
-└── selftest/              # 本地分级判定脚本 + VerilogEval 转换脚本
+```text
+task.json
+calls/m001/
+  request.json       # 请求 messages、实际参数与公开服务配置
+  response.json      # 可解析的完整 JSON 响应，包括 reasoning 和服务扩展字段
+  response.txt       # 只在响应不是合法 JSON 或使用 mock 时代替 response.json
+candidates/c001.v
+process_logs/*.log    # Supervisor 保存的完整工具与进程输出，中断时也可保留
 ```
 
----
+每份数据只保存一处：调用状态、提取结论、Node 执行、检查结果、选择和监督结果都只写在
+trace 中，详细记录目录只放 trace 装不下的正文。检查结果用 `log_paths` 指向对应的进程日志。
 
-## 参考资料
-
-| 名称                | 用途                                                       |
-| ------------------- | ---------------------------------------------------------- |
-| VerilogEval v2      | RTL 自测数据集，https://github.com/NVlabs/verilog-eval （取 `dataset_spec-to-rtl`） |
-| Vivado 仿真用户指南 | UG900                                                      |
-| Vivado 综合用户指南 | UG901                                                      |
-| AMD Ross 技能库     | FPGA 设计技能（Vivado / Vitis HLS），可用于方案的 `skill/`，https://github.com/Xilinx/ross-ai-assistant |
-| AMD Skills          | ROCm 与模型量化技能，供开发期的编码助手使用，https://github.com/amd/skills |
-
-**VerilogEval 的官方 harness 依赖 iverilog，其测试台在 Vivado 下直接编译不过。**
-`selftest/veval_import.py` 负责转换，详见 [selftest/README.md](./selftest/README.md)。
+设 `AGENT_RECORD_ROOT=/绝对路径` 可将记录保存到输出目录以外。HTTP 服务也继承此设置；
+因此请求临时目录被删除后，记录仍然保留。HTTP 默认不持久保存临时目录中的完整记录。
+设 `AGENT_RECORD_LEVEL=basic` 只写必要 trace。直接运行 Python 入口也可以使用
+`--record-root` 和 `--record-level`；这两个选项不改变 `run.sh` 的两个位置参数。
+trace、详细证据和工具日志使用脱敏副本，模型实际收到的请求和用于提取的回复不受修改。
+输出目录的 `solution.v` 和恢复检查点保存实际代码，供中断恢复；它们不属于脱敏证据副本。
 
 ---
 
-## 联系方式
+## 3. Workflow 与扩展
 
-| 渠道               | 地址                                 |
-| ------------------ | ------------------------------------ |
-| AMD 中文技术论坛   | https://forums.xilinx.com/cn         |
-| AMD 中国开发者平台 | https://developer.amd.com.cn/radeon/ |
-| 赛道交流 QQ 群     | 1087309750                           |
-| 邮箱咨询           | wenc@amd.com                         |
+默认 `single_generate`：
+
+```text
+题面与可选接口 → 一次直接生成 → 提取候选 → 显式选择并保存答案
+```
+
+提示、温度 `0.0`、`top_p=1.0`、输出上限 `16384` 和请求上限 `840` 秒直接取自未修改的
+`baseline.py`。该 Workflow 不接受采样参数覆盖；不同策略应另注册 Workflow。题面和可选接口
+保留读取时的首尾空白，系统提示固定要求 `TopModule`，不采用 `RTL_TOP` 或接口推断的模块名。
+HTTP 请求只发送 baseline 的字段，不附加 `stream` 或认证头；共享思考设置从 `manifest.json` 的 `generation` 段读取，
+支持标量 `chat_template_kwargs` 和字符串 `reasoning_effort`，与原始 baseline 一致。请求模型名依次取 `MODEL_NAME`、
+`/models` 第一项和 `default`；`LLM_MODEL` 仍用于 mock、修复流程及实验配置。统一实验入口将
+配置中的模型名通过 `MODEL_NAME` 显式传给两个模式，覆盖遗留环境变量。
+
+提取直接调用 `baseline.extract()`：先去掉思考段，再保留第一个匹配代码块，再提取 `TopModule`，找不到时
+保留文本。残缺代码和纯说明也作为候选保存；正常响应的空内容写出一个换行，请求失败写空文件。
+现有结构化提取器只提供回复诊断，不筛选或改写这一路径的答案。`completed` 表示流程完成，
+不表示代码完整或正确。`repair_loop` 继续使用原来的提示、请求参数和结构化提取节点。
+
+通过标准入口运行时，`services.model.timeout_s` 省略或为 `null` 表示按 Workflow 取默认值：
+`single_generate`、`evidence_repair`、`evidence_a0/a1/a2` 为 840 秒，其余（包括 `search_*`）为 180 秒。显式服务上限和整题剩余预算仍可缩短调用，
+Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig()` 仍显式使用其 180 秒上限。
+模型发现最多等 30 秒，也受服务上限和剩余预算约束，耗时计入整题预算，不算一次生成调用。
+
+等价性指相同 RTL 输入与模型服务、预算充足且正常 API 响应下的生成请求 JSON 和最终文件字节。
+不要求复刻 baseline 的冗余模型查询、异常文本或进程中断行为；mock 只验证流程。HTTP 请求的
+`request.json` 在 `request` 字段保存实际出站 JSON 的脱敏副本，另记实际超时、用途与请求类型。
+
+长输出补测可显式导入 `agent.workflows.single_generate_long_output`，选择
+`single_generate_long_output`。它复用上述生成、提取和保存过程，仅把单次输出上限改为
+`32768`、请求超时改为最多 `900` 秒，并记录 `experiment_override` 事件。
+实验配置还应显式设置 `services.model.timeout_s: 900` 和 `runtime.deadline_s: 960`；
+服务上限与剩余预算仍会缩短请求。模型服务需要足够的上下文和缓存容量。
+这是单独的额度对照实验，不属于严格 baseline 请求等价结果，也不改变默认流程或 `repair_loop`。
+
+可选 `repair_loop`：
+
+```text
+生成 → 提取 → 保存候选 → 接口检查 → lint → 综合
+ ↑             每步按已有证据更新选择；明确代码错误时反馈修复
+```
+
+该 Workflow 默认最多 3 轮、温度 `0.2`、输出上限 `4096`，每个请求最多重试 1 次、模型调用
+总数最多 4 次。只有允许重试的模型连接、超时或 HTTP 错误才重试相同消息；服务本身仍只调用一次。
+明确代码错误进入修复，超时、环境故障和未知错误默认停止，避免把基础设施问题当成 RTL 缺陷。
+另有下述明确输出无驱动警告的有界修复；它不把综合成功伪装成编译失败。
+
+最新候选、修复对象与最终答案分别管理。确认有代码或权威接口错误的候选不作为答案；其余候选
+按真实综合、lint 和接口通过证据比较，同等证据保留已有选择。未知检查不当成通过；综合通过不代表
+功能正确。相同源码与任务、配置、工具身份的确定性检查可在本题复用，记录引用来源而不重复调用工具。
+自定义修复 Workflow 可继承 `RepairLoop`，覆盖 `choose()` 或 `decide()`，开展不同选择或失败处理实验。
+
+`repair_loop` 默认在原有预算内尝试修复明确的顶层输出无驱动警告。新稿必须实际通过编译、综合，
+受支持的端口声明语义保持不变，且完整诊断中的无驱动输出/位集合严格缩小，才替换旧稿。
+替换检查单独比较 ANSI 端口的名称、方向、顺序、signedness（符号性）以及全部常量
+packed/unpacked 范围（含边界方向）；只忽略 wire/reg/logic 类型修正、等价空白和显式 unsigned。
+参数化、预处理、非 ANSI、其他类型、动态/表达式维度或可能的端口再声明均视为未知，保留旧稿；
+通用接口解析器的 high 置信度不证明完整端口语义。诊断缺失、截断或格式未知时也保留旧稿。
+警告减少不代表功能正确。可用 `repair_output_drivers: false` 关闭；`evidence_repair`、E1/E2
+保持该警告触发关闭，共享的编译错误归因和修复提示更新仍适用。
+
+另提供可选规格自测基础，现由 `spec_test_repair` 和 `behavior_divergence` 显式使用，
+**不接入默认入口和已有 E1/E2 等流程**。显式导入
+`agent.nodes.behavior` 可使用 `spec_test_plan` 和 `spec_behavior_check` Node；动作仍由 Workflow
+通过 `ctx.execute()` 调度。计划只看公开题面与接口，完整支持格式的二值真值表可程序化枚举，
+其他期望值均标为模型假设。程序校验后生成自己的测试台，不执行模型编写的测试代码或读取官方 TB。
+自测仅支持无符号标量/一维降序向量；时序部分限单时钟、明确复位和唯一输出寄存器组。
+可调用保护函数只依据同一计划下严格改善的受支持属性，保留旧的工具通过证据、端口语义和探针覆盖；
+模型期望值分数不能单独推翻可编译候选。未知、计划拒绝、自测通过都不等于官方功能判定。
+复位依据支持非相邻的原文段落，首次与末次复位检查都逐段验证；positive/negative edge
+同样按时序规格处理。模型假设采样中的 X/Z 单独记录为不确定观察，不计入已判定断言或失配；
+没有确定失配但存在不确定观察时，自测返回不可用。
+开发接口、支持范围和限制见规格自测基础（工作区开发资料）。
+
+三个新增实验入口分别为 `tool_feedback`（最多 2 次模型请求）、`spec_test_repair`（最多 3 次）和
+`behavior_divergence`（最多 4 次），各最多修复一次、不自动重试；真值表枚举不占模型请求。
+首稿共用方案 A 的消息和提取，不等同官方 baseline。直接启动保存 `initial.json`，也可恢复同一首稿，
+恢复时扣除已有时间和 token 成本，并按 token 策略校验首稿的实际输出上限，支持预算降低上限后的重放。
+修复稿完成必要检查后才参与选择；编译修复后必须进入所需的自测阶段。
+双候选分歧只记录，不用投票或一致性裁决。规格组不以纯综合警告或综合代码错误绕过严格属性保护。
+显式配置、调用和失败边界见可选实验工作流（工作区开发资料）；尚无正式题集增益结论。
+
+可选 `evidence_repair` 复用同一套候选选择和失败归因，但固定为一份初始候选加最多一次修复。它通过
+`structured_feedback` Node 把提取或检查失败整理成证据编号、阶段、状态、归因、稳定错误码和有限摘要；
+不读取完整日志、官方 testbench、参考答案或 judge 结果，也不启用技能、ICL、规划、反思和检索。
+
+方案 A 保留既有实验参数（8192 tokens、temperature 0、top_p 1、单次上限
+300 秒）及自己的提示和提取，不随新版 baseline 的额度自动改变。最终实际超时仍受服务和整题剩余预算约束。
+Vivado `VRFC 10-1280`、`10-9336` 等明确源码诊断会进入修复；环境故障优先单独归因。
+如果修复没有完整代码或所有候选检查失败，方案 A 保留完整旧候选并标记
+`failed_check_fallback`，不会把失败检查改成通过。原有 `repair_loop` 选择规则保持不变。
+
+E1 的 `evidence_a0` 使用方案 A 同一首次提示与提取，只保留首份候选并执行自身检查；
+`evidence_a1` 使用结构化反馈最多修复一次；`evidence_a2` 额外检索本地提供并经过独立小例子验证的
+错误短卡，最多两张，按实际工具/版本和完整错误码匹配。卡片可要求同一错误的诊断文本包含指定内容，
+不允许其他错误或 warning 代替该条件。未配置知识库、无法加载或无命中时不增加提示。
+`runtime.initial_state` 可指定 A0 导出的 `initial.json` 做受控重放，核验输入、源码、工具身份，
+复用自身检查并扣除共享首次时间与 token 成本，不读取官方 judge 或参考答案。
+所有求解仍经 run.sh/Supervisor；开发实验和隔离判定在 dev 中调度。三组都是实验变体，默认流程未切换。
+
+E2 的 `search_r1/r2` 最多修复一/两次，`search_c2/c3` 最多生成两/三份独立候选；
+`search_initial` 保存初始检查点，`search_r2_guided` 按每轮自身错误检索外置短卡。
+采样在 Python 中声明，默认 temperature=0.6、top_p=0.95、base_seed=20261013，逐次 seed 递增。
+未配置知识库时不增加资料；通过 YAML 的 `services.knowledge.corpus_path` 指定本地资料，
+缺失或格式错误时记录原因并继续原修复提示。资料内容单独提供，不随 Git 上传。
+三次调用流程建立初始检查点后，会在第三次调用前或提前停止时保存 `stop_after_two.json`；
+它记录共享前缀的真实状态，不额外调用模型，不可把共享成本重复相加。
+
+上下文保留题面、接口、完整候选和反馈，可选资料按整段装配。`services.model` 下可设置
+本地 tokenizer、上下文容量和累计 token 限额，默认不启用累计限额。未知用量不算零。
+共享 generation 对所有流程生效：一致的部分配置继承完整声明，冲突值或额外未声明的思考字段会被拒绝。
+声明为空时所有流程沿用服务默认；YAML `enable_thinking` 只能重复共享声明中一致的设置。
+本地计数器支持官方允许的布尔、数字和字符串模板参数，按实际完整请求计数。
+
+新增上下文、诊断、短卡检索和候选策略的接口约定见
+Agent 运行接口（工作区开发资料）。
+
+选择流程：
+
+```bash
+# run.sh 默认使用 single_generate
+LLM_BACKEND=mock ./run.sh /path/to/task /tmp/out
+
+# 两个位置参数不变，通过运行条件选择可选流程
+LLM_BACKEND=mock AGENT_WORKFLOW=repair_loop ./run.sh /path/to/task /tmp/out-repair
+
+# 方案 A：结构化反馈，最多修复一次（真实检查需要 Vivado）
+LLM_BACKEND=mock AGENT_WORKFLOW=evidence_repair ./run.sh /path/to/task /tmp/out-evidence
+
+# Python 入口也可直接选择，并显式导入用户扩展模块
+python3 -m agent.main --input <task_dir> --output <out_dir> \
+  --workflow <registered_name> --import-module <module_path>
+```
+
+组件只在注册表中登记类，构造时再创建实例。Workflow 用 Python 定义循环、条件与异常处理，
+通过 `build_node(name, **params)` 选择动作并传参，经过 `ctx.execute(node, input)` 执行。
+新增实验 Workflow 与 Node 也放在 `agent/`，运行代码不依赖 `dev/` 或官方判定信息。
+
+上下文提供模型、工具、预算、只读状态与候选操作。保存候选不会自动选择答案；Workflow 必须
+调用 `ctx.select_candidate()`，并用 `ctx.finish()` 返回与已落盘选择一致的结果。
+运行器支持 Workflow 工厂，在每题调用工厂创建新实例。构造参数、实现路径与实际执行动作自动记录。
+完整接口和扩展示例见 Python Workflow 接口（工作区开发资料）。
+
+预算使用单调时钟，动作可设置最少启动时间，并为清理和写出结果预留时间。正式入口在独立 Worker
+中运行 Python Workflow，Supervisor 在预算结束或收到信号时先 TERM、再 KILL 并回收受管理进程。
+自定义外部动作使用 `ctx.processes.run(ProcessRequest(...))`；自行创建并脱离进程组的子进程不在保证范围。
+
+选择先提交包含代码和哈希的原子检查点，再替换 `solution.v`；中断后校验并恢复。Supervisor 只在
+Worker 停止后追加记录，不伪造模型或 Node 的结束。关闭模型连接不证明共享服务已停止推理，记录为 unknown。
+用于依赖注入和单元测试的进程内 Runner 仍是合作式预算，不提供任意 Python 阻塞的硬停止。
 
 ---
 
-**预祝各位参赛选手取得优异成绩！**
+## 4. trace.jsonl 记录的内容
+
+每行一个 JSON 对象，以 `run_id`、递增 `seq`、Unix 时间戳 `ts`、类别 `tool` 和事件 `event` 关联过程。
+代码版本记录于运行元数据中的 Git 短 commit；不另设 trace 格式版本。
+
+| 需要追踪什么 | 事件与关联编号 |
+| --- | --- |
+| 配置、题目和记录目录 | `run/metadata`、`run/recording` |
+| 模型请求和结果 | `llm/started/succeeded/failed`，以 `call_id` 关联 |
+| 动作和嵌套步骤 | `node` 生命周期，以 `execution_id` 关联 |
+| 提取、候选与最终答案 | `extract`、`candidate/create/select`，保留来源调用与候选编号 |
+| 接口、lint、综合与复用 | 检查编号、状态及日志引用；复用不算新工具执行 |
+| 决策、预算和结束清理 | `workflow`、`budget`、`supervisor/result` |
+
+完整字段约定在开发工作区的记录格式（工作区开发资料）维护。
+没有结束事件的调用保持未知，模型正文和完整工具日志按引用保存于详细记录。
+
+`agent/recording/` 在写入前统一隐藏 API key、Cookie、Authorization、已知秘密与 URL
+中的凭据。原始正文保存在详细记录中，trace 只保存摘要与引用；必要 trace 写入失败视为
+基础设施错误。详细文件写入失败只发出 `recording/warning` 警告，不会替换原有模型
+结果或错误。进程中途退出时只保留实际已发生的事件，不伪造调用结束。
+
+工作区的 `dev/tools/analysis/analyze.py` 按调用结束事件统计模型耗时、按调用 ID 统计调用次数，避免把开始和
+结束重复计数；检查开始与结束按 ID 合并，复用检查另计，只有开始事件的工具仍计为一次尝试。
+主办方 baseline 的 trace 仍可分析。未知用量的汇总只代表已知用量之和。
+格式见 记录格式（工作区开发资料）。
+
+trace 同时用于三件事：工程质量评分、赛事方核对生成结果是否确实来自模型、团队自己的失败
+分析，所以是必需的。主办方 baseline 文件保持不变，其 trace 继续按官方原格式输出。
+
+---
+
+## 5. 推理服务
+
+正式 HTTP 与本地默认单题预算为 900 秒。`manifest.json` 的 `generation` 是方案与基线共享的
+思考声明，当前为空，所有流程沿用服务端默认；一致的部分配置会继承完整声明；冲突值或额外未声明的思考字段会被拒绝。
+HTTP 接口接受 1 至 900 秒时限，方案与基线共用监督与排队截止处理；排队耗时计入时限，
+到期的排队任务在查询或 nonce 重投时返回 done 和空答案，不等待前一任务退出，也不再启动求解。
+健康检查发现未共享的思考配置时返回未就绪。镜像默认临时目录使用本地盘 `/var/tmp`。
+`auxiliary_models` 当前为空，尚未部署辅助模型。
+
+比赛不限定推理后端，只要求服务提供 OpenAI 兼容的 `/v1/chat/completions`，能在单张
+32 GB 显卡上、断网条件下运行，且方案和基线使用同一个服务。`serve/vllm.sh` 是示例方案
+使用 vLLM 的启动脚本，**团队尚未确定最终使用的后端**。确定后，这里、`serve/` 中的
+启动脚本、`manifest.json` 和 `model/MODEL.md` 会同步更新。
+
+服务只能监听 `127.0.0.1`，不能对外暴露；对外只暴露投题接口的 7860 端口。
+
+`serve/start.sh` 启动并等待常驻服务；`serve/vllm.sh` 读取
+`MODEL`（权重路径）、`MODEL_NAME`（服务模型名）、`PORT`、`MAX_LEN`、
+`VRAM_BUDGET_GB`（默认 30 GB，据卡容量计算比例）、`GPU_UTIL`（显式覆盖比例），
+以及 `VLLM_EXTRA_ARGS`（额外的 vLLM 参数，默认为空，例如 `--reasoning-parser qwen3`）。
+服务参数同时影响方案和基线，最终采用的参数要写进 `model/MODEL.md`。
+
+已验证的情况（2026-09-24，AMD Radeon Cloud 的 W7900，gfx1100）：vLLM 0.16.1 能正常运行
+BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoning-parser qwen3`，否则
+思考内容会混进回复正文，基线分数明显下降。决赛硬件 R9700（gfx1201）上尚未验证。
+历史说明保存在工作区 `dev/docs/notes/0001-inference-backend.md`，不随本仓库交付。
+
+---
+
+## 配置
+
+默认配置为 `config/example.yaml`。可复制为自己的配置，通过 `AGENT_CONFIG` 或 `--config` 选择。
+相对路径以配置文件所在目录解析；运行时不依赖工作区开发目录。
+配置优先级为内置默认、YAML、支持的环境变量、命令行参数，实际值写入 trace 的运行元数据。
+
+## 6. 环境变量
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `LLM_BACKEND` | `mock` | `mock` 或 `openai` |
+| `LLM_BASE_URL` | 无 | 模型服务地址，`openai` 后端必填 |
+| `LLM_API_KEY` | 空 | 本地推理服务可以随便填 |
+| `LLM_MODEL` | `mock-model` | mock、修复流程及统一实验配置的模型名；直接运行 single_generate 使用 MODEL_NAME 或发现服务模型 |
+| `LLM_TIMEOUT_S` | 按 Workflow | single_generate、evidence_repair、evidence_a0/a1/a2 默认 840 秒，其他 180 秒；显式值限制单次调用 |
+| `AGENT_CONFIG` | `config/example.yaml` | YAML 配置路径；相对路径按调用者当前目录解析 |
+| `VIVADO_BIN` | PATH | 显式 Vivado 可执行文件目录 |
+| `AGENT_WORKFLOW` | `single_generate` | 已注册 Workflow 名称 |
+| `AGENT_DEADLINE_S` | `900` | 单题时间预算（秒），HTTP 请求中的 `deadline_s` 只能缩小实际预算 |
+| `AGENT_RESERVE_S` | `20` | 为清理和写出结果预留的时间（秒）；预算小于此值时直接停止 |
+| `AGENT_TMP` | 依次取 `EDA_TMP`、`TRACK_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
+| `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留每次 Vivado 调用的独立目录和完整日志，排查问题用 |
+| `AGENT_RECORD_LEVEL` | `full` | `full` 保存详细证据；`basic` 只保留必要 trace |
+| `AGENT_RECORD_ROOT` | 输出目录下 `records/` | 独立记录根目录；HTTP 开发实验应设置到请求临时目录以外 |
+| `AGENT_GIT_COMMIT` | 自动读取 | 镜像中没有 `.git` 时，由构建过程注入源码 commit |
+| `AGENT_GIT_DIRTY` | 未知 | 与 `AGENT_GIT_COMMIT` 一起注入源码是否含未提交修改 |
+| `RTL_PART` | `xczu3eg-sbva484-1-e` | 综合用的器件 |
+| `RTL_TOP` | `TopModule` | 顶层模块名；未设置时从 `interface.txt` 中推断，推断不出则用 `TopModule` |
+| `FPGACHINA_TOKEN` | 无 | 投题接口的令牌，`serve_api.py` 必须设置 |
+| `MODEL_NAME` | 未设置 | baseline 与 single_generate 的请求模型名；未设时发现服务模型；也用于健康检查返回值 |
+
+single_generate 的采样常量固定；其他 Workflow 的温度、输出上限与轮数通过 Python 构造参数设置。旧的 `LLM_MAX_TOKENS`、
+`LLM_TEMPERATURE` 和 `AGENT_MAX_ROUNDS` 不再读取。正式提交时同步采样与模型声明。
+
+---
+
+## 7. 已知局限
+
+1. 默认单次生成不验证代码，也不判断功能正确性；可选 lint、综合通过仅表示内部检查通过。
+2. 工具诊断只识别少数明确的代码错误，未知错误默认停止；完整日志支持继续分析。
+3. 修复仍返回完整文件，技能按日志字符串匹配，工具摘要仍较粗糙。
+4. 硬监督依赖 Linux；自由启动的脱离进程组子进程不受保证。共享模型服务的推理取消没有协议支持。
+5. 已支持 E1/E2 初始检查点重放；通用历史完整流程重放、自动消融比较尚未实现。
+6. 详细记录没有自动清理策略。强制中断可能没有完整的逻辑检查结论或留下临时工作目录，但保留已写的进程输出。
+7. 模型与服务尚未最终确定；混合思考模型需要合适的服务端正文与 reasoning 分离配置。
+
+---
+
+## 8. 相对示例方案的改动
+
+| 日期 | 改动 | 说明 |
+| --- | --- | --- |
+| 2026-10-11 | single_generate 对齐官方 RTL baseline | 复用提示、采样与提取规则；对齐模型选择和原始输入，保留日志、预算与监督；不改变 repair_loop |
+| 2026-10-11 | 增加 evidence_repair 方案 A | 结构化有限诊断、最多一次修复；保留现有 Workflow 作为独立对照 |
+| 2026-10-08 | 精简运行记录 | 去掉 txt/json 双份和与 trace 重复的文件；取消 trace 版本号，改记 Git 短 commit；删除 `save_candidates` |
+| 2026-10-08 | 选择与失败策略下放到 Workflow | 删除 `agent/policies/`；检查结果分类改为 `CheckResult.classify()`；修复流程的决策结果不变 |
+| 2026-10-08 | Quickstart、User Manual 与注释配置 | 文档按上手与完整使用拆分；默认配置改名为 `config/example.yaml`，默认运行值保持不变 |
+| 2026-10-05 | 模块归位、开发目录集中与打包检查 | 正式运行独立于 dev；Docker 包含默认配置和原始 baseline 文件 |
+| 2026-10-05 | YAML 配置与统一实验 | 单题、采样、并发与 runtime/model/judge 指标 |
+| 2026-10-05 | 候选保护、失败处理、检查复用与独立监督 | 保留较强证据的答案；回收受管理进程；恢复中断选择和记录 |
+| 2026-10-05 | Python Workflow、Node、Registry 与运行上下文 | 默认单次生成；可选修复流程；记录动作与构造参数 |
+| 2026-09-22 | 新增 `dev/`、`.dockerignore` | 团队开发区，不随方案提交；不影响方案行为 |
+| 2026-09-23 | trace 的 `llm` 记录新增 `finish` 字段 | 记录模型返回的 `finish_reason`，用于统计输出截断 |
+| 2026-09-24 | `serve/vllm.sh` 新增 `VLLM_EXTRA_ARGS` | 传入额外的 vLLM 参数，默认为空，不改变原有行为 |
+| 2026-09-28 | 重构模型客户端 | 校验配置，统一模型结果与异常，支持单次调用参数覆盖；不自动重试 |
+| 2026-09-30 | 固定 `run.sh` 相对路径语义 | 切换到方案目录前固定输入输出路径，支持从任意当前目录调用 |
+| 2026-09-30 | 增加候选与原子落盘 | 记录候选谱系和代码哈希，开发模式保存全部候选，异常时保留已有答案 |
+| 2026-09-30 | 加固 Vivado 工具运行 | 统一工具结果，超时清理整个进程组，分离日志摘要与调试完整日志 |
+| 2026-09-30 | 结构化代码和接口解析 | 报告截断与多草稿，解析 ANSI 和非 ANSI 端口，区分权威接口、题面提示和 bugfix 源码 |
+| 2026-10-03 | 固定 trace version 1 | 增加公共事件字段、公开配置与 Git 元数据，统一隐藏秘密并兼容旧分析数据 |
+
+可以用 `diff -r ../example . -x dev -x .dockerignore` 查看完整差异。
+
+## 封存与提交要求
+
+以下按上游提交 `f7a8bd4` 核对，时间均为北京时间 2026 年。
+10 月 16 日至 30 日为验证窗口；10 月 31 日 10:00 主办方从 Gitee 或 GitHub 私有仓库默认分支拉取封存，
+随后开始投题，服务需提前就绪；11 月 4 日 18:00 前在大赛系统提交报告与同一仓库链接。
+赛事仓库及导出目录命名为 `43240_rtlagent`，Gitee 邀请 `Vickyiii`（`daisycw@126.com`），
+GitHub 邀请 `vickyiii`，授予只读或以上权限；两个平台任选一个。
+当前仓库名和目录名均为 `43240_rtlagent`；本地改动通过独立分支审查后合并，封存以默认分支为准。
+
+权重不进入 Git；MODEL.md 必须填写公开权重地址和固定 revision。镜像、模型与实测信息仍有
+占位项，当前包不是已完成封存准备的方案。REPORT.md 是当前方案草稿，不能把流程检查写成能力结论。
+完整要求见[上游封存说明](https://gitee.com/Vickyiii/rtlagent2026/blob/f7a8bd465c2a820e006c7a00ecc7df468974635b/docs/SUBMISSION.md)。
+工作区中的主办方说明、docs、selftest 和 example 已原样同步到上游 `f7a8bd4`，现行评分采用归一化增益 g，满分线为 0.6，
+不能使用旧的倍数对数公式；正式单题时限为 900 秒；辅助模型需声明且占用计入 32 GB 总额，
+作品须包含演示视频与大模型协作记录。正式提交还需补齐上述模型、镜像与实测声明。
+
+## 仓库与提交范围
+
+仓库根目录直接对应方案包：包含运行入口、Agent、配置、技能、服务、模型声明、报告和许可证。
+开发资料、题库、官方参考仓库文件位于工作区中，不由本仓库当前版本追踪，也不进入 Docker 构建上下文。
+模型权重、凭据、日志和缓存由本仓库 `.gitignore` 排除。Docker 构建以本目录为上下文。
+
+现有 Git 历史保留；旧提交仍包含迁移前的工作区结构。新提交只维护本方案目录。
+开发期的结构检查和导出工具位于工作区 `dev/tools/submission.py`，不属于运行依赖。
+正式封存前仍需完成模型 revision、目标 GPU 显存峰值、推理版本、官方镜像和报告声明。

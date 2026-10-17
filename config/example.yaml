@@ -1,0 +1,153 @@
+# Agent 单题配置示例，也是未指定 --config / AGENT_CONFIG 时加载的默认配置。
+# 默认使用 mock 假模型和单次生成，不需要 GPU、模型服务或 Vivado。
+# mock 只检查流程，生成的代码不代表正确解答。
+#
+# 用法（在 43240_rtlagent/ 下运行）：
+#   ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-example --config config/example.yaml
+#   AGENT_CONFIG=config/example.yaml ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-example
+#   LLM_BACKEND=mock ./run.sh ../tasks/example/example_ex03_lfsr8 /tmp/agent-example
+#
+# 自定义时可将此文件复制到工作区 ../dev/configs/my-agent.yaml，再通过 --config 指定。
+# 复制后需重新核对相对路径：YAML 中的相对路径以配置文件目录为基准，
+# CLI 和环境变量中的相对路径以启动命令所在目录为基准。
+# 同一字段覆盖顺序：内置默认值 < YAML < 支持的非空环境变量 < 已提供的 CLI 参数。
+# trace.jsonl 的 run/metadata 事件记录生效值和来源；旧环境变量可能覆盖这里的设置。
+#
+# 本文件只配置已注册流程、服务和运行条件。温度、输出 token 上限、修复轮数、
+# Node 参数与分支循环由 Python Workflow 定义，不可自行增加到 YAML。
+# 不支持配置继承、YAML 锚点/别名、重复键或未知字段。
+# 不会自动加载 .env / remote.env，也不会展开字符串中的 ${变量}。
+# 工作区开发文档：../../dev/docs/quickstart.md 和 ../../dev/docs/user-manual.md。
+
+# 配置格式版本，只接受整数 1。
+schema_version: 1
+
+# 可选扩展模块，默认无需填写。模块需放在正式运行可访问的 Python 包中，
+# 通常是 agent.workflows.<模块名>；导入后由模块注册 Workflow / Node。
+# 不填写文件路径，不依赖 dev 或 selftest。CLI：可重复的 --import-module。
+imports: []
+
+workflow:
+  # single_generate：生成一次，提取并选择答案，不检查、不修复、不注入技能。
+  # repair_loop：生成 → 接口检查 → lint → 综合，明确代码错误时按预算修复。
+  # evidence_repair：方案 A；同样分层检查，但只使用结构化摘要且最多修复一次。
+  # repair_loop 的 lint / 综合需要可用的 Vivado；综合通过不证明功能正确。
+  # 自定义名称必须先由 imports 中的模块注册。
+  # 覆盖：AGENT_WORKFLOW 或 CLI --workflow。
+  type: single_generate
+
+services:
+  knowledge:
+    # 可选本地知识库；内容单独提供，不随 Git 上传。相对路径按本 YAML 所在目录解析。
+    corpus_path: null
+  model:
+    # 可选离线计数；仅从已准备的 tokenizer.json/tokenizer_config.json 读取，不下载或执行模型代码。
+    # tokenizer_dir: /models/Qwen3-8B
+    # context_limit: 32768
+    # strict_context: true
+    # manifest.json 的 generation 声明是方案与 baseline 共享的正式思考设置。
+    # 所有流程的请求与计数统一采用共享声明；此处只能重复声明中一致的 enable_thinking。
+    # 未声明或值冲突时拒绝运行，不能用此处单独设置修复流程的思考参数。
+    # enable_thinking: true
+    # tokenizer_sha256: <tokenizer.json SHA256>
+    # template_sha256: <chat_template UTF-8 SHA256>
+    # token_total_limit: 32768  # 整题累计输入+输出，非上下文窗口；默认不设
+    # token_output_limit: 16384 # 整题累计输出；默认不设
+    # mock：假模型；openai：通过 OpenAI 兼容接口调用服务，不限定服务提供方。
+    # 接入已经启动的真实模型服务，可设置：
+    #   LLM_BACKEND=openai
+    #   LLM_BASE_URL=http://127.0.0.1:8000/v1
+    #   MODEL_NAME=<服务实际公布的模型名>  # single_generate，与 baseline 一致
+    #   LLM_MODEL=<服务实际公布的模型名>   # repair_loop 和统一实验的模型配置
+    # 正式提交使用预先准备的本地服务；此配置不会启动服务或下载权重。
+    # 覆盖：LLM_BACKEND。
+    backend: mock
+
+    # repair_loop 和统一实验使用此值，必须与服务公布的模型名一致。
+    # 单独运行 single_generate 使用 MODEL_NAME，否则查询 /models，最后回退 default。
+    # 统一实验将此值写入两个模式的 MODEL_NAME，确保请求同一个模型。
+    # 覆盖：LLM_MODEL。
+    model: mock-model
+
+    # mock 可为空；openai 必须是绝对 http:// 或 https:// 地址。
+    # 示例：http://127.0.0.1:8000/v1；客户端追加 /chat/completions，勿重复填写。
+    # 不允许用户名/密码、查询参数或 fragment。覆盖：LLM_BASE_URL。
+    base_url: ""
+
+    # 这里只填“保存密钥的环境变量名”，不填 API key 实际值。
+    # 启动前由 shell / 容器 / 部署脚本导出该变量；未提供时实际密钥为空。
+    # 如改成 MY_MODEL_KEY，读取的就是 MY_MODEL_KEY，不再读取 LLM_API_KEY。
+    # 普通请求在非空时加入 Authorization 头；single_generate 与 baseline 一样不发送此头。
+    # 投题接口的 FPGACHINA_TOKEN 是另一项凭据，不在此配置。
+    api_key_env: LLM_API_KEY
+
+    # 单次模型服务调用上限：正数或 null。覆盖：LLM_TIMEOUT_S。
+    # null / 省略：single_generate、evidence_repair、evidence_a0/a1/a2 默认 840 秒；
+    # search_*、repair_loop 等其余 Workflow 默认 180 秒。
+    # 实际上限还取决于生成 Node 设置和扣除清理预留后的本题剩余时间。
+    timeout_s: null
+
+  tools:
+    # Vivado 综合的目标器件。覆盖：RTL_PART。
+    # 顶层模块名另由 --top / RTL_TOP 或题目解析提供，没有 tools.top 字段。
+    # 修改这里不会自动修改 prompts/system.md 中的静态环境描述。
+    part: xczu3eg-sbva484-1-e
+
+    # null 表示从 PATH 查找 xvlog、xelab、vivado。
+    # 可填可执行文件目录；工具环境和授权需事先由部署环境准备。
+    # 覆盖：VIVADO_BIN。默认单次生成不会初始化或运行 Vivado。
+    bin_dir: null
+
+    # 工具临时目录根，宜用本地盘；每次调用再建立独立目录。
+    # 环境覆盖依次取第一个非空值：AGENT_TMP > EDA_TMP > TRACK_TMP。
+    # HTTP 请求临时目录另由 serve_api.py 读取 AGENT_TMP，否则使用 /tmp。
+    temp_dir: /tmp
+
+    # true 保留 Vivado 临时工作目录供排查；默认结束后清理。
+    # full 记录模式可保存完整逻辑日志，不必为了看日志一直保留工作目录。
+    # 覆盖：AGENT_KEEP_WORK=0 或 1。
+    keep_work: false
+
+runtime:
+  # 可选 E1/E2 初始检查点；相对本 YAML 解析，核验身份并扣除共享首次成本。
+  # initial_state: ../runs/<运行编号>/initial.json
+  # 整题时间预算，单位秒，必须为正数。
+  # 覆盖：AGENT_DEADLINE_S / CLI --deadline-s。
+  # HTTP 请求传入的剩余硬时限只会缩小此预算。
+  deadline_s: 900
+
+  # 为清理进程和写出结果预留的秒数，必须非负。
+  # 可用求解时间会扣除此项；预留大于等于剩余预算时可能不启动求解。
+  # 覆盖：AGENT_RESERVE_S / CLI --reserve-s。
+  reserve_s: 20
+
+  recording:
+    # full：trace + 题面、模型请求与回复、候选代码和工具进程输出。
+    # basic：保留必要 trace，不写完整模型正文等详细证据。
+    # 两者都保存 solution.v 和输出目录 selection.json 恢复检查点。
+    # 覆盖：AGENT_RECORD_LEVEL / CLI --record-level。
+    level: full
+
+    # null：详细记录保存在 <输出目录>/records/<run_id>/。
+    # 可填独立路径，各次运行仍按 run_id 隔离。
+    # HTTP 请求目录结束后会删除，需持久保存详细记录时设置到该目录之外。
+    # 覆盖：AGENT_RECORD_ROOT / CLI --record-root。
+    root: null
+
+# 开发实验不由 run.sh 调度；在工作区根目录运行 python3 dev/tools/run.py --config <实验配置>。
+# 工作区完整实验例子在 dev/configs/smoke.yaml，字段说明见 User Manual。
+# 若将本文件复制到工作区 ../dev/configs/my-agent.yaml，可在末尾添加下面的 experiment 块。
+# root/exclude 的相对路径仅适用于配置放在 dev/configs/ 的情况：
+# experiment:
+#   tasks:
+#     root: ../../tasks
+#     ids: [ex03_lfsr8]           # 可改用 list: tasks.txt；ids 与 list 互斥
+#     exclude: exclude.txt       # 默认排除清单，不会被 CLI --task 绕过
+#   modes: [agent]               # 真模型可增加 baseline；mock 不允许 baseline
+#   samples: 1                   # 每题每模式的独立采样次数
+#   solve_jobs: 1                # 求解并发数，需考虑模型服务容量
+#   metric_jobs: 1               # 指标并发数
+#   metrics: [runtime, model]    # 加 judge 才运行官方判定；需要 Vivado
+#   output_root: ../runs         # 相对于 dev/configs/，产物不随方案提交
+#   tag: my-experiment
+#   judge_timeout_s: 1800
