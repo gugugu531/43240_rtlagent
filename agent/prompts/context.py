@@ -46,14 +46,14 @@ class ContextAssembly:
 
 
 class ContextAssembler:
-    def assemble(self, task, *, style, feedback='', parent_code='', use_skills=False,
+    def assemble(self, task, *, style, feedback='', parent_code='', selected_skills=None,
                  optional_pieces=(), counter=None, context_limit=None, output_reserve=8192,
                  template_options=None, strict=False):
         positive_integer(context_limit, 'context_limit', optional=True)
         positive_integer(output_reserve, 'output_reserve')
         started = time.monotonic()
         messages, resources = assemble_messages(task, style=style, feedback=feedback,
-                                                parent_code=parent_code, use_skills=use_skills)
+                                                parent_code=parent_code, selected_skills=selected_skills)
         counter = counter or UnavailableCounter()
         count = counter.count(messages, template_options=template_options)
         if context_limit is not None:

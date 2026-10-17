@@ -74,7 +74,10 @@
 | `agent/services/timing.py`、`plan_format.py`、`literal_spec.py`、`spec_ports.py` | 规格自测的时序、周期、公开真值表与端口支持检查；默认流程不调用 |
 | `agent/nodes/behavior.py`、`agent/workflows/spec_selection.py` | 可注入的计划/自测 Node 与候选保护函数，由实验配置选择 |
 | `agent/recording/` | 保存模型与动作证据、trace、脱敏及通用运行/模型统计 |
-| `agent/prompts/skills.py` | 加载技能包，按工具报错挑选相关技能 |
+| `agent/core/skill.py` | 不可变技能、查询和选择结果 |
+| `agent/services/skills.py` | 读取技能文件、解析元数据和匹配日志字符串 |
+| `agent/tools/skills.py` | 可注入的技能查询工具，在执行阶段读取，默认不缓存 |
+| `agent/prompts/skills.py` | 渲染已选技能并按完整章节截断，不读取文件 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
 | `skill/` | 技能包，每条技能一个目录，格式见 `skill/README.md` |
 | `serve/serve_api.py` | 评测当天赛事方投题用的 HTTP 接口 |
@@ -345,6 +348,10 @@ ToolContext 提供任务、预算、受管理进程、普通产物及必要服�
 完整装配摘要 `assembly_sha256` 用于溯源；跨流程重放验证初始响应契约、提取器、候选、
 源码及检查工具身份，不要求两个 Workflow 的整份装配摘要相同。
 检查缓存和重放分别校验，目标检查超时不同不否定已有成功证据；导入的时间和 token 成本仍计入预算。
+
+技能查询通过注入的 SkillLookupTool 执行：GenerateNode 在启用技能且反馈非空时调用一次，
+提示装配只接收已选结果。目录排序、字符串匹配、技能正文、消息角色与截断行为保持一致；默认流程不调用技能。
+外置修复卡的严格检索仍由 `services/knowledge.py` 负责。
 
 预算使用单调时钟，动作可设置最少启动时间，并为清理和写出结果预留时间。正式入口在独立 Worker
 中运行 Python Workflow，Supervisor 在预算结束或收到信号时先 TERM、再 KILL 并回收受管理进程。

@@ -2,8 +2,9 @@
 from dataclasses import dataclass
 import math
 from agent.core.candidate import Candidate
-from agent.core.components import Node
+from agent.core.components import Node, Tool
 from agent.core.model import ModelRequest, ModelReply
+from agent.core.skill import SkillQuery, SkillSelection
 from agent.core.task import TaskSpec
 from agent.prompts.context import ContextAssembler, ContextPiece
 
@@ -23,6 +24,8 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
     component_name = 'rtl_generate'
     input_type = GenerateInput
     output_type = ModelReply
+    dependencies = {'skill_tool': 'tool'}
+    dependency_types = {'skill_tool': (SkillQuery, SkillSelection)}
     max_tokens: int = 8192
     temperature: float = 0.0
     timeout_s: float = 300.0
@@ -30,6 +33,7 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
     use_skills: bool = False
     minimum_s: float = 0.0
     top_p: float | None = None
+    skill_tool: Tool[SkillQuery, SkillSelection] | None = None
 
     def __post_init__(self):
         ModelRequest([], max_tokens=self.max_tokens, temperature=self.temperature,
@@ -38,10 +42,15 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
             raise ValueError('minimum_s must be finite and nonnegative')
         if self.prompt_style not in ('direct', 'repair'):
             raise ValueError('prompt_style must be direct or repair')
+        if self.use_skills and not isinstance(self.skill_tool, Tool):
+            raise ValueError('skill_tool is required when use_skills is true')
 
     def run(self, ctx, input: GenerateInput) -> ModelReply:
+        selected_skills = (ctx.call(self.skill_tool, SkillQuery(input.task.prompt, input.feedback))
+                           if self.use_skills and input.feedback else None)
         kwargs = dict(style=self.prompt_style, feedback=input.feedback,
-                      parent_code=input.parent.code if input.parent else '', use_skills=self.use_skills,
+                      parent_code=input.parent.code if input.parent else '',
+                      selected_skills=selected_skills,
                       counter=ctx.llm.counter, template_options=ctx.llm.template_options)
         cap, context_limit = self.max_tokens, ctx.llm.context_limit
         if ctx.llm.tokens.policy.strict:

@@ -1,4 +1,4 @@
-# 完整组件装配配置；Python定义流程，YAML声明类、参数和依赖。
+# 完整组件装配配置；技能查询通过显式 Tool 注入。
 schema_version: 2
 workflow: workflow
 components:
@@ -28,7 +28,8 @@ components:
       use_skills: true
       minimum_s: 0.0
       top_p: null
-    inject: {}
+    inject:
+      skill_tool: skill_tool
   extract:
     kind: node
     class: agent.nodes.extract:ExtractNode
@@ -70,6 +71,12 @@ components:
     kind: tool
     class: agent.tools.vivado:VivadoSynthTool
     params: {}
+    inject: {}
+  skill_tool:
+    kind: tool
+    class: agent.tools.skills:SkillLookupTool
+    params:
+      skill_dir: null
     inject: {}
 services:
   model:

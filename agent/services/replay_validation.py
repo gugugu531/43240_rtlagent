@@ -6,7 +6,7 @@ from agent.prompts.builder import assemble_messages
 def validate_initial_requests(task, requests, tokens, *, policy):
     if policy != "scheme_a":
         raise ValueError("unsupported initial request policy")
-    expected, _ = assemble_messages(task, style='repair', use_skills=False)
+    expected, _ = assemble_messages(task, style='repair')
     if not requests or len(requests) != tokens['calls']:
         raise ValueError('initial request accounting differs')
     for entry in requests:
