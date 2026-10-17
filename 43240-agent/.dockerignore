@@ -1,6 +1,0 @@
-# Team development area: notes, failure samples, run artefacts. Never ship it --
-# it may quote reference solutions (SCORING 2.9, hard-coded answers).
-dev/
-
-__pycache__/
-*.py[cod]

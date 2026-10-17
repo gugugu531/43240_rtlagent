@@ -1,0 +1,31 @@
+# Only the standalone submission belongs in the build context.
+.git/
+dev/
+tasks/
+selftest/
+example/
+
+# Credentials, runtime output and caches.
+.env
+.env.*
+remote.env
+cloud.state
+cloud_known_hosts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.log
+*.jou
+*.str
+.Xil/
+out/
+runs/
+serve-logs/
+agent-records/
+
+# Weights are prepared separately and mounted at runtime.
+models/
+*.safetensors
+*.gguf
+*.bin

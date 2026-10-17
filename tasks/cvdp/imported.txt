@@ -1,2 +1,0 @@
-# 自动生成：python3 43240-agent/dev/tools/datasets.py docs
-cvdp_copilot_lfsr_0001

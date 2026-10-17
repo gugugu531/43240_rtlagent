@@ -1,32 +1,32 @@
-# local environment, never commit
-selftest/env.sh
-example/.env
+# Local credentials and environment
+.env
+.env.*
+!.env.example
+remote.env
+cloud.state
+cloud_known_hosts
 
-# self-test artefacts
-selftest/out/
-
-# Vitis / Vivado
+# Runtime output and EDA scratch
 *.log
 *.jou
 *.str
 .Xil/
-hls/
-vitis-comp.json
-*.zip
+out/
+runs/
+serve-logs/
+agent-records/
 
-# python
+# Python and editors
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-
-# editors
 .vscode/
 .idea/
 *.swp
 .DS_Store
 
-# model weights -- do not put these in git
+# External model weights
 models/
 *.safetensors
 *.gguf
