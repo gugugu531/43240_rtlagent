@@ -21,6 +21,8 @@ def assemble_messages(task: TaskSpec, *, style: str, feedback: str = '',
                 (task.interface or '(empty)') + '\n```\n')
     messages = [{'role': 'system', 'content': system}]
     resources = {'system_file': filename, 'system_sha256': hashlib.sha256(system.encode()).hexdigest()}
+    # Lookup belongs to the injected tool. Rendering here preserves the
+    # selected order and the extra system message's position before the user.
     chosen = selected_skills.skills if selected_skills is not None else ()
     if chosen:
         rendered = '\n\n'.join(render(s) for s in chosen)

@@ -18,6 +18,8 @@ def _trim(body: str, budget: int) -> str:
     kept: list[str] = []
     used = 0
     for section in sections:
+        # Keep at least the opening section intact, even if it exceeds this
+        # character budget; cutting mid-section could remove a prerequisite.
         if used + len(section) > budget and kept:
             break
         kept.append(section)

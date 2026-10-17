@@ -66,6 +66,8 @@ def validate_assembly(data):
                     raise ConfigError(f"{row['id']}.{slot}: unknown dependency reference")
                 if components[ref]['kind'] not in DEPENDENCY_KINDS[row['kind']]:
                     raise ConfigError(f"{row['id']}.{slot}: dependency violates component responsibility direction")
+    # An edge to the current DFS path is a cycle; an edge to a completed
+    # component is legal sharing and must not be rejected.
     active, visited = set(), set()
 
     def visit(identity):
@@ -80,6 +82,7 @@ def validate_assembly(data):
         visited.add(identity)
 
     visit(root)
+    # Every configured component must belong to the chosen workflow graph.
     if visited != components.keys():
         raise ConfigError('assembly contains unreachable components')
     return data

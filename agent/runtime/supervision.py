@@ -44,6 +44,8 @@ def _worker(connection, spec):
     executor = RemoteProcessExecutor(connection)
 
     def workflow():
+        # Import and construction happen inside the worker's time boundary;
+        # the parent transports only the serializable assembly specification.
         return assemble(spec.assembly)
 
     try:
@@ -111,6 +113,8 @@ class Supervisor:
         atomic_write_text(out / 'trace.jsonl', '')
         atomic_write_json(out / 'selection.json', {'candidate_id': None})
         hard_deadline = started + options.deadline_s
+        # Stop solving early enough to terminate children and recover outputs
+        # within the overall task deadline.
         solve_deadline = hard_deadline - options.reserve_s
         context = multiprocessing.get_context('fork')
         parent, child = context.Pipe()
@@ -197,6 +201,8 @@ class Supervisor:
         if worker.pid and worker.is_alive():
             # Never append concurrently with a worker that could still write.
             return WorkflowResult('', None, 'cleanup_incomplete', 'error')
+        # The worker may die before sending a result; the durable selection is
+        # also checked when a normal result arrives over the pipe.
         selected, selection_state = recover_selection(run.out)
         result, reason = run.result, run.reason
         if result is not None:

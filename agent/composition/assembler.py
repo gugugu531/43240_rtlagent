@@ -44,6 +44,8 @@ def _local_class(target, kind):
     except Exception as exc:
         raise ConfigError(f'cannot import component module ({type(exc).__name__})') from None
     module_file = getattr(module, '__file__', None)
+    # Checking the requested path alone is insufficient: sys.path or an
+    # already imported module could resolve the name to a different file.
     if module_file is None or Path(module_file).resolve() != path.resolve():
         raise ConfigError('component import resolved outside its expected local file')
     cls = getattr(module, name, None)
@@ -139,6 +141,8 @@ def assemble(spec: AssemblySpec) -> ResolvedAssembly:
             signature = inspect.signature(cls)
             if any(name not in signature.parameters for name in (*params, *inject)):
                 raise TypeError('unknown constructor parameter')
+            # Placeholders validate the call shape without constructing any
+            # dependency; actual instances are supplied only in build().
             bound = signature.bind(**params, **{slot: None for slot in inject})
             bound.apply_defaults()
             hints = typing.get_type_hints(cls.__init__)
@@ -169,6 +173,8 @@ def assemble(spec: AssemblySpec) -> ResolvedAssembly:
                 raise ConfigError(f'{key}.{slot}: dependency input/output contract must be declared')
             if slot_types:
                 expected_input, expected_output = slot_types
+                # A replacement must accept everything the caller supplies
+                # and return a value within the caller's expected output type.
                 if any(not _compatible(expected_input, classes[ref].input_type) or
                        not _compatible(classes[ref].output_type, expected_output) for ref in refs):
                     raise ConfigError(f'{key}.{slot}: injected component input/output contract differs')
@@ -190,6 +196,8 @@ def assemble(spec: AssemblySpec) -> ResolvedAssembly:
         except Exception as exc:
             raise ConfigError(f'{identity}: cannot construct component ({type(exc).__name__})') from None
         ordinary = {name: value for name, value in bound.arguments.items() if name not in getattr(cls, 'dependencies', {})}
+        # Record dependency IDs separately from ordinary values; recursively
+        # describing live objects would lose the graph's sharing information.
         metadata = ComponentSpec(getattr(cls, 'component_name', cls.__name__), cls.__module__, cls.__qualname__,
                                  describe_value(ordinary), row.get('inject', {}),
                                  instance_id=identity, kind=row['kind'])

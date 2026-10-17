@@ -27,6 +27,8 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
     dependencies = {'skill_tool': 'tool'}
     dependency_types = {'skill_tool': (SkillQuery, SkillSelection)}
     assembly_roles = ['generate', 'alternative']
+    # Named assembly defaults preserve the repair preset. Direct Python
+    # construction below keeps its separate, skill-free defaults.
     assembly_defaults = {'params': {'max_tokens': 4096, 'temperature': 0.2,
                                     'timeout_s': 180.0, 'prompt_style': 'repair',
                                     'use_skills': True, 'minimum_s': 0.0, 'top_p': None},
@@ -53,6 +55,8 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
             raise ValueError('skill_tool is required when use_skills is true')
 
     def run(self, ctx, input: GenerateInput) -> ModelReply:
+        # Query once per repair action; both token-budget passes must use the
+        # same selection and must not perform another file lookup.
         selected_skills = (ctx.call(self.skill_tool, SkillQuery(input.task.prompt, input.feedback))
                            if self.use_skills and input.feedback else None)
         kwargs = dict(style=self.prompt_style, feedback=input.feedback,
@@ -61,6 +65,8 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
                       counter=ctx.llm.counter, template_options=ctx.llm.template_options)
         cap, context_limit = self.max_tokens, ctx.llm.context_limit
         if ctx.llm.tokens.policy.strict:
+            # Reserve output against required messages first. Optional context
+            # is considered only after the remaining allowance is known.
             required = ContextAssembler().assemble(input.task, **kwargs)
             cap = ctx.llm.tokens.allowance(required.count, cap)
             total = ctx.llm.tokens.policy.total_limit

@@ -21,6 +21,8 @@ class SkillLookupTool(Tool[SkillQuery, SkillSelection]):
         self.skill_dir = str(skill_dir) if skill_dir is not None else None
 
     def run(self, ctx, input: SkillQuery) -> SkillSelection:
+        # Defer filesystem access until execution so assembly stays side-effect
+        # free and each call observes the current skill files without a cache.
         skill_dir = self.skill_dir
         if skill_dir is None:
             skill_dir = str(Path(__file__).resolve().parents[2] / 'skill')

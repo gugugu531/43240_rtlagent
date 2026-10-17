@@ -47,6 +47,8 @@ class _TimedProcesses:
         self._deadline = time.monotonic() + timeout_s
 
     def run(self, request):
+        # All subprocesses of this tool call share one deadline; starting a
+        # second command must not grant the tool another full timeout.
         remaining = self._deadline - time.monotonic()
         if remaining <= 0:
             raise BudgetExhausted('tool budget exhausted')
@@ -66,5 +68,6 @@ class ManagedToolContext:
 
     def with_timeout(self, timeout_s):
         processes = self.processes if timeout_s is None else _TimedProcesses(self.processes, timeout_s)
+        # Per-call timeout wrappers share the run's lazy toolchain instance.
         return type(self)(self.task, self.budget, processes,
             self.artifacts, self.emit, None, timeout_s=timeout_s, _shared_toolchain=self._toolchain)

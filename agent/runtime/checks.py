@@ -59,6 +59,8 @@ class CheckService:
         return dict(component=describe_component(tool).public_dict(), fingerprint=fingerprint)
 
     def _cache_identity(self, tool):
+        # A subclass must opt in itself: an inherited fingerprint may omit
+        # behavior or parameters introduced by the new implementation.
         identity = type(tool).__dict__.get('cache_identity')
         value = identity(tool, self._tool_context) if callable(identity) else None
         return value if isinstance(value, str) and value else None
@@ -91,6 +93,8 @@ class CheckService:
         old = self.cache.get(key)
         if old is None:
             return None
+        # Reuse the evidence, not its ID: this candidate gets a new check
+        # record linked to the original, with no claimed tool execution.
         result = replace(old, id=self._allocate_id(), candidate_id=candidate.id, elapsed_s=0.0,
                          details=dict(old.details, reused_from_check_id=old.id, executed=False))
         self._publish(result)
@@ -161,6 +165,8 @@ class CheckService:
         return check
 
     def _publish_outcome(self, identity, candidate, kind, outcome, *, elapsed_override=None):
+        # Tools report outcomes only; the runtime adds candidate identity and
+        # publishes exactly once at this boundary.
         check = CheckResult(identity, candidate.id, kind, outcome.status, outcome.summary,
                             blocking=outcome.blocking, rc=outcome.rc,
                             elapsed_s=outcome.elapsed_s if elapsed_override is None else elapsed_override,

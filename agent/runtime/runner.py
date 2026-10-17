@@ -100,10 +100,14 @@ class Runner:
             recorder.record_task(task)
             recorder.write_event('agent', 'start')
             result = instance.run(ctx)
+            # Declaring replay support is not enough: a workflow that receives
+            # initial_state must actually validate and import that checkpoint.
             if initial_state and not ctx.initial_replay_validated:
                 raise ValueError("workflow did not validate the initial checkpoint")
             if not isinstance(result, WorkflowResult):
                 raise TypeError('workflow.run() must return ctx.finish() result')
+            # The return value must describe the already persisted selection;
+            # a workflow cannot select a different answer only in memory.
             if (result.run_id != recorder.run_id or result.selected_candidate != artifacts.selected
                     or result.stop_reason != ctx.state.stop_reason):
                 raise ValueError('workflow result disagrees with the selected artifact or run state')

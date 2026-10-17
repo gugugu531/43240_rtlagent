@@ -98,6 +98,8 @@ class RunContext:
         if not isinstance(spec, ComponentSpec):
             raise TypeError('node.describe() must return ComponentSpec')
         execution_id = f'e{len(self._executions) + 1:03d}'
+        # Reserve this execution's slot before running children; nested calls
+        # append their own entries and must not overwrite the parent's result.
         parent = self._stack[-1] if self._stack else None
         index = len(self._executions)
         start = time.monotonic()
@@ -124,6 +126,7 @@ class RunContext:
                 self._recorder.record_node(execution)
                 return output
         finally:
+            # Restore the parent scope even when a nested action is cancelled.
             self._stack.pop()
 
     def call(self, tool: Tool[I, O], input: I, *, timeout_s: float | None = None) -> O:
@@ -151,6 +154,8 @@ class RunContext:
 
     def check(self, tool, input, *, candidate, timeout_s=None, minimum_s=0.0) -> CheckResult:
         self.cancellation.raise_if_cancelled()
+        # Checks own their evidence IDs and publication. Routing through call()
+        # as well would create a second lifecycle record for the same work.
         return self.checks.check(tool, input, candidate=candidate,
                                  timeout_s=timeout_s, minimum_s=minimum_s)
 
@@ -192,6 +197,8 @@ class RunContext:
 
     def select_candidate(self, candidate_id: str, *, reason: str) -> None:
         candidate = self._candidates[candidate_id]
+        # Persist the selection before announcing it so crash recovery can
+        # rely on disk rather than a trace event whose write may be interrupted.
         self._artifacts.select(candidate, reason=reason)
         self._selection_reason = reason
         self._recorder.record_selection(candidate, reason=reason)

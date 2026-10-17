@@ -99,6 +99,8 @@ class RepairLoop(Workflow):
             evidence = [c for c in state.checks if c.candidate_id == candidate.id]
             if candidate.extraction_status not in ('ok', 'complete', 'ambiguous'):
                 continue
+            # A code failure disqualifies the candidate; an unavailable tool
+            # does not prove the code wrong or erase earlier passing evidence.
             if any(c.classify() == 'code' for c in evidence):
                 continue
             passes = {c.kind for c in evidence if c.status == 'passed'}
@@ -133,6 +135,8 @@ class RepairLoop(Workflow):
             return FailureDecision('stop', 'deadline', source_id)
         if attempts.model_calls >= self.max_model_calls:
             return FailureDecision('stop', 'model_call_limit', source_id)
+        # Transport retries repeat a request; code repairs consume a new
+        # round with feedback. Both still count against the model-call limit.
         if kind == 'model_retryable' and attempts.request_retries < self.max_request_retries:
             return FailureDecision('retry_request', 'retryable_model_error', source_id)
         if kind in ('code', 'extraction') and attempts.repairs < self.max_rounds - 1:
@@ -246,6 +250,8 @@ class RepairLoop(Workflow):
                 # A complete fallback can survive a blocked verification service.
                 ctx.apply_selection(self.choose(ctx.state))
                 ctx.emit('repair_target', candidate_id=latest.id)
+                # Repair the latest attempt even if selection keeps an older,
+                # better-verified candidate as the answer to preserve on exit.
                 repair_target = latest
                 try:
                     warnings, synthesis_passed = self._check_candidate(ctx, latest, checks)

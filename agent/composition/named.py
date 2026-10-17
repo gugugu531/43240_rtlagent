@@ -62,6 +62,8 @@ def discover(root: Path | None = None) -> dict[str, Declaration]:
             for cls in tree.body:
                 if not isinstance(cls, ast.ClassDef):
                     continue
+                # Read only this class's literals: importing bases or evaluating
+                # expressions here would run component code before supervision.
                 fields = {}
                 for statement in cls.body:
                     targets = statement.targets if isinstance(statement, ast.Assign) else (
@@ -99,8 +101,11 @@ def discover(root: Path | None = None) -> dict[str, Declaration]:
                     if any(key not in defaults['params'] for key in when):
                         raise ConfigError(f'{name}: dependency condition requires a declared default parameter')
                 parts = path.relative_to(root).with_suffix('').parts
+                # A package's __init__.py is imported by its package name.
                 module = '.'.join(parts[:-1] if parts[-1] == '__init__' else parts)
                 found[name] = Declaration(name, kind, f'{module}:{cls.name}', tuple(roles), defaults)
+    # Resolve references after scanning every file so filesystem order cannot
+    # determine whether a declared default dependency is available.
     for declaration in found.values():
         for edge in declaration.defaults['dependencies'].values():
             child = found.get(edge['component'])
@@ -145,6 +150,8 @@ def expand_named(data: dict, *, declarations: dict[str, Declaration] | None = No
         override = overrides.get(identity, {})
         if identity in overrides:
             used_roles.add(identity)
+        # A role override is explicit; a name list must identify one choice
+        # without using list order as an implicit priority.
         if 'component' in override:
             name = override['component']
         elif len(choices) > 1:
@@ -156,6 +163,8 @@ def expand_named(data: dict, *, declarations: dict[str, Declaration] | None = No
             raise ConfigError(f'{identity}: component does not support the dependency role')
         if name in choices:
             used.add(name)
+        # Detect cycles by instance ID, not class name: the same class may
+        # appear at multiple points in a finite dependency graph.
         if identity in active:
             raise ConfigError('named assembly contains a dependency cycle')
         params = copy.deepcopy(declaration.defaults['params'])
@@ -165,6 +174,8 @@ def expand_named(data: dict, *, declarations: dict[str, Declaration] | None = No
         params.update(copy.deepcopy(override.get('params', {})))
         row = dict(id=identity, target=declaration.target, kind=declaration.kind, params=params, inject={})
         if identity in rows:
+            # Sharing an ID means sharing an instance, so all parents must
+            # agree on its implementation and effective parameters.
             if rows[identity]['target'] != row['target'] or rows[identity]['params'] != params:
                 raise ConfigError(f'{identity}: conflicting defaults for a shared component ID')
             return identity
@@ -173,6 +184,8 @@ def expand_named(data: dict, *, declarations: dict[str, Declaration] | None = No
         rows[identity] = row
         active.add(identity)
         for slot, edge in declaration.defaults['dependencies'].items():
+            # Evaluate conditions after overrides; type checks keep True from
+            # matching 1 even though Python considers those values equal.
             if not all(type(params.get(key)) is type(value) and params.get(key) == value for key, value in edge.get('when', {}).items()):
                 continue
             row['inject'][slot] = build(edge['id'], edge['component'], edge.get('params'))
@@ -180,6 +193,8 @@ def expand_named(data: dict, *, declarations: dict[str, Declaration] | None = No
         return identity
 
     build('workflow', workflow, data.get('params'))
+    # Reject ineffective selections instead of silently accepting a typo or
+    # an override for a dependency disabled by its parent's final parameters.
     if used != set(selected['node'] + selected['tool']):
         raise ConfigError('named assembly contains unused component selections')
     if used_roles != set(overrides):

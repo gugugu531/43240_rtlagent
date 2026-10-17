@@ -56,6 +56,8 @@ class ContextAssembler:
                                                 parent_code=parent_code, selected_skills=selected_skills)
         counter = counter or UnavailableCounter()
         count = counter.count(messages, template_options=template_options)
+        # Required messages, including selected skills, are never silently
+        # truncated to make an oversized request fit.
         if context_limit is not None:
             if count.status == 'exact' and count.value + output_reserve > context_limit:
                 raise ContextLimitError('required_context_exceeds_limit')
@@ -68,6 +70,8 @@ class ContextAssembler:
                 raise ValueError('context piece IDs must be nonempty and unique')
             seen.add(piece.id)
             reason = 'included'
+            # Try a copy: rejecting a piece must leave accepted messages and
+            # their token count unchanged. Pieces are kept or omitted whole.
             trial = [dict(m) for m in messages]
             trial[-1]['content'] += '\n\n' + piece.text
             next_count = counter.count(trial, template_options=template_options)

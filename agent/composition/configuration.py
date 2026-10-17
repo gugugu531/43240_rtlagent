@@ -140,6 +140,8 @@ def _document_assembly(data):
     if version == 2:
         if set(data) & {'nodes', 'tools', 'roles', 'params'}:
             raise ConfigError('schema_version 2 requires expanded components only')
+        # Saved experiments already contain exact class paths and bindings;
+        # reloading them must not consult today's named-component defaults.
         return _assembly_data(data)
     if 'components' in data:
         raise ConfigError('schema_version 3 uses named selections instead of components')

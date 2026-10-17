@@ -19,5 +19,7 @@ class CheckCache:
         return self._results.get(key) if key else None
 
     def put(self, key: CheckKey | None, result):
+        # Environment failures and timeouts may be transient; retaining them
+        # would prevent a later attempt from obtaining fresh evidence.
         if key and (result.status == 'passed' or result.classify() == 'code'):
             self._results[key] = result

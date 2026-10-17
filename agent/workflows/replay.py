@@ -32,6 +32,8 @@ def task_hash(task):
 
 def runtime_hashes(root=ROOT):
     root = Path(root)
+    # These are byte-level source identities, so even comment-only edits
+    # require a checkpoint generated from the updated submission.
     files = [p for p in (root / 'agent').rglob('*') if p.is_file() and p.suffix in ('.py', '.md')]
     files += [root / name for name in ('baseline.py', 'run.sh', 'requirements.txt', 'manifest.json')]
     files += list((root / 'skill').glob('rtl_cards*'))
@@ -127,11 +129,15 @@ def load_initial(path, ctx):
     if type(elapsed) not in (int, float) or not math.isfinite(elapsed) or elapsed < 0:
         raise ValueError('invalid initial time')
     ctx.checks.restore_identity(data['tool_identity'])
+    # Compare the initial-response contract, not the complete assembly hash:
+    # downstream repair workflows may legitimately differ from the producer.
     expected_contract = initial_contract(ctx, [c['kind'] for c in data['checks']], importing=True)
     if data['initial_contract'] != expected_contract:
         raise ValueError('initial extractor or check provider differs')
     expected_ids = validate_initial_requests(ctx.task, data['requests'], data['tokens'],
                                              policy=expected_contract['request_policy'])
+    # Import the original model cost without issuing the request again, and
+    # continue call numbering so new records cannot overwrite imported IDs.
     ctx.llm.tokens.import_initial(data['tokens'])
     if ctx.llm.tokens.snapshot()['blocked'] and callable(getattr(ctx.llm.counter, 'mark_mismatch', None)):
         ctx.llm.counter.mark_mismatch()
@@ -141,6 +147,8 @@ def load_initial(path, ctx):
         raise ValueError('unsupported replay reply fields')
     original['usage'] = ModelUsage(**original['usage'])
     reply = ModelReply(**original)
+    # Re-extract with the bound node and verify the code hash before attaching
+    # old checks; a valid checkpoint must still describe this exact candidate.
     result = ctx.execute(ctx.initial_replay_contract.extract_node,
                          ExtractInput(reply, 1, source_stage='initial_replay'))
     if result.extraction.status != data['extraction_status']:
@@ -159,6 +167,8 @@ def load_initial(path, ctx):
         check = CheckResult(**values)
         ctx.record_check(check)
         checks.append(check)
+    # Replaying avoids tool execution, but does not give back the time already
+    # spent producing the shared initial response and evidence.
     ctx.budget.consume_previous(elapsed)
     ctx.emit('initial_replayed', sha256=checksum, initial_wall_s=elapsed,
              initial_calls=data['tokens']['calls'], original_stop_reason=data['stop_reason'],

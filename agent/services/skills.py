@@ -11,6 +11,8 @@ def load_skills(skill_dir: str) -> list[Skill]:
     skills: list[Skill] = []
     if not os.path.isdir(skill_dir):
         return skills
+    # Selection takes the first matching entries, so directory sorting is
+    # part of the prompt's reproducibility contract.
     for entry in sorted(os.listdir(skill_dir)):
         path = os.path.join(skill_dir, entry, "SKILL.md")
         if not os.path.isfile(path):
@@ -33,6 +35,8 @@ def load_skills(skill_dir: str) -> list[Skill]:
 
 
 def select(skills: list[Skill], *context: str, limit: int = 2) -> list[Skill]:
+    # Signatures are literal substrings, not regular expressions or scores;
+    # preserve loader order when more skills match than the requested limit.
     haystack = "\n".join(text.lower() for text in context if text)
     return [skill for skill in skills if skill.signatures and
             any(signature.lower() in haystack for signature in skill.signatures)][:limit]
@@ -66,6 +70,7 @@ def _split_front_matter(raw: str) -> tuple[dict, str]:
         if line[0] in " \t" and key:
             block.append(line.strip())
             continue
+        # Finish the previous multiline value before reading the next key.
         if key and block:
             meta[key] = " ".join(block).strip()
             block = []
