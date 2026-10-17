@@ -29,7 +29,7 @@ def task_hash(task):
 def runtime_hashes(root=ROOT):
     root = Path(root)
     files = [p for p in (root / 'agent').rglob('*') if p.is_file() and p.suffix in ('.py', '.md')]
-    files += [root / name for name in ('baseline.py', 'run.sh', 'requirements.txt')]
+    files += [root / name for name in ('baseline.py', 'run.sh', 'requirements.txt', 'manifest.json')]
     files += list((root / 'skill').glob('rtl_cards*'))
     return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
 

@@ -237,6 +237,7 @@ def summarize_experiment(samples, *, planned=0, status='completed'):
             judge_rows.setdefault(row.task_id, []).append(verdict)
         if judge_rows: entry['judge'] = official.summarize(judge_rows)
         result['modes'][mode] = entry
+    from baseline import TIMEOUT_S
     a = result['modes'].get('agent', {}).get('judge'); b = result['modes'].get('baseline', {}).get('judge')
     if a and b:
         # Avoid misleading gains when interruptions/environment exclusions change paired coverage.
@@ -251,7 +252,7 @@ def summarize_experiment(samples, *, planned=0, status='completed'):
              'gain_full_mark':0.6,
              'gain_ratio':a['set_score']/b['set_score'] if comparable and b['set_score'] else None,
              'gain':a['set_score']/b['set_score'] if comparable and b['set_score'] else None,
-             'baseline_timeout_s':300, 'note':'single_generate 对齐 baseline RTL 请求与提取；预算与实际条件见逐样本记录'}
+             'baseline_timeout_s':TIMEOUT_S, 'note':'single_generate 对齐 baseline RTL 请求与提取；预算与实际条件见逐样本记录'}
     return result
 
 

@@ -1,6 +1,6 @@
 # example/ — 最小示范方案
 
-这是一套能完整跑起来的参赛方案，可直接复制成 `<team_name>-agent/` 作为起点。
+这是一套能完整跑起来的参赛方案，可直接复制成 `<队伍编号>_rtlagent/` 作为起点。
 
 它能跑通，但不具竞争力：智能体只有三轮「生成 → 检查 → 修」的循环，技能包只有一条。
 提供它是为了让队伍在第一天就有一条通的链路，而不是拿它直接提交。
@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | `run.sh` | 单题入口。赛事方投一道题，就调它一次 | 不改 |
 | `run_baseline.sh` | 基线入口 | **不得修改** |
-| `baseline.py` | 赛事方提供的基线脚本，用于计算增益项的分母 | **不得修改** |
+| `baseline.py` | 赛事方提供的基线脚本，增益项以它的结果为基线 | **不得修改** |
 | `agent/main.py` | 智能体主流程：几轮循环、时间预算、写 `trace.jsonl` | **要改** |
 | `agent/tools.py` | 三个工具：查接口、lint、综合 | **要改** |
 | `agent/llm.py` | 调用大模型的封装 | 一般不改 |
@@ -25,6 +25,7 @@
 | `skill/` | 技能包，现在只有一条示范 | **要改** |
 | `model/MODEL.md` | 模型声明。不如实填写，增益项 40 分不得分 | **必须填** |
 | `serve/vllm.sh` | 启动本地推理服务 | 按所选模型改 |
+| `serve/start.sh` | 拉起全部常驻进程，就绪后返回。两种评测方式都从这里起服务 | 有自己的常驻进程时要改 |
 | `serve/serve_api.py` | 赛事方投题用的 HTTP 接口，监听 `127.0.0.1:7860` | 一般不改 |
 | `REPORT.md` | 设计报告 | **必须写** |
 | `Dockerfile` | 基于官方基础镜像构建 | 按需要改 |
@@ -87,7 +88,7 @@ export LLM_MODEL=Qwen3-8B
 ```
 
 基线用同一个推理服务、同一个模型，但绕过智能体与技能包，单次直接生成。
-它是增益项 40 分的分母，必须能跑通，否则这 40 分不得分。
+增益项 40 分以它的结果为基线，必须能跑通，否则这 40 分不得分。
 
 ---
 
@@ -129,12 +130,12 @@ export LLM_MODEL=Qwen3-8B
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `LLM_MAX_TOKENS` | `4096` | 单次输出上限，须与 `MODEL.md` 一致 |
+| `LLM_MAX_TOKENS` | `16384` | 单次输出上限，须与 `MODEL.md` 一致 |
 | `LLM_TEMPERATURE` | `0.2` | 采样温度 |
-| `LLM_TIMEOUT_S` | `180` | 单次模型调用超时 |
-| `AGENT_DEADLINE_S` | `360` | 单题时间预算，评测时由投题参数覆盖 |
+| `LLM_TIMEOUT_S` | `600` | 单次模型调用超时 |
+| `AGENT_DEADLINE_S` | `900` | 单题时间预算，评测时由投题参数覆盖 |
 | `AGENT_RESERVE_S` | `20` | 留给写出结果的余量 |
-| `AGENT_TMP` | `/tmp` | 临时目录，须为本地盘 |
+| `AGENT_TMP` | `/tmp` | 临时目录。实例上设为 `/var/tmp`，不要用 `/workspace` |
 | `RTL_PART` | `xczu3eg-sbva484-1-e` | 综合器件 |
 | `RTL_TOP` | 从题面推断，默认 `TopModule` | 顶层模块名 |
 | `FPGACHINA_TOKEN` | 无 | 投题令牌，`serve_api.py` 必填 |
@@ -154,7 +155,8 @@ export LLM_MODEL=Qwen3-8B
 这几类每一类都够写成一条技能。
 
 **三、把技能包做厚。** 现在只有一条，有竞争力的提交通常有 5 到 15 条。`SKILL.md` 用的
-是 AMD 官方技能格式，官方技能库（https://github.com/amd/skills ）里的技能可以原样复制
-到 `skill/` 直接使用，加载器对两者通用。需注意官方技能主要面向 HLS，RTL 侧多数要自己写。
+是 AMD 官方技能格式，AMD Ross 技能库（https://github.com/Xilinx/ross-ai-assistant ）中的技能可复制到
+`skill/` 使用，加载器对两者通用。需注意 Ross 技能主要面向 HLS；RTL 相关的 `vivado-*`
+技能调用 Vivado MCP 工具，未部署 MCP 时须改写。使用方式与限制见 `docs/FAQ.md`。
 
 改进方向的取舍过程与实测数据，写进 `REPORT.md` 就是工程质量项的得分点。

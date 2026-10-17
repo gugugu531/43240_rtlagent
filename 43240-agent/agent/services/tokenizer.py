@@ -50,7 +50,8 @@ class LocalTokenCounter:
                                or set(m) - {'role', 'content'} for m in messages):
             return TokenCount(reason='unsupported_chat_shape', **identity)
         options = dict(template_options or {})
-        if set(options) - {'enable_thinking'} or ('enable_thinking' in options and type(options['enable_thinking']) is not bool):
+        if any(not isinstance(key, str) or type(value) not in (bool, int, float, str)
+               for key, value in options.items()):
             return TokenCount(reason='unsupported_template_options', **identity)
         try:
             rendered = self._template.render(messages=[dict(m) for m in messages],

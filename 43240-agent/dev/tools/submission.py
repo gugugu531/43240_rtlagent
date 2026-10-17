@@ -6,12 +6,14 @@ import ast
 from dataclasses import dataclass, asdict
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
 import shutil
 import shlex
 import sys
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -24,6 +26,13 @@ DIRECTORIES = ('agent', 'config', 'skill', 'serve', 'model')
 REQUIRED = (*FILES, 'config/example.yaml', 'agent/main.py', 'serve/serve_api.py',
             'serve/vllm.sh', 'serve/start.sh', 'model/MODEL.md')
 FIXED_NAMES = {'README.md', 'REPORT.md', 'MODEL.md', 'SKILL.md', 'Dockerfile', '.dockerignore'}
+# Verified against official f7a8bd465c2a820e006c7a00ecc7df468974635b.
+# Refresh these only after comparing both files with a newly fetched official revision.
+OFFICIAL_BASELINE_SHA256 = {
+    'baseline.py': '17aaa609d4dbd36a94d1390e39f769394448f8588f3ccdd2bd37db9e34ed05e2',
+    'run_baseline.sh': '5c46c40d32c0cf4c4e1dc52ae12e60f8396a0deccafaa4e6f69d7316a3482e75',
+}
+EXECUTABLES = ('run.sh', 'run_baseline.sh', 'serve/start.sh', 'serve/vllm.sh')
 
 
 @dataclass(frozen=True)
@@ -65,10 +74,51 @@ def _files(root):
     return tuple(sorted(found))
 
 
-def check_submission_layout(root: Path) -> CheckReport:
+def _check_declarations(root, errors, *, release):
+    try:
+        manifest = json.loads((root/'manifest.json').read_text())
+        if not isinstance(manifest, dict): raise ValueError('not an object')
+    except (OSError, ValueError, UnicodeError):
+        errors.append('manifest.json must be a valid JSON object')
+        return
+    generation = manifest.get('generation')
+    if generation is not None and not isinstance(generation, dict):
+        errors.append('manifest generation must be an object or null')
+    if not release: return
+    model = manifest.get('model')
+    model = model if isinstance(model, dict) else {}
+    source, revision = model.get('source'), model.get('revision')
+    try:
+        url = urlsplit(source) if isinstance(source, str) else None
+    except ValueError:
+        url = None
+    if not url or url.scheme not in ('http', 'https') or not url.netloc or url.username or url.password:
+        errors.append('release requires a public model source URL')
+    if not isinstance(revision, str) or not re.fullmatch(r'[0-9a-fA-F]{40}|[0-9a-fA-F]{64}', revision):
+        errors.append('release requires a fixed model revision commit hash')
+    documentation = (root/'model/MODEL.md').read_text() if (root/'model/MODEL.md').is_file() else ''
+    if not source or not revision or str(source) not in documentation or str(revision) not in documentation:
+        errors.append('release requires the same model source and revision in model/MODEL.md')
+    vram = model.get('measured_vram_gb')
+    if type(vram) not in (int, float) or not math.isfinite(vram) or not 0 < vram <= 32:
+        errors.append('release requires measured total single-card VRAM in (0, 32] GB')
+    serving = manifest.get('serving')
+    version = serving.get('version') if isinstance(serving, dict) else None
+    if not isinstance(version, str) or not version.strip() or 'REPLACE' in version.upper():
+        errors.append('release requires the tested serving version')
+    docker = (root/'Dockerfile').read_text() if (root/'Dockerfile').is_file() else ''
+    image = re.search(r'^ARG BASE_IMAGE=(\S+)\s*$', docker, re.MULTILINE)
+    if not image or 'REPLACE' in image[1].upper():
+        errors.append('release requires an explicit official BASE_IMAGE in Dockerfile')
+
+
+def check_submission_layout(root: Path, *, release=False) -> CheckReport:
     root = Path(root).resolve(); errors = []
     for name in REQUIRED:
         if not (root / name).is_file(): errors.append(f'missing required file: {name}')
+    for name in EXECUTABLES:
+        if (root/name).is_file() and not (root/name).stat().st_mode & 0o111:
+            errors.append(f'entry is not executable: {name}')
     files = _files(root)
     for path in files:
         relative = path.relative_to(root).as_posix()
@@ -113,18 +163,20 @@ def check_submission_layout(root: Path) -> CheckReport:
         for name in sorted(expected - copied):
             errors.append(f'file absent from Docker COPY destinations: {name}')
     example = root.parent / 'example'
-    for name in ('baseline.py', 'run_baseline.sh'):
-        if (example/name).is_file() and (root/name).is_file() and (example/name).read_bytes() != (root/name).read_bytes():
+    for name, expected_hash in OFFICIAL_BASELINE_SHA256.items():
+        if (root/name).is_file() and (hashlib.sha256((root/name).read_bytes()).hexdigest() != expected_hash or
+                ((example/name).is_file() and (example/name).read_bytes() != (root/name).read_bytes())):
             errors.append(f'official baseline changed: {name}')
+    _check_declarations(root, errors, release=release)
     return CheckReport(tuple(errors), tuple(p.relative_to(root).as_posix() for p in files))
 
 
-def stage_submission(root: Path, destination: Path) -> SubmissionManifest:
+def stage_submission(root: Path, destination: Path, *, release=False) -> SubmissionManifest:
     root = Path(root).resolve(); destination = Path(destination).resolve()
     if destination == root or destination.is_relative_to(root) or root.is_relative_to(destination):
         raise ValueError('staging directory must be outside the source tree')
     if destination.exists(): raise FileExistsError('staging directory must not exist')
-    report = check_submission_layout(root)
+    report = check_submission_layout(root, release=release)
     if not report.ok: raise ValueError('submission layout has errors: ' + '; '.join(report.errors))
     destination.mkdir(parents=True)
     entries = []
@@ -167,13 +219,14 @@ def main(argv=None):
     parser.add_argument('--stage', type=Path)
     parser.add_argument('--task', type=Path)
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--release', action='store_true', help='另查正式封存声明；不替代公开访问、镜像和 GPU 实测')
     args = parser.parse_args(argv)
-    report = check_submission_layout(args.root)
+    report = check_submission_layout(args.root, release=args.release)
     print(json.dumps(asdict(report), ensure_ascii=False, indent=2))
     if not report.ok: return 2
     if args.task and (not args.stage or not args.output): parser.error('--task requires --stage and --output')
     if args.stage:
-        stage_submission(args.root, args.stage)
+        stage_submission(args.root, args.stage, release=args.release)
         if args.task:
             result = smoke_submission(args.stage, args.task, args.output)
             print(json.dumps(asdict(result), ensure_ascii=False)); return 0 if result.ok else 2

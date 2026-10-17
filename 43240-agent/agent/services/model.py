@@ -101,6 +101,20 @@ def _parse_reply(body, call_id, response, artifact):
                       elapsed_s=response.elapsed_s, response_artifact=artifact)
 
 
+def _template_subset(supplied, declared):
+    return all(key in declared and value == declared[key] for key, value in supplied.items())
+
+
+def load_shared_generation(template_options=None):
+    """Use the official manifest loader even when no thinking fields are declared."""
+    import baseline as official
+    generation = official.load_generation()
+    declared = generation.get('chat_template_kwargs', {})
+    if template_options and not _template_subset(template_options, declared):
+        raise ModelCallError('template options differ from manifest generation', kind='config')
+    return generation
+
+
 class ModelService:
     def __init__(self, backend: ModelBackend, recorder: RunRecorder, *,
                  timeout_limit_s: float | None = None, token_counter=None,
@@ -114,7 +128,8 @@ class ModelService:
         self.counter = token_counter or UnavailableCounter()
         self.tokens = TokenLedger(token_policy)
         self.context_limit, self.strict_context = context_limit, strict_context
-        self.template_options = dict(template_options or {})
+        self.generation = load_shared_generation(template_options)
+        self.template_options = dict(self.generation.get('chat_template_kwargs', {}))
         self.requests = []
         # Programmatic configurations may use secrets absent from the environment.
         config = getattr(backend, 'config', None)
@@ -136,15 +151,22 @@ class ModelService:
         return model
 
     def chat(self, request: ModelRequest) -> ModelReply:
+        for key in ('chat_template_kwargs', 'reasoning_effort'):
+            supplied = getattr(request, key)
+            if supplied is None:
+                continue
+            if key not in self.generation:
+                raise ModelCallError('request adds undeclared thinking settings', kind='config')
+            declared = self.generation[key]
+            matches = (_template_subset(supplied, declared) if key == 'chat_template_kwargs'
+                       else supplied == declared)
+            if not matches:
+                raise ModelCallError('request thinking settings differ from manifest generation', kind='config')
+        request = replace(request, **self.generation)
         if self.timeout_limit_s is not None:
             request = replace(request, timeout_s=min(request.timeout_s, self.timeout_limit_s))
         if isinstance(self.backend, HttpBackend) and request.model is None:
             request = replace(request, model=self.backend.config.model)
-        if self.template_options and request.profile != 'baseline_rtl' and request.chat_template_kwargs is None:
-            request = replace(request, chat_template_kwargs=self.template_options)
-        if self.template_options and request.profile == 'baseline_rtl' and request.chat_template_kwargs is None:
-            self.recorder.write_event('tokens', 'template_options_ignored',
-                                      reason='baseline_payload_unchanged')
         from agent.core.tokens import TokenBudgetError
         from agent.prompts.context import ContextLimitError, messages_hash
         prediction = self.counter.count(request.messages,

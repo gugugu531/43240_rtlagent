@@ -27,7 +27,7 @@ COPY skill/  skill/
 COPY serve/  serve/
 COPY model/  model/
 COPY run.sh run_baseline.sh manifest.json REPORT.md ./
-RUN chmod +x run.sh run_baseline.sh serve/vllm.sh
+RUN chmod +x run.sh run_baseline.sh serve/vllm.sh serve/start.sh
 
 # Model weights. Copy them in, or bind-mount at run time -- but they must be on
 # local disk before the network goes away. `huggingface-cli download` at startup
@@ -49,9 +49,11 @@ ENV LLM_BACKEND=openai \
 # says to read the variables instead of hardcoding a path.
 
 # Container metadata only. On Radeon Cloud both services bind 127.0.0.1 and
-# just 7860 is published, via rc-tunnel. See docs/接口契约.md section 7.
+# just 7860 is published, via rc-tunnel. See docs/API_CONTRACT.md section 7.
 EXPOSE 7860 8000
 
-# Not an entrypoint on purpose: the organisers call run.sh / run_baseline.sh
-# directly, and serve/serve_api.py is started separately on evaluation day.
+# Not an entrypoint on purpose. Evaluation is by HTTP submission: the team
+# runs serve/start.sh, then serve/serve_api.py. In the container-rebuild
+# fallback the organisers run serve/start.sh once and then call run.sh /
+# run_baseline.sh per task directly. See docs/API_CONTRACT.md section 8.
 CMD ["/bin/bash"]

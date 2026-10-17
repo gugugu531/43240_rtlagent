@@ -126,7 +126,7 @@ class BaselineDifferentialTests(unittest.TestCase):
                     self.assertEqual((agent / 'solution.v').read_bytes(), (base / 'solution.v').read_bytes())
                     saved = json.loads(next((agent / 'records').glob('*/calls/m001/request.json')).read_text())
                     self.assertEqual(saved['request'], http.posts[1][1])
-                    self.assertEqual(saved['timeout_s'], 300)
+                    self.assertEqual(saved['timeout_s'], official.TIMEOUT_S)
                     trace = events(agent)
                     self.assertEqual(sum(e['tool'] == 'llm' and e['event'] == 'started' for e in trace), 1)
                     started = next(e for e in trace if e['tool'] == 'llm' and e['event'] == 'started')
@@ -233,7 +233,7 @@ class BaselineDifferentialTests(unittest.TestCase):
 
 class BaselineContractTests(unittest.TestCase):
     def test_workflow_defaults_and_explicit_timeout_limits(self):
-        for workflow, expected in [('single_generate', 300), ('repair_loop', 180)]:
+        for workflow, expected in [('single_generate', official.TIMEOUT_S), ('repair_loop', 180)]:
             cfg = resolve_config(load_config(), env={'AGENT_WORKFLOW': workflow})
             self.assertEqual(cfg.agent.services.model.timeout_s, expected)
             for value in (12, 400):
@@ -241,7 +241,7 @@ class BaselineContractTests(unittest.TestCase):
                                                          'LLM_TIMEOUT_S': str(value)})
                 self.assertEqual(cfg.agent.services.model.timeout_s, value)
         doc = ConfigDocument(None, {'schema_version': 1})
-        self.assertEqual(resolve_config(doc, env={}).agent.services.model.timeout_s, 300)
+        self.assertEqual(resolve_config(doc, env={}).agent.services.model.timeout_s, official.TIMEOUT_S)
         cfg = resolve_config(doc, env={'LLM_TIMEOUT_S': '10'},
                              overrides=RunOverrides({'services.model.timeout_s': 20}))
         self.assertEqual(cfg.agent.services.model.timeout_s, 20)

@@ -18,6 +18,12 @@ OUT="${2:?usage: run.sh <input_dir> <output_dir>}"
 
 mkdir -p "$OUT"
 
+# Vivado / Vitis licence. The platform image does not preset it, and ~/.bashrc
+# is reset whenever the instance restarts, so default it here; a value already
+# in the environment wins.
+export XILINXD_LICENSE_FILE="${XILINXD_LICENSE_FILE:-2100@vivado-lic.fpgachina.svc.cluster.local}"
+export FLEXLM_TIMEOUT="${FLEXLM_TIMEOUT:-300000000}"
+
 cd "$HERE"
 python3 -m agent.main --input "$IN" --output "$OUT"
 rc=$?

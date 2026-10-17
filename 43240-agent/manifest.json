@@ -12,7 +12,7 @@
   },
   "context": {
     "max_model_len": 32768,
-    "max_output_tokens": 8192,
+    "max_output_tokens": 16384,
     "rope_scaling": null
   },
   "serving": {
@@ -36,5 +36,7 @@
       "single_generate",
       "repair_loop"
     ]
-  }
+  },
+  "generation": {},
+  "auxiliary_models": []
 }

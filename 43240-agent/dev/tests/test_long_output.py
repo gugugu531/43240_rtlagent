@@ -33,8 +33,8 @@ class LongOutputTests(unittest.TestCase):
         self.assertEqual(longer.payload('unused'), expected)
         self.assertEqual(longer.timeout_s, 900)
         self.assertEqual(original.public_dict(), after.public_dict())
-        self.assertEqual(baseline.MAX_TOKENS, 8192)
-        self.assertEqual(baseline.TIMEOUT_S, 300)
+        self.assertEqual(baseline.MAX_TOKENS, 16384)
+        self.assertEqual(baseline.TIMEOUT_S, 840)
         self.assertEqual(build_workflow('single_generate').generate.__class__, BaselineGenerateNode)
         self.assertEqual(build_workflow('single_generate_long_output').extract.__class__,
                          build_workflow('single_generate').extract.__class__)

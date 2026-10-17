@@ -102,8 +102,8 @@
 
 评测当天，赛事方通过 HTTP 逐题投题。`serve/serve_api.py` 把每次请求写成一个临时
 题目目录，调用 `run.sh`（`mode=baseline` 时调用 `run_baseline.sh`），再把结果返回。
-接口按[上游 2026-10-15 版本契约](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)实现；
-本地只读的 `docs/API_CONTRACT.md` 是旧快照，启动与查询示例见 [serve/README.md](serve/README.md)。
+接口按[上游 2026-10-17 版本契约](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)实现；
+本地 `docs/API_CONTRACT.md` 已同步到同一版本，启动与查询示例见 [serve/README.md](serve/README.md)。
 
 ```bash
 export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8000/v1
@@ -171,20 +171,21 @@ trace、详细证据和工具日志使用脱敏副本，模型实际收到的请
 题面与可选接口 → 一次直接生成 → 提取候选 → 显式选择并保存答案
 ```
 
-提示、温度 `0.0`、`top_p=1.0`、输出上限 `8192` 和请求上限 `300` 秒直接取自未修改的
+提示、温度 `0.0`、`top_p=1.0`、输出上限 `16384` 和请求上限 `840` 秒直接取自未修改的
 `baseline.py`。该 Workflow 不接受采样参数覆盖；不同策略应另注册 Workflow。题面和可选接口
 保留读取时的首尾空白，系统提示固定要求 `TopModule`，不采用 `RTL_TOP` 或接口推断的模块名。
-HTTP 请求只发送 baseline 的字段，不附加 `stream` 或认证头。请求模型名依次取 `MODEL_NAME`、
+HTTP 请求只发送 baseline 的字段，不附加 `stream` 或认证头；共享思考设置从 `manifest.json` 的 `generation` 段读取，
+支持标量 `chat_template_kwargs` 和字符串 `reasoning_effort`，与原始 baseline 一致。请求模型名依次取 `MODEL_NAME`、
 `/models` 第一项和 `default`；`LLM_MODEL` 仍用于 mock、修复流程及实验配置。统一实验入口将
 配置中的模型名通过 `MODEL_NAME` 显式传给两个模式，覆盖遗留环境变量。
 
-提取直接调用 `baseline.extract()`：保留第一个匹配代码块，再提取 `TopModule`，找不到时
+提取直接调用 `baseline.extract()`：先去掉思考段，再保留第一个匹配代码块，再提取 `TopModule`，找不到时
 保留文本。残缺代码和纯说明也作为候选保存；正常响应的空内容写出一个换行，请求失败写空文件。
 现有结构化提取器只提供回复诊断，不筛选或改写这一路径的答案。`completed` 表示流程完成，
 不表示代码完整或正确。`repair_loop` 继续使用原来的提示、请求参数和结构化提取节点。
 
 通过标准入口运行时，`services.model.timeout_s` 省略或为 `null` 表示按 Workflow 取默认值：
-`single_generate`、`evidence_repair`、`evidence_a0/a1/a2` 为 300 秒，其余（包括 `search_*`）为 180 秒。显式服务上限和整题剩余预算仍可缩短调用，
+`single_generate`、`evidence_repair`、`evidence_a0/a1/a2` 为 840 秒，其余（包括 `search_*`）为 180 秒。显式服务上限和整题剩余预算仍可缩短调用，
 Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig()` 仍显式使用其 180 秒上限。
 模型发现最多等 30 秒，也受服务上限和剩余预算约束，耗时计入整题预算，不算一次生成调用。
 
@@ -250,8 +251,8 @@ packed/unpacked 范围（含边界方向）；只忽略 wire/reg/logic 类型修
 `structured_feedback` Node 把提取或检查失败整理成证据编号、阶段、状态、归因、稳定错误码和有限摘要；
 不读取完整日志、官方 testbench、参考答案或 judge 结果，也不启用技能、ICL、规划、反思和检索。
 
-方案 A 使用与 baseline 相同的生成参数（8192 tokens、temperature 0、top_p 1、单次上限
-300 秒），但保留自己的提示和结构化提取。最终实际超时仍受服务和整题剩余预算约束。
+方案 A 保留既有实验参数（8192 tokens、temperature 0、top_p 1、单次上限
+300 秒）及自己的提示和提取，不随新版 baseline 的额度自动改变。最终实际超时仍受服务和整题剩余预算约束。
 Vivado `VRFC 10-1280`、`10-9336` 等明确源码诊断会进入修复；环境故障优先单独归因。
 如果修复没有完整代码或所有候选检查失败，方案 A 保留完整旧候选并标记
 `failed_check_fallback`，不会把失败检查改成通过。原有 `repair_loop` 选择规则保持不变。
@@ -274,7 +275,9 @@ E2 的 `search_r1/r2` 最多修复一/两次，`search_c2/c3` 最多生成两/�
 
 上下文保留题面、接口、完整候选和反馈，可选资料按整段装配。`services.model` 下可设置
 本地 tokenizer、上下文容量和累计 token 限额，默认不启用累计限额。未知用量不算零。
-`enable_thinking` 只影响普通生成/修复请求；默认 `baseline_rtl` 不传该选项，计数也按模板默认值。
+共享 generation 对所有流程生效：一致的部分配置继承完整声明，冲突值或额外未声明的思考字段会被拒绝。
+声明为空时所有流程沿用服务默认；YAML `enable_thinking` 只能重复共享声明中一致的设置。
+本地计数器支持官方允许的布尔、数字和字符串模板参数，按实际完整请求计数。
 
 新增上下文、诊断、短卡检索和候选策略的接口约定见
 [Agent 运行接口](dev/docs/design/agent-runtime.md)。
@@ -349,6 +352,13 @@ trace 同时用于三件事：工程质量评分、赛事方核对生成结果�
 
 ## 5. 推理服务
 
+正式 HTTP 与本地默认单题预算为 900 秒。`manifest.json` 的 `generation` 是方案与基线共享的
+思考声明，当前为空，所有流程沿用服务端默认；一致的部分配置会继承完整声明；冲突值或额外未声明的思考字段会被拒绝。
+HTTP 接口接受 1 至 900 秒时限，方案与基线共用监督与排队截止处理；排队耗时计入时限，
+到期的排队任务在查询或 nonce 重投时返回 done 和空答案，不等待前一任务退出，也不再启动求解。
+健康检查发现未共享的思考配置时返回未就绪。镜像默认临时目录使用本地盘 `/var/tmp`。
+`auxiliary_models` 当前为空，尚未部署辅助模型。
+
 比赛不限定推理后端，只要求服务提供 OpenAI 兼容的 `/v1/chat/completions`，能在单张
 32 GB 显卡上、断网条件下运行，且方案和基线使用同一个服务。`serve/vllm.sh` 是示例方案
 使用 vLLM 的启动脚本，**团队尚未确定最终使用的后端**。确定后，这里、`serve/` 中的
@@ -396,11 +406,11 @@ python3 dev/tools/run.py --config dev/configs/remote-smoke.yaml
 | `LLM_BASE_URL` | 无 | 模型服务地址，`openai` 后端必填 |
 | `LLM_API_KEY` | 空 | 本地推理服务可以随便填 |
 | `LLM_MODEL` | `mock-model` | mock、修复流程及统一实验配置的模型名；直接运行 single_generate 使用 MODEL_NAME 或发现服务模型 |
-| `LLM_TIMEOUT_S` | 按 Workflow | single_generate、evidence_repair、evidence_a0/a1/a2 默认 300 秒，其他 180 秒；显式值限制单次调用 |
+| `LLM_TIMEOUT_S` | 按 Workflow | single_generate、evidence_repair、evidence_a0/a1/a2 默认 840 秒，其他 180 秒；显式值限制单次调用 |
 | `AGENT_CONFIG` | `config/example.yaml` | YAML 配置路径；相对路径按调用者当前目录解析 |
 | `VIVADO_BIN` | PATH | 显式 Vivado 可执行文件目录 |
 | `AGENT_WORKFLOW` | `single_generate` | 已注册 Workflow 名称 |
-| `AGENT_DEADLINE_S` | `360` | 单题时间预算（秒），HTTP 请求中的 `deadline_s` 只能缩小实际预算 |
+| `AGENT_DEADLINE_S` | `900` | 单题时间预算（秒），HTTP 请求中的 `deadline_s` 只能缩小实际预算 |
 | `AGENT_RESERVE_S` | `20` | 为清理和写出结果预留的时间（秒）；预算小于此值时直接停止 |
 | `AGENT_TMP` | 依次取 `EDA_TMP`、`TRACK_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
 | `AGENT_KEEP_WORK` | 未设置 | 设为 `1` 时保留每次 Vivado 调用的独立目录和完整日志，排查问题用 |
@@ -457,17 +467,19 @@ single_generate 的采样常量固定；其他 Workflow 的温度、输出上限
 
 ## 封存与提交要求
 
-以下按上游提交 `9df1767` 核对，时间均为北京时间 2026 年。
-10 月 16 日至 30 日为验证窗口；10 月 31 日 10:00 主办方从 Gitee 私有仓库默认分支拉取封存，
-随后开始投题，服务需提前就绪；11 月 4 日 18:00 前在大赛系统提交报告与同一 Gitee 仓库链接。
-赛事仓库及导出目录命名为 `43240_rtlagent`，邀请 `Vickyiii`（`daisycw@126.com`）为只读或以上协作者。
+以下按上游提交 `f7a8bd4` 核对，时间均为北京时间 2026 年。
+10 月 16 日至 30 日为验证窗口；10 月 31 日 10:00 主办方从 Gitee 或 GitHub 私有仓库默认分支拉取封存，
+随后开始投题，服务需提前就绪；11 月 4 日 18:00 前在大赛系统提交报告与同一仓库链接。
+赛事仓库及导出目录命名为 `43240_rtlagent`，Gitee 邀请 `Vickyiii`（`daisycw@126.com`），
+GitHub 邀请 `vickyiii`，授予只读或以上权限；两个平台任选一个。
 当前开发目录不必改名，GitHub 开发仓库的 PR 不代替赛事封存。
 
 权重不进入 Git；MODEL.md 必须填写公开权重地址和固定 revision。镜像、模型与实测信息仍有
 占位项，当前包不是已完成封存准备的方案。REPORT.md 是当前方案草稿，不能把流程检查写成能力结论。
-完整要求见[上游封存说明](https://gitee.com/Vickyiii/rtlagent2026/blob/9df176717fec16751d02f4fb5c67dbd40a22fc15/docs/SUBMISSION.md)。
-本地根目录 SCORING.md 等主办方文档是只读旧快照，现行评分采用归一化增益 g，满分线为 0.6，
-不能使用旧的倍数对数公式；当前对齐状态与待办见开发区[提交核对](dev/docs/design/submission.md)。
+完整要求见[上游封存说明](https://gitee.com/Vickyiii/rtlagent2026/blob/f7a8bd465c2a820e006c7a00ecc7df468974635b/docs/SUBMISSION.md)。
+本地根目录、docs、selftest 和 example 已原样同步到上游 `f7a8bd4`，现行评分采用归一化增益 g，满分线为 0.6，
+不能使用旧的倍数对数公式；正式单题时限为 900 秒；辅助模型需声明且占用计入 32 GB 总额，
+作品须包含演示视频与大模型协作记录。当前对齐状态与待办见开发区[提交核对](dev/docs/design/submission.md)。
 
 ## 提交目录检查
 
@@ -482,3 +494,10 @@ python3 dev/tools/submission.py --stage /tmp/43240_rtlagent \
 声明、两个入口与原始 baseline.py；不复制 dev、任务、外置模型权重或缓存。清单与哈希保存在
 暂存目录旁，独立 smoke 使用 mock，不读取开发配置。Dockerfile 也复制 config/ 与 baseline.py。
 此检查不替代参考答案审核、模型与依赖准备、官方基础镜像构建或目标 GPU 验证。
+检查器固定核对最新官方 baseline 的 SHA-256（文件内容摘要），独立目录中也执行此检查，
+同时要求四个 Shell 入口有执行权限；官方更新后须重新核对并更新开发工具中的摘要。
+
+正式封存前另运行 `python3 dev/tools/submission.py --release`；也可与 `--stage` 同用。
+它额外检查固定模型 revision、MODEL.md 来源和版本一致性、显存声明、服务版本及镜像占位项，
+失败时不生成提交包。它只检查声明，不能证明 URL 公开可访问、显存实测有效或镜像确为官方版本。
+当前模型 revision、显存、服务版本和镜像仍待确定，因此默认结构检查通过不代表正式封存检查通过。

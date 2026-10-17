@@ -28,7 +28,7 @@
 
 ## 题面是英文
 
-**评测题集的题面全部是英文**，取自 VerilogEval v2 的 `dataset_spec-to-rtl`。本目录
+**评测题集的题面全部是英文**，格式与 VerilogEval v2 的 `dataset_spec-to-rtl` 一致。本目录
 三道示例题已改写成与它逐格式对齐的英文，包括那句固定的开头、端口清单的缩进写法、
 以及 `(8 bits)` 这种位宽标注：
 
@@ -132,3 +132,7 @@ TopModule dut1 (.clk(clk), .reset(reset), .load(load), .data(data), .q(q_dut));
 自己写测试台时，用 `ex01`/`ex02`/`ex03` 的模板即可：例化 `RefModule` 与 `TopModule`，
 逐拍用 XOR 形式比对（`ref === (ref ^ dut ^ ref)`，参考实现里的 X 匹配任意值，
 待测模块里的 X 不匹配），最后打印 `Mismatches: <n> in <m> samples`。
+
+注意 X 的不对称：没有复位的寄存器在第一个时钟沿之前是 X，参考实现若给了初值，
+而测试台又在第一个沿之前采样，待测模块就会失配一次。VerilogEval 里有 3 道题正是
+如此，见 `selftest/README.md`。

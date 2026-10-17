@@ -1,6 +1,6 @@
 # 推理服务与投题接口
 
-以下命令在 `43240-agent/` 下运行，按 2026-10-16 实现核对。
+以下命令在 `43240-agent/` 下运行，按 2026-10-17 实现核对。
 推理服务使用本机 8000 端口，投题接口使用 7860 端口；启动参数最终须与 `model/MODEL.md`、`REPORT.md` 的声明一致。
 完整方案入口见 [README](../README.md)。
 
@@ -72,7 +72,7 @@ curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://127.0.0.1:7860/v1/health
 ```
 
 响应的 `track` 为 `rtl`。`ready: true` 表示配置可读取、任务 Worker 正在运行，且模型列表含有所配置的模型
-（mock 后端不查询模型服务）；配置、模型查询或名称核对失败返回 503。它不证明 RTL 功能或 Vivado 授权正常，
+（mock 后端不查询模型服务），思考配置符合 manifest 共享声明；配置、共享声明、模型查询或名称核对失败返回 503。它不证明 RTL 功能或 Vivado 授权正常，
 还应运行单题检查。`vram_gb` 是接口查询时的值，不是完整评测期间的峰值。
 
 接口按[上游契约](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)提供异步投题：
@@ -89,9 +89,9 @@ curl -H "Authorization: Bearer $FPGACHINA_TOKEN" \
 
 查询状态为 `queued`、`running` 或 `done`，仅 `done` 含 `solution`、`trace`、`elapsed_s`；
 失败返回空答案，并保留可用的 trace 和服务错误类别。非空 nonce 重复投递始终返回原任务，
-空 nonce 每次新建任务；`mode` 只接受 `agent` 或 `baseline`，`deadline_s` 必须为正整数。
+空 nonce 每次新建任务；`mode` 只接受 `agent` 或 `baseline`，`deadline_s` 为 1 至 900 的整数，默认 900。
 结果和 nonce 映射保存在 HTTP 进程内，重启后清空。部署使用一个 uvicorn Worker，不能加 `--workers` 或 `--reload`。
-本地只读主办方文档保留原快照，本文对应上游提交 `9df1767`。
+本地主办方文档已同步，本文对应上游提交 `f7a8bd4`。
 
 Radeon Cloud 环境的既有部署方式是将投题接口绑定到环回地址，再通过平台隧道暴露：
 
@@ -106,9 +106,16 @@ env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
 
 ## 时间、文件与运行维护
 
+正式单题时限和默认请求时限为 900 秒，baseline 模型请求上限为 840 秒。
+两种模式使用 `manifest.json` 同一 `generation` 思考设置，当前为空；所有流程均拒绝冲突值或未声明选项。
+Radeon Cloud 的 `/tmp` 为 4 GB 内存盘，部署时应按主办方 README 设置
+`EDA_TMP=/var/tmp/eda AGENT_TMP=/var/tmp SELFTEST_TMP=/var/tmp`，并在投题服务启动前加载授权变量。
+Dockerfile 已设置上述三个本地盘目录；脚本和 Python 的本机通用默认仍为 `/tmp`。
+
 - `AGENT_TMP` 默认 `/tmp`，中间工程应使用本地盘，避免网络文件系统拖慢 Vivado。
 - 接口串行执行任务，从投题起计算剩余时间，扣除排队和准备时间，并预留 `min(0.25, deadline_s × 0.1)` 秒用于返回。
-  排队耗尽时间时不启动求解，直接返回空结果；子进程接收剩余硬期限；内部运行预算还受配置的清理预留和单次调用超时约束。超时后恢复已保存的选择，不能保证一定得到可用答案。
+  排队耗尽时间时不启动求解；即使前一任务仍运行，查询或 nonce 重投也立即返回 done 与空答案。
+  子进程接收剩余硬期限；内部运行预算还受配置的清理预留和单次调用超时约束。超时后恢复已保存的选择，不能保证一定得到可用答案。
 - 投题接口和模型端点分别管理鉴权。公网地址不能代替业务令牌检查。
 - HTTP 服务在 Linux 下接管孤儿进程，只回收本题进程组；服务退出时停止当前求解并结束排队任务。
 - 持续运行时检查临时文件、记录目录和子进程回收。完整模型记录需配置 `AGENT_RECORD_ROOT` 到请求临时目录之外。云端实例用完立即释放。

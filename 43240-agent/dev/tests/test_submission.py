@@ -65,6 +65,21 @@ class SubmissionTests(unittest.TestCase):
         self.assertIn('missing required file: config/example.yaml', report.errors)
         self.assertIn('file absent from Docker COPY destinations: baseline.py',report.errors)
 
+    def test_isolated_package_rejects_modified_baseline_and_nonexecutable_entry(self):
+        staged = self.work/'submission'; stage_submission(ROOT, staged)
+        self.assertFalse((staged.parent/'example').exists())
+        for name in ('baseline.py', 'run_baseline.sh'):
+            path = staged/name; original = path.read_bytes()
+            path.write_bytes(original + b'\n# altered\n')
+            self.assertIn(f'official baseline changed: {name}', check_submission_layout(staged).errors)
+            path.write_bytes(original)
+        for name in ('run.sh', 'run_baseline.sh', 'serve/start.sh', 'serve/vllm.sh'):
+            path = staged/name; mode = path.stat().st_mode
+            path.chmod(0o644)
+            self.assertIn(f'entry is not executable: {name}', check_submission_layout(staged).errors)
+            path.chmod(mode)
+
+
     def test_reject_dev_import_and_symlink(self):
         staged=self.work/'submission'; stage_submission(ROOT,staged)
         (staged/'agent/bad.py').write_text('from dev.tools.run import main\n')
@@ -72,6 +87,31 @@ class SubmissionTests(unittest.TestCase):
         report=check_submission_layout(staged)
         self.assertIn('development import in submission: agent/bad.py',report.errors)
         self.assertIn('symlink is not a submission file: agent/secret.py',report.errors)
+
+    def test_release_declarations_block_placeholders_and_staging(self):
+        report = check_submission_layout(ROOT, release=True)
+        self.assertIn('release requires a fixed model revision commit hash', report.errors)
+        self.assertIn('release requires measured total single-card VRAM in (0, 32] GB', report.errors)
+        self.assertIn('release requires the tested serving version', report.errors)
+        self.assertIn('release requires an explicit official BASE_IMAGE in Dockerfile', report.errors)
+        destination = self.work/'release'
+        with self.assertRaises(ValueError): stage_submission(ROOT, destination, release=True)
+        self.assertFalse(destination.exists())
+        staged = self.work/'development'; stage_submission(ROOT, staged)
+        manifest = json.loads((staged/'manifest.json').read_text())
+        # Synthetic declarations exercise the gate; they are not real deployment measurements.
+        manifest['model']['revision'] = 'a'*40
+        manifest['model']['measured_vram_gb'] = 30
+        manifest['serving']['version'] = 'test-version'
+        (staged/'manifest.json').write_text(json.dumps(manifest))
+        doc = staged/'model/MODEL.md'
+        doc.write_text(doc.read_text().replace('REPLACE_WITH_COMMIT_SHA', 'a'*40))
+        docker = staged/'Dockerfile'
+        docker.write_text(docker.read_text().replace('REPLACE_WITH_ANNOUNCED_TAG', 'test-official-tag'))
+        self.assertTrue(check_submission_layout(staged, release=True).ok)
+        manifest['generation'] = []
+        (staged/'manifest.json').write_text(json.dumps(manifest))
+        self.assertIn('manifest generation must be an object or null', check_submission_layout(staged).errors)
 
     def test_refuse_overwrite_and_source_destination(self):
         with self.assertRaises(ValueError): stage_submission(ROOT,ROOT/'out')

@@ -6,20 +6,56 @@
 HLS track 另有仓库 `hlsagent2026`，两个 track 独立排名、独立评奖，
 **推荐只选其一**。
 
+**有疑问先查 [常见问题（FAQ）](./docs/FAQ.md)**，涵盖参赛与环境、题集与判定、模型与方案、
+评测执行、合规五类问题。其余文档：
+
+| 文档 | 内容 |
+| --- | --- |
+| [docs/FAQ.md](./docs/FAQ.md) | 常见问题 |
+| [docs/SUBMISSION.md](./docs/SUBMISSION.md) | 代码封存与仓库提交（Gitee 或 GitHub） |
+| [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) | 投题接口契约、运行环境与已知问题 |
+| [SCORING.md](./SCORING.md) | 评分细则 |
+
+
+> **重要：在 Radeon Cloud 实例上先设置 Vivado / Vitis 授权变量。** 当前镜像没有预设授权
+> 服务地址，不设置时仿真、综合与 HLS 签不出授权，判定会全部卡在最低几级，且不报明显错误。
+> 实例重启后 `~/.bashrc` 会还原为镜像默认（见 FAQ「实例配置」一问），所以变量写进持久盘上的
+> `/workspace/env.sh`，`~/.bashrc` 只负责加载它：
+>
+> ```bash
+> cat > /workspace/env.sh <<'EOF'
+> export XILINXD_LICENSE_FILE=${XILINXD_LICENSE_FILE:-2100@vivado-lic.fpgachina.svc.cluster.local}
+> export FLEXLM_TIMEOUT=${FLEXLM_TIMEOUT:-300000000}
+> export EDA_TMP=/var/tmp/eda AGENT_TMP=/var/tmp SELFTEST_TMP=/var/tmp
+> EOF
+> echo 'source /workspace/env.sh' >> ~/.bashrc    # 每次实例重启后重新执行这一行
+> source /workspace/env.sh
+> ```
+>
+> 第三行把 EDA 工作目录从 `/tmp` 移到本地盘 `/var/tmp`：实例上的 `/tmp` 是 4 GB 内存盘，连续
+> 运行容易写满。令牌 `FPGACHINA_TOKEN` 等需要长期保留的变量也写进 `/workspace/env.sh`。
+> notebook 第 0 步会自动设置，但只对 notebook 内有效；在终端里运行 `run.sh`、投题服务与
+> 自测脚本时须用上面的命令。投题服务启动前就要设好，服务会把这两个变量传给智能体调用的
+> EDA 工具。用镜像自带的 llama.cpp 时另需一个变量，见 FAQ「llama.cpp」一问。
+
 ---
 
 ## 重要时间节点
 
-| 时间节点 | 内容     |
-| -------- | -------- |
-| 竞赛报名 | 另行公告 |
-| 作品设计 | 另行公告 |
-| 验证窗口 | 另行公告 |
-| 作品提交 | 另行公告 |
-| 评测窗口 | 另行公告 |
-| 竞赛决赛 | 另行公告 |
+| 时间节点 | 时间（北京时间）                 | 说明                                                           |
+| -------- | -------------------------------- | -------------------------------------------------------------- |
+| 竞赛报名 | 9 月 22 日截止                   |                                                                |
+| 作品设计 | 9 月 22 日 — 10 月 15 日         | 开发阶段不限平台，可自备算力                                   |
+| 验证窗口 | 10 月 16 日 — 10 月 30 日        | 在 Radeon Cloud 上验证方案可运行，完成仓库协作者邀请           |
+| 令牌发放 | 10 月 20 日（预计）              | 投题令牌发到各队注册 Radeon Cloud 时登记的邮箱，用于提前测通 |
+| 代码封存 | **10 月 31 日 10:00**            | 赛事方拉取各队 Gitee / GitHub 私有仓库，此后的推送不计入       |
+| 评测投题 | 10 月 31 日 10:00 起             | 封存后随即开始，所有队伍同时、按轮投题，服务须在此前就绪       |
+| 作品提交 | **11 月 4 日 18:00**             | 设计报告与系统提交，系统中须填写仓库链接                       |
+| 竞赛决赛 | 另行公告                         |                                                                |
 
-各节点均以大赛官方公布为准，见 http://www.fpgachina.cn/ 。
+代码封存与仓库提交的具体做法见 [docs/SUBMISSION.md](./docs/SUBMISSION.md)。
+
+未注明的节点以大赛官方公布为准，见 http://www.fpgachina.cn/ 。
 
 ---
 
@@ -99,7 +135,7 @@ L1 可编译（xvlog + xelab）  →  L2 仿真通过（xsim，逐拍比对）  
 │      LLM_BACKEND=mock ./run.sh ../tasks/ex03_lfsr8 /tmp/out           │
 └───────────────────────────────────────────────────────────────────────┘
                                     │
-                     代码一行不动，只换 3 个环境变量
+                       改环境变量，指向本地模型
                                     ▼
 ┌─ [2] 验 证    本地开源权重 + Vivado ──────────────────────────────────┐
 │  LLM_BASE_URL=http://localhost:8000/v1       <-- 本机 vLLM，开源权重  │
@@ -113,7 +149,7 @@ L1 可编译（xvlog + xelab）  →  L2 仿真通过（xsim，逐拍比对）  
 │      xsim 逐拍比对  ──> L2 仿真通过  系数 0.7                         │
 │      synth_design   ──> L3 可综合    系数 1.0                         │
 │                                                                       │
-│  两条链路都要跑：增益 = 方案题集得分 / 基线题集得分，占 40 分。       │
+│  两条链路都要跑：增益 g = (方案 − 基线) / (1 − 基线)，占 40 分。      │
 │  只跑方案不跑基线，这 40 分为零。                                     │
 │  级别不理想就回到 [1]：改控制流、补技能包，再验一轮。                 │
 └───────────────────────────────────────────────────────────────────────┘
@@ -121,7 +157,7 @@ L1 可编译（xvlog + xelab）  →  L2 仿真通过（xsim，逐拍比对）  
                     example/ 就是提交结构，改个名打包
                                     ▼
 ┌─ [3] 提 交    断网沙箱，一次性 ───────────────────────────────────────┐
-│  <team_name>-agent/                                                   │
+│  <队伍编号>_rtlagent/                                                 │
 │    ├─ Dockerfile         基于赛事方基础镜像构建                       │
 │    ├─ manifest.json      机器可读的方案声明                           │
 │    ├─ model/MODEL.md     来源、版本、量化方式、显存、上下文           │
@@ -167,7 +203,8 @@ L1 可编译（xvlog + xelab）  →  L2 仿真通过（xsim，逐拍比对）  
 ```
 题集得分 = Σ(题目系数) / 题数
 能力得分 = 30 × 题集得分
-增益     = 方案题集得分 / 基线题集得分
+增益 g   = (方案题集得分 − 基线题集得分) / (1 − 基线题集得分)
+增益得分 = 40 × min(g / 0.6, 1)
 ```
 
 **计分采用 pass@1**，pass@5 作为稳定性诊断单独列出，不计入总分。
@@ -184,6 +221,9 @@ L1 至 L2 的系数跨度为 0.5，为分级表中最大的一级。该级对应
 ## 快速开始
 
 以下步骤不依赖 GPU，亦无需安装 Vivado，可先行验证链路是否贯通。
+
+在 Radeon Cloud 实例上，可改用 [notebooks/rtl_quickstart.ipynb](./notebooks/rtl_quickstart.ipynb)
+逐格完成环境检查、判定链路校验、投题服务自测与本地模型运行。
 
 ```bash
 git clone <本仓库地址> && cd rtlagent2026
@@ -231,7 +271,7 @@ python3 veval_import.py \
 文件正文中。
 
 ```
-<team_name>-agent/
+<队伍编号>_rtlagent/
 ├── Dockerfile              # 基于官方基础镜像构建
 ├── manifest.json           # 机器可读的方案声明
 ├── model/
@@ -239,6 +279,7 @@ python3 veval_import.py \
 ├── agent/                  # 智能体源码
 ├── skill/                  # 技能包
 ├── serve/                  # 推理服务配置与启动脚本
+│   └── start.sh            # 拉起全部常驻进程，就绪后返回
 ├── run.sh                  # 单题入口：读题 → 产出代码
 ├── run_baseline.sh         # 基线入口：同一推理服务，绕过智能体与技能包
 └── REPORT.md               # 设计报告
@@ -257,12 +298,34 @@ python3 veval_import.py \
 
 见 [REPORT_TEMPLATE.md](./REPORT_TEMPLATE.md)。其中**失败分析**是工程质量项的评定重点。
 
-### 4. 评测当天另需提交
+### 4. 代码封存与评测（必须）
 
-- 服务端点网址
-- 服务启动后的健康检查输出
+- 10 月 31 日 10:00 前，方案推送到 Gitee 或 GitHub 的私有仓库，并邀请赛事方账号为协作者：
+  Gitee 为 `Vickyiii`（`daisycw@126.com`），GitHub 为 `vickyiii`。赛事方在该时刻拉取的版本即为封存版本
+- 同一时刻之前，按封存版本启动投题服务，并报送服务端点网址。投题令牌预计 10 月 20 日
+  发到各队注册 Radeon Cloud 时登记的邮箱
+- 11 月 4 日 18:00 前，在大赛系统中提交设计报告与仓库链接
+
+详见 [docs/SUBMISSION.md](./docs/SUBMISSION.md)。
 
 接口格式见 [docs/API_CONTRACT.md](./docs/API_CONTRACT.md)。该契约于赛前固定，此后不再变更。
+
+### 5. 演示视频（必须）
+
+在 Radeon Cloud 实例的界面上演示自己的作品：智能体的工作流如何构建（服务如何启动、一道题
+如何从投题走到产出代码与判级）、设计的创新点是什么、为什么这样设计。时长与格式按大赛官方
+要求，随作品一并在大赛系统中提交。
+
+### 6. 大模型协作记录（必须）
+
+按大赛统一要求提交，写入设计报告的「大模型协作记录」一节（`REPORT_TEMPLATE.md` 第 12 节），
+需要涵盖：
+
+- 协助开发所用的大模型与工具的名称、版本
+- 设计创新点的来源：哪些来自大模型的建议，哪些来自队伍自己的判断
+- 大模型给出正确建议的地方
+- 大模型给出错误建议的地方，以及是怎样发现的
+- 如何验证与判别，最终达成设计（用了哪些工具、测试、对拍或实测数据）
 
 ---
 
@@ -274,13 +337,18 @@ python3 veval_import.py \
 - [ ] 断网条件下可完整运行，无外部依赖下载
 - [ ] `MODEL.md` 已写明来源、版本号或校验和、量化方式、实测显存、上下文配置
 - [ ] 若经微调：权重已开源，链接可达，训练数据来源已说明
-- [ ] `run.sh` 可接受单题输入并产出 `solution.v`，无需人工介入
+- [ ] 干净容器中运行 `serve/start.sh` 后，`run.sh` 可接受单题输入并产出 `solution.v`，无需人工介入
+- [ ] 常驻进程全部由 `serve/start.sh` 以 `setsid` 拉起，`run.sh` 不在后台启动常驻进程
 - [ ] `run_baseline.sh` 可运行，且确实绕过智能体与技能包
 - [ ] `trace.jsonl` 记录了每一次工具调用
 - [ ] 单题运行时间在墙钟上限内
 - [ ] 智能体源码与技能包齐全，技能包含 `README.md`
 - [ ] 设计报告含模型选择理由、智能体设计说明与**失败分析**
 - [ ] 已用 `selftest/` 在本地跑通一轮
+- [ ] 仓库为私有，已邀请赛事方账号为协作者（Gitee `Vickyiii` / GitHub `vickyiii`），默认分支即为要提交的版本
+- [ ] `MODEL.md` 已写明权重的仓库地址与版本号（revision），该地址可公开访问
+- [ ] 演示视频已录制，时长与格式符合大赛官方要求
+- [ ] 设计报告含「大模型协作记录」一节
 - [ ] 目录名与文件名全为英文
 
 ---
@@ -307,10 +375,12 @@ rtlagent2026/
 ├── SCORING.md             # 分级系数、四项权重、增益公式、算分示例
 ├── REPORT_TEMPLATE.md             # 设计报告模板
 ├── docs/
-│   ├── API_CONTRACT.md         # /v1/health、/v1/solve、trace.jsonl 格式
-│   └── FAQ.md
+│   ├── API_CONTRACT.md         # /v1/health、/v1/solve、/v1/jobs、trace.jsonl 格式
+│   ├── FAQ.md                  # 常见问题
+│   └── SUBMISSION.md           # 代码封存与仓库提交
 ├── example/               # 最小示范方案，按提交结构写，可直接作起点
 ├── tasks/                 # 3 道示例题目，题面为英文，与评测题集同形
+├── notebooks/             # Radeon Cloud 上手 notebook
 └── selftest/              # 本地分级判定脚本 + VerilogEval 转换脚本
 ```
 
@@ -323,7 +393,8 @@ rtlagent2026/
 | VerilogEval v2      | RTL 自测数据集，https://github.com/NVlabs/verilog-eval （取 `dataset_spec-to-rtl`） |
 | Vivado 仿真用户指南 | UG900                                                      |
 | Vivado 综合用户指南 | UG901                                                      |
-| AMD 官方 Skills 仓库 | https://github.com/amd/skills                             |
+| AMD Ross 技能库     | FPGA 设计技能（Vivado / Vitis HLS），可用于方案的 `skill/`，https://github.com/Xilinx/ross-ai-assistant |
+| AMD Skills          | ROCm 与模型量化技能，供开发期的编码助手使用，https://github.com/amd/skills |
 
 **VerilogEval 的官方 harness 依赖 iverilog，其测试台在 Vivado 下直接编译不过。**
 `selftest/veval_import.py` 负责转换，详见 [selftest/README.md](./selftest/README.md)。
@@ -337,7 +408,7 @@ rtlagent2026/
 | AMD 中文技术论坛   | https://forums.xilinx.com/cn         |
 | AMD 中国开发者平台 | https://developer.amd.com.cn/radeon/ |
 | 赛道交流 QQ 群     | 1087309750                           |
-| 邮箱咨询           | fpgacamp.cn@outlook.com              |
+| 邮箱咨询           | wenc@amd.com                         |
 
 ---
 

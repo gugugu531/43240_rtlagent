@@ -30,8 +30,10 @@ reference; Vivado's `xvlog` does not:
 
 The block only writes a waveform dump, so removing it is behaviour-preserving.
 That single edit is the whole port: measured across all 156 spec-to-rtl tasks,
-with RefModule renamed to TopModule as a known-good solution, every task
-analyzes, elaborates, simulates, and reports `Mismatches: 0`.
+with RefModule renamed to TopModule as a known-good solution, 152 reach L3.
+The other 4 are defects in the dataset itself, not in the conversion, and a
+further 7 have prompts that disagree with their reference. Both lists are in
+README.md; leave all 11 out when you compute a pass rate.
 
 ## What this does not give you
 

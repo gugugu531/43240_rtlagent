@@ -36,6 +36,7 @@ class ModelRequest:
     profile: str = 'default'
     chat_template_kwargs: Mapping[str, Any] | None = None
     seed: int | None = None
+    reasoning_effort: str | None = None
 
     def __post_init__(self):
         if isinstance(self.max_tokens, bool) or not isinstance(self.max_tokens, int) or self.max_tokens <= 0:
@@ -57,10 +58,12 @@ class ModelRequest:
         if self.seed is not None and (type(self.seed) is not int or not 0 <= self.seed < 2**32
                                       or self.profile == 'baseline_rtl'):
             raise ModelCallError('seed requires a default profile and unsigned 32-bit integer', kind='config')
+        if self.reasoning_effort is not None and (not isinstance(self.reasoning_effort, str) or not self.reasoning_effort):
+            raise ModelCallError('reasoning_effort must be a nonempty string', kind='config')
         if self.chat_template_kwargs is not None:
             if (not isinstance(self.chat_template_kwargs, Mapping)
-                    or set(self.chat_template_kwargs) - {'enable_thinking'}
-                    or any(type(v) is not bool for v in self.chat_template_kwargs.values())):
+                    or any(not isinstance(k, str) or not isinstance(v, (bool, int, float, str))
+                           for k, v in self.chat_template_kwargs.items())):
                 raise ModelCallError('unsupported chat template options', kind='config')
             object.__setattr__(self, 'chat_template_kwargs', _freeze(dict(self.chat_template_kwargs)))
         # Detach from caller-owned containers. No recorder may mutate this copy.
@@ -71,6 +74,8 @@ class ModelRequest:
                     temperature=self.temperature, timeout_s=self.timeout_s, purpose=self.purpose,
                     model=self.model, top_p=self.top_p, stream=self.stream, profile=self.profile,
                     chat_template_kwargs=_thaw(self.chat_template_kwargs))
+        if self.reasoning_effort is not None:
+            result['reasoning_effort'] = self.reasoning_effort
         if self.seed is not None:
             result['seed'] = self.seed
         return result
@@ -85,6 +90,8 @@ class ModelRequest:
             body['stream'] = self.stream
         if self.chat_template_kwargs is not None:
             body['chat_template_kwargs'] = _thaw(self.chat_template_kwargs)
+        if self.reasoning_effort is not None:
+            body['reasoning_effort'] = self.reasoning_effort
         if self.seed is not None:
             body['seed'] = self.seed
         return body

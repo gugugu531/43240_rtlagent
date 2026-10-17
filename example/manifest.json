@@ -10,10 +10,17 @@
     "finetuned": false,
     "finetune_weights_url": null
   },
+  "auxiliary_models": [],
   "context": {
     "max_model_len": 32768,
-    "max_output_tokens": 4096,
+    "max_output_tokens": 16384,
     "rope_scaling": null
+  },
+  "generation": {
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "reasoning_effort": null
   },
   "serving": {
     "backend": "vllm",

@@ -49,6 +49,10 @@ class ServeTests(unittest.TestCase):
             for fields in ({'mode':'typo'}, {'deadline_s':0}, {'deadline_s':-1}):
                 self.assertEqual(client.post('/v1/solve', headers=AUTH,
                     json=dict(task_id='a', prompt='x', **fields)).status_code, 422)
+            for mode in ('agent', 'baseline'):
+                self.assertEqual(api.SolveRequest(task_id='x', prompt='x', mode=mode).deadline_s, 900)
+                self.assertEqual(client.post('/v1/solve', headers=AUTH,
+                    json=dict(task_id='a', prompt='x', mode=mode, deadline_s=901)).status_code, 422)
             self.assertTrue(client.get('/v1/health', headers=AUTH).json()['ready'])
             with patch.object(api, 'TOKEN', ''):
                 self.assertEqual(client.get('/v1/health', headers=AUTH).status_code, 500)
@@ -60,6 +64,16 @@ class ServeTests(unittest.TestCase):
             self.assertEqual(client.get('/v1/health', headers=AUTH).status_code, 200)
             response.json.return_value = {'data':[{'id':'other-model'}]}
             self.assertEqual(client.get('/v1/health', headers=AUTH).status_code, 503)
+
+    def test_health_rejects_unshared_thinking_config_before_advertising_ready(self):
+        with tempfile.TemporaryDirectory() as temp:
+            config = Path(temp)/'config.yaml'
+            config.write_text('schema_version: 1\nservices:\n  model:\n    enable_thinking: false\n')
+            with patch.dict(os.environ, LLM_BACKEND='mock', AGENT_CONFIG=str(config)), \
+                 patch('baseline.load_generation', return_value={}), TestClient(api.app) as client:
+                self.assertEqual(client.get('/v1/health', headers=AUTH).status_code, 503)
+                with patch('baseline.load_generation', return_value={'chat_template_kwargs': {'enable_thinking': False}}):
+                    self.assertEqual(client.get('/v1/health', headers=AUTH).status_code, 200)
 
     def test_immediate_response_concurrent_nonce_and_serial_queue(self):
         entered, release = threading.Event(), threading.Event()
@@ -119,6 +133,35 @@ class ServeTests(unittest.TestCase):
             self.assertIn('OSError', result['trace'])
             self.assertNotIn('sensitive', result['trace'])
             self.assertTrue(api.app.state.jobs.thread.is_alive())
+
+    def test_expired_queue_is_done_while_previous_job_is_still_running(self):
+        entered, release = threading.Event(), threading.Event()
+        calls = []
+        def solver(req, *_):
+            calls.append(req.task_id)
+            entered.set()
+            release.wait(3)
+            return '', ''
+        with patch.object(api, '_solve', side_effect=solver), TestClient(api.app) as client:
+            first = client.post('/v1/solve', headers=AUTH, json=dict(task_id='block', prompt='x')).json()
+            self.assertTrue(entered.wait(1))
+            try:
+                for mode in ('agent', 'baseline'):
+                    body = dict(task_id=mode, mode=mode, nonce=mode, prompt='x', deadline_s=1)
+                    expired = client.post('/v1/solve', headers=AUTH, json=body).json()
+                    with api.app.state.jobs.lock:
+                        api.app.state.jobs.jobs[expired['job_id']]['submitted'] -= 2
+                    result = client.get('/v1/jobs/'+expired['job_id'], headers=AUTH).json()
+                    self.assertEqual(result['status'], 'done')
+                    self.assertEqual(result['solution'], '')
+                    self.assertIn('queue_deadline', result['trace'])
+                    self.assertEqual(client.post('/v1/solve', headers=AUTH, json=body).json()['status'], 'done')
+                self.assertEqual(client.get('/v1/jobs/'+first['job_id'], headers=AUTH).json()['status'], 'running')
+            finally:
+                release.set()
+            api.app.state.jobs.queue.join()
+            self.assertEqual(calls, ['block'])
+
 
     def test_real_mock_command_and_repeated_requests(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(api, 'SCRATCH', temp), \
