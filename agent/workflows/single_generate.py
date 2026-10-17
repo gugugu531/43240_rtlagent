@@ -1,17 +1,20 @@
 """Official RTL baseline semantics with Agent recording and supervision."""
 from agent.core.budget import BudgetExhausted
-from agent.core.components import Component
-from agent.core.model import ModelCallError
-from agent.core.registry import WORKFLOW_REGISTRY, build_node
+from agent.core.components import Node, Workflow
+from agent.core.model import ModelCallError, ModelReply
+from agent.core.extraction import ExtractInput, ExtractionOutput
 from agent.nodes.generate import GenerateInput
-from agent.nodes.extract import ExtractInput
 
 
-@WORKFLOW_REGISTRY.register('single_generate')
-class SingleGenerate(Component):
-    def __init__(self):
-        self.generate = build_node('baseline_generate')
-        self.extract = build_node('baseline_extract')
+class SingleGenerate(Workflow):
+    component_name = 'single_generate'
+    dependencies = {'generate': 'node', 'extract': 'node'}
+    dependency_types = {'generate': (GenerateInput, ModelReply),
+                        'extract': (ExtractInput, ExtractionOutput)}
+
+    def __init__(self, generate: Node[GenerateInput, ModelReply],
+                 extract: Node[ExtractInput, ExtractionOutput]) -> None:
+        self.generate, self.extract = generate, extract
 
     def run(self, ctx):
         try:

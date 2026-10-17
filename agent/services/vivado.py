@@ -121,7 +121,7 @@ class RtlToolchain:
     def run_command(self, cmd: Sequence[str], cwd: str, timeout_s: float) -> CommandOutcome:
         if self.executor is None:
             return _run_command(cmd, cwd, timeout_s)
-        from agent.services.processes import ProcessRequest
+        from agent.core.process import ProcessRequest
         result = self.executor.run(ProcessRequest(tuple(cmd), cwd, timeout_s))
         return CommandOutcome(tuple(cmd), result.rc, result.status, result.elapsed_s, result.output,
                                result.log_path)

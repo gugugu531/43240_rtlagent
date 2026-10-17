@@ -1,7 +1,6 @@
 """Specification-derived stimulus data; never execute model-written test code."""
 from __future__ import annotations
-from dataclasses import dataclass, replace
-import hashlib
+from dataclasses import replace
 import json
 from pathlib import Path
 import re
@@ -9,52 +8,15 @@ import shutil
 import time
 
 from agent.core.task import TaskSpec
-from agent.services.timing import (TimingContract, parse_timing, specification_quote,
+from agent.services.timing import (parse_timing, specification_quote,
                                    timing_history, validate_timing)
 from agent.core.tool import ToolResult, TOOL_SUMMARY_LIMIT
 from agent.services.tool_support import build_result, make_work_dir, unavailable
 from agent.services.plan_format import resolve_basis, cycle_steps
-from agent.services.literal_spec import LiteralTruthTable, parse_literal_truth_table
+from agent.services.literal_spec import parse_literal_truth_table
+from agent.services.behavior_types import StimulusStep, TestPlan
 from agent.services.spec_ports import supported_ports, validate_candidate_ports
 from agent.services.behavior_trace import analyze_trace
-
-
-@dataclass(frozen=True)
-class StimulusStep:
-    inputs: tuple[tuple[str, int], ...]
-    wait_ns: int
-    expected: tuple[tuple[str, int], ...]
-    basis: str
-
-
-@dataclass(frozen=True)
-class TestPlan:
-    top: str
-    ports: tuple[tuple[str, str, int], ...]
-    steps: tuple[StimulusStep, ...]
-    timing: TimingContract = TimingContract()
-    literal_table: LiteralTruthTable | None = None
-
-    def public_dict(self):
-        result = dict(oracle_protocol=2, top=self.top, ports=[list(p) for p in self.ports], timing=self.timing.public_dict(), steps=[
-            dict(inputs=dict(s.inputs), wait_ns=s.wait_ns, expected=dict(s.expected), basis=s.basis)
-            for s in self.steps])
-        if self.literal_table:
-            result['literal_table'] = self.literal_table.public_dict()
-        return result
-
-    @property
-    def oracle_source(self):
-        return 'public_literal_truth_table' if self.literal_table else 'model_spec_hypothesis'
-
-    @property
-    def fingerprint(self):
-        return hashlib.sha256(json.dumps(self.public_dict(), sort_keys=True).encode()).hexdigest()
-
-    def trace_dict(self):
-        return dict(plan_hash=self.fingerprint, steps=len(self.steps),
-                    assertions=sum(len(s.expected) for s in self.steps),
-                    oracle_protocol=2, oracle_source=self.oracle_source, official_verification=False)
 
 
 def _unique_keys(pairs):

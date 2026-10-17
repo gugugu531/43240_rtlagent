@@ -42,6 +42,8 @@ class ComponentSpec:
     implementation: str
     parameters: Mapping[str, Any]
     dependencies: Mapping[str, str | tuple[str, ...]] = field(default_factory=dict)
+    instance_id: str | None = None
+    kind: str = "component"
 
     def __post_init__(self):
         object.__setattr__(self, 'parameters', _freeze(describe_value(self.parameters)))
@@ -49,7 +51,8 @@ class ComponentSpec:
 
     def public_dict(self) -> dict[str, Any]:
         return dict(name=self.name, module=self.module, implementation=self.implementation,
-                    parameters=_thaw(self.parameters), dependencies=_thaw(self.dependencies))
+                    parameters=_thaw(self.parameters), dependencies=_thaw(self.dependencies),
+                    instance_id=self.instance_id, kind=self.kind)
 
 
 class Component:
@@ -78,7 +81,7 @@ class Component:
             else:
                 parameters[name] = describe_value(getattr(self, name, {'status': 'unknown'}))
         return ComponentSpec(getattr(cls, "component_name", cls.__name__),
-                             cls.__module__, cls.__qualname__, parameters, dependencies)
+                             cls.__module__, cls.__qualname__, parameters, dependencies, kind=self.kind)
 
 
 class ProcessContext(Protocol):
@@ -95,7 +98,6 @@ class ToolContext(Protocol):
     budget: Budget
     processes: ProcessContext
     artifacts: ArtifactContext
-    llm: Any
     timeout_s: float | None
 
     def emit(self, event: str, **fields) -> None: ...
@@ -108,6 +110,8 @@ class RunContext(Protocol):
     budget: Budget
     llm: Any
     state: RunStateView
+    checks: Any
+    processes: ProcessContext
     started_at: float
     configuration: dict
     output_dir: Path
@@ -116,6 +120,16 @@ class RunContext(Protocol):
     def call(self, tool: Tool[InputT, OutputT], input: InputT, *, timeout_s: float | None = None) -> OutputT: ...
     def check(self, tool: Tool, input: Any, *, candidate: Candidate,
               timeout_s: float | None, minimum_s: float = 0.0) -> CheckResult: ...
+    def mark_initial_replay_validated(self) -> None: ...
+    def create_candidate(self, code: str, *, reply: Any, round: int,
+                         parent_id: str | None = None, source_stage: str = 'generate',
+                         extraction_status: str = 'complete') -> Candidate: ...
+    def register_candidate(self, candidate: Candidate) -> None: ...
+    def record_extraction(self, call_id, extraction, candidate_id=None) -> None: ...
+    def new_check_id(self) -> str: ...
+    def record_check(self, result: CheckResult) -> None: ...
+    def select_candidate(self, candidate_id: str, *, reason: str) -> None: ...
+    def apply_selection(self, decision: Any) -> None: ...
     def emit(self, event: str, **fields) -> None: ...
     def finish(self, *, reason: str, status: str = 'completed') -> WorkflowResult: ...
 

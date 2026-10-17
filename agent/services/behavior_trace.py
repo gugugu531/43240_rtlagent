@@ -1,12 +1,8 @@
 """Interpret observed samples using public properties and separate model hypotheses."""
 from __future__ import annotations
 import re
-from typing import TYPE_CHECKING
-
 from agent.services.timing import timing_history
-
-if TYPE_CHECKING:
-    from agent.services.behavior import TestPlan
+from agent.services.behavior_types import TestPlan
 
 
 def _parse_samples(output: str, plan: TestPlan) -> list[dict[str, str]]:

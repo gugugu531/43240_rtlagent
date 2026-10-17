@@ -2,16 +2,18 @@
 from dataclasses import replace
 import baseline as official
 
-from agent.core.components import Component
-from agent.core.model import ModelRequest
-from agent.core.registry import NODE_REGISTRY
+from agent.core.components import Node
+from agent.core.model import ModelRequest, ModelReply
 from agent.nodes.generate import GenerateInput
-from agent.nodes.extract import ExtractInput, ExtractionOutput
-from agent.nodes.extraction import extract_result
+from agent.core.extraction import ExtractInput, ExtractionOutput
+from agent.services.extraction import extract_result
 
 
-@NODE_REGISTRY.register('baseline_generate')
-class BaselineGenerateNode(Component):
+class BaselineGenerateNode(Node[GenerateInput, ModelReply]):
+    component_name = 'baseline_generate'
+    input_type = GenerateInput
+    output_type = ModelReply
+
     def run(self, ctx, input: GenerateInput):
         task = input.task
         prompt = task.raw_prompt if task.raw_prompt is not None else task.prompt
@@ -29,8 +31,10 @@ class BaselineGenerateNode(Component):
             timeout_s=ctx.budget.timeout_s(official.TIMEOUT_S)))
 
 
-@NODE_REGISTRY.register('baseline_extract')
-class BaselineExtractNode(Component):
+class BaselineExtractNode(Node[ExtractInput, ExtractionOutput]):
+    component_name = 'baseline_extract'
+    input_type = ExtractInput
+    output_type = ExtractionOutput
     def run(self, ctx, input: ExtractInput) -> ExtractionOutput:
         code = official.extract(input.reply.content, 'rtl')
         # Diagnostics describe the reply; they never filter the official output.
