@@ -40,15 +40,46 @@ class LLMResult:
         self.tokens_out = tokens_out
 
 
+def _load_generation() -> dict:
+    """The thinking settings declared in manifest.json ("generation").
+
+    baseline.py reads the same block and sends it with its request, so the plan
+    and the baseline run the model in the same mode. The rules require the agent
+    to use the declared settings; this is the reference way to do it. Same
+    allowlist as baseline.py: chat_template_kwargs with scalar values, and
+    reasoning_effort.
+    """
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "manifest.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            gen = json.load(f).get("generation") or {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+    out: dict = {}
+    kw = gen.get("chat_template_kwargs")
+    if isinstance(kw, dict):
+        kw = {k: v for k, v in kw.items()
+              if isinstance(k, str) and isinstance(v, (bool, int, float, str))}
+        if kw:
+            out["chat_template_kwargs"] = kw
+    effort = gen.get("reasoning_effort")
+    if isinstance(effort, str) and effort:
+        out["reasoning_effort"] = effort
+    return out
+
+
 class LLM:
     def __init__(self) -> None:
         self.backend = os.environ.get("LLM_BACKEND", "mock").strip().lower()
         self.model = os.environ.get("LLM_MODEL", "mock-model")
         self.base_url = os.environ.get("LLM_BASE_URL", "").rstrip("/")
         self.api_key = os.environ.get("LLM_API_KEY", "")
-        self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "4096"))
+        # 16384 与基线一致：推理模型先输出思考，上限过小会在写出代码前被截断
+        self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "16384"))
         self.temperature = float(os.environ.get("LLM_TEMPERATURE", "0.2"))
-        self.timeout_s = float(os.environ.get("LLM_TIMEOUT_S", "180"))
+        self.timeout_s = float(os.environ.get("LLM_TIMEOUT_S", "600"))
+        self.generation = _load_generation()
 
         if self.backend == "openai" and not self.base_url:
             raise LLMError("LLM_BACKEND=openai requires LLM_BASE_URL")
@@ -60,6 +91,7 @@ class LLM:
             "base_url": self.base_url or None,
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
+            "generation": self.generation,
         }
 
     def chat(self, messages: list[dict]) -> LLMResult:
@@ -84,6 +116,8 @@ class LLM:
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
             "stream": False,
+            # 与基线相同的思考设置，来自 manifest.json，见 _load_generation()
+            **self.generation,
         }
 
         resp = requests.post(
@@ -187,6 +221,23 @@ def _parse_module(text: str) -> tuple[str | None, list[tuple[str, int]]]:
     return header, outputs
 
 
+def strip_think(text: str) -> str:
+    """去掉推理模型的思考段，只留正式回答。
+
+    推理服务未配置 reasoning parser 时，Qwen3 等模型会把 <think>…</think> 原样
+    放在正文里。不先去掉，思考过程会连同代码一起写进产物，编译必然失败；思考中
+    打过的代码草稿也可能被当成答案。三种形态：
+      <think>…</think>答案     完整的思考段
+      …</think>答案            对话模板已预填 <think>，回复里只有结束标记
+      <think>…（截断）         输出上限耗尽在思考中，没有答案
+    """
+    if "</think>" in text:
+        return text.rsplit("</think>", 1)[1]
+    if "<think>" in text:
+        return text.split("<think>", 1)[0]
+    return text
+
+
 def extract_code(text: str) -> str:
     """Pull the Verilog out of a model reply.
 
@@ -194,6 +245,7 @@ def extract_code(text: str) -> str:
     sometimes emit prose after the closing fence, or no fence at all. Handle the
     three cases in decreasing order of confidence.
     """
+    text = strip_think(text)
     blocks = re.findall(
         r"```(?:systemverilog|verilog|sv|v|)\s*\n(.*?)```", text, re.DOTALL)
     if blocks:

@@ -42,7 +42,7 @@ DEFAULTS = {'schema_version': 1, 'imports': [], 'workflow': {'type': 'single_gen
                          'tools': {'part': 'xczu3eg-sbva484-1-e', 'bin_dir': None,
                                    'temp_dir': '/tmp', 'keep_work': False},
                          'knowledge': {'corpus_path': None}},
-            'runtime': {'deadline_s': 360.0, 'reserve_s': 20.0, 'initial_state': None,
+            'runtime': {'deadline_s': 900.0, 'reserve_s': 20.0, 'initial_state': None,
                         'recording': {'level': 'full', 'root': None}}}
 ENV_FIELDS = {'LLM_BACKEND': 'services.model.backend', 'LLM_MODEL': 'services.model.model',
               'LLM_BASE_URL': 'services.model.base_url', 'LLM_TIMEOUT_S': 'services.model.timeout_s',

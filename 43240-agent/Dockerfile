@@ -40,7 +40,9 @@ ENV LLM_BACKEND=openai \
     LLM_BASE_URL=http://localhost:8000/v1 \
     LLM_MODEL=Qwen3-8B \
     LLM_API_KEY=dummy \
-    AGENT_TMP=/tmp \
+    AGENT_TMP=/var/tmp \
+    EDA_TMP=/var/tmp/eda \
+    SELFTEST_TMP=/var/tmp \
     RTL_PART=xczu3eg-sbva484-1-e
 
 # Do NOT set PATH for the toolchain here. The base image already exports it,

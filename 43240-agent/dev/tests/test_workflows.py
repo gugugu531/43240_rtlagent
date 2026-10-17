@@ -12,6 +12,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+from baseline import MAX_TOKENS
 from agent.core.budget import Budget, BudgetExhausted
 from agent.core.components import Component, ComponentSpec
 from agent.core.config import ModelConfig
@@ -119,7 +120,7 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(len(backend.requests), 1)
             request = backend.requests[0]
             self.assertEqual(request.temperature, 0.0)
-            self.assertEqual(request.max_tokens, 8192)
+            self.assertEqual(request.max_tokens, MAX_TOKENS)
             self.assertLessEqual(request.timeout_s, 180)
             self.assertEqual(request.messages[-1]['content'], TASK.prompt)
             self.assertEqual(len(request.messages), 2)

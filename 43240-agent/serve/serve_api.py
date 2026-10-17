@@ -23,6 +23,7 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 from agent.services.processes import ProcessExecutor, ProcessRequest
 from agent.core.configuration import load_config, resolve_config
+from agent.services.model import load_shared_generation
 
 TOKEN = os.environ.get("FPGACHINA_TOKEN", "")
 TRACK = "rtl"
@@ -36,7 +37,7 @@ class SolveRequest(BaseModel):
     mode: Literal["agent", "baseline"] = "agent"
     prompt: str
     interface: str = ""
-    deadline_s: int = Field(default=360, gt=0)
+    deadline_s: int = Field(default=900, gt=0, le=900)
 
 
 def _event(event: str, **fields) -> str:
@@ -75,7 +76,9 @@ class JobManager:
             if self.stopping.is_set() or self.thread is None or not self.thread.is_alive():
                 raise HTTPException(status_code=503, detail="submission worker unavailable")
             if req.nonce and req.nonce in self.nonces:
-                return _public(self.jobs[self.nonces[req.nonce]])
+                job = self.jobs[self.nonces[req.nonce]]
+                self._expire_queued(job)
+                return _public(job)
             job_id = uuid.uuid4().hex
             job = dict(job_id=job_id, task_id=req.task_id, status="queued",
                        req=req.model_copy(deep=True), submitted=time.monotonic())
@@ -90,7 +93,18 @@ class JobManager:
         with self.lock:
             if job_id not in self.jobs:
                 raise HTTPException(status_code=404, detail="unknown job_id")
-            return _public(self.jobs[job_id])
+            job = self.jobs[job_id]
+            self._expire_queued(job)
+            return _public(job)
+
+    def _expire_queued(self, job):
+        # Called only under the manager lock. A busy worker must not postpone
+        # the result of a queued request beyond its own wall-clock deadline.
+        elapsed = time.monotonic() - job['submitted']
+        if job['status'] == 'queued' and elapsed >= job['req'].deadline_s:
+            job.update(status='done', solution='', trace=_event('expired', reason='queue_deadline'),
+                       elapsed_s=round(elapsed, 3))
+            del job['req']
 
     def _worker(self):
         while True:
@@ -100,6 +114,9 @@ class JobManager:
                     return
                 with self.lock:
                     job = self.jobs[job_id]
+                    self._expire_queued(job)
+                    if job['status'] == 'done':
+                        continue
                     job["status"] = "running"
                 try:
                     solution, trace = _solve(job["req"], job["submitted"], self.stopping)
@@ -153,6 +170,8 @@ def health(authorization: str | None = Header(default=None)):
     try:
         config = resolve_config(load_config(os.environ.get("AGENT_CONFIG")), env=os.environ)
         model = config.agent.services.model
+        options = {} if model.enable_thinking is None else {'enable_thinking': model.enable_thinking}
+        load_shared_generation(options)
         manager = app.state.jobs
         if manager.stopping.is_set() or not manager.thread.is_alive():
             raise ValueError("worker unavailable")

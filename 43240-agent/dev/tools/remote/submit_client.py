@@ -217,7 +217,7 @@ def main() -> int:
     ap.add_argument("--task-list", help="按TXT清单选择题目，每行一个题号")
     ap.add_argument("--modes", default="agent,baseline")
     ap.add_argument("--samples", type=int, default=1)
-    ap.add_argument("--deadline", type=int, default=360, help="deadline_s，单题时间上限（秒）")
+    ap.add_argument("--deadline", type=int, default=900, help="deadline_s，单题时间上限（秒）")
     ap.add_argument("--concurrency", type=int, default=1)
     ap.add_argument("--limit", type=int, default=0, help="只投前 N 道题")
     ap.add_argument("--tag", default="submit")

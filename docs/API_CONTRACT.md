@@ -8,14 +8,15 @@
 
 ## 一、这件事在做什么
 
-现行的做法是队伍把整套方案打包交给赛事方，赛事方在自己的机器上重建容器逐队运行。
-远程评测换一个方式：**队伍在自己的机器上把服务跑起来，赛事方从外面投题。**
+正式评测采用远程投题：**队伍在自己的机器上把服务跑起来，赛事方从外面投题。**
+赛事方按 `Dockerfile` 重建容器、在自己的机器上逐题运行的方式保留为退路，仅在远程投题
+无法进行时启用。两种方式下 `run.sh` 由谁调用、超时如何处理，见第八节。
 
 ```
   ① 队伍那边跑一个程序，它一直不退出，守着一个端口
   ② 赛事方发一个 HTTP 请求过去，内容是一段 JSON，把题面送过去
   ③ 队伍的程序收到后，调用自己的智能体去解题
-  ④ 解完，把代码照样写成 JSON 返回
+  ④ 赛事方每隔几秒查询一次，解完后把代码以 JSON 取回
 ```
 
 需要理解的只有三个词：
@@ -24,7 +25,7 @@
 | ---------- | --------------------------------------------- | ---------------------------------------------- |
 | **端点**   | 一个网址，如 `https://xxx.example.com/v1/solve` | 赛事方照着这个地址投题                       |
 | **令牌**   | 一串密码字符串，随请求一起发过去              | 端点网址是公开的，没有令牌任何人都能投题       |
-| **同步**   | 发出请求后不挂断，一直等到答案回来            | 计时才准，中间那段时间不会算不清               |
+| **异步**   | 投题后立即拿到任务编号，之后查询，做完再取结果 | 平台入口会切断 60 秒内没有响应的请求，一道题却常要几分钟 |
 
 **题目在第 ② 步才第一次离开赛事方的机器，而且一次只走一道。** 队伍从头到尾拿不到完整
 题集，也不知道下一题是什么。
@@ -67,7 +68,9 @@ Authorization: Bearer <令牌>
 
 ---
 
-## 三、`POST /v1/solve`
+## 三、投题与取结果
+
+### 投题：`POST /v1/solve`
 
 **请求**
 
@@ -84,29 +87,59 @@ Content-Type: application/json
   "mode":       "agent",
   "prompt":     "实现一个模块 TopModule，在串行输入位流中检测序列 1101 ...",
   "interface":  "module TopModule (input clk, input reset, input in, output detected);",
-  "deadline_s": 360
+  "deadline_s": 900
 }
 ```
 
-**响应**
+**响应**：立即返回，状态码 202。
 
 ```json
 {
+  "job_id":  "7c1e0f2a9b...",
+  "task_id": "eval-0007",
+  "status":  "queued"
+}
+```
+
+### 取结果：`GET /v1/jobs/<job_id>`
+
+```
+GET /v1/jobs/7c1e0f2a9b...
+Authorization: Bearer <令牌>
+```
+
+还没做完时：
+
+```json
+{ "job_id": "7c1e0f2a9b...", "task_id": "eval-0007", "status": "running" }
+```
+
+做完时：
+
+```json
+{
+  "job_id":    "7c1e0f2a9b...",
   "task_id":   "eval-0007",
+  "status":    "done",
   "solution":  "module TopModule (...);\n  ...\nendmodule\n",
   "trace":     "{\"tool\":\"lint\",\"ts\":...}\n{...}\n",
   "elapsed_s": 214.3
 }
 ```
 
+赛事方投题后每 2 秒查询一次，查到 `done` 即取走结果。
+
+
 | 字段         | 说明                                                                   |
 | ------------ | ---------------------------------------------------------------------- |
 | `task_id`    | 题号。返回时必须原样带回，用于对账                                     |
-| `nonce`      | 一次性随机串，每次请求都不同                                           |
+| `job_id`     | 服务为这次投题分配的任务编号，查询结果时用                             |
+| `status`     | `queued` 排队中，`running` 解题中，`done` 已完成；只有 `done` 时才带结果字段 |
+| `nonce`      | 一次性随机串，每次投题都不同。同一个 `nonce` 重复投递应返回同一个任务，不得重复解题 |
 | `mode`       | `agent` 走完整方案，`baseline` 绕过智能体与技能包                      |
 | `prompt`     | 题面，纯文本                                                           |
 | `interface`  | 模块声明。**评测题集下为空串**，接口写在题面里，见下 |
-| `deadline_s` | 单题墙钟上限，队伍应在此之前自行停止                                   |
+| `deadline_s` | 单题墙钟上限，正式评测为 900 秒（15 分钟），队伍应在此之前自行停止     |
 | `solution`   | 产出的 Verilog / SystemVerilog 代码。**做不出来返回空字符串，不要报错**           |
 | `trace`      | 工具调用记录，JSONL 格式，见第五节                                     |
 | `elapsed_s`  | 队伍自报耗时。**不用于计分**，仅与赛事方计时交叉核对             |
@@ -115,8 +148,12 @@ Content-Type: application/json
 
 ## 四、几条硬约定
 
-- **单题墙钟以赛事方发出请求到收到响应为准**，队伍自报的 `elapsed_s` 不作数
-- 赛事方侧超时设为 `deadline_s + 20` 秒，超时该题按 L0
+- **单题墙钟以赛事方发出投题到查询到 `done` 为准**，误差不超过一个查询间隔（2 秒），
+  队伍自报的 `elapsed_s` 不作数
+- 投题后 `deadline_s + 20` 秒内仍未查询到 `done`，该题按 L0。时限从投题时算起，
+  排队的时间也计入
+- **`POST /v1/solve` 与 `GET /v1/jobs/…` 都须在几秒内返回**。平台入口（Azure Front Door）
+  对 60 秒内没有响应的请求一律返回 504，所以不能让请求一直挂着等解题完成
 - **任何失败一律按 L0，不重试。** 超时、连接断开、返回格式错，同等对待
 - **服务须能连续处理数百次请求，中途不得重启**
 - 方案与基线走同一个端点，用 `mode` 区分，保证两者出自同一次运行、同一个服务、
@@ -128,8 +165,8 @@ Content-Type: application/json
 
 ### `interface` 在 RTL 评测题集下是空串
 
-接口信息**已经写在题面里**了。评测题集取自 VerilogEval v2 的 `dataset_spec-to-rtl`，
-它的题面本身就是一份含接口的规格说明：
+接口信息**已经写在题面里**了。评测题集的题面沿用 VerilogEval v2 `dataset_spec-to-rtl`
+的格式，题面本身就是一份含接口的规格说明：
 
 ```
 I would like you to implement a module named TopModule with the following
@@ -199,6 +236,7 @@ cd example
 pip install -r requirements.txt
 export FPGACHINA_TOKEN=<赛事方发的令牌>
 export MODEL_NAME=Qwen/Qwen3-8B
+./serve/start.sh                 # 拉起推理服务等常驻进程，就绪后返回
 uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
 ```
 
@@ -211,6 +249,8 @@ curl -X POST http://localhost:7860/v1/solve \
   -H "Authorization: Bearer $FPGACHINA_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"task_id":"t1","nonce":"n1","mode":"agent","prompt":"实现一个 8 位计数器","interface":"module TopModule (input clk, input reset, output [7:0] q);","deadline_s":60}'
+# 返回 {"job_id":"...","status":"queued"}，然后用 job_id 查询，直到 status 为 done
+curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://localhost:7860/v1/jobs/<job_id>
 ```
 
 ---
@@ -234,8 +274,15 @@ WebSocket 服务**，绑 `0.0.0.0` 平台不接管。平台文档原文：
 
 ```bash
 /var/run/secrets/frp-self-service/install
-"$HOME/.local/bin/rc-tunnel" expose --port 7860
+env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
+    "$HOME/.local/bin/rc-tunnel" expose --port 7860
+"$HOME/.local/bin/rc-tunnel" status        # 应显示 Status: active
 ```
+
+`env -u …` 让隧道客户端不经实例的出网代理、直接连接平台的隧道服务器。请照这条命令
+执行。`status` 显示 `Status: active` 才算建好；若公网网址返回 404，查看
+`/root/.local/state/rc-tunnel/frpc.log`，正常时其中有 `start proxy success`。
+**重新执行 `expose` 后网址会变**，变了要重新报送。
 
 绑错地址的后果：服务本身是活的，但外面永远打不进来，**在赛事方那边看起来和挂掉
 没有区别**，而失败不重投。
@@ -263,10 +310,12 @@ WebSocket 服务**，绑 `0.0.0.0` 平台不接管。平台文档原文：
 1024–65535，且需避开平台保留端口，7860 与 8000 都在范围内。平台只支持 HTTP 与
 WebSocket，不支持 TCP / UDP / SSH / 数据库端口。
 
-### 工程文件落本地盘
+### 工程文件落本地目录
 
-工程与中间文件请落在**节点本地盘**（如 `/tmp`），不要落在网络存储上。Vivado 综合会产生
+工程与中间文件请落在本地目录，不要落在网络存储上。Vivado 综合会产生
 大量小文件，写网络存储极慢。这不是优化建议。
+Radeon Cloud 实例上的 `/tmp` 是 4 GB 内存盘，连续运行容易写满，请按 README 开头的 `env.sh`
+把 `EDA_TMP`、`AGENT_TMP` 设到本地盘 `/var/tmp`。
 
 ---
 
@@ -283,20 +332,58 @@ WebSocket，不支持 TCP / UDP / SSH / 数据库端口。
 
 退出码  0    产出了文件
         非0  放弃本题
-
-超时    由赛事方的测试脚本强制，到点发 SIGTERM。收到后须在 10 秒内退出，
-        否则 SIGKILL，该题按 L0 计。
-        ★ 不要依赖自己计时——计分以赛事方侧测得的墙钟为准
 ```
+
+### 两种评测方式下由谁调用
+
+|                | 远程投题（正式方式）                     | 容器重建（退路）                              |
+| -------------- | ---------------------------------------- | --------------------------------------------- |
+| 启动常驻进程   | 队伍运行 `serve/start.sh`，再起投题服务  | 赛事方运行一次 `serve/start.sh`               |
+| 调用 `run.sh`  | 队伍的投题服务，每个请求调用一次         | 赛事方的测试脚本，每题调用一次                |
+| 投题服务       | 运行，守 7860                            | 不启动                                        |
+| 1 号进程       | JupyterLab，不回收僵尸进程，见第十节     | `docker run --init`，由 Docker 的 init 回收   |
+| 超时           | 投题后 `deadline_s + 20` 秒内未查询到完成即按 L0，不向队伍机器发送任何信号 | 到点向 `run.sh` 的进程组发 SIGTERM，10 秒后仍未退出则 SIGKILL |
+| 超时计分       | L0                                       | L0                                            |
+
+一次评测只采用其中一种，不会混用。无论哪种方式，同一支队伍同一时刻只有一道题在运行。
+计分以赛事方侧测得的墙钟为准，不要依赖自己计时。
+
+### `serve/start.sh` 是常驻进程的唯一入口
+
+`run.sh` 依赖的常驻进程，包括推理服务，以及队伍自己的常驻引擎（如果 `run.sh` 把题交给
+它去解），都由 `serve/start.sh` 拉起。这个脚本须满足三条：
+
+- 全部就绪后返回 0，否则返回非 0
+- 可重复执行，服务已在运行时什么也不做
+- 用 `setsid` 拉起常驻进程，使其脱离调用者的进程组
+
+`run.sh` 可以自己解题，也可以只负责把题交给常驻引擎、取回结果，两种写法都允许。前提是
+在按 `Dockerfile` 重建的干净容器里运行一次 `serve/start.sh` 之后，`run.sh` 不需要任何
+人工介入就能产出 `solution.v`。容器重建方式下赛事方只做这两步，不会启动投题服务，也不会
+执行 README 里的其他命令。
+
+### 超时信号只作用于 `run.sh` 的进程组
+
+容器重建方式下，超时信号发给 `run.sh` 所在的进程组（`kill -- -<pgid>`），即 `run.sh`
+本身以及它启动的、没有另立进程组的全部子进程。组外的进程不受影响。`serve/start.sh` 用
+`setsid` 拉起的常驻进程在组外，超时只结束这一题。
+
+如果常驻进程是 `run.sh` 直接放到后台启动的、没有经过 `setsid`，它就留在这个进程组里，
+会随这一题一起被结束，下一题到来时服务已经不在了。
+
+远程投题方式下，同样的事由队伍的投题服务负责。`serve/serve_api.py` 为每次 `run.sh`
+单开一个进程组，在 `deadline_s - 10` 秒时对整组发 SIGTERM，5 秒后发 SIGKILL，正常结束
+后也会清扫一遍整组。只结束 `run.sh` 一个进程是不够的，它启动的智能体与 Vivado 会继续
+运行，占着 GPU 与 CPU 和下一题争抢。
 
 `run_baseline.sh` 参数完全相同，但**绕过智能体与技能包**：提示词只含题面本身，
 单次生成，不重试，不调用任何工具，**不得挂载任何 MCP server**。
 
 最后一条要单独强调，因为 MCP 容易被理解成「推理栈」的一部分而在基线里保留。
-那样增益项（40 分）的分母被抬高，整项失真。**基线里模型只能拿到题面文本。**
+那样增益项（40 分）的基线被抬高，整项失真。**基线里模型只能拿到题面文本。**
 
 推理服务本身在方案与基线之间必须完全一致——同一个模型、同一份量化、同一套上下文
-配置。赛事方的测试脚本会在同一次运行中先后调用两者。
+配置，以及 `manifest.json` 中声明的同一套思考设置。赛事方会在同一次运行中先后调用两者，远程投题下以 `mode` 字段区分。
 
 ---
 
@@ -322,14 +409,15 @@ EDA_TMP         /tmp/eda            临时工作区的根
 ```
 /tools/Xilinx/     EDA 工具本体    只读，来自镜像层，同节点多容器共用一份
 /workspace/        队伍工作区      ★ 网络存储（NFS），持久，有配额
-/tmp/eda/<id>/     Vivado 工作目录 ★ 节点本地盘，快，不持久
+/  (含 /root)      容器根目录      节点本地盘，实例重启后清空，见 FAQ「实例配置」
+$EDA_TMP/<id>/     Vivado 工作目录 ★ 本地，快，不持久；实例上设为 /var/tmp/eda
 ```
 
 `xsim.dir`、`.Xil` 都是几万个小文件。在 NFS 上创建几万个小文件是最慢的一种 IO
-模式，而且会吃掉 100 GB 的持久化配额。镜像里提供了 `eda-workdir` 代劳：
+模式，而且会吃掉 25 GB 的持久化配额。镜像里提供了 `eda-workdir` 代劳：
 
 ```bash
-WORK=$(eda-workdir prob001 s3)      # 建 /tmp/eda/prob001-s3-XXXXXX
+WORK=$(eda-workdir prob001 s3)      # 建 $EDA_TMP/prob001-s3-XXXXXX
 cd "$WORK"
 # ... 跑 Vivado ...
 cp solution.v *.log /workspace/runs/prob001/s3/    # 只把小文件搬回去
@@ -339,10 +427,14 @@ cp solution.v *.log /workspace/runs/prob001/s3/    # 只把小文件搬回去
 采样序号。不能共用是因为 Vivado 把 `.Xil/`、`vivado.log`、`vivado.jou` 都写进 cwd
 （见第十节），两次运行共用一个目录会互相覆盖，并发时尤其明显。
 
-`/tmp/eda/` 下**整棵子树**超过两小时没有任何改动的目录，由镜像的后台循环每十分钟
-清理一次。判定「有没有改动」看整棵子树而不是顶层目录，所以跑了两小时以上的任务
+`$EDA_TMP` 下**整棵子树**超过两小时没有任何改动的目录，由后台循环每十分钟清理一次。
+这个循环由镜像入口启动；但 Radeon Cloud 会把容器的启动命令换成 JupyterLab，镜像入口
+未必运行，所以 `serve/start.sh` 也会启动一份，同一时刻只保留一份。判定「有没有改动」看整棵子树而不是顶层目录，所以跑了两小时以上的任务
 不会被误删——目录自身的 mtime 只在增删直接条目时更新，而 Vivado 开头建好
 `xsim.dir/`、`.Xil/` 之后就只往里写，顶层看着会一直是「旧」的。
+
+两小时清理只是兜底。智能体应在每次运行结束后删除自己的工作目录，示范方案即如此；否则连续
+投题时容易写满，之后的题全部失败。
 
 ---
 
@@ -376,3 +468,20 @@ license，而 `xsim` 拿不到时**仍然退出 0 且不打印 `Mismatches` 行*
 
 注意 `xvlog` 与 `xelab` **不需要** license，所以「能编译但全部卡在 L1」正是授权
 失败最典型的表现。
+
+**容器的 1 号进程不回收僵尸进程。** Radeon Cloud 实例的 1 号进程是 JupyterLab，不是
+init。进程被结束后，它那些失去父进程的子进程交给 1 号进程接管，JupyterLab 不回收它们，
+退出后就成为僵尸进程。僵尸不占 CPU 与内存，但一直占着进程号，只增不减；进程号耗尽后
+任何新进程都起不来，之后的题目全部失败。
+
+单题超时被结束时最容易出现这种情况：`run.sh` 先被结束，它启动的智能体、Vivado 随后
+被结束，全都成了孤儿。只结束 `run.sh` 一个进程更糟，孤儿还活着，继续占用资源。
+
+`serve/serve_api.py` 已经处理：启动时调用 `prctl(PR_SET_CHILD_SUBREAPER)` 把自己设为
+回收者，子孙进程成为孤儿后交给它而不是 1 号进程；每题结束后结束并回收该题进程组里的
+全部进程。自己写投题服务的，要做同样的事，或者用 `tini -s` 这类带回收能力的 init 包住
+整个服务（镜像未自带 tini）。检查方法是连续投几十题之后运行
+`ps -eo stat | grep -c '^Z'`，数字应保持不变。
+
+开发期在 JupyterLab 终端里直接运行、中途结束的程序不在投题服务之下，同样会留下僵尸。
+挂在 1 号进程下的僵尸只有 1 号进程能回收，积累多了只能重建实例。

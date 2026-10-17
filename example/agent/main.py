@@ -46,7 +46,7 @@ PROMPT_DIR = os.path.join(HERE, "prompts")
 SKILL_DIR = os.path.join(ROOT, "skill")
 
 MAX_ROUNDS = int(os.environ.get("AGENT_MAX_ROUNDS", "3"))
-DEADLINE_S = float(os.environ.get("AGENT_DEADLINE_S", "360"))
+DEADLINE_S = float(os.environ.get("AGENT_DEADLINE_S", "900"))
 # 为写出结果预留的余量。
 RESERVE_S = float(os.environ.get("AGENT_RESERVE_S", "20"))
 
@@ -109,7 +109,16 @@ def _with_note(note: str, log: str) -> str:
 # 基线由赛事方的 ../baseline.py 实现，不在此处。
 
 
-def solve_agent(llm: LLM, trace: Trace, prompt: str, interface: str, top: str) -> str:
+def save_solution(path: str, code: str) -> None:
+    """Write the solution file atomically, so a kill mid-write cannot leave half a file."""
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(code)
+    os.replace(tmp, path)
+
+
+def solve_agent(llm: LLM, trace: Trace, prompt: str, interface: str, top: str,
+                save=lambda code: None) -> str:
     rtl = RtlToolchain()
     trace.write(tool="env", vivado_available=rtl.available, reason=rtl.reason or None)
 
@@ -168,6 +177,9 @@ def solve_agent(llm: LLM, trace: Trace, prompt: str, interface: str, top: str) -
             continue
 
         best = code
+        # Save every new candidate at once. If the service stops us at the
+        # deadline, the latest candidate is still there to hand in.
+        save(best)
 
         # --- cheapest check first: no tools needed, and it catches the L0 class
         rc, msg = check_interface(code, interface, prompt)
@@ -234,13 +246,15 @@ def main(argv: list[str] | None = None) -> int:
                     llm=llm.describe(), deadline_s=DEADLINE_S)
 
         top = args.top or infer_top(interface)
-        code = solve_agent(llm, trace, prompt, interface, top)
+        code = solve_agent(llm, trace, prompt, interface, top,
+                           save=lambda c: save_solution(sol_path, c))
     except Exception as exc:  # noqa: BLE001 -- never fail loudly, see run.sh
         trace.write(tool="agent", event="error", excerpt=f"{type(exc).__name__}: {exc}"[:500])
         print(f"agent: {type(exc).__name__}: {exc}", file=sys.stderr)
     finally:
-        with open(sol_path, "w", encoding="utf-8") as fh:
-            fh.write(code or "")
+        # An empty result must not overwrite a candidate saved during the rounds.
+        if code or not os.path.exists(sol_path):
+            save_solution(sol_path, code or "")
         trace.write(tool="agent", event="done", bytes=len(code or ""))
         trace.close()
 

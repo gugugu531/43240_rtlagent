@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[2]
 @dataclass(frozen=True)
 class RunOptions:
     output_dir: Path
-    deadline_s: float = 360.0
+    deadline_s: float = 900.0
     reserve_s: float = 20.0
     recording: RecordingConfig = field(default_factory=RecordingConfig)
     run_id: str | None = None

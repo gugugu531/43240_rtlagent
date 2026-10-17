@@ -1,6 +1,6 @@
 # 实验指标与比较范围
 
-本说明于 2026-10-14 整理，用来阅读[实验记录](../experiments/index.md)，不改写各次原始结果。2026-10-16 补充：本地 SCORING.md 为受保护旧快照，现行评分以[上游细则](https://gitee.com/Vickyiii/rtlagent2026/blob/9df176717fec16751d02f4fb5c67dbd40a22fc15/SCORING.md)为准。
+本说明于 2026-10-14 整理，用来阅读[实验记录](../experiments/index.md)，不改写各次原始结果。2026-10-17 更新：本地 SCORING.md 已原样同步到最新上游，现行评分以[上游细则](https://gitee.com/Vickyiii/rtlagent2026/blob/f7a8bd465c2a820e006c7a00ecc7df468974635b/SCORING.md)为准。
 
 ## 先确认数字的含义
 
@@ -18,7 +18,7 @@
 
 现行增益是 `g=(方案得分−基线得分)/(1−基线得分)`，得分为 `40×min(g/0.6,1)`，
 g≤0 为零分，基线为 1 时增益项满分；倍数只用于诊断。统一实验保留的 `gain` 字段也是倍数，
-现行字段为 `gain_g`、`gain_score` 和 `gain_ratio`。旧 selftest/score.py 和历史工具仍使用旧口径。
+现行字段为 `gain_g`、`gain_score` 和 `gain_ratio`。selftest/score.py 已随上游采用现行公式；历史工具和已保存结果仍保留当时口径。
 
 ## 题集不能混用分母
 

@@ -12,10 +12,13 @@
 `SKILL.md` 的写法与 AMD 官方的智能体技能一致（`hls-flattenable`、`hls-line-buffer`
 等）。**正文用英文**，与官方保持一致；仓库其余文档仍为中文。
 
-这样做有一个直接好处：**官方技能可以原样拷进 `skill/` 目录直接用**，
+这样做有一个直接好处：**官方技能可以拷进 `skill/` 目录使用**，
 `agent/skills.py` 的加载器对两者通用，已实测。
 
-官方技能仓库：https://github.com/amd/skills
+官方技能仓库（AMD Ross）：https://github.com/Xilinx/ross-ai-assistant
+
+其中 HLS 系列技能不依赖 MCP；`vivado-*` 系列的操作步骤调用 Vivado MCP 工具，未部署 MCP
+时须改写为命令行调用。详见 `docs/FAQ.md`。
 
 需注意官方技能主要面向 HLS，RTL 侧的技能大多需自行编写，这既是负担亦是机会，因为
 本 track 的工程质量项正是看这个。

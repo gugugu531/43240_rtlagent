@@ -95,7 +95,7 @@ flowchart TB
 | 接口约束 `interface` | 请求可带模块声明；本地对应可选的 `interface.txt`。**正式 RTL 评测题集此字段为空，接口约束位于题面内** | `serve/serve_api.py` 写文件；`task.py` 读取；`core/interface.py` 解析；`prompts/builder.py` 组装提示 | 非空时加入；题面中的接口随题面一起进入 |
 | 题目编号 `task_id` | 主办方请求必填。本地优先使用环境变量 `AGENT_TASK_ID`，否则用题目目录名 | `serve/serve_api.py` 将编号写入子进程环境；`main.py` 传给 `task.py`；记录模块用于关联本题 | 不单独加入 |
 | 运行模式 `mode` | 主办方请求，默认 `agent`；`baseline` 表示走原始基线 | `serve/serve_api.py` 选择 `run.sh` 或 `run_baseline.sh` | 否，只决定入口 |
-| 单题时限 `deadline_s` | 主办方请求，默认 360 秒，覆盖排队、请求准备、执行、清理和结果读取 | `serve/serve_api.py` 扣除已用时间和返回预留，经 `--hard-deadline-s` 传入；`configuration.py` 缩小运行预算；`supervision.py` 执行监督 | 否 |
+| 单题时限 `deadline_s` | 主办方请求，默认 900 秒，覆盖排队、请求准备、执行、清理和结果读取 | `serve/serve_api.py` 扣除已用时间和返回预留，经 `--hard-deadline-s` 传入；`configuration.py` 缩小运行预算；`supervision.py` 执行监督 | 否 |
 | 请求标识 `nonce` | 主办方提供的一次性字符串，接口默认空字符串 | `serve/serve_api.py` 用非空 nonce 去重，重复投递返回原任务；不传给模型 | 否 |
 | 请求鉴权头 `Authorization` | 主办方发送 `Bearer <投题令牌>` | `serve/serve_api.py` 与部署环境中的 `FPGACHINA_TOKEN` 比较，验证是否允许投题 | 否 |
 
@@ -116,7 +116,7 @@ flowchart TB
 | 请求模型名 | single_generate：`MODEL_NAME` → `/models` 第一项 → `default`；其他流程：YAML `model` / `LLM_MODEL` | 普通模型配置默认 `mock-model`；统一实验将配置模型名传给两个模式的 `MODEL_NAME` | `services/model.py` 解析并记录实际请求模型 |
 | **模型 API key 的环境变量名** | YAML `api_key_env` | 默认 `LLM_API_KEY`，允许改为其他合法环境变量名 | `core/configuration.py` 根据这个名字去环境中读取实际密钥 |
 | **模型 API key 的实际值** | 上一行指定的环境变量，例如 `LLM_API_KEY` | 未设置时为空；single_generate 与 baseline 一样不发送认证头 | `core/configuration.py` 放入 `ModelConfig`；普通请求在非空时加入 `Authorization: Bearer ...` |
-| 模型服务调用超时 | YAML `timeout_s` / `LLM_TIMEOUT_S` | 省略或 null 时 single_generate、evidence_repair、evidence_a0/a1/a2 为 300 秒；search_*、repair_loop 等其余流程为 180 秒；显式值及剩余预算仍限制调用 | `services/model.py` 限制 HTTP 调用时间 |
+| 模型服务调用超时 | YAML `timeout_s` / `LLM_TIMEOUT_S` | 省略或 null 时 single_generate、evidence_repair、evidence_a0/a1/a2 为 840 秒；search_*、repair_loop 等其余流程为 180 秒；显式值及剩余预算仍限制调用 | `services/model.py` 限制 HTTP 调用时间 |
 | **投题令牌的预期值** | 环境变量 `FPGACHINA_TOKEN`，部署者按主办方提供的令牌设置 | HTTP 服务必须配置；与模型 API key 是两项独立凭据 | `serve/serve_api.py` 启动加载模块时读取，用于验证入站投题请求 |
 
 **准确地说，当前 YAML 不支持直接填写 API key 值。** 它保存的是 `api_key_env`，实际值来自环境变量；核心配置读取器也不会自动加载 `.env` 或 `remote.env`。如果外层脚本读取这些文件，需要由该脚本把值导出到环境后再启动 Agent。
@@ -133,7 +133,7 @@ API key 用于连接模型服务，投题令牌用于接收主办方请求；两
 | 配置文件路径 | CLI（命令行参数）`--config`，其次 `AGENT_CONFIG` | 均未提供时为 `config/example.yaml` | `main.py`、`core/configuration.py` |
 | Workflow 名称 | YAML `workflow.type` / `AGENT_WORKFLOW` / CLI `--workflow` | `single_generate`；可选修复与候选对照见第 5.1 节 | `configuration.py` 解析；`supervision.py` 的 Worker（求解子进程）通过 `core/registry.py` 构造实例 |
 | 扩展模块 | YAML `imports` / CLI `--import-module` | 默认无；用于注册自定义 Workflow 或 Node | `core/registry.py` 导入模块，登记实现 |
-| 本地单题预算 | YAML `runtime.deadline_s` / `AGENT_DEADLINE_S` / CLI `--deadline-s` | 360 秒；还受 HTTP 请求剩余时限的上限约束 | `core/budget.py` 计算可用时间，`core/supervision.py` 强制停止 |
+| 本地单题预算 | YAML `runtime.deadline_s` / `AGENT_DEADLINE_S` / CLI `--deadline-s` | 900 秒；还受 HTTP 请求剩余时限的上限约束 | `core/budget.py` 计算可用时间，`core/supervision.py` 强制停止 |
 | 清理预留时间 | YAML `runtime.reserve_s` / `AGENT_RESERVE_S` / CLI `--reserve-s` | 20 秒；从可供求解的时间中扣除 | `core/budget.py`、`core/supervision.py` |
 | Vivado 可执行文件位置 | YAML `services.tools.bin_dir` / `VIVADO_BIN`；未指定时查找 `PATH` | 查找 `xvlog`、`xelab`、`vivado` | `services/vivado.py`；环境初始化脚本需事先设置可用路径 |
 | FPGA 器件型号 | YAML `services.tools.part` / `RTL_PART` | `xczu3eg-sbva484-1-e`；作为实际综合命令的器件参数 | `core/configuration.py`、`services/vivado.py` |
@@ -159,7 +159,7 @@ YAML 中相对路径按配置文件所在目录解析；环境变量中的相对
 | 修复流程的总体要求 | `agent/prompts/system.md`：接口、复位、赋值方式、可综合性和输出格式等 | `prompts/builder.py` 在修复流程中作为 system 消息 |
 | 修复说明模板 | `agent/prompts/repair.md`：上一版代码、错误反馈和修改要求 | `prompts/builder.py` 填入当前反馈及待修复代码，附在 user 消息中 |
 | 技能资料 | `skill/*/SKILL.md`：技能正文、名称、日志匹配特征等 | `prompts/skills.py` 加载；有反馈且启用技能时，按题面和反馈中的特征字符串匹配，默认最多选 2 条；`builder.py` 加入额外 system 消息 |
-| 温度和输出长度上限 | single_generate 和 evidence_repair 默认使用 baseline 的温度 `0.0`、top_p `1.0`、上限 `8192`；repair_loop 默认为 `0.2`、`4096` | single_generate 不接受采样覆盖；其他 Workflow 通过 Python 构造参数控制 |
+| 温度和输出长度上限 | single_generate 使用 baseline 的温度 `0.0`、top_p `1.0`、上限 `16384`；evidence_repair 保留 `8192` 与 300 秒实验额度；repair_loop 默认为 `0.2`、`4096` | single_generate 不接受采样覆盖；其他 Workflow 通过 Python 构造参数控制 |
 | 轮数、重试数和调用总数 | `workflows/repair_loop.py` 的构造参数，默认 3 轮、每个请求最多重试 1 次、总调用最多 4 次 | `RepairLoop.decide()` 根据已用次数、错误类型和剩余时间决定继续或停止 |
 | 候选选择规则 | 由各 Workflow 自己定义：`single_generate` 直接选择，`repair_loop` 用 `RepairLoop.choose()` | 比较候选和检查证据，输出选择决定；`core/context.py` 执行保存或清空 |
 
@@ -232,7 +232,7 @@ CLI、HTTP 子进程和实验样本共用配置解析接口；RunSpec 将模型�
 | `services.model.tokenizer_dir`、`tokenizer_sha256`、`template_sha256` | 本地 tokenizer 与模板计数及指纹核验，不下载或执行模型仓库代码 |
 | `services.model.context_limit`、`strict_context` | 上下文容量与严格计数；按完整片段省略可选资料 |
 | `services.model.token_total_limit`、`token_output_limit` | 整题累计输入加输出、累计输出限额，与单次输出上限分别处理 |
-| `services.model.enable_thinking` | 普通生成/修复请求的模板选项；默认 baseline_rtl 请求忽略它，并按实际请求计数 |
+| `services.model.enable_thinking` | 只能重复 manifest generation 中一致的模板选项；未声明或冲突时拒绝运行，所有流程与 baseline 共用完整声明并按实际请求计数 |
 | `services.knowledge.corpus_path` | 外置修复卡位置；仅支持资料检索的流程使用，无法读取或格式错误时记录原因并回退 |
 | `runtime.initial_state` | 支持重放的流程读取初始检查点，核验身份并扣除共享首次成本 |
 
@@ -388,7 +388,7 @@ flowchart TD
 
 | Workflow | 默认 Python 参数 | 行为 |
 | --- | --- | --- |
-| single_generate | 无构造参数；固定复用 baseline 的 max_tokens=8192、temperature=0.0、top_p=1.0、timeout_s=300 | 一次生成和官方提取、显式选择；不注入技能、运行工具或自动重试 |
+| single_generate | 无构造参数；固定复用 baseline 的 max_tokens=16384、temperature=0.0、top_p=1.0、timeout_s=840 | 一次生成和官方提取、显式选择；不注入技能、运行工具或自动重试 |
 | repair_loop | max_rounds=3、max_tokens=4096、temperature=0.2、timeout_s=180、use_skills=true、max_request_retries=1 | 按接口 → lint → synth 检查，反馈修复、候选保护与有限请求重试 |
 | evidence_repair | max_tokens=8192、temperature=0、top_p=1、timeout_s=300、max_request_retries=1、max_feedback_chars=1600 | 方案 A；相同分层检查，结构化有限反馈，不用技能，最多修复一次；失败修复保留完整旧候选 |
 
@@ -617,7 +617,7 @@ curl --fail-with-body http://127.0.0.1:7860/v1/jobs/<job_id> \
 
 正式 RTL 投题的 `interface` 为空，接口位于题面；本地演示使用显式接口是为了容易看清字段含义。
 请求与响应字段来源分别见第 2、7 章；完整外部契约见[上游 API_CONTRACT.md](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)；
-本地只读文档是旧快照，当前启动与查询用法见 [serve/README.md](../../serve/README.md)。
+本地主办方文档已同步同一版本，当前启动与查询用法见 [serve/README.md](../../serve/README.md)。
 鉴权失败、请求字段校验失败与正常求解后返回空答案是不同情况。
 
 HTTP 时间预算从投题起算，涵盖排队、输入准备、执行、清理和结果读取，不提供额外的最小 5 秒执行窗口。
@@ -633,7 +633,7 @@ HTTP `mode=baseline` 调用未改动的 `run_baseline.sh` 和 `baseline.py`，�
 原始 baseline 不携带模型 Authorization 头，服务认证条件需与该入口兼容。
 开发实验运行器会把解析后的模型地址和名称传给 baseline，详见第 12 章。
 
-Agent 与 baseline 必须使用同一模型服务；标准入口的 single_generate 默认请求上限与 baseline 均为 300 秒，repair_loop 保持 180 秒。
+Agent 与 baseline 必须使用同一模型服务；标准入口的 single_generate 默认请求上限与 baseline 均为 840 秒，repair_loop 保持 180 秒。
 `dev/configs/remote-smoke.yaml` 将 Agent 服务上限显式设为 300 秒；这仍受整题预算和生成 Node 上限影响。
 
 ## 9. 数据契约
@@ -1001,6 +1001,13 @@ python3 dev/tools/submission.py --stage /tmp/agent-manual-submission \
 暂存目标必须不存在且位于源码树外；这里的暂存不会发布或部署。
 `dev/tools/submission.py` 要求 `config/example.yaml` 存在，验证 Docker COPY 包含配置目录。
 独立 smoke 会清除主要运行覆盖项并使用 mock，不能据此宣称真实模型、Vivado 或功能正确性通过。
+结构检查在源码和独立包中均核对固定官方 baseline 摘要，以及四个 Shell 入口的执行权限。
+官方 baseline 更新时，先核对上游再更新工具中的摘要，不接受仅修改方案中的副本。
+
+正式封存声明检查运行 `python3 dev/tools/submission.py --release`，也可附加 `--stage`。
+它检查固定 revision、MODEL.md 来源和版本一致性、0 至 32 GB 内的非零显存声明、服务版本、
+Dockerfile 的官方 BASE_IMAGE 占位项；失败不会暂存。当前占位声明未完成，预期检查失败。
+此模式不验证网络公开访问、镜像来源或 GPU 测量真实性，不能替代部署验收。
 
 
 ## 14. 常见问题与排查顺序

@@ -2,17 +2,16 @@
 
     题集得分 = Σ(题目系数) / 题数
     能力得分 = 30 × 题集得分
-    增益     = 方案题集得分 / 基线题集得分
-    增益得分 = 40 × log(增益) / log(满分线倍数)
+    增益 g   = (方案题集得分 − 基线题集得分) / (1 − 基线题集得分)
+    增益得分 = 40 × min(g / 0.6, 1)，g ≤ 0 时为 0
 
 pass@1 is the mean coefficient over all samples of a task, averaged over tasks --
 the unbiased estimator, extended from pass/fail to the graded coefficients.
 pass@5 takes the best sample per task. **pass@1 is what scores**; pass@5 is a
 stability diagnostic and is reported separately, exactly as in the rules.
 
-The gain full-mark multiplier and the wall-clock baseline are announced before
-the contest. The defaults here are placeholders for local comparison only --
-they are NOT the official values.
+The gain full mark (0.6) is the announced value. The wall-clock baseline for
+the cost item is announced separately and is not computed here.
 """
 
 from __future__ import annotations
@@ -20,15 +19,14 @@ from __future__ import annotations
 import argparse
 import glob
 import json
-import math
 import os
 from collections import defaultdict
 
 CAPABILITY_WEIGHT = 30.0
 GAIN_WEIGHT = 40.0
 
-# Placeholder. The official value is announced before the contest.
-GAIN_FULL_MARK = float(os.environ.get("GAIN_FULL_MARK", "2.5"))
+# 归一化增益的满分线，与评分细则 3.2 一致。
+GAIN_FULL_MARK = float(os.environ.get("GAIN_FULL_MARK", "0.6"))
 
 
 def collect(results_dir: str) -> dict[str, dict[str, list[dict]]]:
@@ -122,14 +120,14 @@ def summarize(by_task: dict[str, list[dict]]) -> dict:
     }
 
 
-def gain_score(agent_set: float, baseline_set: float) -> tuple[float | None, float]:
-    if baseline_set <= 0:
-        return None, 0.0
-    gain = agent_set / baseline_set
-    if gain <= 1.0:
-        return gain, 0.0
-    score = GAIN_WEIGHT * math.log(gain) / math.log(GAIN_FULL_MARK)
-    return gain, max(0.0, min(GAIN_WEIGHT, score))
+def gain_score(agent_set: float, baseline_set: float) -> tuple[float, float]:
+    """归一化增益 g 与增益得分。基线已是满分时没有提升空间，本项计满分。"""
+    if baseline_set >= 1.0:
+        return 1.0, GAIN_WEIGHT
+    g = (agent_set - baseline_set) / (1.0 - baseline_set)
+    if g <= 0:
+        return g, 0.0
+    return g, min(GAIN_WEIGHT, GAIN_WEIGHT * g / GAIN_FULL_MARK)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -184,16 +182,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"能力  = 30 × {agent['set_score']:.3f} = {cap:.1f} / 30")
 
         if base:
-            gain, gscore = gain_score(agent["set_score"], base["set_score"])
-            report["gain"] = round(gain, 4) if gain is not None else None
+            a, b = agent["set_score"], base["set_score"]
+            g, gscore = gain_score(a, b)
+            report["gain_g"] = round(g, 4)
             report["gain_score"] = round(gscore, 2)
-            if gain is None:
-                print("增益  = 基线题集得分为 0，无法计算（赛事方按赛前公告的规则单独处理）")
-            else:
-                print(f"增益  = {agent['set_score']:.3f} / {base['set_score']:.3f} "
-                      f"= {gain:.2f} 倍")
-                print(f"       40 × log({gain:.2f}) / log({GAIN_FULL_MARK}) "
-                      f"= {gscore:.1f} / 40   （满分线为占位值，以赛前公告为准）")
+            report["gain_ratio"] = round(a / b, 4) if b > 0 else None
+            print(f"增益  g = ({a:.3f} − {b:.3f}) / (1 − {b:.3f}) = {g:.3f}")
+            print(f"       40 × min({g:.3f} / {GAIN_FULL_MARK}, 1) = {gscore:.1f} / 40")
+            if b > 0:
+                print(f"       诊断：倍数 {a:.3f} / {b:.3f} = {a / b:.2f}，不计分")
         else:
             print("增益  = 未跑基线，本项无法计算。桩模式下基线被跳过，"
                   "因为 mock 对 baseline.py 无效；接上真模型后会自动计算")

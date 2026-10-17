@@ -1,6 +1,6 @@
 # Agent 上下文、诊断与候选策略接口
 
-日期：2026-10-14。状态：已实现；本文记录运行契约和验证边界。
+日期：2026-10-17。状态：已实现；本文记录运行契约和验证边界。
 
 ## 上下文与 token
 
@@ -15,10 +15,15 @@ strict_context、enable_thinking、token_total_limit 和 token_output_limit。
 显式严格限额先预留实际可用输出，再装配资料；缺失 token 用量时保留预留额度，计数失配后停止严格模式新调用。
 未知用量不算零。限制约束客户端请求，服务在请求失败后的实际计算成本不能由客户端账本完全确定。
 
-enable_thinking 在普通生成和修复请求中同时用于 chat_template_kwargs 与本地模板计数。
-默认 single_generate 使用 baseline_rtl，为保持官方请求一致，不注入此选项，也不把配置的选项用于计数；
-按实际请求未指定选项的情况使用模板默认值，并记录 template_options_ignored。
-因此此配置不能控制默认流程服务端的思考模式；其他流程的显式请求选项优先于服务配置。
+manifest.json 的 generation 是方案与 baseline 共享的思考声明：支持标量 chat_template_kwargs
+和字符串 reasoning_effort。ModelService 在构造时读取官方加载器的过滤结果，装配和计数使用相同选项；
+一致的部分配置会继承完整声明；与声明冲突或额外增加未声明思考字段的服务配置和显式请求，
+均在模型调用前被拒绝。
+声明为空时所有流程保持服务端默认，不能在 YAML 或显式请求中另加思考选项。
+enable_thinking 只能重复共享声明中一致的值；本地计数支持所有官方允许的标量模板参数。
+HTTP 健康检查复用同一声明校验，配置不一致时不报告就绪。
+默认 single_generate 同步新版 baseline 的 16384 输出和 840 秒请求上限，默认单题预算 900 秒；
+evidence_repair 和其他可选实验的显式额度不随本次同步改变。
 
 ## 自身工具诊断与短卡（简短修复资料）
 
@@ -52,7 +57,7 @@ E1 是结构化修复与资料检索对照，E2 是修复次数与候选数量�
 search_* 的 temperature、top_p、base_seed 在 Python Workflow 构造时声明；
 默认 0.6、0.95 和 20261013，逐次 seed（随机种子）为 base_seed、base_seed+1、base_seed+2。
 模型请求直接带这些字段。其他服务默认采样参数不由 Agent 推断，历史实验成绩不作为这些默认值的收益证明。
-single_generate、evidence_repair 及 baseline 的默认参数保持原约定，默认 Workflow 未切换。
+single_generate 与 baseline 的默认参数按本次上游更新，evidence_repair 保留原实验额度，默认 Workflow 未切换。
 
 候选选择不读取官方判定。自身检查证据相同时保留早期候选；提取、工具或模型失败保留已有答案。
 修复处理最新候选及其自身错误；独立生成只读原题面和接口。仅 search_* 的反馈统一临时工具路径，

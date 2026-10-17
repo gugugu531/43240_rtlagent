@@ -125,7 +125,7 @@ _MODULE_RE = re.compile(r"module\s+(\w+)\s*(?:#\s*\([^)]*\)\s*)?\((.*?)\)\s*;", 
 #      - input  d   (8 bits)
 #      - output q   (8 bits)
 #
-# 实测 152 道题里 149 道是这个格式（位宽可缺省、括号内可有多余空格、端口名后
+# 实测 156 道题里 153 道是这个格式（位宽可缺省、括号内可有多余空格、端口名后
 # 可带逗号），其余 3 道直接在题面里贴完整的 module 声明，由 _ports() 兜住。
 # 位宽单位兼容中英文：评测题集（VerilogEval）是英文的 `(8 bits)`，本仓库的示例题
 # 是中文的 `(8 位)`。只认一种的话，带位宽的端口会被整行丢掉 —— 不是报错，是静默
@@ -152,6 +152,8 @@ def ports_from_prompt(prompt: str) -> tuple[str | None, list[tuple[str, int, str
         # 正是「有 bug 的模块」，其端口本身就是要改的东西（实测 Prob062_bugs_mux2
         # 的题面把 8 位的 out 写成 1 位，找出它正是题目要求）。把它当规格会让
         # 智能体把 bug 改回去。解析不出就如实返回空。
+        # 另：该题参考实现还把 sel 极性反了（sel ? a : b），题面推不出，属数据集
+        # 缺陷，见 selftest/README.md。智能体在这道题上过不了 L2 不说明修复逻辑有错。
         return None, []
     m = re.search(r"module\s+named\s+(\w+)", text)
     return (m.group(1) if m else "TopModule"), ports

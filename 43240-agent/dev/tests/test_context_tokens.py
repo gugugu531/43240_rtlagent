@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from agent.core.model import BackendResponse, ModelRequest, ModelUsage
 from agent.core.task import TaskSpec
@@ -72,16 +73,16 @@ class LedgerTests(unittest.TestCase):
                 return BackendResponse(0, 200, json.dumps({'choices': [{'message': {'content': 'ok'}}]}))
         for enabled in (True, False):
             for profile in ('baseline_rtl', 'default'):
-                with self.subTest(enabled=enabled, profile=profile), tempfile.TemporaryDirectory() as temp:
+                with self.subTest(enabled=enabled, profile=profile), tempfile.TemporaryDirectory() as temp, \
+                     patch('baseline.load_generation', return_value={'chat_template_kwargs': {'enable_thinking': enabled}}):
                     recorder = RunRecorder(Path(temp)); counter = RecordingCounter(); backend = Backend()
                     service = ModelService(backend, recorder, token_counter=counter,
                                            template_options={'enable_thinking': enabled})
                     service.chat(ModelRequest([{'role': 'user', 'content': 'test'}], profile=profile))
                     payload = backend.request.payload('test')
-                    expected = {} if profile=='baseline_rtl' else {'enable_thinking': enabled}
+                    expected = {'enable_thinking': enabled}
                     self.assertEqual(counter.options, expected)
                     self.assertEqual(payload.get('chat_template_kwargs', {}), expected)
-                    if profile=='baseline_rtl': self.assertNotIn('chat_template_kwargs', payload)
                     recorder.close()
 
     def test_generation_reserves_remaining_output_instead_of_original_large_cap(self):
@@ -186,6 +187,13 @@ class LocalTokenizerTests(unittest.TestCase):
             messages = [{'role': 'user', 'content': 'hello'}]
             self.assertEqual(counter.count(messages).value, 3)
             self.assertEqual(counter.count(messages, template_options={'enable_thinking': False}).value, 5)
+            (root / 'tokenizer_config.json').write_text(json.dumps({'chat_template':
+                "{{ messages[0].content }} {{ mode }} {{ budget }} {{ ratio }}{% if flag %} yes{% endif %}"}))
+            scalar_counter = LocalTokenCounter(root)
+            count = scalar_counter.count(messages, template_options={'mode':'fast', 'budget':2, 'ratio':0.5, 'flag':True})
+            self.assertEqual(count.status, 'exact')
+            self.assertEqual(count.value, len(tokenizer.encode('hello fast 2 0.5 yes', add_special_tokens=False).ids))
+            self.assertEqual(scalar_counter.count(messages, template_options={'nested':{}}).status, 'unavailable')
             self.assertEqual(counter.count([{'role': 'user', 'content': []}]).status, 'unavailable')
             with self.assertRaises(ValueError):
                 LocalTokenCounter(root, expected_tokenizer_sha256='0' * 64)

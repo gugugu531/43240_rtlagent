@@ -45,9 +45,9 @@ services:
     # tokenizer_dir: /models/Qwen3-8B
     # context_limit: 32768
     # strict_context: true
-    # 普通生成/修复流程：显式设置时同时用于请求 chat template 与输入计数；null/省略时不发送。
-    # single_generate 使用 baseline_rtl，不注入该选项，计数也按模板默认选项；设置被忽略时记录原因。
-    # 此选项不能控制默认 single_generate 服务端的思考模式。
+    # manifest.json 的 generation 声明是方案与 baseline 共享的正式思考设置。
+    # 所有流程的请求与计数统一采用共享声明；此处只能重复声明中一致的 enable_thinking。
+    # 未声明或值冲突时拒绝运行，不能用此处单独设置修复流程的思考参数。
     # enable_thinking: true
     # tokenizer_sha256: <tokenizer.json SHA256>
     # template_sha256: <chat_template UTF-8 SHA256>
@@ -82,7 +82,7 @@ services:
     api_key_env: LLM_API_KEY
 
     # 单次模型服务调用上限：正数或 null。覆盖：LLM_TIMEOUT_S。
-    # null / 省略：single_generate、evidence_repair、evidence_a0/a1/a2 默认 300 秒；
+    # null / 省略：single_generate、evidence_repair、evidence_a0/a1/a2 默认 840 秒；
     # search_*、repair_loop 等其余 Workflow 默认 180 秒。
     # 实际上限还取决于生成 Node 设置和扣除清理预留后的本题剩余时间。
     timeout_s: null
@@ -114,7 +114,7 @@ runtime:
   # 整题时间预算，单位秒，必须为正数。
   # 覆盖：AGENT_DEADLINE_S / CLI --deadline-s。
   # HTTP 请求传入的剩余硬时限只会缩小此预算。
-  deadline_s: 360
+  deadline_s: 900
 
   # 为清理进程和写出结果预留的秒数，必须非负。
   # 可用求解时间会扣除此项；预留大于等于剩余预算时可能不启动求解。
