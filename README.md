@@ -7,6 +7,11 @@
 当前默认 `single_generate` 复用官方 baseline 的 RTL 提示、采样和提取规则，不加载技能或执行工具。
 正式入口通过独立 Worker 和 Supervisor 管理预算、进程和中断恢复；模型与推理服务尚未最终确定。
 
+组件的共享契约集中在 `agent/core/`：Workflow、Node、Tool 基类使用明确的输入输出类型，
+构造描述将普通参数与依赖身份分开。`AssemblySpec` 保存可序列化的组件装配描述，
+进程请求、代码提取结果和未分配检查编号的 `CheckOutcome` 也位于这一层。
+这些契约为 YAML 装配与运行管理分离提供基础，不改变模型服务和 baseline 规则。
+
 | 流程 | 用途 | 验证边界 |
 | --- | --- | --- |
 | `single_generate` | 单次生成，作为默认入口 | 请求与提取对齐 baseline；完成不代表功能正确 |

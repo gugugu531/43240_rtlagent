@@ -1,15 +1,18 @@
 """Public component contracts and serializable construction metadata."""
 from __future__ import annotations
+from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import inspect
 from pathlib import Path
-from typing import Any, Protocol, TYPE_CHECKING, TypeVar
+from typing import Any, Generic, Protocol, TypeVar, ClassVar
 from agent.core.model import _freeze, _thaw
 
-if TYPE_CHECKING:
-    from agent.core.context import RunContext
-    from agent.core.state import WorkflowResult
+from agent.core.task import TaskSpec
+from agent.core.budget import Budget
+from agent.core.candidate import Candidate
+from agent.core.state import CheckResult, RunStateView, WorkflowResult
+from agent.core.process import ProcessRequest, ProcessResult
 
 InputT = TypeVar('InputT', contravariant=True)
 OutputT = TypeVar('OutputT', covariant=True)
@@ -38,40 +41,107 @@ class ComponentSpec:
     module: str
     implementation: str
     parameters: Mapping[str, Any]
+    dependencies: Mapping[str, str | tuple[str, ...]] = field(default_factory=dict)
 
     def __post_init__(self):
         object.__setattr__(self, 'parameters', _freeze(describe_value(self.parameters)))
+        object.__setattr__(self, 'dependencies', _freeze(dict(self.dependencies)))
 
     def public_dict(self) -> dict[str, Any]:
         return dict(name=self.name, module=self.module, implementation=self.implementation,
-                    parameters=_thaw(self.parameters))
+                    parameters=_thaw(self.parameters), dependencies=_thaw(self.dependencies))
 
 
 class Component:
-    """Optional base for components using ordinary constructor parameters."""
+    """Construction metadata and explicit dependency declarations."""
+    kind: ClassVar[str] = "component"
+    input_type: ClassVar[type] = object
+    output_type: ClassVar[type] = object
+    dependencies: ClassVar[Mapping[str, str]] = {}
     def describe(self) -> ComponentSpec:
         captured = getattr(self, '_construction_spec', None)
         if captured is not None:
             return captured
         cls = type(self)
         parameters = {}
+        dependencies = {}
         for name, parameter in inspect.signature(cls).parameters.items():
+            if name in self.dependencies:
+                dependency = getattr(self, name, None)
+                def identity(value):
+                    return f'{type(value).__module__}:{type(value).__qualname__}'
+                dependencies[name] = ([identity(item) for item in dependency]
+                                      if isinstance(dependency, (list, tuple)) else identity(dependency))
+                continue
             if parameter.kind in (parameter.VAR_POSITIONAL, parameter.VAR_KEYWORD):
                 parameters[name] = {'status': 'unknown'}
             else:
                 parameters[name] = describe_value(getattr(self, name, {'status': 'unknown'}))
-        return ComponentSpec(cls.__dict__.get('_registration_name', cls.__name__),
-                             cls.__module__, cls.__qualname__, parameters)
+        return ComponentSpec(getattr(cls, "component_name", cls.__name__),
+                             cls.__module__, cls.__qualname__, parameters, dependencies)
 
 
-class Node(Protocol[InputT, OutputT]):
-    def run(self, ctx: RunContext, input: InputT) -> OutputT: ...
-    def describe(self) -> ComponentSpec: ...
+class ProcessContext(Protocol):
+    def run(self, request: ProcessRequest) -> ProcessResult: ...
 
 
-class Workflow(Protocol):
-    def run(self, ctx: RunContext) -> WorkflowResult: ...
-    def describe(self) -> ComponentSpec: ...
+class ArtifactContext(Protocol):
+    def write_text(self, name: str, content: str) -> Path: ...
+    def write_json(self, name: str, content: Any) -> Path: ...
+
+
+class ToolContext(Protocol):
+    task: TaskSpec
+    budget: Budget
+    processes: ProcessContext
+    artifacts: ArtifactContext
+    llm: Any
+    timeout_s: float | None
+
+    def emit(self, event: str, **fields) -> None: ...
+    def toolchain(self) -> Any: ...
+    def with_timeout(self, timeout_s: float | None) -> ToolContext: ...
+
+
+class RunContext(Protocol):
+    task: TaskSpec
+    budget: Budget
+    llm: Any
+    state: RunStateView
+    started_at: float
+    configuration: dict
+    output_dir: Path
+
+    def execute(self, node: Node[InputT, OutputT], input: InputT) -> OutputT: ...
+    def call(self, tool: Tool[InputT, OutputT], input: InputT, *, timeout_s: float | None = None) -> OutputT: ...
+    def check(self, tool: Tool, input: Any, *, candidate: Candidate,
+              timeout_s: float | None, minimum_s: float = 0.0) -> CheckResult: ...
+    def emit(self, event: str, **fields) -> None: ...
+    def finish(self, *, reason: str, status: str = 'completed') -> WorkflowResult: ...
+
+
+class Node(Component, ABC, Generic[InputT, OutputT]):
+    kind = 'node'
+
+    @abstractmethod
+    def run(self, ctx: RunContext, input: InputT) -> OutputT:
+        raise NotImplementedError
+
+
+class Workflow(Component, ABC):
+    kind = 'workflow'
+
+    @abstractmethod
+    def run(self, ctx: RunContext) -> WorkflowResult:
+        raise NotImplementedError
+
+
+class Tool(Component, ABC, Generic[InputT, OutputT]):
+    kind = 'tool'
+
+    @abstractmethod
+    def run(self, ctx: ToolContext, input: InputT) -> OutputT:
+        raise NotImplementedError
 
 
 def describe_component(component) -> ComponentSpec:

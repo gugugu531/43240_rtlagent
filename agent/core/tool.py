@@ -44,3 +44,18 @@ class ToolResult:
         if self.work_dir is not None:
             fields["work_dir"] = self.work_dir
         return fields
+
+
+@dataclass(frozen=True)
+class CheckOutcome:
+    """A check's result before the runtime assigns its evidence identity."""
+
+    status: Literal['passed', 'failed', 'timeout', 'unavailable', 'error', 'skipped']
+    summary: str
+    blocking: bool = False
+    rc: int = 0
+    elapsed_s: float = 0.0
+    command: tuple[tuple[str, ...], ...] = ()
+    details: dict = field(default_factory=dict)
+    log_paths: tuple[str, ...] = ()
+    work_dir: str | None = None
