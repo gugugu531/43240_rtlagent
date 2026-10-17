@@ -1,6 +1,7 @@
-> 重构阶段 3：全部 Workflow 使用显式 Node 注入，检查 Node 使用可替换 Tool。
-> 通用工具与 RTL 检查分别通过 ctx.call/ctx.check 管理，保留原检查顺序、缓存和选择行为。
-> 初始重放使用明确合同；完整配置预设在下一阶段提交，完整指南在最终阶段统一更新。
+> 重构阶段 4：config/presets 提供全部 16 个流程的完整 schema version 2 装配。
+> 通过 --config 或 AGENT_CONFIG 选择配置；initial_state 仅在 runtime，知识库路径仅在 guidance 参数。
+> 开发实验保存完整解析配置并校验往返；初始检查点版本 2 支持既有跨流程复用且继承原始成本。
+> 旧路径清理和下面完整指南的同步将在最后阶段提交。
 
 # 43240_rtlagent — RTL 赛道参赛方案
 

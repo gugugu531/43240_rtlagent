@@ -1,0 +1,48 @@
+# 完整组件装配配置；Python定义流程，YAML声明类、参数和依赖。
+schema_version: 2
+workflow: workflow
+components:
+  workflow:
+    kind: workflow
+    class: agent.workflows.single_generate:SingleGenerate
+    params: {}
+    inject:
+      generate: generate
+      extract: extract
+  generate:
+    kind: node
+    class: agent.nodes.baseline:BaselineGenerateNode
+    params: {}
+    inject: {}
+  extract:
+    kind: node
+    class: agent.nodes.baseline:BaselineExtractNode
+    params: {}
+    inject: {}
+services:
+  model:
+    backend: mock
+    model: mock-model
+    base_url: ''
+    api_key_env: LLM_API_KEY
+    timeout_s: 840.0
+    tokenizer_dir: null
+    context_limit: null
+    strict_context: false
+    token_total_limit: null
+    token_output_limit: null
+    enable_thinking: null
+    tokenizer_sha256: null
+    template_sha256: null
+  tools:
+    part: xczu3eg-sbva484-1-e
+    bin_dir: null
+    temp_dir: /tmp
+    keep_work: false
+runtime:
+  deadline_s: 900
+  reserve_s: 20
+  initial_state: null
+  recording:
+    level: full
+    root: null

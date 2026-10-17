@@ -1,0 +1,108 @@
+# 完整组件装配配置；Python定义流程，YAML声明类、参数和依赖。
+schema_version: 2
+workflow: workflow
+components:
+  workflow:
+    kind: workflow
+    class: agent.workflows.search_ablation:SearchTwoCandidates
+    params:
+      max_rounds: 2
+      max_request_retries: 0
+      max_model_calls: 2
+      minimum_action_s: 0.05
+      repair_output_drivers: false
+    inject:
+      generate: generate
+      extract: extract
+      interface: interface
+      lint: lint
+      synth: synth
+      feedback_builder: feedback
+  generate:
+    kind: node
+    class: agent.nodes.seeded_generate:SeededGenerate
+    params:
+      max_tokens: 8192
+      temperature: 0.6
+      timeout_s: 300.0
+      prompt_style: repair
+      use_skills: false
+      minimum_s: 0.0
+      top_p: 0.95
+      base_seed: 20261013
+    inject: {}
+  extract:
+    kind: node
+    class: agent.nodes.extract:ExtractNode
+    params: {}
+    inject: {}
+  interface:
+    kind: node
+    class: agent.nodes.check:InterfaceNode
+    params: {}
+    inject:
+      tool: interface_tool
+  interface_tool:
+    kind: tool
+    class: agent.tools.interface:InterfaceCheckTool
+    params: {}
+    inject: {}
+  lint:
+    kind: node
+    class: agent.nodes.check:LintNode
+    params:
+      timeout_s: 300.0
+      minimum_s: 0.0
+    inject:
+      tool: lint_tool
+  lint_tool:
+    kind: tool
+    class: agent.tools.vivado:VivadoLintTool
+    params: {}
+    inject: {}
+  synth:
+    kind: node
+    class: agent.nodes.check:SynthNode
+    params:
+      timeout_s: 900.0
+      minimum_s: 0.0
+    inject:
+      tool: synth_tool
+  synth_tool:
+    kind: tool
+    class: agent.tools.vivado:VivadoSynthTool
+    params: {}
+    inject: {}
+  feedback:
+    kind: node
+    class: agent.nodes.feedback:StructuredFeedbackNode
+    params:
+      max_summary_chars: 1600
+    inject: {}
+services:
+  model:
+    backend: mock
+    model: mock-model
+    base_url: ''
+    api_key_env: LLM_API_KEY
+    timeout_s: 180.0
+    tokenizer_dir: null
+    context_limit: null
+    strict_context: false
+    token_total_limit: null
+    token_output_limit: null
+    enable_thinking: null
+    tokenizer_sha256: null
+    template_sha256: null
+  tools:
+    part: xczu3eg-sbva484-1-e
+    bin_dir: null
+    temp_dir: /tmp
+    keep_work: false
+runtime:
+  deadline_s: 900
+  reserve_s: 20
+  initial_state: null
+  recording:
+    level: full
+    root: null
