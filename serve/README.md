@@ -1,122 +1,123 @@
-# 推理服务与投题接口
+# serve/
 
-以下命令在 `43240_rtlagent/` 下运行，按 2026-10-17 实现核对。
-推理服务使用本机 8000 端口，投题接口使用 7860 端口；启动参数最终须与 `model/MODEL.md`、`REPORT.md` 的声明一致。
-完整方案入口见 [README](../README.md)。
+推理服务与投题接口。两者跑在同一个实例里，互不干扰。
 
-## 不需要 GPU 的流程检查
-
-```bash
-LLM_BACKEND=mock ./run.sh /path/to/task /tmp/agent-smoke
+```
+  8000   vllm.sh        推理服务   绑 127.0.0.1，不暴露
+  7860   serve_api.py   投题接口   绑 127.0.0.1，经 rc-tunnel 对外
 ```
 
-这是开发工作区示例，题库不随方案打包。假模型只验证流程，不能证明 RTL 功能正确。
+---
 
-## 启动本地模型
-
-准备本地权重、依赖和工具后，先配置 Agent 和 baseline 共用的服务：
+## 开发期：不需要 GPU
 
 ```bash
-export MODEL=/models/Qwen3-8B
 export LLM_BACKEND=openai
-export LLM_BASE_URL=http://127.0.0.1:8000/v1
-export MODEL_NAME=Qwen3-8B
+export LLM_BASE_URL=https://api.deepseek.com/v1     # 或任意 OpenAI 兼容端点
+export LLM_API_KEY=sk-xxxxxxxx
+export LLM_MODEL=deepseek-coder
+```
+
+无需启动 `vllm.sh`，`agent/llm.py` 将直接访问所配置的端点。
+
+## 正式提交：必须是本地权重
+
+```bash
+MODEL=/models/Qwen3-8B ./serve/start.sh     # 后台拉起 vllm.sh，就绪后返回
+
+export LLM_BACKEND=openai
+export LLM_BASE_URL=http://localhost:8000/v1        # 换成本机
+export LLM_API_KEY=dummy
 export LLM_MODEL=Qwen3-8B
-./serve/start.sh
 ```
 
-`start.sh` 是常驻服务的统一入口，在服务就绪后返回 0，失败返回非 0；可重复执行，
-通过 `setsid` 将推理服务与单题进程组分开。它也补充基础镜像的 EDA 临时目录清理循环，
-只清理整棵目录两小时未更新的工程；默认根目录为 `EDA_TMP=/tmp/eda`。
-日志在 `SERVE_LOG_DIR`（默认 `$AGENT_TMP/serve-logs`），启动等待上限由 `START_TIMEOUT_S` 设置，默认 900 秒。
-容器重建时先执行一次 `start.sh`，随后直接逐题调用 `run.sh` 或 `run_baseline.sh`，无需启动 HTTP 接口。
+智能体代码无需改动，差异仅在于三个环境变量。但提示词与重试策略未必可以直接平移，商用
+API 与本地小模型在输出长度、指令遵循、代码格式稳定性上差异明显，围绕前者调好的东西
+换到后者常常直接失效。尽早跑一次本地模型。
 
-`vllm.sh` 优先以 `MODEL_NAME`、否则以权重目录最后一级名称作为服务模型名。`MODEL_NAME` 用于 baseline 和默认
-`single_generate` 路径；其他模型路径使用 `LLM_MODEL`。这里同时设置，避免更换流程时请求不同模型。
-`MAX_LEN`、`VRAM_BUDGET_GB`、`GPU_UTIL`、`VLLM_EXTRA_ARGS` 会改变服务行为，必须记录实际值。
-默认按 30 GB 预算和实际卡容量计算显存比例，向下取整，避免 48 GB 卡使用固定 90% 时超出 32 GB；
-显式 `GPU_UTIL` 优先，实际峰值仍须在目标 GPU 上测量。脚本根据已安装 vLLM 的帮助信息选择新旧日志参数。
-Agent 与 baseline 必须连接同一服务。正式运行使用预先准备的本地权重，不能依赖外部模型 API。
-
-## 开发期连接带鉴权的模型端点
-
-默认 `single_generate` 的 baseline 兼容路径不发送 Authorization 头。需要模型端点鉴权时，
-开发实验可显式选择 `evidence_repair` 或 `repair_loop`，再配置 `LLM_API_KEY` 和 `LLM_MODEL`：
+## 起投题接口
 
 ```bash
-export AGENT_WORKFLOW=evidence_repair
-export LLM_BACKEND=openai
-export LLM_BASE_URL='https://your-model-endpoint.example/v1'
-export LLM_API_KEY='替换为开发端点密钥'
-export LLM_MODEL='替换为服务实际模型名'
-```
-
-这些是需替换的配置示例。模型端点鉴权与下面的投题令牌是两件事；不要把密钥写入 Git。
-外部模型上的结果不能替代本地目标模型与 GPU 验证。
-
-## 启动投题接口
-
-设置好模型后启动接口。默认流程可显式设回 `single_generate`；选择其他流程时按其预算和工具要求配置。
-
-```bash
-export AGENT_WORKFLOW=single_generate
-export FPGACHINA_TOKEN='替换为赛事投题令牌'
-export AGENT_RECORD_ROOT=/tmp/agent-records
+export FPGACHINA_TOKEN=<赛事方发的令牌>
+export MODEL_NAME=Qwen3-8B
 uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
-```
 
-检查接口：
-
-```bash
-curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://127.0.0.1:7860/v1/health
-```
-
-响应的 `track` 为 `rtl`。`ready: true` 表示配置可读取、任务 Worker 正在运行，且模型列表含有所配置的模型
-（mock 后端不查询模型服务），思考配置符合 manifest 共享声明；配置、共享声明、模型查询或名称核对失败返回 503。它不证明 RTL 功能或 Vivado 授权正常，
-还应运行单题检查。`vram_gb` 是接口查询时的值，不是完整评测期间的峰值。
-
-接口按[上游契约](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)提供异步投题：
-
-```bash
-curl -X POST http://127.0.0.1:7860/v1/solve \
-  -H "Authorization: Bearer $FPGACHINA_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"task_id":"t1","nonce":"unique-nonce-1","mode":"agent","prompt":"Implement a module named TopModule with input a and output q, assign q=a.","deadline_s":60}'
-# 202 返回 job_id、task_id、status；将下面的 <job_id> 换成返回值。
-curl -H "Authorization: Bearer $FPGACHINA_TOKEN" \
-  http://127.0.0.1:7860/v1/jobs/<job_id>
-```
-
-查询状态为 `queued`、`running` 或 `done`，仅 `done` 含 `solution`、`trace`、`elapsed_s`；
-失败返回空答案，并保留可用的 trace 和服务错误类别。非空 nonce 重复投递始终返回原任务，
-空 nonce 每次新建任务；`mode` 只接受 `agent` 或 `baseline`，`deadline_s` 为 1 至 900 的整数，默认 900。
-结果和 nonce 映射保存在 HTTP 进程内，重启后清空。部署使用一个 uvicorn Worker，不能加 `--workers` 或 `--reload`。
-本地主办方文档已同步，本文对应上游提交 `f7a8bd4`。
-
-Radeon Cloud 环境的既有部署方式是将投题接口绑定到环回地址，再通过平台隧道暴露：
-
-```bash
+# 让外面能访问到：平台只接管绑在 127.0.0.1 上的 HTTP 服务
 /var/run/secrets/frp-self-service/install
 env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
-  "$HOME/.local/bin/rc-tunnel" expose --port 7860
+    "$HOME/.local/bin/rc-tunnel" expose --port 7860   # 去掉代理变量，否则隧道连不上
 ```
 
-仅暴露投题接口，8000 端口用于内部模型调用。平台差异与历史环境验证见开发区的
-工作区开发文档中的远端管理说明；独立提交包不包含开发区。
+自测：
 
-## 时间、文件与运行维护
+```bash
+curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://localhost:7860/v1/health
+# {"ready":true,"track":"rtl","model":"Qwen3-8B","vram_gb":21.4}
 
-正式单题时限和默认请求时限为 900 秒，baseline 模型请求上限为 840 秒。
-两种模式使用 `manifest.json` 同一 `generation` 思考设置，当前为空；所有流程均拒绝冲突值或未声明选项。
-Radeon Cloud 的 `/tmp` 为 4 GB 内存盘，部署时应按主办方 README 设置
-`EDA_TMP=/var/tmp/eda AGENT_TMP=/var/tmp SELFTEST_TMP=/var/tmp`，并在投题服务启动前加载授权变量。
-Dockerfile 已设置上述三个本地盘目录；脚本和 Python 的本机通用默认仍为 `/tmp`。
+# 投一道题：立即返回 job_id，之后查询直到 status 为 done
+curl -X POST -H "Authorization: Bearer $FPGACHINA_TOKEN" -H "Content-Type: application/json" \
+     -d '{"task_id":"t1","nonce":"n1","mode":"agent","prompt":"...","interface":"","deadline_s":900}' \
+     http://localhost:7860/v1/solve
+curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://localhost:7860/v1/jobs/<job_id>
+```
 
-- `AGENT_TMP` 默认 `/tmp`，中间工程应使用本地盘，避免网络文件系统拖慢 Vivado。
-- 接口串行执行任务，从投题起计算剩余时间，扣除排队和准备时间，并预留 `min(0.25, deadline_s × 0.1)` 秒用于返回。
-  排队耗尽时间时不启动求解；即使前一任务仍运行，查询或 nonce 重投也立即返回 done 与空答案。
-  子进程接收剩余硬期限；内部运行预算还受配置的清理预留和单次调用超时约束。超时后恢复已保存的选择，不能保证一定得到可用答案。
-- 投题接口和模型端点分别管理鉴权。公网地址不能代替业务令牌检查。
-- HTTP 服务在 Linux 下接管孤儿进程，只回收本题进程组；服务退出时停止当前求解并结束排队任务。
-- 持续运行时检查临时文件、记录目录和子进程回收。完整模型记录需配置 `AGENT_RECORD_ROOT` 到请求临时目录之外。云端实例用完立即释放。
-- 不同 GPU 架构、量化内核和服务版本必须分别验证；历史机器上可启动或测得的速度不直接外推到比赛环境。
+`track` 必须是 `"rtl"`，赛事方投题前会核对，不符即拒投。
+
+---
+
+## 几处容易踩的地方
+
+**显存按 32 GB 预算，而不是按卡的容量。** vLLM 按 `--gpu-memory-utilization` 乘以整卡显存
+预先分配，与模型大小无关。验证窗口的 W7900 有 48 GB，若取 0.90 将占用约 43 GB，超出单卡
+32 GB 的上限。`vllm.sh` 因此按 `VRAM_BUDGET_GB`（默认 30）换算该比例，也可用 `GPU_UTIL`
+直接指定；提交前须以 `rocm-smi --showmemuse` 实测稳态占用。
+
+**绑 `127.0.0.1`，不是 `0.0.0.0`。** Radeon Cloud 的 `rc-tunnel` 只接管绑在环回口上的
+HTTP 服务，绑 `0.0.0.0` 平台不接管。绑错了服务本身是活的，但外面永远打不进来，在赛事方
+那边看起来和挂掉没有区别，而失败不重投。
+
+**只暴露 7860 一个端口。** 平台限制一个 notebook 同时只能暴露一个端口。vLLM 的 8000
+由智能体经 `127.0.0.1` 内部调用，不要去暴露。**同时参加两个赛道的队伍需要两台 VM。**
+
+**令牌检查不是可选项。** 平台给出的公网 app URL 不带业务层鉴权，没有令牌检查，任何人
+拿到网址都能投题。
+
+**工程与中间文件落本地目录。** `AGENT_TMP` 默认 `/tmp`；实例上 `/tmp` 是 4 GB 内存盘，请设为 `/var/tmp`。云平台的 `/workspace` 是 NFS，
+Vivado 综合产生的大量小文件写在上面极慢。这不是优化建议。
+
+**服务要能连续跑数百次请求不重启。** 评测期间挂了就是 L0，赛事方不重投。注意每题之后
+清理临时目录与子进程，别把磁盘写满。
+
+**投题是异步的。** `POST /v1/solve` 立即返回任务编号，题在后台解，赛事方每 2 秒查询一次。
+平台入口会切断 60 秒内没有响应的请求，所以自己改写投题服务时，不能让请求挂着等解题完成。
+
+**自己先超时，别让赛事方超时。** `serve_api.py` 在 `deadline_s - 10` 秒时对 `run.sh`
+整个进程组发 SIGTERM，5 秒后 SIGKILL，然后返回已有的最好结果。赛事方侧超时一定是 L0，
+自己先停至少还有 L1/L2 的可能。要按进程组结束，是因为只杀 `run.sh` 一个进程时，它启动的
+智能体与 Vivado 会继续运行，和下一题争抢 GPU 与 CPU。
+
+**常驻进程只从 `start.sh` 起。** 推理服务与队伍自己的常驻引擎都写进 `start.sh`，用
+`setsid` 拉起。容器重建这条退路下，赛事方只运行 `start.sh` 再逐题调用 `run.sh`，不启动
+`serve_api.py`；超时信号发给 `run.sh` 的进程组，由 `run.sh` 在后台带起的常驻进程会随之
+被结束。详见 `docs/API_CONTRACT.md` 第八节。
+
+**进程要自己回收。** 平台实例的 1 号进程是 JupyterLab，它不回收孤儿进程，被结束的子进程
+会作为僵尸一直占着进程号，攒多了新进程就起不来。`serve_api.py` 启动时把自己设为回收者
+（`PR_SET_CHILD_SUBREAPER`），每题结束后回收该题的全部进程。换成自己的服务时这一段
+要保留。详见 `docs/API_CONTRACT.md` 第十节。
+
+---
+
+## 跨代架构的已知问题
+
+验证阶段的 gfx1100（W7900）与决赛的 gfx1201（R9700）是两代架构，预编译内核与 wheel
+不通用。基础镜像里已给出可用配置，但以下几条应当知悉：
+
+1. **跨卡张量并行与流水并行在 gfx1201 上不可用**，无 XGMI，集合通信库无法可靠启动。
+   四卡的推荐用法是每卡一个独立实例、四路并发。
+2. **FP8 存在「硬件有、软件未必用得上」的情况。** gfx1201 具备 FP8 E4M3 矩阵指令，
+   但部分框架缺少该架构的平台检测，会将 FP8 权重静默反量化为 FP32，导致算力浪费，
+   而且没有任何告警。
+3. **部分算子库在 RDNA 4 上不工作**，须显式关闭。
+4. **在 gfx1100 上做 FP8 量化只省显存、不获加速**，该架构无 FP8 矩阵指令。验证阶段
+   测到的量化收益不能直接外推到决赛。

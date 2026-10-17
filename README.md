@@ -96,7 +96,8 @@
 
 评测当天，赛事方通过 HTTP 逐题投题。`serve/serve_api.py` 把每次请求写成一个临时
 题目目录，调用 `run.sh`（`mode=baseline` 时调用 `run_baseline.sh`），再把结果返回。
-接口按[上游 2026-10-17 版本契约](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)实现；
+`serve/` 的四个文件原样采用上游提交 `f7a8bd4` 的 `example/serve/`，遵循
+[上游 2026-10-17 版本契约](https://gitee.com/Vickyiii/rtlagent2026/blob/f7a8bd465c2a820e006c7a00ecc7df468974635b/docs/API_CONTRACT.md)；
 工作区中的 `docs/API_CONTRACT.md` 位于本方案仓库之外，已同步到同一版本；启动与查询示例见 [serve/README.md](serve/README.md)。
 
 ```bash
@@ -110,13 +111,16 @@ uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
 `POST /v1/solve` 立即以 202 返回 `job_id`、`task_id` 和 `queued` 状态；
 `GET /v1/jobs/{job_id}` 返回 `queued`、`running` 或带有答案与 trace 的 `done`。三个端点均校验令牌。
 非空 `nonce` 的重复投递返回原任务，不重复求解。任务按顺序执行；时间从投题起算，包含排队、
-输入准备、执行与清理，排队超时直接返回空答案。任务与去重信息保存在单个 HTTP 进程内，重启后清空；
+执行与清理。官方接口通过 `AGENT_DEADLINE_S` 传入剩余秒数，并对任务进程组实施超时；
+查询排队任务不会提前结束它。任务与去重信息保存在单个 HTTP 进程内，重启后清空；
 启动 uvicorn 时使用默认的一个 Worker，不使用多 Worker 或热重载。
 
 Agent 的 Supervisor 管理 Worker 与通过公开服务启动的工具进程；shell 转发 SIGTERM。baseline
-只增加外部进程组监督；HTTP 服务在 Linux 下接管并回收孤儿进程，超时与退出时清理任务进程组。
-原始 baseline 脚本和模型提示保持不变，HTTP trace 可追加服务层超时或错误事件。
-健康检查会核对 Worker 与所配置的模型是否可用；它不替代完整求解和 Vivado 验证。
+只增加外部进程组监督；HTTP 服务在 Linux 下接管孤儿进程，在任务超时或正常结束后清理任务进程组。
+原始 baseline 脚本和模型提示保持不变；HTTP 接口直接返回输出文件中的答案与 trace。
+健康检查采用官方示例的固定就绪响应，不核对 Agent 配置、模型列表或思考设置，不能代替实际单题验证。
+官方服务不向子进程传入请求的 `task_id`；HTTP 响应保留原编号，Agent 内部默认使用输入目录名。
+需保留完整模型记录时，将 `AGENT_RECORD_ROOT` 设置到请求临时目录之外。
 
 ### 调用大模型
 
@@ -348,9 +352,10 @@ trace 同时用于三件事：工程质量评分、赛事方核对生成结果�
 
 正式 HTTP 与本地默认单题预算为 900 秒。`manifest.json` 的 `generation` 是方案与基线共享的
 思考声明，当前为空，所有流程沿用服务端默认；一致的部分配置会继承完整声明；冲突值或额外未声明的思考字段会被拒绝。
-HTTP 接口接受 1 至 900 秒时限，方案与基线共用监督与排队截止处理；排队耗时计入时限，
-到期的排队任务在查询或 nonce 重投时返回 done 和空答案，不等待前一任务退出，也不再启动求解。
-健康检查发现未共享的思考配置时返回未就绪。镜像默认临时目录使用本地盘 `/var/tmp`。
+HTTP 接口默认时限为 900 秒，沿用官方请求结构，不额外校验时限范围或模式枚举。
+方案与基线使用相同的外部进程组监督：扣除排队时间后，通常提前 10 秒发 SIGTERM，
+再等待最多 5 秒后发 SIGKILL；官方实现保留最少 5 秒的运行等待。
+思考配置由实际模型调用链路校验，HTTP 健康检查不执行这项校验。镜像默认临时目录使用本地盘 `/var/tmp`。
 `auxiliary_models` 当前为空，尚未部署辅助模型。
 
 比赛不限定推理后端，只要求服务提供 OpenAI 兼容的 `/v1/chat/completions`，能在单张
@@ -361,14 +366,16 @@ HTTP 接口接受 1 至 900 秒时限，方案与基线共用监督与排队截�
 服务只能监听 `127.0.0.1`，不能对外暴露；对外只暴露投题接口的 7860 端口。
 
 `serve/start.sh` 启动并等待常驻服务；`serve/vllm.sh` 读取
-`MODEL`（权重路径）、`MODEL_NAME`（服务模型名）、`PORT`、`MAX_LEN`、
-`VRAM_BUDGET_GB`（默认 30 GB，据卡容量计算比例）、`GPU_UTIL`（显式覆盖比例），
-以及 `VLLM_EXTRA_ARGS`（额外的 vLLM 参数，默认为空，例如 `--reasoning-parser qwen3`）。
+`MODEL`（权重路径）、`PORT`、`MAX_LEN`、`HIP_VISIBLE_DEVICES`、
+`VRAM_BUDGET_GB`（默认 30 GB，据卡容量计算比例并保留两位小数）、`GPU_UTIL`（显式覆盖比例）。
+服务模型名固定为权重目录最后一级名称；请求侧的 `MODEL_NAME` 与 `LLM_MODEL` 应设置为该名称。
+官方脚本固定使用 `--no-enable-log-requests`，不读取 `VLLM_EXTRA_ARGS`，也不自动适配旧版日志参数。
 服务参数同时影响方案和基线，最终采用的参数要写进 `model/MODEL.md`。
 
 已验证的情况（2026-09-24，AMD Radeon Cloud 的 W7900，gfx1100）：vLLM 0.16.1 能正常运行
 BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoning-parser qwen3`，否则
-思考内容会混进回复正文，基线分数明显下降。决赛硬件 R9700（gfx1201）上尚未验证。
+思考内容会混进回复正文，基线分数明显下降。这是历史环境记录；当前恢复的官方脚本不包含
+额外 reasoning parser 参数，也不保证兼容该旧版 vLLM。决赛硬件 R9700（gfx1201）上尚未验证。
 历史说明保存在工作区 `dev/docs/notes/0001-inference-backend.md`，不随本仓库交付。
 
 ---
@@ -425,6 +432,7 @@ single_generate 的采样常量固定；其他 Workflow 的温度、输出上限
 
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
+| 2026-10-17 | 模型服务恢复官方示例 | `serve/` 四个文件与上游 `f7a8bd4` 原样一致；撤回自定义启动、健康检查、队列和超时扩展 |
 | 2026-10-11 | single_generate 对齐官方 RTL baseline | 复用提示、采样与提取规则；对齐模型选择和原始输入，保留日志、预算与监督；不改变 repair_loop |
 | 2026-10-11 | 增加 evidence_repair 方案 A | 结构化有限诊断、最多一次修复；保留现有 Workflow 作为独立对照 |
 | 2026-10-08 | 精简运行记录 | 去掉 txt/json 双份和与 trace 重复的文件；取消 trace 版本号，改记 Git 短 commit；删除 `save_candidates` |
@@ -436,7 +444,7 @@ single_generate 的采样常量固定；其他 Workflow 的温度、输出上限
 | 2026-10-05 | Python Workflow、Node、Registry 与运行上下文 | 默认单次生成；可选修复流程；记录动作与构造参数 |
 | 2026-09-22 | 新增 `dev/`、`.dockerignore` | 团队开发区，不随方案提交；不影响方案行为 |
 | 2026-09-23 | trace 的 `llm` 记录新增 `finish` 字段 | 记录模型返回的 `finish_reason`，用于统计输出截断 |
-| 2026-09-24 | `serve/vllm.sh` 新增 `VLLM_EXTRA_ARGS` | 传入额外的 vLLM 参数，默认为空，不改变原有行为 |
+| 2026-09-24 | `serve/vllm.sh` 新增 `VLLM_EXTRA_ARGS`（历史） | 2026-10-17 恢复官方示例时已撤回，此变量不再被启动脚本读取 |
 | 2026-09-28 | 重构模型客户端 | 校验配置，统一模型结果与异常，支持单次调用参数覆盖；不自动重试 |
 | 2026-09-30 | 固定 `run.sh` 相对路径语义 | 切换到方案目录前固定输入输出路径，支持从任意当前目录调用 |
 | 2026-09-30 | 增加候选与原子落盘 | 记录候选谱系和代码哈希，开发模式保存全部候选，异常时保留已有答案 |

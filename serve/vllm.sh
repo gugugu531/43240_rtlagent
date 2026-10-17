@@ -13,49 +13,42 @@
 # model/MODEL.md and section 3 of REPORT.md exactly, including the context
 # configuration, because run_baseline.sh has to run against the same service.
 
-set -eo pipefail
+set -euo pipefail
 
 MODEL="${MODEL:-/models/Qwen3-8B}"     # local path, not a Hub id: the sandbox is offline
 PORT="${PORT:-8000}"
 MAX_LEN="${MAX_LEN:-32768}"            # declare this in MODEL.md, it is not a free parameter
-VRAM_BUDGET_GB="${VRAM_BUDGET_GB:-30}"
-# Extra vLLM flags, e.g. "--reasoning-parser qwen3". They change what the
-# baseline sees as well (same service), so whatever is used must be declared
-# in model/MODEL.md.
-VLLM_EXTRA_ARGS="${VLLM_EXTRA_ARGS:-}"
+# vLLM pre-allocates gpu-memory-utilization x total VRAM up front (weights +
+# KV cache + activations), regardless of model size. 0.90 of a 48 GB W7900 is
+# about 43 GB -- over the 32 GB per-card limit. So the default is derived from
+# a VRAM budget instead of a fixed fraction; set GPU_UTIL to override, and
+# verify the steady-state figure with `rocm-smi --showmemuse`.
+VRAM_BUDGET_GB="${VRAM_BUDGET_GB:-30}"   # stay under 32 GB with some headroom
 
 # Single card. Tensor / pipeline parallelism across cards is not usable on
 # gfx1201 (no XGMI, collective comms will not start reliably), and the memory
 # budget is per-card anyway. Four cards means four independent instances.
 export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0}"
 
-# Derive the fraction from the budget: 90% of a 48 GB GPU exceeds 32 GB.
 if [ -z "${GPU_UTIL:-}" ]; then
-    GPU_UTIL="$(python3 - "$VRAM_BUDGET_GB" <<'PYGPU'
-import math, sys, torch
+    GPU_UTIL="$(python3 - "$VRAM_BUDGET_GB" <<'PY' 2>/dev/null || true
+import sys, torch
 total = torch.cuda.get_device_properties(0).total_memory / 2**30
-budget = float(sys.argv[1])
-if not math.isfinite(budget) or not 0 < budget <= 32:
-    raise ValueError("VRAM_BUDGET_GB must be in (0, 32]")
-# Round down so the allocation never exceeds the requested budget.
-print(f"{math.floor(min(0.95, budget / total) * 10000) / 10000:.4f}")
-PYGPU
-)" || { echo "vllm.sh: cannot derive VRAM budget; check GPU or set GPU_UTIL" >&2; exit 1; }
+print(f"{min(0.95, float(sys.argv[1]) / total):.2f}")
+PY
+)"
+    if [ -z "$GPU_UTIL" ]; then
+        echo "vllm.sh: cannot read VRAM size; set GPU_UTIL explicitly" >&2
+        exit 1
+    fi
 fi
-# vLLM changed this flag in recent versions; use the installed CLI's help.
-VLLM_HELP="$(python3 -m vllm.entrypoints.openai.api_server --help)"
-if [[ "$VLLM_HELP" == *"--no-enable-log-requests"* ]]; then
-    LOG_FLAG=--no-enable-log-requests
-else
-    LOG_FLAG=--disable-log-requests
-fi
+echo "vllm.sh: gpu-memory-utilization=$GPU_UTIL (budget ${VRAM_BUDGET_GB} GB)" >&2
 
 exec python3 -m vllm.entrypoints.openai.api_server \
     --model "$MODEL" \
-    --served-model-name "${MODEL_NAME:-$(basename "$MODEL")}" \
+    --served-model-name "$(basename "$MODEL")" \
     --host 127.0.0.1 \
     --port "$PORT" \
     --max-model-len "$MAX_LEN" \
     --gpu-memory-utilization "$GPU_UTIL" \
-    "$LOG_FLAG" \
-    $VLLM_EXTRA_ARGS
+    --no-enable-log-requests     # vLLM >= 0.27; the old --disable-log-requests is gone

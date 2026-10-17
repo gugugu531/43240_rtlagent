@@ -36,15 +36,12 @@ LLM_PORT="${PORT:-8000}"
 START_TIMEOUT_S="${START_TIMEOUT_S:-900}"   # loading weights can take minutes
 
 mkdir -p "$LOG_DIR"
-# Serialize startup so simultaneous invocations cannot launch duplicate models.
-exec 9>"$LOG_DIR/start.lock"
-flock -x 9
 
 # wait_ready <name> <url> <pid>: poll until <url> answers, the process dies, or
 # the timeout runs out.
 wait_ready() {
     local name="$1" url="$2" pid="$3" waited=0
-    while ! curl --connect-timeout 1 --max-time 2 -sf -o /dev/null "$url"; do
+    while ! curl -sf -o /dev/null "$url"; do
         if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
             echo "start.sh: $name exited during startup, see $LOG_DIR/$name.log" >&2
             tail -n 20 "$LOG_DIR/$name.log" >&2 || true
@@ -59,23 +56,6 @@ wait_ready() {
     done
     echo "start.sh: $name ready ($url)" >&2
 }
-
-# --- inference service ------------------------------------------------------
-
-LLM_URL="http://127.0.0.1:$LLM_PORT/v1/models"
-if curl --connect-timeout 1 --max-time 2 -sf -o /dev/null "$LLM_URL"; then
-    echo "start.sh: vllm already up on $LLM_PORT" >&2
-else
-    setsid "$HERE/vllm.sh" 9>&- >"$LOG_DIR/vllm.log" 2>&1 </dev/null &
-    model_pid=$!
-    if ! wait_ready vllm "$LLM_URL" "$model_pid"; then
-        kill -TERM -- "-$model_pid" 2>/dev/null || true
-        sleep 1
-        kill -KILL -- "-$model_pid" 2>/dev/null || true
-        wait "$model_pid" 2>/dev/null || true
-        exit 1
-    fi
-fi
 
 # --- /tmp/eda cleanup -------------------------------------------------------
 #
@@ -96,4 +76,20 @@ setsid flock -n "$EDA_TMP/.cleanup.lock" bash -c '
             rm -rf "$d"
         done
         sleep 600
-    done' cleanup "$EDA_TMP" 9>&- >/dev/null 2>&1 </dev/null &
+    done' cleanup "$EDA_TMP" >/dev/null 2>&1 </dev/null &
+
+# --- inference service ------------------------------------------------------
+
+LLM_URL="http://127.0.0.1:$LLM_PORT/v1/models"
+if curl -sf -o /dev/null "$LLM_URL"; then
+    echo "start.sh: vllm already up on $LLM_PORT" >&2
+else
+    setsid "$HERE/vllm.sh" >"$LOG_DIR/vllm.log" 2>&1 </dev/null &
+    wait_ready vllm "$LLM_URL" "$!"
+fi
+
+# --- your own resident processes -------------------------------------------
+#
+# If run.sh hands tasks to a resident engine instead of solving them itself,
+# start that engine here, the same way: check whether it is already up,
+# otherwise `setsid ... &` and wait_ready on its health URL.
