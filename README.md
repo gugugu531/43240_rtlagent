@@ -1,8 +1,3 @@
-> 重构阶段 4：config/presets 提供全部 16 个流程的完整 schema version 2 装配。
-> 通过 --config 或 AGENT_CONFIG 选择配置；initial_state 仅在 runtime，知识库路径仅在 guidance 参数。
-> 开发实验保存完整解析配置并校验往返；初始检查点版本 2 支持既有跨流程复用且继承原始成本。
-> 旧路径清理和下面完整指南的同步将在最后阶段提交。
-
 # 43240_rtlagent — RTL 赛道参赛方案
 
 本目录是队伍 43240 的参赛方案，也是最终提交给赛事方的目录。方案读入一道题的题面，
@@ -15,7 +10,8 @@
 组件的共享契约集中在 `agent/core/`：Workflow、Node、Tool 基类使用明确的输入输出类型，
 构造描述将普通参数与依赖身份分开。`AssemblySpec` 保存可序列化的组件装配描述，
 进程请求、代码提取结果和未分配检查编号的 `CheckOutcome` 也位于这一层。
-这些契约为 YAML 装配与运行管理分离提供基础，不改变模型服务和 baseline 规则。
+`composition` 读取 schema version 2 的 YAML，按 `module:Class` 自动加载组件；`runtime`
+负责执行与监督。Python 定义流程控制，YAML 定义参数和依赖；每题装配独立实例。
 
 | 流程 | 用途 | 验证边界 |
 | --- | --- | --- |
@@ -24,7 +20,7 @@
 | `evidence_a0/a1/a2` | E1：结构化修复与资料检索对照 | 支持初始检查点重放；完整题集收益仍需独立验证 |
 | `tool_feedback`、`spec_test_repair`、`behavior_divergence` | 可选实验：工具反馈、规格自测、双候选行为分歧 | 分别最多 2/3/4 次模型请求；默认入口不变，不以模型期望或候选一致性证明正确 |
 | `search_initial`、`search_r1/r2/r2_guided/c2/c3` | E2：有限修复与独立候选对照 | 支持共享起点、停止点及显式随机种子；不是已确定的提交策略 |
-| `single_generate_long_output` | 长输出额度对照，需显式导入扩展 | 改变输出和超时额度，不作为严格 baseline 请求等价结果 |
+| `single_generate_long_output` | 长输出额度对照，选择完整预设 | 改变输出和超时额度，不作为严格 baseline 请求等价结果 |
 
 本 Git 仓库根目录即参赛方案包，可独立克隆、部署。工作区的开发工具、题库、官方判定器和实验记录位于仓库之外。
 
@@ -36,30 +32,34 @@
 | --- | --- |
 | `run.sh` | 单题入口：从任意当前目录读取一道题，输出代码和工具调用记录 |
 | `run_baseline.sh`、`baseline.py` | 基线入口，赛事方提供，**不得修改** |
-| `agent/main.py` | 单题参数解析、配置装配与已注册 Workflow 选择 |
-| `config/example.yaml` | 带逐项中文注释的配置示例，也是正式入口默认配置；组件参数由 Python Workflow 定义 |
-| `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
-| `agent/core/supervision.py` | 独立 Worker 与硬超时；按准备、事件循环、进程请求、清理和结果核对分步监督 |
+| `agent/main.py` | 单题参数解析，连接配置与运行监督 |
+| `config/example.yaml` | 正式入口默认完整配置；通过 `components`、`params`、`inject` 装配组件 |
+| `agent/composition/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
+| `agent/runtime/supervision.py` | 独立 Worker 与硬超时；按准备、事件循环、进程请求、清理和结果核对分步监督 |
+| `agent/composition/assembler.py` | 校验类、构造参数和依赖契约，按配置惰性导入并逐题装配 |
+| `agent/tools/` | 可注入的通用 Tool 与接口、Vivado、行为自测适配器 |
+| `agent/runtime/checks.py` | RTL 检查预算、缓存、编号、候选关联与证据发布 |
+| `config/presets/` | 16 份内置 Workflow 完整配置 |
 | `agent/workflows/repair_loop.py` | 修复流程；将请求重试、逐项检查与停止处理分开，保留可替换的 `choose()` 和 `decide()` |
 | `agent/workflows/checks.py` | 修复与 E2 流程共用的检查顺序：接口、lint、综合；每完成一项就把结果交回 Workflow |
 | `agent/workflows/evidence_repair.py` | 方案 A；复用修复流程的检查和选择，只注入有限结构化诊断并最多修复一次 |
 | `agent/workflows/spec_repair.py` | 三个可选实验入口；分开校验/恢复首稿、验证候选与两种选择策略，独立编排自测和修复 |
-| `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
-| `agent/core/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
+| `agent/runtime/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
+| `agent/runtime/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
 | `agent/core/tool.py` | 工具结果与状态的共享契约，供工具服务和可选自测共同使用 |
 | `agent/prompts/context.py` | 保留必须上下文，按真实 chat template 计数并装配可选完整片段 |
 | `agent/core/tokens.py` | 每题 token 账本；未知保持未知，可选累计输入输出/输出限额 |
 | `agent/core/diagnostic.py` | 自身工具诊断、工具与版本、错误码及可核实的候选行号 |
-| `agent/core/replay.py` | 只含求解信息的初始检查点，核验输入/源码/工具身份并扣除共享成本 |
+| `agent/workflows/replay.py` | 只含求解信息的初始检查点，核验输入/源码/工具身份并扣除共享成本 |
 | `agent/workflows/evidence_ablation.py` | E1 三组，复用同一个修复循环；不使用 judge 选择候选 |
 | `agent/services/knowledge.py` | 加载外置的已验证修复卡，按完整错误码、工具、版本及可选诊断文本条件检索 |
 | `agent/workflows/` | 默认单次生成、可选修复循环及用户实验 Workflow |
 | `agent/nodes/` | 生成、提取、接口、lint 与综合动作 |
 | `agent/nodes/baseline.py` | `single_generate` 专用节点，导入未修改的 baseline 规则，保留原始题面和提取结果 |
 | `agent/prompts/builder.py` | 组装直接生成或修复提示，以及可选技能注入 |
-| `agent/core/` | 模型、任务、组件、检查与结果契约，以及注册表、预算和运行元数据 |
-| `agent/services/` | 模型、工具、检查缓存和进程服务；模型不自动重试，工具按需初始化 |
-| `agent/nodes/extraction.py` | 结构化提取代码，识别目标模块、多草稿与截断回复 |
+| `agent/core/` | 模型、任务、组件、检查、进程、提取与结果契约，以及预算和状态 |
+| `agent/services/` | 模型、进程、Vivado、解析和知识检索；模型不自动重试 |
+| `agent/services/extraction.py` | 结构化提取代码，识别目标模块、多草稿与截断回复 |
 | `agent/core/interface.py` | 结构化解析 ANSI、非 ANSI 接口并输出逐字段差异 |
 | `agent/core/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
 | `agent/recording/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
@@ -72,7 +72,7 @@
 | `agent/services/behavior.py` | 可选规格自测的计划校验、受控测试台生成和工具执行；保留原有 `analyze_trace` 导入入口 |
 | `agent/services/behavior_trace.py` | 解析仿真采样，逐步先核对公开属性、再核对未被属性覆盖的模型假设 |
 | `agent/services/timing.py`、`plan_format.py`、`literal_spec.py`、`spec_ports.py` | 规格自测的时序、周期、公开真值表与端口支持检查；默认流程不调用 |
-| `agent/nodes/behavior.py`、`agent/workflows/spec_selection.py` | 显式导入的计划/自测 Node 与可调用候选保护函数；不注册或启用新的 Workflow |
+| `agent/nodes/behavior.py`、`agent/workflows/spec_selection.py` | 可注入的计划/自测 Node 与候选保护函数，由实验配置选择 |
 | `agent/recording/` | 保存模型与动作证据、trace、脱敏及通用运行/模型统计 |
 | `agent/prompts/skills.py` | 加载技能包，按工具报错挑选相关技能 |
 | `agent/prompts/` | 提示词：`system.md`（写代码的要求）、`repair.md`（出错后如何修改） |
@@ -152,7 +152,7 @@ Agent 的 Supervisor 管理 Worker 与通过公开服务启动的工具进程；
 超时、连接失败、HTTP 错误、非法 JSON 与响应格式错误通过 `ModelCallError.kind` 区分。
 每次调用分配 `m001` 形式的 ID，未知 token 用量为 `null`，mock 不伪造 HTTP 响应或用量。
 服务不自动重试。实际调用超时取 Node 上限、服务上限与本题剩余时间中的较小值。
-采样参数由 Python Workflow 构造 Node 时显式传入，服务配置不再承担采样策略。
+采样参数由 YAML 的生成 Node 参数提供，服务配置只提供服务与额度限制。
 
 开发记录默认使用 `full`。每次运行在 `<输出目录>/records/<run_id>/` 中创建独立记录：
 
@@ -187,7 +187,7 @@ trace、详细证据和工具日志使用脱敏副本，模型实际收到的请
 ```
 
 提示、温度 `0.0`、`top_p=1.0`、输出上限 `16384` 和请求上限 `840` 秒直接取自未修改的
-`baseline.py`。该 Workflow 不接受采样参数覆盖；不同策略应另注册 Workflow。题面和可选接口
+`baseline.py`。该生成 Node 不接受采样参数覆盖；不同策略可选择其他生成 Node 或 Workflow。题面和可选接口
 保留读取时的首尾空白，系统提示固定要求 `TopModule`，不采用 `RTL_TOP` 或接口推断的模块名。
 HTTP 请求只发送 baseline 的字段，不附加 `stream` 或认证头；共享思考设置从 `manifest.json` 的 `generation` 段读取，
 支持标量 `chat_template_kwargs` 和字符串 `reasoning_effort`，与原始 baseline 一致。请求模型名依次取 `MODEL_NAME`、
@@ -199,8 +199,9 @@ HTTP 请求只发送 baseline 的字段，不附加 `stream` 或认证头；共�
 现有结构化提取器只提供回复诊断，不筛选或改写这一路径的答案。`completed` 表示流程完成，
 不表示代码完整或正确。`repair_loop` 继续使用原来的提示、请求参数和结构化提取节点。
 
-通过标准入口运行时，`services.model.timeout_s` 省略或为 `null` 表示按 Workflow 取默认值：
-`single_generate`、`evidence_repair`、`evidence_a0/a1/a2` 为 840 秒，其余（包括 `search_*`）为 180 秒。显式服务上限和整题剩余预算仍可缩短调用，
+各预设显式设置 `services.model.timeout_s`：`single_generate`、`evidence_repair`、
+`evidence_a0/a1/a2` 为 840 秒，其他普通预设为 180 秒，长输出预设为 900 秒；
+不再根据 Workflow 名称推断超时。服务上限和整题剩余预算仍可缩短调用，
 Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig()` 仍显式使用其 180 秒上限。
 模型发现最多等 30 秒，也受服务上限和剩余预算约束，耗时计入整题预算，不算一次生成调用。
 
@@ -208,8 +209,7 @@ Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig
 不要求复刻 baseline 的冗余模型查询、异常文本或进程中断行为；mock 只验证流程。HTTP 请求的
 `request.json` 在 `request` 字段保存实际出站 JSON 的脱敏副本，另记实际超时、用途与请求类型。
 
-长输出补测可显式导入 `agent.workflows.single_generate_long_output`，选择
-`single_generate_long_output`。它复用上述生成、提取和保存过程，仅把单次输出上限改为
+长输出补测选择 `config/presets/single_generate_long_output.yaml`。它复用上述生成、提取和保存过程，仅把单次输出上限改为
 `32768`、请求超时改为最多 `900` 秒，并记录 `experiment_override` 事件。
 实验配置还应显式设置 `services.model.timeout_s: 900` 和 `runtime.deadline_s: 960`；
 服务上限与剩余预算仍会缩短请求。模型服务需要足够的上下文和缓存容量。
@@ -293,7 +293,7 @@ E1 的 `evidence_a0` 使用方案 A 同一首次提示与提取，只保留首�
 E2 的 `search_r1/r2` 最多修复一/两次，`search_c2/c3` 最多生成两/三份独立候选；
 `search_initial` 保存初始检查点，`search_r2_guided` 按每轮自身错误检索外置短卡。
 采样在 Python 中声明，默认 temperature=0.6、top_p=0.95、base_seed=20261013，逐次 seed 递增。
-未配置知识库时不增加资料；通过 YAML 的 `services.knowledge.corpus_path` 指定本地资料，
+未配置知识库时不增加资料；通过 YAML 的 `components.guidance.params.corpus_path` 指定本地资料，
 缺失或格式错误时记录原因并继续原修复提示。资料内容单独提供，不随 Git 上传。
 三次调用流程建立初始检查点后，会在第三次调用前或提前停止时保存 `stop_after_two.json`；
 它记录共享前缀的真实状态，不额外调用模型，不可把共享成本重复相加。
@@ -307,34 +307,44 @@ E2 的 `search_r1/r2` 最多修复一/两次，`search_c2/c3` 最多生成两/�
 新增上下文、诊断、短卡检索和候选策略的接口约定见
 Agent 运行接口（工作区开发资料）。
 
-选择流程：
+选择整份装配配置（下列命令在方案目录执行）：
 
 ```bash
-# run.sh 默认使用 single_generate
 LLM_BACKEND=mock ./run.sh /path/to/task /tmp/out
-
-# 两个位置参数不变，通过运行条件选择可选流程
-LLM_BACKEND=mock AGENT_WORKFLOW=repair_loop ./run.sh /path/to/task /tmp/out-repair
-
-# 方案 A：结构化反馈，最多修复一次（真实检查需要 Vivado）
-LLM_BACKEND=mock AGENT_WORKFLOW=evidence_repair ./run.sh /path/to/task /tmp/out-evidence
-
-# Python 入口也可直接选择，并显式导入用户扩展模块
-python3 -m agent.main --input <task_dir> --output <out_dir> \
-  --workflow <registered_name> --import-module <module_path>
+LLM_BACKEND=mock AGENT_CONFIG=config/presets/repair_loop.yaml ./run.sh /path/to/task /tmp/out-repair
+python3 -m agent.main --input /path/to/task --output /tmp/out-evidence \
+  --config config/presets/evidence_repair.yaml
 ```
 
-组件只在注册表中登记类，构造时再创建实例。Workflow 用 Python 定义循环、条件与异常处理，
-通过 `build_node(name, **params)` 选择动作并传参，经过 `ctx.execute(node, input)` 执行。
-新增实验 Workflow 与 Node 也放在 `agent/`，运行代码不依赖 `dev/` 或官方判定信息。
+配置使用 `schema_version: 2`，`workflow` 指向根组件 ID。`components` 中每项声明
+`kind`、`class: module:Class`、普通构造参数 `params` 和依赖引用 `inject`。
+`inject` 的键是构造参数名，值为组件 ID 或有序 ID 列表。同一任务同一 ID 共享实例，
+不同 ID 和不同任务分别构造；不需要注册装饰器、中央清单或预先导入扩展。
+旧的 `--workflow`、`AGENT_WORKFLOW`、`--import-module`、顶层 `imports` 和版本 1 配置明确报错。
 
-上下文提供模型、工具、预算、只读状态与候选操作。保存候选不会自动选择答案；Workflow 必须
-调用 `ctx.select_candidate()`，并用 `ctx.finish()` 返回与已落盘选择一致的结果。
-运行器构造上下文时显式传入本题起点时间和已解析配置；可选自测与 lint、综合共用工具结果契约，
-通过 `RtlToolchain.run_command()` 执行命令。工具身份同时包含 Vivado 工具代码及共享结果实现，
-这些实现变化会使本题检查缓存和初始检查点重放的工具身份失效。
-运行器支持 Workflow 工厂，在每题调用工厂创建新实例。构造参数、实现路径与实际执行动作自动记录。
-完整接口和扩展示例见 Python Workflow 接口（工作区开发资料）。
+扩展类继承 `Workflow`、`Node[InputT, OutputT]` 或 `Tool[InputT, OutputT]`，
+分别放在 `agent/workflows`、`agent/nodes`、`agent/tools`。构造函数只保存和校验配置；
+依赖通过带类型的构造参数及 `dependencies` / `dependency_types` 声明，由装配器注入。
+配置在主进程完成纯数据校验，导入、类型校验和构造在受监督 Worker 内完成。
+重复键、未知字段、错误引用、不可达组件、依赖环、缺参和不匹配的契约会在执行前被拒绝。
+
+Workflow 用 Python 定义循环、条件、重试、候选选择和停止，调用
+`ctx.execute(node, input)`；Node 用 `ctx.call(tool, input, timeout_s=...)` 调用通用工具，
+或用 `ctx.check(tool, input, candidate=..., timeout_s=...)` 执行 RTL 检查。
+模型调用仍使用 `ctx.llm`。通用工具默认不缓存；RTL 检查使用实际实现、参数、候选和环境身份缓存，
+未知指纹不缓存。Tool 返回无检查编号的 `CheckOutcome`，运行层统一编号、关联候选、发布一次证据。
+
+ToolContext 提供任务、预算、受管理进程、普通产物及必要服务，不负责选择候选。
+保存候选不会自动选择答案；Workflow 必须调用 `ctx.select_candidate()`，
+并用 `ctx.finish()` 返回与已落盘选择一致的结果。组件元数据记录类、配置 ID、普通参数和依赖 ID，
+不递归展开活动对象。`core` 不导入其他 Agent 层，组件不依赖装配器或运行实现。
+开发工作区的 `dev/docs/design/agentic-workflow.md` 提供完整三层扩展示例和依赖规则。
+
+`runtime.initial_state` 是初始检查点的唯一来源；知识库路径只配置在 guidance Node 的
+`params.corpus_path`。检查点升级为版本 2，旧版本须重新生成。
+完整装配摘要 `assembly_sha256` 用于溯源；跨流程重放验证初始响应契约、提取器、候选、
+源码及检查工具身份，不要求两个 Workflow 的整份装配摘要相同。
+检查缓存和重放分别校验，目标检查超时不同不否定已有成功证据；导入的时间和 token 成本仍计入预算。
 
 预算使用单调时钟，动作可设置最少启动时间，并为清理和写出结果预留时间。正式入口在独立 Worker
 中运行 Python Workflow，Supervisor 在预算结束或收到信号时先 TERM、再 KILL 并回收受管理进程。
@@ -356,7 +366,8 @@ Worker 停止后调用 `agent/recording/recovery.py` 恢复已提交的选择并
 
 | 需要追踪什么 | 事件与关联编号 |
 | --- | --- |
-| 配置、题目和记录目录 | `run/metadata`、`run/recording` |
+| 配置、题目和记录目录 | `run/metadata`、`run/recording`，含 `assembly_sha256` |
+| 通用工具 | `tool/started/succeeded/failed`，以 `tool_call_id` 关联 |
 | 模型请求和结果 | `llm/started/succeeded/failed`，以 `call_id` 关联 |
 | 动作和嵌套步骤 | `node` 生命周期，以 `execution_id` 关联 |
 | 提取、候选与最终答案 | `extract`、`candidate/create/select`，保留来源调用与候选编号 |
@@ -427,10 +438,9 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 | `LLM_BASE_URL` | 无 | 模型服务地址，`openai` 后端必填 |
 | `LLM_API_KEY` | 空 | 本地推理服务可以随便填 |
 | `LLM_MODEL` | `mock-model` | mock、修复流程及统一实验配置的模型名；直接运行 single_generate 使用 MODEL_NAME 或发现服务模型 |
-| `LLM_TIMEOUT_S` | 按 Workflow | single_generate、evidence_repair、evidence_a0/a1/a2 默认 840 秒，其他 180 秒；显式值限制单次调用 |
+| `LLM_TIMEOUT_S` | 配置中的显式值 | 覆盖 `services.model.timeout_s`，限制单次调用 |
 | `AGENT_CONFIG` | `config/example.yaml` | YAML 配置路径；相对路径按调用者当前目录解析 |
 | `VIVADO_BIN` | PATH | 显式 Vivado 可执行文件目录 |
-| `AGENT_WORKFLOW` | `single_generate` | 已注册 Workflow 名称 |
 | `AGENT_DEADLINE_S` | `900` | 单题时间预算（秒），HTTP 请求中的 `deadline_s` 只能缩小实际预算 |
 | `AGENT_RESERVE_S` | `20` | 为清理和写出结果预留的时间（秒）；预算小于此值时直接停止 |
 | `AGENT_TMP` | 依次取 `EDA_TMP`、`TRACK_TMP`、`/tmp` | Vivado 临时目录，必须在本地盘 |
@@ -444,7 +454,7 @@ BF16、AWQ、GPTQ 4 位（包括 MoE）模型；Qwen3 系列必须加 `--reasoni
 | `FPGACHINA_TOKEN` | 无 | 投题接口的令牌，`serve_api.py` 必须设置 |
 | `MODEL_NAME` | 未设置 | baseline 与 single_generate 的请求模型名；未设时发现服务模型；也用于健康检查返回值 |
 
-single_generate 的采样常量固定；其他 Workflow 的温度、输出上限与轮数通过 Python 构造参数设置。旧的 `LLM_MAX_TOKENS`、
+single_generate 的采样常量固定；其他 Workflow 的温度、输出上限与轮数通过 YAML 中相应组件的 `params` 设置。旧的 `LLM_MAX_TOKENS`、
 `LLM_TEMPERATURE` 和 `AGENT_MAX_ROUNDS` 不再读取。正式提交时同步采样与模型声明。
 
 ---
@@ -465,6 +475,7 @@ single_generate 的采样常量固定；其他 Workflow 的温度、输出上限
 
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
+| 2026-10-17 | Agentic Workflow 装配 | schema version 2、惰性类加载、显式 Node/Tool 注入；分离 core、composition、runtime；模型服务和 baseline 保持不变 |
 | 2026-10-17 | 模型服务恢复官方示例 | `serve/` 四个文件与上游 `f7a8bd4` 原样一致；撤回自定义启动、健康检查、队列和超时扩展 |
 | 2026-10-11 | single_generate 对齐官方 RTL baseline | 复用提示、采样与提取规则；对齐模型选择和原始输入，保留日志、预算与监督；不改变 repair_loop |
 | 2026-10-11 | 增加 evidence_repair 方案 A | 结构化有限诊断、最多一次修复；保留现有 Workflow 作为独立对照 |
