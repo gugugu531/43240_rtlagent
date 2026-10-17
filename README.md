@@ -97,7 +97,7 @@
 评测当天，赛事方通过 HTTP 逐题投题。`serve/serve_api.py` 把每次请求写成一个临时
 题目目录，调用 `run.sh`（`mode=baseline` 时调用 `run_baseline.sh`），再把结果返回。
 接口按[上游 2026-10-17 版本契约](https://gitee.com/Vickyiii/rtlagent2026/blob/master/docs/API_CONTRACT.md)实现；
-本地 `docs/API_CONTRACT.md` 已同步到同一版本，启动与查询示例见 [serve/README.md](serve/README.md)。
+工作区中的 `docs/API_CONTRACT.md` 位于本方案仓库之外，已同步到同一版本；启动与查询示例见 [serve/README.md](serve/README.md)。
 
 ```bash
 export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8000/v1
