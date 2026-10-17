@@ -7,6 +7,7 @@ import signal
 import subprocess
 import tempfile
 import time
+from typing import BinaryIO
 
 
 @dataclass(frozen=True)
@@ -41,11 +42,23 @@ class CleanupResult:
     unreaped_pids: tuple[int, ...]
 
 
+@dataclass
+class _ProcessJob:
+    proc: subprocess.Popen
+    stream: BinaryIO
+    started: float
+    log_path: str | None
+    deadline: float
+    grace: float
+    term_at: float | None = None
+    timeout: bool = False
+
+
 class ProcessExecutor:
     def __init__(self, *, log_dir=None):
         from agent.recording.redaction import Redactor
         self.redactor = Redactor()
-        self._jobs = {}
+        self._jobs: dict[int, _ProcessJob] = {}
         self.log_dir = log_dir
         self.recording_incomplete = False
         self._sequence = 0
@@ -75,36 +88,37 @@ class ProcessExecutor:
             stream.close()
             raise
         self.groups.add(proc.pid)
-        self._jobs[identity] = dict(proc=proc, stream=stream, started=started, log_path=log_path,
-                                   deadline=started + max(0.0, request.timeout_s - request.terminate_grace_s),
-                                   grace=request.terminate_grace_s, term_at=None, timeout=False)
+        self._jobs[identity] = _ProcessJob(
+            proc=proc, stream=stream, started=started, log_path=log_path,
+            deadline=started + max(0.0, request.timeout_s - request.terminate_grace_s),
+            grace=request.terminate_grace_s)
         return identity
 
     def poll(self, identity):
         job = self._jobs[identity]
-        proc = job['proc']
+        proc = job.proc
         now = time.monotonic()
-        if now >= job['deadline'] and job['term_at'] is None:
-            job['timeout'] = True
-            job['term_at'] = now
+        if now >= job.deadline and job.term_at is None:
+            job.timeout = True
+            job.term_at = now
             self._signal(proc.pid, signal.SIGTERM)
-        if job['term_at'] is not None and now - job['term_at'] >= job['grace']:
+        if job.term_at is not None and now - job.term_at >= job.grace:
             self._signal(proc.pid, signal.SIGKILL)
         rc = proc.poll()
         if rc is None:
             return None
         # Descendants may still hold this process group after its leader exits.
         self._signal(proc.pid, signal.SIGKILL)
-        stream = job['stream']
+        stream = job.stream
         stream.flush()
         stream.seek(0)
         output = stream.read().decode('utf-8', errors='replace')
         saved = self._sanitize_stream(stream, output)
         stream.close()
         del self._jobs[identity]
-        return ProcessResult(124 if job['timeout'] else rc,
-                             'timeout' if job['timeout'] else 'ok' if rc == 0 else 'failed',
-                             now - job['started'], output, job['log_path'] if saved else None)
+        return ProcessResult(124 if job.timeout else rc,
+                             'timeout' if job.timeout else 'ok' if rc == 0 else 'failed',
+                             now - job.started, output, job.log_path if saved else None)
 
     def run(self, request: ProcessRequest):
         if request.timeout_s <= 0:
@@ -120,21 +134,21 @@ class ProcessExecutor:
             time.sleep(0.005)
 
     def cancel_all(self, deadline: float) -> CleanupResult:
-        groups = tuple(job['proc'].pid for job in self._jobs.values())
+        groups = tuple(job.proc.pid for job in self._jobs.values())
         for pgid in groups:
             self._signal(pgid, signal.SIGTERM)
         grace = min(deadline, time.monotonic() + 0.15)
-        while time.monotonic() < grace and any(j['proc'].poll() is None for j in self._jobs.values()):
+        while time.monotonic() < grace and any(j.proc.poll() is None for j in self._jobs.values()):
             time.sleep(0.005)
         for pgid in groups:
             self._signal(pgid, signal.SIGKILL)
         pending = []
         for job in self._jobs.values():
             try:
-                job['proc'].wait(timeout=max(0.0, deadline - time.monotonic()))
+                job.proc.wait(timeout=max(0.0, deadline - time.monotonic()))
             except subprocess.TimeoutExpired:
-                pending.append(job['proc'].pid)
-            stream = job['stream']
+                pending.append(job.proc.pid)
+            stream = job.stream
             stream.flush()
             stream.seek(0)
             self._sanitize_stream(stream, stream.read().decode('utf-8', errors='replace'))

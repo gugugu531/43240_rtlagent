@@ -29,7 +29,7 @@
 | `agent/main.py` | 单题参数解析、配置装配与已注册 Workflow 选择 |
 | `config/example.yaml` | 带逐项中文注释的配置示例，也是正式入口默认配置；组件参数由 Python Workflow 定义 |
 | `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
-| `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
+| `agent/core/supervision.py` | 独立 Worker 与硬超时；按准备、事件循环、进程请求、清理和结果核对分步监督 |
 | `agent/workflows/repair_loop.py` | 修复流程；将请求重试、逐项检查与停止处理分开，保留可替换的 `choose()` 和 `decide()` |
 | `agent/workflows/checks.py` | 修复与 E2 流程共用的检查顺序：接口、lint、综合；每完成一项就把结果交回 Workflow |
 | `agent/workflows/evidence_repair.py` | 方案 A；复用修复流程的检查和选择，只注入有限结构化诊断并最多修复一次 |
@@ -53,6 +53,8 @@
 | `agent/core/interface.py` | 结构化解析 ANSI、非 ANSI 接口并输出逐字段差异 |
 | `agent/core/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
 | `agent/recording/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
+| `agent/recording/recovery.py` | 校验并恢复已提交的选择；Worker 停止后收尾 trace |
+| `agent/services/processes.py` | 执行受管理进程，按明确的作业类型保存进程、日志和期限状态 |
 | `agent/services/vivado.py` | lint、综合、工具身份与命令执行入口；通过受管理执行器运行时由 Supervisor 管理进程 |
 | `agent/services/tool_support.py` | 工具结果整理、日志、诊断归因和临时目录的共享实现 |
 | `agent/services/repair_feedback.py` | 摘要截断前收集自身工具根因、提供词法赋值导航，并保守比较顶层输出无驱动证据 |
@@ -319,10 +321,13 @@ python3 -m agent.main --input <task_dir> --output <out_dir> \
 
 预算使用单调时钟，动作可设置最少启动时间，并为清理和写出结果预留时间。正式入口在独立 Worker
 中运行 Python Workflow，Supervisor 在预算结束或收到信号时先 TERM、再 KILL 并回收受管理进程。
+监督器分别处理运行准备、事件循环、进程请求、清理和结果核对；`ProcessExecutor` 用明确的作业类型
+记录进程状态，原有进程通信与超时规则保持不变。
 自定义外部动作使用 `ctx.processes.run(ProcessRequest(...))`；自行创建并脱离进程组的子进程不在保证范围。
 
 选择先提交包含代码和哈希的原子检查点，再替换 `solution.v`；中断后校验并恢复。Supervisor 只在
-Worker 停止后追加记录，不伪造模型或 Node 的结束。关闭模型连接不证明共享服务已停止推理，记录为 unknown。
+Worker 停止后调用 `agent/recording/recovery.py` 恢复已提交的选择并收尾 trace，
+不伪造模型或 Node 的结束。关闭模型连接不证明共享服务已停止推理，记录为 unknown。
 用于依赖注入和单元测试的进程内 Runner 仍是合作式预算，不提供任意 Python 阻塞的硬停止。
 
 ---
