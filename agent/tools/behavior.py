@@ -7,6 +7,8 @@ from agent.tools.vivado import outcome, toolchain_identity
 
 class BehaviorCheckTool(Tool[BehaviorInput, CheckOutcome]):
     component_name = 'spec_behavior_check_tool'
+    assembly_roles = ['behavior_tool']
+    assembly_defaults = {'params': {}, 'dependencies': {}}
     check_kind = 'behavior'
     input_type = BehaviorInput
     output_type = CheckOutcome

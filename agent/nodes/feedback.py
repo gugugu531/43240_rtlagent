@@ -49,6 +49,8 @@ class StructuredFeedback:
 @dataclass(frozen=True)
 class StructuredFeedbackNode(Node[FeedbackInput, StructuredFeedback]):
     component_name = 'structured_feedback'
+    assembly_roles = ['feedback']
+    assembly_defaults = {'params': {'max_summary_chars': 1600}, 'dependencies': {}}
     input_type = FeedbackInput
     output_type = StructuredFeedback
     """Keep the actionable excerpt and make its attribution explicit.

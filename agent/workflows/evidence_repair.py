@@ -13,6 +13,24 @@ from agent.workflows.repair_loop import RepairLoop
 
 class EvidenceRepair(RepairLoop):
     component_name = 'evidence_repair'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 2,
+                'max_request_retries': 1,
+                'max_model_calls': 3,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'rtl_generate',
+                                   'id': 'generate',
+                                   'params': {'max_tokens': 8192,
+                                              'temperature': 0.0,
+                                              'timeout_s': 300.0,
+                                              'use_skills': False,
+                                              'top_p': 1.0}},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'}}}
     dependencies = {**RepairLoop.dependencies, 'feedback_builder': 'node'}
     dependency_types = {**RepairLoop.dependency_types, 'feedback_builder': (FeedbackInput, StructuredFeedback)}
     """Scheme A without ICL, planning, RAG, reflection, or testbench access."""

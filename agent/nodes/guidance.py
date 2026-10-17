@@ -11,6 +11,8 @@ from agent.services.knowledge import load_corpus, retrieve_repair_guides
 @dataclass(frozen=True)
 class RepairGuidanceNode(Node[CheckResult, tuple]):
     component_name = 'repair_guidance'
+    assembly_roles = ['guidance']
+    assembly_defaults = {'params': {'corpus_path': None, 'limit': 2, 'max_chars': 2400}, 'dependencies': {}}
     input_type = CheckResult
     output_type = tuple
     corpus_path: str | None = None

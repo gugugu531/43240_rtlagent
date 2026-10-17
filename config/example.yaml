@@ -1,24 +1,19 @@
-# 完整组件装配配置；Python定义流程，YAML声明类、参数和依赖。
-schema_version: 2
-workflow: workflow
-components:
-  workflow:
-    kind: workflow
-    class: agent.workflows.single_generate:SingleGenerate
-    params: {}
-    inject:
-      generate: generate
-      extract: extract
-  generate:
-    kind: node
-    class: agent.nodes.baseline:BaselineGenerateNode
-    params: {}
-    inject: {}
-  extract:
-    kind: node
-    class: agent.nodes.baseline:BaselineExtractNode
-    params: {}
-    inject: {}
+# 按组件名选择流程；参数与依赖默认值由对应 Python 组件声明。
+schema_version: 3
+workflow: single_generate
+# schema_version 可省略，默认 3。仅写 workflow 也能完成装配。
+# 切换为 repair_loop 后，可显式列出依赖；未列出的角色使用 Python 声明的默认组件：
+# nodes: [rtl_generate, rtl_extract, interface_check, vivado_lint, vivado_synth]
+# tools: [interface_check_tool, vivado_lint_tool, vivado_synth_tool]
+# params: {max_rounds: 2}  # 覆盖 workflow 的普通构造参数
+# roles:
+#   generate:  # 稳定实例 ID；同类用于 alternative 时仍是另一个实例
+#     component: rtl_generate
+#     params: {use_skills: false, temperature: 0.2}
+#   lint:
+#     params: {timeout_s: 45}
+# 列表中出现同一角色的多个组件会报错；可用 roles 精确指定。
+# 解析结果保存为 schema_version: 2 的完整 components 表，可直接读取重放。
 services:
   model:
     backend: mock

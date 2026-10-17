@@ -102,6 +102,8 @@ def plan_messages(task):
 @dataclass(frozen=True)
 class TestPlanNode(Node[TaskSpec, PlanResult]):
     component_name = 'spec_test_plan'
+    assembly_roles = ['plan']
+    assembly_defaults = {'params': {'max_tokens': 4096, 'timeout_s': 90.0, 'top_p': 1.0}, 'dependencies': {}}
     input_type = TaskSpec
     output_type = PlanResult
     max_tokens: int = 4096
@@ -149,6 +151,9 @@ class TestPlanNode(Node[TaskSpec, PlanResult]):
 @dataclass(frozen=True)
 class BehaviorNode(Node[BehaviorInput, CheckResult]):
     component_name = 'spec_behavior_check'
+    assembly_roles = ['behavior']
+    assembly_defaults = {'params': {'timeout_s': 45.0},
+     'dependencies': {'tool': {'component': 'spec_behavior_check_tool', 'id': 'behavior_tool'}}}
     input_type = BehaviorInput
     output_type = CheckResult
     dependencies = {'tool': 'tool'}

@@ -13,6 +13,9 @@ class CheckInput:
 
 class InterfaceNode(Node[CheckInput, CheckResult]):
     component_name = 'interface_check'
+    assembly_roles = ['interface']
+    assembly_defaults = {'params': {},
+     'dependencies': {'tool': {'component': 'interface_check_tool', 'id': 'interface_tool'}}}
     input_type = CheckInput
     output_type = CheckResult
     dependencies = {'tool': 'tool'}
@@ -30,6 +33,9 @@ class InterfaceNode(Node[CheckInput, CheckResult]):
 @dataclass(frozen=True)
 class LintNode(Node[CheckInput, CheckResult]):
     component_name = 'vivado_lint'
+    assembly_roles = ['lint']
+    assembly_defaults = {'params': {'timeout_s': 300.0, 'minimum_s': 0.0},
+     'dependencies': {'tool': {'component': 'vivado_lint_tool', 'id': 'lint_tool'}}}
     input_type = CheckInput
     output_type = CheckResult
     dependencies = {'tool': 'tool'}
@@ -51,6 +57,9 @@ class LintNode(Node[CheckInput, CheckResult]):
 @dataclass(frozen=True)
 class SynthNode(Node[CheckInput, CheckResult]):
     component_name = 'vivado_synth'
+    assembly_roles = ['synth']
+    assembly_defaults = {'params': {'timeout_s': 900.0, 'minimum_s': 0.0},
+     'dependencies': {'tool': {'component': 'vivado_synth_tool', 'id': 'synth_tool'}}}
     input_type = CheckInput
     output_type = CheckResult
     dependencies = {'tool': 'tool'}

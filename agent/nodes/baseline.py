@@ -11,6 +11,8 @@ from agent.services.extraction import extract_result
 
 class BaselineGenerateNode(Node[GenerateInput, ModelReply]):
     component_name = 'baseline_generate'
+    assembly_roles = ['alternative', 'generate']
+    assembly_defaults = {'params': {}, 'dependencies': {}}
     input_type = GenerateInput
     output_type = ModelReply
 
@@ -33,6 +35,8 @@ class BaselineGenerateNode(Node[GenerateInput, ModelReply]):
 
 class BaselineExtractNode(Node[ExtractInput, ExtractionOutput]):
     component_name = 'baseline_extract'
+    assembly_roles = ['extract']
+    assembly_defaults = {'params': {}, 'dependencies': {}}
     input_type = ExtractInput
     output_type = ExtractionOutput
     def run(self, ctx, input: ExtractInput) -> ExtractionOutput:

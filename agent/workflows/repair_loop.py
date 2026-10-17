@@ -43,6 +43,17 @@ def classify_model_error(error: ModelCallError) -> str:
 
 class RepairLoop(Workflow):
     component_name = 'repair_loop'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 3,
+                'max_request_retries': 1,
+                'max_model_calls': 4,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': True},
+     'dependencies': {'generate': {'component': 'rtl_generate', 'id': 'generate'},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'}}}
     dependencies = {'generate': 'node', 'extract': 'node', 'interface': 'node',
                     'lint': 'node', 'synth': 'node'}
     dependency_types = {'generate': (GenerateInput, ModelReply),

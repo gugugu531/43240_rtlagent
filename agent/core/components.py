@@ -61,6 +61,9 @@ class Component:
     input_type: ClassVar[type] = object
     output_type: ClassVar[type] = object
     dependencies: ClassVar[Mapping[str, str]] = {}
+    # Literal metadata is read through AST before importing a named component.
+    assembly_roles: ClassVar[list[str]] = []
+    assembly_defaults: ClassVar[Mapping[str, Any]] = {}
     def describe(self) -> ComponentSpec:
         captured = getattr(self, '_construction_spec', None)
         if captured is not None:

@@ -10,8 +10,8 @@
 组件的共享契约集中在 `agent/core/`：Workflow、Node、Tool 基类使用明确的输入输出类型，
 构造描述将普通参数与依赖身份分开。`AssemblySpec` 保存可序列化的组件装配描述，
 进程请求、代码提取结果和未分配检查编号的 `CheckOutcome` 也位于这一层。
-`composition` 读取 schema version 2 的 YAML，按 `module:Class` 自动加载组件；`runtime`
-负责执行与监督。Python 定义流程控制，YAML 定义参数和依赖；每题装配独立实例。
+`composition` 读取按名称选择组件的 YAML，展开默认装配后按需加载；`runtime` 负责执行与监督。
+Python 定义流程和默认依赖，YAML 选择 Workflow、Node、Tool，并按需覆盖参数；每题装配独立实例。
 
 | 流程 | 用途 | 验证边界 |
 | --- | --- | --- |
@@ -33,13 +33,14 @@
 | `run.sh` | 单题入口：从任意当前目录读取一道题，输出代码和工具调用记录 |
 | `run_baseline.sh`、`baseline.py` | 基线入口，赛事方提供，**不得修改** |
 | `agent/main.py` | 单题参数解析，连接配置与运行监督 |
-| `config/example.yaml` | 正式入口默认完整配置；通过 `components`、`params`、`inject` 装配组件 |
+| `config/example.yaml` | 默认选择、服务和预算配置；展示名称列表与角色参数覆盖 |
 | `agent/composition/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
 | `agent/runtime/supervision.py` | 独立 Worker 与硬超时；按准备、事件循环、进程请求、清理和结果核对分步监督 |
+| `agent/composition/named.py` | 读取组件的字面量名称和默认依赖，展开配置；主进程不导入组件实现 |
 | `agent/composition/assembler.py` | 校验类、构造参数和依赖契约，按配置惰性导入并逐题装配 |
 | `agent/tools/` | 可注入的通用 Tool 与接口、Vivado、行为自测适配器 |
 | `agent/runtime/checks.py` | RTL 检查预算、缓存、编号、候选关联与证据发布 |
-| `config/presets/` | 16 份内置 Workflow 完整配置 |
+| `config/presets/` | 16 份内置 Workflow 名称配置 |
 | `agent/workflows/repair_loop.py` | 修复流程；将请求重试、逐项检查与停止处理分开，保留可替换的 `choose()` 和 `decide()` |
 | `agent/workflows/checks.py` | 修复与 E2 流程共用的检查顺序：接口、lint、综合；每完成一项就把结果交回 Workflow |
 | `agent/workflows/evidence_repair.py` | 方案 A；复用修复流程的检查和选择，只注入有限结构化诊断并最多修复一次 |
@@ -296,7 +297,7 @@ E1 的 `evidence_a0` 使用方案 A 同一首次提示与提取，只保留首�
 E2 的 `search_r1/r2` 最多修复一/两次，`search_c2/c3` 最多生成两/三份独立候选；
 `search_initial` 保存初始检查点，`search_r2_guided` 按每轮自身错误检索外置短卡。
 采样在 Python 中声明，默认 temperature=0.6、top_p=0.95、base_seed=20261013，逐次 seed 递增。
-未配置知识库时不增加资料；通过 YAML 的 `components.guidance.params.corpus_path` 指定本地资料，
+未配置知识库时不增加资料；通过 YAML 的 `roles.guidance.params.corpus_path` 指定本地资料，
 缺失或格式错误时记录原因并继续原修复提示。资料内容单独提供，不随 Git 上传。
 三次调用流程建立初始检查点后，会在第三次调用前或提前停止时保存 `stop_after_two.json`；
 它记录共享前缀的真实状态，不额外调用模型，不可把共享成本重复相加。
@@ -319,11 +320,24 @@ python3 -m agent.main --input /path/to/task --output /tmp/out-evidence \
   --config config/presets/evidence_repair.yaml
 ```
 
-配置使用 `schema_version: 2`，`workflow` 指向根组件 ID。`components` 中每项声明
-`kind`、`class: module:Class`、普通构造参数 `params` 和依赖引用 `inject`。
-`inject` 的键是构造参数名，值为组件 ID 或有序 ID 列表。同一任务同一 ID 共享实例，
-不同 ID 和不同任务分别构造；不需要注册装饰器、中央清单或预先导入扩展。
-旧的 `--workflow`、`AGENT_WORKFLOW`、`--import-module`、顶层 `imports` 和版本 1 配置明确报错。
+配置默认使用 schema version 3，日常只需选名称。例如：
+
+```yaml
+workflow: repair_loop
+nodes: [rtl_generate, rtl_extract, interface_check, vivado_lint, vivado_synth]
+tools: [interface_check_tool, vivado_lint_tool, vivado_synth_tool]
+```
+
+未列出的依赖角色使用 Python 声明的默认实现，因此只写 `workflow: repair_loop` 也能装配。
+`params` 覆盖 Workflow 参数，`roles.<实例ID>.params` 覆盖单个实例；`roles.<实例ID>.component`
+可指定实现，例如 `roles.generate.params.temperature: 0.1`（实际 YAML 使用嵌套映射）。
+同一角色有多个候选时明确报错，不按列表顺序猜测；未知、重复或未使用的选择也会被拒绝。
+名称标识实现，`generate`、`alternative` 等 ID 标识各自实例，同类可以有不同参数。
+
+Python 类声明 `component_name`、`assembly_roles`、`assembly_defaults` 字面量；配置读取器用 AST
+（抽象语法树）自动发现，无须装饰器、预先导入或中央清单。展开后的 schema version 2 完整配置仍可读取，
+用于冻结实验参数和依赖。旧的 `--workflow`、`AGENT_WORKFLOW`、`--import-module`、顶层 `imports`
+和 version 1 配置明确报错。服务超时等设置仍由 `services` 单独提供，正式预设保持原有效值。
 
 扩展类继承 `Workflow`、`Node[InputT, OutputT]` 或 `Tool[InputT, OutputT]`，
 分别放在 `agent/workflows`、`agent/nodes`、`agent/tools`。构造函数只保存和校验配置；
@@ -344,13 +358,14 @@ ToolContext 提供任务、预算、受管理进程、普通产物及必要服�
 开发工作区的 `dev/docs/design/agentic-workflow.md` 提供完整三层扩展示例和依赖规则。
 
 `runtime.initial_state` 是初始检查点的唯一来源；知识库路径只配置在 guidance Node 的
-`params.corpus_path`。检查点升级为版本 2，旧版本须重新生成。
+`roles.guidance.params.corpus_path`。检查点升级为版本 2，旧版本须重新生成。
 完整装配摘要 `assembly_sha256` 用于溯源；跨流程重放验证初始响应契约、提取器、候选、
 源码及检查工具身份，不要求两个 Workflow 的整份装配摘要相同。
 检查缓存和重放分别校验，目标检查超时不同不否定已有成功证据；导入的时间和 token 成本仍计入预算。
 
-技能查询通过注入的 SkillLookupTool 执行：GenerateNode 在启用技能且反馈非空时调用一次，
+技能查询通过注入的 `skill_lookup` Tool 执行：GenerateNode 在启用技能且反馈非空时调用一次，
 提示装配只接收已选结果。目录排序、字符串匹配、技能正文、消息角色与截断行为保持一致；默认流程不调用技能。
+自定义技能目录通过 `roles.skill_tool.params.skill_dir` 设置，按 YAML 所在目录解析。
 外置修复卡的严格检索仍由 `services/knowledge.py` 负责。
 
 预算使用单调时钟，动作可设置最少启动时间，并为清理和写出结果预留时间。正式入口在独立 Worker
@@ -482,6 +497,7 @@ single_generate 的采样常量固定；其他 Workflow 的温度、输出上限
 
 | 日期 | 改动 | 说明 |
 | --- | --- | --- |
+| 2026-10-17 | 名称配置与技能职责拆分 | schema version 3 按名称选择组件，保留完整展开配置；技能读取、工具调用和提示渲染分层，技能正文与模型服务不变 |
 | 2026-10-17 | Agentic Workflow 装配 | schema version 2、惰性类加载、显式 Node/Tool 注入；分离 core、composition、runtime；模型服务和 baseline 保持不变 |
 | 2026-10-17 | 模型服务恢复官方示例 | `serve/` 四个文件与上游 `f7a8bd4` 原样一致；撤回自定义启动、健康检查、队列和超时扩展 |
 | 2026-10-11 | single_generate 对齐官方 RTL baseline | 复用提示、采样与提取规则；对齐模型选择和原始输入，保留日志、预算与监督；不改变 repair_loop |

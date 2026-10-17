@@ -15,6 +15,25 @@ from agent.core.state import CheckResult
 
 class EvidenceAblation(EvidenceRepair):
     component_name = 'evidence_ablation'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 2,
+                'max_request_retries': 1,
+                'max_model_calls': 3,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'rtl_generate',
+                                   'id': 'generate',
+                                   'params': {'max_tokens': 8192,
+                                              'temperature': 0.0,
+                                              'timeout_s': 300.0,
+                                              'use_skills': False,
+                                              'top_p': 1.0}},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'},
+                      'guidance': {'component': 'repair_guidance', 'id': 'guidance'}}}
     arm = 'A1'
 
     dependencies = {**EvidenceRepair.dependencies, 'guidance': 'node'}
@@ -89,14 +108,69 @@ class EvidenceAblation(EvidenceRepair):
 
 class EvidenceInitial(EvidenceAblation):
     component_name = 'evidence_a0'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 1,
+                'max_request_retries': 1,
+                'max_model_calls': 3,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'rtl_generate',
+                                   'id': 'generate',
+                                   'params': {'max_tokens': 8192,
+                                              'temperature': 0.0,
+                                              'timeout_s': 300.0,
+                                              'use_skills': False,
+                                              'top_p': 1.0}},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'}}}
     arm = 'A0'
 
 
 class EvidenceStructured(EvidenceAblation):
     component_name = 'evidence_a1'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 2,
+                'max_request_retries': 1,
+                'max_model_calls': 3,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'rtl_generate',
+                                   'id': 'generate',
+                                   'params': {'max_tokens': 8192,
+                                              'temperature': 0.0,
+                                              'timeout_s': 300.0,
+                                              'use_skills': False,
+                                              'top_p': 1.0}},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'}}}
     arm = 'A1'
 
 
 class EvidenceGuided(EvidenceAblation):
     component_name = 'evidence_a2'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 2,
+                'max_request_retries': 1,
+                'max_model_calls': 3,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'rtl_generate',
+                                   'id': 'generate',
+                                   'params': {'max_tokens': 8192,
+                                              'temperature': 0.0,
+                                              'timeout_s': 300.0,
+                                              'use_skills': False,
+                                              'top_p': 1.0}},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'},
+                      'guidance': {'component': 'repair_guidance', 'id': 'guidance'}}}
     arm = 'A2'

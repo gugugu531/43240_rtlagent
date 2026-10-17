@@ -26,6 +26,8 @@ class _ContextOverride:
 
 class LongOutputGenerate(BaselineGenerateNode):
     component_name = 'long_output_generate'
+    assembly_roles = ['alternative', 'generate']
+    assembly_defaults = {'params': {'max_tokens': 32768, 'timeout_s': 900.0}, 'dependencies': {}}
 
     def __init__(self, max_tokens: int = 32768, timeout_s: float = 900) -> None:
         self.max_tokens, self.timeout_s = max_tokens, timeout_s

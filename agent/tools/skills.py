@@ -12,6 +12,8 @@ class SkillLookupTool(Tool[SkillQuery, SkillSelection]):
     component_name = 'skill_lookup'
     input_type = SkillQuery
     output_type = SkillSelection
+    assembly_roles = ['skill_tool']
+    assembly_defaults = {'params': {'skill_dir': None}, 'dependencies': {}}
 
     def __init__(self, skill_dir: str | Path | None = None) -> None:
         if skill_dir is not None and (not isinstance(skill_dir, (str, Path)) or not str(skill_dir)):

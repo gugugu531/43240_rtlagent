@@ -20,6 +20,8 @@ def outcome(result: ToolResult) -> CheckOutcome:
 
 class VivadoLintTool(Tool[Candidate, CheckOutcome]):
     component_name = 'vivado_lint_tool'
+    assembly_roles = ['lint_tool']
+    assembly_defaults = {'params': {}, 'dependencies': {}}
     check_kind = 'lint'
     input_type = Candidate
     output_type = CheckOutcome
@@ -39,6 +41,8 @@ class VivadoLintTool(Tool[Candidate, CheckOutcome]):
 
 class VivadoSynthTool(Tool[Candidate, CheckOutcome]):
     component_name = 'vivado_synth_tool'
+    assembly_roles = ['synth_tool']
+    assembly_defaults = {'params': {}, 'dependencies': {}}
     check_kind = 'synth'
     input_type = Candidate
     output_type = CheckOutcome

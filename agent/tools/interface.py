@@ -9,6 +9,8 @@ from agent.core.tool import CheckOutcome
 
 class InterfaceCheckTool(Tool[Candidate, CheckOutcome]):
     component_name = 'interface_check_tool'
+    assembly_roles = ['interface_tool']
+    assembly_defaults = {'params': {}, 'dependencies': {}}
     check_kind = 'interface'
     input_type = Candidate
     output_type = CheckOutcome

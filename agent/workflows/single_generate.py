@@ -8,6 +8,10 @@ from agent.nodes.generate import GenerateInput
 
 class SingleGenerate(Workflow):
     component_name = 'single_generate'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {},
+     'dependencies': {'generate': {'component': 'baseline_generate', 'id': 'generate'},
+                      'extract': {'component': 'baseline_extract', 'id': 'extract'}}}
     dependencies = {'generate': 'node', 'extract': 'node'}
     dependency_types = {'generate': (GenerateInput, ModelReply),
                         'extract': (ExtractInput, ExtractionOutput)}

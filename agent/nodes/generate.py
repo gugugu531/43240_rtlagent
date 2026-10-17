@@ -26,6 +26,13 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
     output_type = ModelReply
     dependencies = {'skill_tool': 'tool'}
     dependency_types = {'skill_tool': (SkillQuery, SkillSelection)}
+    assembly_roles = ['generate', 'alternative']
+    assembly_defaults = {'params': {'max_tokens': 4096, 'temperature': 0.2,
+                                    'timeout_s': 180.0, 'prompt_style': 'repair',
+                                    'use_skills': True, 'minimum_s': 0.0, 'top_p': None},
+                         'dependencies': {'skill_tool': {'component': 'skill_lookup',
+                                                         'id': 'skill_tool',
+                                                         'when': {'use_skills': True}}}}
     max_tokens: int = 8192
     temperature: float = 0.0
     timeout_s: float = 300.0

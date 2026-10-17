@@ -34,6 +34,32 @@ class ExperimentalRepair(Workflow):
     """One repair slot; no retry, voting, judge feedback or speculative selection."""
 
     component_name = 'experimental_repair'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_tokens': 8192, 'timeout_s': 300.0},
+     'dependencies': {'generate': {'component': 'rtl_generate',
+                                   'id': 'generate',
+                                   'params': {'max_tokens': 8192,
+                                              'temperature': 0.0,
+                                              'timeout_s': 300.0,
+                                              'use_skills': False,
+                                              'top_p': 1.0}},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint',
+                               'id': 'lint',
+                               'params': {'timeout_s': 45.0}},
+                      'synth': {'component': 'vivado_synth',
+                                'id': 'synth',
+                                'params': {'timeout_s': 60.0}},
+                      'alternative': {'component': 'rtl_generate',
+                                      'id': 'alternative',
+                                      'params': {'max_tokens': 8192,
+                                                 'temperature': 0.4,
+                                                 'timeout_s': 300.0,
+                                                 'use_skills': False,
+                                                 'top_p': 1.0}},
+                      'plan_node': {'component': 'spec_test_plan', 'id': 'plan'},
+                      'behavior': {'component': 'spec_behavior_check', 'id': 'behavior'}}}
     dependencies = {name: 'node' for name in ('generate', 'alternative', 'extract',
         'interface', 'lint', 'synth', 'plan_node', 'behavior')}
     dependency_types = {'generate': (GenerateInput, ModelReply),
@@ -378,15 +404,93 @@ class ExperimentalRepair(Workflow):
 
 class ToolFeedback(ExperimentalRepair):
     component_name = 'tool_feedback'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_tokens': 8192, 'timeout_s': 300.0},
+     'dependencies': {'generate': {'component': 'rtl_generate',
+                                   'id': 'generate',
+                                   'params': {'max_tokens': 8192,
+                                              'temperature': 0.0,
+                                              'timeout_s': 300.0,
+                                              'use_skills': False,
+                                              'top_p': 1.0}},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint',
+                               'id': 'lint',
+                               'params': {'timeout_s': 45.0}},
+                      'synth': {'component': 'vivado_synth',
+                                'id': 'synth',
+                                'params': {'timeout_s': 60.0}},
+                      'alternative': {'component': 'rtl_generate',
+                                      'id': 'alternative',
+                                      'params': {'max_tokens': 8192,
+                                                 'temperature': 0.4,
+                                                 'timeout_s': 300.0,
+                                                 'use_skills': False,
+                                                 'top_p': 1.0}},
+                      'plan_node': {'component': 'spec_test_plan', 'id': 'plan'},
+                      'behavior': {'component': 'spec_behavior_check', 'id': 'behavior'}}}
     pass
 
 
 class SpecTestRepair(ExperimentalRepair):
     component_name = 'spec_test_repair'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_tokens': 8192, 'timeout_s': 300.0},
+     'dependencies': {'generate': {'component': 'rtl_generate',
+                                   'id': 'generate',
+                                   'params': {'max_tokens': 8192,
+                                              'temperature': 0.0,
+                                              'timeout_s': 300.0,
+                                              'use_skills': False,
+                                              'top_p': 1.0}},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint',
+                               'id': 'lint',
+                               'params': {'timeout_s': 45.0}},
+                      'synth': {'component': 'vivado_synth',
+                                'id': 'synth',
+                                'params': {'timeout_s': 60.0}},
+                      'alternative': {'component': 'rtl_generate',
+                                      'id': 'alternative',
+                                      'params': {'max_tokens': 8192,
+                                                 'temperature': 0.4,
+                                                 'timeout_s': 300.0,
+                                                 'use_skills': False,
+                                                 'top_p': 1.0}},
+                      'plan_node': {'component': 'spec_test_plan', 'id': 'plan'},
+                      'behavior': {'component': 'spec_behavior_check', 'id': 'behavior'}}}
     use_behavior = True
 
 
 class BehaviorDivergence(ExperimentalRepair):
     component_name = 'behavior_divergence'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_tokens': 8192, 'timeout_s': 300.0},
+     'dependencies': {'generate': {'component': 'rtl_generate',
+                                   'id': 'generate',
+                                   'params': {'max_tokens': 8192,
+                                              'temperature': 0.0,
+                                              'timeout_s': 300.0,
+                                              'use_skills': False,
+                                              'top_p': 1.0}},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint',
+                               'id': 'lint',
+                               'params': {'timeout_s': 45.0}},
+                      'synth': {'component': 'vivado_synth',
+                                'id': 'synth',
+                                'params': {'timeout_s': 60.0}},
+                      'alternative': {'component': 'rtl_generate',
+                                      'id': 'alternative',
+                                      'params': {'max_tokens': 8192,
+                                                 'temperature': 0.4,
+                                                 'timeout_s': 300.0,
+                                                 'use_skills': False,
+                                                 'top_p': 1.0}},
+                      'plan_node': {'component': 'spec_test_plan', 'id': 'plan'},
+                      'behavior': {'component': 'spec_behavior_check', 'id': 'behavior'}}}
     use_behavior = True
     candidates = 2

@@ -6,6 +6,8 @@ from agent.services.extraction import extract_result
 
 class ExtractNode(Node[ExtractInput, ExtractionOutput]):
     component_name = 'rtl_extract'
+    assembly_roles = ['extract']
+    assembly_defaults = {'params': {}, 'dependencies': {}}
     input_type = ExtractInput
     output_type = ExtractionOutput
 

@@ -1,4 +1,4 @@
-"""Schema v2 data configuration; component classes are loaded only by the worker."""
+"""Named input and expanded data configuration; classes load only in the worker."""
 from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -18,6 +18,7 @@ DEFAULT_CONFIG = ROOT / 'config/example.yaml'
 
 SCHEMA = {
     'schema_version': None, 'workflow': None, 'components': None,
+    'nodes': None, 'tools': None, 'roles': None, 'params': None,
     'services': {'model': {'backend': None, 'model': None, 'base_url': None,
                            'api_key_env': None, 'timeout_s': None,
                            'tokenizer_dir': None, 'context_limit': None, 'strict_context': None,
@@ -131,6 +132,21 @@ def _assembly_data(data):
     return validate_assembly(dict(root_id=data.get('workflow'), components=rows))
 
 
+def _document_assembly(data):
+    _validate_keys(data, SCHEMA)
+    version = data.get('schema_version', 3)
+    if type(version) is not int or version not in (2, 3):
+        raise ConfigError('schema_version must be 2 or 3')
+    if version == 2:
+        if set(data) & {'nodes', 'tools', 'roles', 'params'}:
+            raise ConfigError('schema_version 2 requires expanded components only')
+        return _assembly_data(data)
+    if 'components' in data:
+        raise ConfigError('schema_version 3 uses named selections instead of components')
+    from agent.composition.named import expand_named
+    return expand_named(data)
+
+
 def load_config(path: Path | None = None) -> ConfigDocument:
     import yaml
     class Loader(yaml.SafeLoader):
@@ -153,10 +169,7 @@ def load_config(path: Path | None = None) -> ConfigDocument:
         data = yaml.load(path.read_text(encoding='utf-8'), Loader=Loader)
     except (OSError, yaml.YAMLError) as exc:
         raise ConfigError(f'cannot load configuration ({type(exc).__name__})') from None
-    _validate_keys(data, SCHEMA)
-    if type(data.get('schema_version')) is not int or data['schema_version'] != 2:
-        raise ConfigError('schema_version must be 2')
-    _assembly_data(data)
+    _document_assembly(data)
     return ConfigDocument(path, data)
 
 
@@ -192,22 +205,25 @@ def string_list(value, name):
 
 def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = None,
                    overrides: RunOverrides | None = None) -> ResolvedConfig:
-    _validate_keys(document.data, SCHEMA)
-    if type(document.data.get('schema_version')) is not int or document.data['schema_version'] != 2:
-        raise ConfigError('schema_version must be 2')
-    _assembly_data(document.data)
+    expanded = _document_assembly(document.data)
     env = os.environ if env is None else env
     if env.get('AGENT_WORKFLOW', '').strip():
         raise ConfigError('AGENT_WORKFLOW is unsupported; select a complete configuration with AGENT_CONFIG or --config')
     caller = Path(env.get("AGENT_CALLER_CWD", os.getcwd()))
     values = copy.deepcopy(DEFAULTS)
-    values['workflow'] = document.data['workflow']
-    # Component parameters are arbitrary JSON, not dotted configuration paths.
-    values['components'] = copy.deepcopy(document.data['components'])
+    values['workflow'] = expanded['root_id']
+    # Persist a complete schema2 graph so replay never consults named defaults.
+    values['components'] = {row['id']: dict(kind=row['kind'], **{'class': row['target']},
+                            params=copy.deepcopy(row['params']), inject=copy.deepcopy(row['inject']))
+                            for row in expanded['components']}
     sources = {name: 'default' for name, _ in _flatten(values)}
+    named_input = document.data.get('schema_version', 3) == 3
+    assembly_source = 'component_metadata' if named_input else f'yaml:{document.path}'
+    sources.update({name: assembly_source for name in sources if name.startswith('components.')})
+    sources['workflow'] = f'yaml:{document.path}'
     base = document.path.parent if document.path else Path.cwd()
     for name, value in _flatten(document.data):
-        if name == 'workflow' or name == 'components' or name.startswith('components.'):
+        if name.split('.')[0] in {'schema_version', 'workflow', 'components', 'nodes', 'tools', 'roles', 'params'}:
             continue
         if name in PATH_FIELDS and value is not None:
             if not isinstance(value, str) or not value:
@@ -239,19 +255,25 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
         _set(values, name, value); sources[name] = 'cli'
     assembly_data = _assembly_data(values)
     for component in assembly_data['components']:
-        sources[f"components.{component['id']}.params"] = f'yaml:{document.path}'
+        sources[f"components.{component['id']}.params"] = assembly_source
         params = component.get('params', {})
-        if params.get('corpus_path') is not None:
-            if not isinstance(params['corpus_path'], str) or not params['corpus_path']:
-                raise ConfigError('corpus_path must be a nonempty path or null')
-            params['corpus_path'] = str((base / params['corpus_path']).resolve())
+        for path_parameter in ('corpus_path', 'skill_dir'):
+            if params.get(path_parameter) is not None:
+                if not isinstance(params[path_parameter], str) or not params[path_parameter]:
+                    raise ConfigError(f'{path_parameter} must be a nonempty path or null')
+                params[path_parameter] = str((base / params[path_parameter]).resolve())
     assembly = AssemblySpec.from_dict(assembly_data)
     values['components'] = {component.id: dict(kind=component.kind, **{'class': component.target},
                             params=component.public_dict()['params'], inject=component.public_dict()['inject'])
                             for component in assembly.components}
     for component in assembly_data['components']:
+        explicit = (document.data.get('params', {}) if component['id'] == 'workflow' else {}) if named_input else component.get('params', {})
+        explicit = dict(explicit)
+        if named_input:
+            explicit.update(document.data.get('roles', {}).get(component['id'], {}).get('params', {}))
         for field_name, _ in _flatten(component.get('params', {})):
-            sources[f"components.{component['id']}.params.{field_name}"] = f'yaml:{document.path}'
+            source = f'yaml:{document.path}' if field_name.split('.')[0] in explicit else assembly_source
+            sources[f"components.{component['id']}.params.{field_name}"] = source
     m = values['services']['model']; t = values['services']['tools']; r = values['runtime']
     for key in ('backend', 'model', 'base_url', 'api_key_env'):
         if not isinstance(m[key], str): raise ConfigError(f'services.model.{key} must be a string')

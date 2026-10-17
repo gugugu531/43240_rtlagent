@@ -26,6 +26,18 @@ def normalize_tool_paths(summary):
 
 class SearchAblation(EvidenceAblation):
     component_name = 'search_ablation'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 2,
+                'max_request_retries': 0,
+                'max_model_calls': 2,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'seeded_generate', 'id': 'generate'},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'}}}
     limit = 2
     strategy = 'repair'
 
@@ -157,31 +169,104 @@ class SearchAblation(EvidenceAblation):
 
 class SearchInitial(SearchAblation):
     component_name = 'search_initial'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 1,
+                'max_request_retries': 0,
+                'max_model_calls': 1,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'seeded_generate', 'id': 'generate'},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'}}}
     arm = 'A0'
     limit = 1
 
 
 class SearchRepairOnce(SearchAblation):
     component_name = 'search_r1'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 2,
+                'max_request_retries': 0,
+                'max_model_calls': 2,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'seeded_generate', 'id': 'generate'},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'}}}
     pass
 
 
 class SearchRepairTwice(SearchAblation):
     component_name = 'search_r2'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 3,
+                'max_request_retries': 0,
+                'max_model_calls': 3,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'seeded_generate', 'id': 'generate'},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'}}}
     limit = 3
 
 
 class SearchGuidedRepairTwice(SearchRepairTwice):
     component_name = 'search_r2_guided'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 3,
+                'max_request_retries': 0,
+                'max_model_calls': 3,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'seeded_generate', 'id': 'generate'},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'},
+                      'guidance': {'component': 'repair_guidance', 'id': 'guidance'}}}
     arm = 'A2'
 
 
 class SearchTwoCandidates(SearchAblation):
     component_name = 'search_c2'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 2,
+                'max_request_retries': 0,
+                'max_model_calls': 2,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'seeded_generate', 'id': 'generate'},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'}}}
     strategy = 'candidates'
 
 
 class SearchThreeCandidates(SearchAblation):
     component_name = 'search_c3'
+    assembly_roles = ['workflow']
+    assembly_defaults = {'params': {'max_rounds': 3,
+                'max_request_retries': 0,
+                'max_model_calls': 3,
+                'minimum_action_s': 0.05,
+                'repair_output_drivers': False},
+     'dependencies': {'generate': {'component': 'seeded_generate', 'id': 'generate'},
+                      'extract': {'component': 'rtl_extract', 'id': 'extract'},
+                      'interface': {'component': 'interface_check', 'id': 'interface'},
+                      'lint': {'component': 'vivado_lint', 'id': 'lint'},
+                      'synth': {'component': 'vivado_synth', 'id': 'synth'},
+                      'feedback_builder': {'component': 'structured_feedback', 'id': 'feedback'}}}
     strategy = 'candidates'
     limit = 3
