@@ -9,10 +9,10 @@ from agent.core.model import ModelCallError, ModelRequest
 from agent.core.registry import NODE_REGISTRY, WORKFLOW_REGISTRY, build_node
 from agent.core.replay import load_initial, save_initial, runtime_hashes, task_hash, digest
 from agent.recording.artifacts import atomic_write_json
-from agent.nodes.check import CheckInput
 from agent.nodes.extract import ExtractInput
 from agent.nodes.generate import GenerateNode, GenerateInput
 from agent.workflows.evidence_ablation import EvidenceAblation
+from agent.workflows.checks import candidate_checks
 
 
 @NODE_REGISTRY.register('seeded_generate')
@@ -138,18 +138,10 @@ class SearchAblation(EvidenceAblation):
             ctx.apply_selection(self.choose(ctx.state))
             checks = []
             try:
-                candidate = result.candidate
-                check = ctx.execute(self.interface, CheckInput(candidate))
-                checks.append(check)
-                ctx.apply_selection(self.choose(ctx.state))
-                if not check.blocking:
-                    check = ctx.execute(self.lint, CheckInput(candidate))
+                for check in candidate_checks(ctx, result.candidate, interface=self.interface,
+                                               lint=self.lint, synth=self.synth):
                     checks.append(check)
                     ctx.apply_selection(self.choose(ctx.state))
-                    if check.status == 'passed':
-                        check = ctx.execute(self.synth, CheckInput(candidate))
-                        checks.append(check)
-                        ctx.apply_selection(self.choose(ctx.state))
                 if check.classify() in ('environment', 'unknown', 'timeout'):
                     if round == 1:
                         self.capture_initial(ctx, reply, result, checks, check.classify())

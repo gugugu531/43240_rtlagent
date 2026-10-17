@@ -5,10 +5,10 @@ from agent.core.budget import BudgetExhausted
 from agent.core.components import Component
 from agent.core.model import ModelCallError
 from agent.core.registry import WORKFLOW_REGISTRY, build_node
-from agent.core.state import RunStateView, SelectionDecision
+from agent.core.state import RunStateView, SelectionDecision, WorkflowResult
 from agent.nodes.generate import GenerateInput
 from agent.nodes.extract import ExtractInput
-from agent.nodes.check import CheckInput
+from agent.workflows.checks import candidate_checks
 from agent.services.repair_feedback import (tool_repair_feedback, output_driver_warnings,
     output_driver_feedback, driver_repair_improves)
 
@@ -142,6 +142,58 @@ class RepairLoop(Component):
     def repair_pieces(self, ctx, checks):
         return ()
 
+    def _failure_decision(self, ctx, kind, source_id, attempts):
+        choice = self.decide(kind, source_id, attempts, ctx.budget)
+        ctx.emit('failure_decision', action=choice.action, reason=choice.reason,
+                 diagnostic_ids=(choice.source_id,), model_calls=attempts.model_calls,
+                 request_retries=attempts.request_retries, repairs=attempts.repairs)
+        return choice
+
+    def _request_reply(self, ctx, input, calls, repairs):
+        retries = 0
+        while True:
+            # Hard limit, also when a subclass decide() keeps asking for more calls.
+            if calls >= self.max_model_calls:
+                return ctx.finish(reason='model_call_limit', status='stopped'), calls
+            try:
+                calls += 1
+                return ctx.execute(self.generate, input), calls
+            except BudgetExhausted:
+                return ctx.finish(reason='deadline', status='stopped'), calls
+            except ModelCallError as exc:
+                choice = self._failure_decision(ctx, classify_model_error(exc), exc.call_id or '',
+                                                AttemptState(calls, retries, repairs))
+                if choice.action != 'retry_request':
+                    reason = 'deadline' if choice.reason == 'deadline' else f'model_{exc.kind}'
+                    return ctx.finish(reason=reason, status='stopped'), calls
+                retries += 1
+
+    def _check_candidate(self, ctx, candidate, checks):
+        # The caller owns checks so completed evidence survives budget exhaustion.
+        for check in candidate_checks(ctx, candidate, interface=self.interface,
+                                      lint=self.lint, synth=self.synth):
+            checks.append(check)
+            ctx.apply_selection(self.choose(ctx.state))
+        warnings = []
+        # All three checks have completed only when synthesis was reached.
+        synthesis_passed = len(checks) == 3 and checks[-1].status == 'passed'
+        if synthesis_passed:
+            warnings = (output_driver_warnings(candidate.code, ctx.task.top, [checks[-1]])
+                        if self.repair_output_drivers else [])
+            if warnings:
+                ctx.emit('synthesis_output_warning', candidate_id=candidate.id,
+                         warnings=warnings, synthesis_completed=True,
+                         functional_verified=False, retain_candidate=True)
+        return warnings, synthesis_passed
+
+    def _synthesis_outcome(self, ctx):
+        state = ctx.state
+        selected = state.candidates.get(state.selected_candidate_id)
+        unresolved = (self.repair_output_drivers and selected and
+            output_driver_warnings(selected.code, ctx.task.top,
+                [c for c in state.checks if c.candidate_id == selected.id]))
+        return ('warning_repair_unverified', 'stopped') if unresolved else ('synth_passed', 'completed')
+
     def run(self, ctx):
         self._output_top = ctx.task.top
         repair_target = None
@@ -149,7 +201,6 @@ class RepairLoop(Component):
         calls, repairs = 0, 0
         start_round, optional_pieces = 1, ()
         restored = self.restore(ctx)
-        from agent.core.state import WorkflowResult
         if isinstance(restored, WorkflowResult):
             return restored
         if restored is not None:
@@ -157,87 +208,43 @@ class RepairLoop(Component):
                 restored.target, restored.feedback, restored.calls, restored.start_round, restored.optional_pieces)
             repairs = start_round - 1
 
-        def select():
-            ctx.apply_selection(self.choose(ctx.state))
-
-        def decide(kind, source_id, retries=0):
-            choice = self.decide(kind, source_id, AttemptState(calls, retries, repairs), ctx.budget)
-            ctx.emit('failure_decision', action=choice.action, reason=choice.reason,
-                     diagnostic_ids=(choice.source_id,),
-                     model_calls=calls, request_retries=retries, repairs=repairs)
-            return choice
-
         for round in range(start_round, self.max_rounds + 1):
             if not ctx.budget.can_start(self.minimum_action_s):
                 reason = 'deadline'
                 break
-            retries = 0
             input = GenerateInput(ctx.task, feedback, repair_target, round, optional_pieces)
-            while True:
-                # Hard limit, also when a subclass decide() keeps asking for more calls.
-                if calls >= self.max_model_calls:
-                    return ctx.finish(reason='model_call_limit', status='stopped')
-                try:
-                    calls += 1
-                    reply = ctx.execute(self.generate, input)
-                    break
-                except BudgetExhausted:
-                    return ctx.finish(reason='deadline', status='stopped')
-                except ModelCallError as exc:
-                    choice = decide(classify_model_error(exc), exc.call_id or '', retries)
-                    if choice.action != 'retry_request':
-                        return ctx.finish(reason='deadline' if choice.reason == 'deadline' else f'model_{exc.kind}',
-                                          status='stopped')
-                    retries += 1
+            reply, calls = self._request_reply(ctx, input, calls, repairs)
+            if isinstance(reply, WorkflowResult):
+                return reply
             result = ctx.execute(self.extract, ExtractInput(reply, round,
                 repair_target.id if repair_target else None, 'repair' if repair_target else 'generate'))
             checks = []
             warnings = []
             if result.candidate is None:
-                choice = decide('extraction', reply.call_id)
+                choice = self._failure_decision(ctx, 'extraction', reply.call_id,
+                                                AttemptState(calls, 0, repairs))
                 if choice.action == 'repair':
                     feedback = self.build_extraction_feedback(ctx, reply, result.extraction)
             else:
                 latest = result.candidate
                 # A complete fallback can survive a blocked verification service.
-                select()
+                ctx.apply_selection(self.choose(ctx.state))
                 ctx.emit('repair_target', candidate_id=latest.id)
                 repair_target = latest
                 try:
-                    interface = ctx.execute(self.interface, CheckInput(latest))
-                    checks.append(interface)
-                    select()
-                    if not interface.blocking:
-                        lint = ctx.execute(self.lint, CheckInput(latest))
-                        checks.append(lint)
-                        select()
-                        if lint.status == 'passed':
-                            synth = ctx.execute(self.synth, CheckInput(latest))
-                            checks.append(synth)
-                            select()
-                            if synth.status == 'passed':
-                                warnings = (output_driver_warnings(latest.code, ctx.task.top, [synth])
-                                            if self.repair_output_drivers else [])
-                                if warnings:
-                                    ctx.emit('synthesis_output_warning', candidate_id=latest.id,
-                                             warnings=warnings, synthesis_completed=True,
-                                             functional_verified=False, retain_candidate=True)
-                                else:
-                                    state = ctx.state
-                                    selected = state.candidates.get(state.selected_candidate_id)
-                                    unresolved = (self.repair_output_drivers and selected and
-                                        output_driver_warnings(selected.code, ctx.task.top,
-                                            [c for c in state.checks if c.candidate_id == selected.id]))
-                                    stop = 'warning_repair_unverified' if unresolved else 'synth_passed'
-                                    self.after_round(ctx, reply, result, checks,
-                                        FailureDecision('stop', stop, synth.id), round)
-                                    return ctx.finish(reason=stop, status='stopped' if unresolved else 'completed')
+                    warnings, synthesis_passed = self._check_candidate(ctx, latest, checks)
+                    if synthesis_passed and not warnings:
+                        stop, status = self._synthesis_outcome(ctx)
+                        self.after_round(ctx, reply, result, checks,
+                            FailureDecision('stop', stop, checks[-1].id), round)
+                        return ctx.finish(reason=stop, status=status)
                 except BudgetExhausted:
                     self.after_round(ctx, reply, result, checks,
                         FailureDecision('stop', 'deadline', checks[-1].id if checks else reply.call_id), round)
                     return ctx.finish(reason='deadline', status='stopped')
                 last = checks[-1]
-                choice = decide('code' if warnings else last.classify(), last.id)
+                choice = self._failure_decision(ctx, 'code' if warnings else last.classify(), last.id,
+                                                AttemptState(calls, 0, repairs))
                 if choice.action == 'repair':
                     feedback = self.build_check_feedback(ctx, checks)
                     if warnings:

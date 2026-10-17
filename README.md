@@ -30,7 +30,8 @@
 | `config/example.yaml` | 带逐项中文注释的配置示例，也是正式入口默认配置；组件参数由 Python Workflow 定义 |
 | `agent/core/configuration.py` | YAML 校验、覆盖来源、服务与预算配置、共享运行描述装配 |
 | `agent/core/supervision.py` | 独立 Worker、硬超时、信号清理、选择恢复与记录交接 |
-| `agent/workflows/repair_loop.py` | 修复流程，自带候选选择 `choose()` 与失败处理 `decide()`，可由子类替换 |
+| `agent/workflows/repair_loop.py` | 修复流程；将请求重试、逐项检查与停止处理分开，保留可替换的 `choose()` 和 `decide()` |
+| `agent/workflows/checks.py` | 修复与 E2 流程共用的检查顺序：接口、lint、综合；每完成一项就把结果交回 Workflow |
 | `agent/workflows/evidence_repair.py` | 方案 A；复用修复流程的检查和选择，只注入有限结构化诊断并最多修复一次 |
 | `agent/workflows/spec_repair.py` | 三个可选实验入口，共用方案 A 首稿/检查点，但独立编排自测、修复和候选保护 |
 | `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
@@ -206,6 +207,11 @@ Supervisor、中断恢复和原子写出保持生效。直接注入 `ModelConfig
 生成 → 提取 → 保存候选 → 接口检查 → lint → 综合
  ↑             每步按已有证据更新选择；明确代码错误时反馈修复
 ```
+
+公共检查顺序由 `candidate_checks()` 提供：接口检查阻塞时停止，lint 通过后才开始综合；
+每项检查完成就交回 Workflow 更新选择。若后续动作因预算耗尽未能完成，已完成的检查和当前选择仍保留。
+`repair_loop` 把请求重试、候选检查与停止处理分开，选择和失败决策仍由自身的 `choose()`、`decide()` 决定。
+`spec_repair` 独立编排规格自测，不并入这条公共检查流程。
 
 该 Workflow 默认最多 3 轮、温度 `0.2`、输出上限 `4096`，每个请求最多重试 1 次、模型调用
 总数最多 4 次。只有允许重试的模型连接、超时或 HTTP 错误才重试相同消息；服务本身仍只调用一次。
