@@ -56,9 +56,11 @@ def summarize(value):
 class RunContext:
     def __init__(self, task: TaskSpec, llm: ModelService, budget: Budget,
                  artifacts: ArtifactStore, recorder: RunRecorder, *,
-                 toolchain_factory=RtlToolchain, process_executor=None):
+                 toolchain_factory=RtlToolchain, process_executor=None,
+                 started_at: float | None = None, configuration: dict | None = None):
         self.task, self.llm, self.budget = task, llm, budget
-        self.started_at = time.monotonic()
+        self.started_at = time.monotonic() if started_at is None else started_at
+        self.configuration = configuration if configuration is not None else {}
         self.cancellation = CancellationToken()
         self._artifacts, self._recorder = artifacts, recorder
         self._candidates: dict[str, Candidate] = {}

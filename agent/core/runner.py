@@ -69,9 +69,9 @@ class Runner:
                 factory = lambda: RtlToolchain(config=self._tool_config, executor=self._process_executor,
                     log_dir=recorder.run_dir / 'tool_logs' if options.recording.level == 'full' else None,
                     redactor=recorder.redactor)
-            ctx = RunContext(task, llm, budget, artifacts, recorder, toolchain_factory=factory, process_executor=self._process_executor)
-            ctx.started_at = started_at
-            ctx.configuration = self._configuration
+            ctx = RunContext(task, llm, budget, artifacts, recorder, toolchain_factory=factory,
+                             process_executor=self._process_executor, started_at=started_at,
+                             configuration=self._configuration)
             # A factory creates fresh workflow/node instances for each task and is
             # invoked after artifacts exist, so constructor failures are recorded.
             instance = workflow if not inspect.isclass(workflow) and callable(getattr(workflow, 'run', None)) else workflow()

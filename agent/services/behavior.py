@@ -11,7 +11,8 @@ import time
 from agent.core.task import TaskSpec
 from agent.services.timing import (TimingContract, parse_timing, specification_quote,
                                    timing_history, validate_timing)
-from agent.services.vivado import ToolResult, TOOL_SUMMARY_LIMIT, _build_result, _make_work_dir, _unavailable
+from agent.core.tool import ToolResult, TOOL_SUMMARY_LIMIT
+from agent.services.tool_support import build_result, make_work_dir, unavailable
 from agent.services.plan_format import resolve_basis, cycle_steps
 from agent.services.literal_spec import LiteralTruthTable, parse_literal_truth_table
 from agent.services.spec_ports import supported_ports, validate_candidate_ports
@@ -299,15 +300,15 @@ def run_behavior(toolchain, source: str, top: str, plan: TestPlan, timeout_s: fl
     try:
         validate_candidate_ports(source, top, plan)
     except ValueError as exc:
-        return replace(_unavailable('behavior', str(exc)), failure_kind='test',
+        return replace(unavailable('behavior', str(exc)), failure_kind='test',
                        details=dict(plan_hash=plan.fingerprint, valid_observation=False))
     search = toolchain.config.bin_dir if toolchain.config.bin_dir is not None else None
     xsim = shutil.which('xsim', path=search)
     if not toolchain.available or not xsim:
-        return _unavailable('behavior', 'Vivado simulation tools unavailable')
+        return unavailable('behavior', 'Vivado simulation tools unavailable')
     if top != plan.top:
-        return _unavailable('behavior', 'test plan top differs from candidate top')
-    work = _make_work_dir('agent_behavior_', toolchain.config.temp_dir)
+        return unavailable('behavior', 'test plan top differs from candidate top')
+    work = make_work_dir('agent_behavior_', toolchain.config.temp_dir)
     outcomes = []
     try:
         Path(work, 'solution.sv').write_text(source, encoding='utf-8')
@@ -321,21 +322,21 @@ def run_behavior(toolchain, source: str, top: str, plan: TestPlan, timeout_s: fl
         for index, command in enumerate(commands):
             remaining = timeout_s - (time.monotonic() - started)
             if remaining <= 0:
-                result = (_build_result('behavior', outcomes, work, toolchain.config.keep_work,
+                result = (build_result('behavior', outcomes, work, toolchain.config.keep_work,
                                        toolchain.log_dir, toolchain.redactor) if outcomes else
-                          _unavailable('behavior', 'self-test budget exhausted before execution'))
+                          unavailable('behavior', 'self-test budget exhausted before execution'))
                 return replace(result, status='timeout', rc=124, failure_kind='timeout',
                     summary='self-test budget exhausted before next simulation stage',
                     details=dict(plan_hash=plan.fingerprint, stage=index, valid_observation=False))
-            outcome = toolchain._command(command, work, remaining)
+            outcome = toolchain.run_command(command, work, remaining)
             outcomes.append(outcome)
             if outcome.status != 'ok':
-                result = _build_result('behavior', outcomes, work, toolchain.config.keep_work,
+                result = build_result('behavior', outcomes, work, toolchain.config.keep_work,
                                        toolchain.log_dir, toolchain.redactor)
                 # DUT compile errors are source evidence; TB/elaboration failures are not.
                 return replace(result, failure_kind=result.failure_kind if index == 0 else 'test',
                                details=dict(plan_hash=plan.fingerprint, stage=index, valid_observation=False))
-        result = _build_result('behavior', outcomes, work, toolchain.config.keep_work,
+        result = build_result('behavior', outcomes, work, toolchain.config.keep_work,
                                toolchain.log_dir, toolchain.redactor)
         try:
             details = analyze_trace(outcomes[-1].output, plan)

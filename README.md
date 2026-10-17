@@ -35,6 +35,7 @@
 | `agent/workflows/spec_repair.py` | 三个可选实验入口，共用方案 A 首稿/检查点，但独立编排自测、修复和候选保护 |
 | `agent/core/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
 | `agent/core/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
+| `agent/core/tool.py` | 工具结果与状态的共享契约，供工具服务和可选自测共同使用 |
 | `agent/prompts/context.py` | 保留必须上下文，按真实 chat template 计数并装配可选完整片段 |
 | `agent/core/tokens.py` | 每题 token 账本；未知保持未知，可选累计输入输出/输出限额 |
 | `agent/core/diagnostic.py` | 自身工具诊断、工具与版本、错误码及可核实的候选行号 |
@@ -51,7 +52,8 @@
 | `agent/core/interface.py` | 结构化解析 ANSI、非 ANSI 接口并输出逐字段差异 |
 | `agent/core/candidate.py` | 定义候选 ID、来源、父子关系和代码哈希 |
 | `agent/recording/artifacts.py` | 原子更新最终答案，并在开发模式保存每轮候选 |
-| `agent/services/vivado.py` | 带进程组清理和结构化结果的 lint、综合工具 |
+| `agent/services/vivado.py` | lint、综合、工具身份与命令执行入口；通过受管理执行器运行时由 Supervisor 管理进程 |
+| `agent/services/tool_support.py` | 工具结果整理、日志、诊断归因和临时目录的共享实现 |
 | `agent/services/repair_feedback.py` | 摘要截断前收集自身工具根因、提供词法赋值导航，并保守比较顶层输出无驱动证据 |
 | `agent/services/port_signature.py` | 警告修复专用的保守端口声明语义比较；不支持的声明视为未知 |
 | `agent/services/behavior.py`、`timing.py`、`plan_format.py`、`literal_spec.py`、`spec_ports.py` | 可选规格自测基础：校验受支持端口、时序和计划，程序生成测试台并区分公开属性与模型假设；默认流程不调用 |
@@ -303,6 +305,9 @@ python3 -m agent.main --input <task_dir> --output <out_dir> \
 
 上下文提供模型、工具、预算、只读状态与候选操作。保存候选不会自动选择答案；Workflow 必须
 调用 `ctx.select_candidate()`，并用 `ctx.finish()` 返回与已落盘选择一致的结果。
+运行器构造上下文时显式传入本题起点时间和已解析配置；可选自测与 lint、综合共用工具结果契约，
+通过 `RtlToolchain.run_command()` 执行命令。工具身份同时包含 Vivado 工具代码及共享结果实现，
+这些实现变化会使本题检查缓存和初始检查点重放的工具身份失效。
 运行器支持 Workflow 工厂，在每题调用工厂创建新实例。构造参数、实现路径与实际执行动作自动记录。
 完整接口和扩展示例见 Python Workflow 接口（工作区开发资料）。
 
