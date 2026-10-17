@@ -16,6 +16,7 @@ from agent.services.tool_support import build_result, make_work_dir, unavailable
 from agent.services.plan_format import resolve_basis, cycle_steps
 from agent.services.literal_spec import LiteralTruthTable, parse_literal_truth_table
 from agent.services.spec_ports import supported_ports, validate_candidate_ports
+from agent.services.behavior_trace import analyze_trace
 
 
 @dataclass(frozen=True)
@@ -56,8 +57,16 @@ class TestPlan:
                     oracle_protocol=2, oracle_source=self.oracle_source, official_verification=False)
 
 
-def parse_plan(text: str, task: TaskSpec, *, max_steps=32) -> TestPlan:
-    """Reject injection, unsupported interfaces, ungrounded expectations and truncation."""
+def _unique_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError('duplicate JSON key')
+        result[key] = value
+    return result
+
+
+def _decode_plan(text: str) -> dict:
     if len(text) > 65536:
         raise ValueError('test plan exceeds size limit')
     stripped = text.strip()
@@ -66,18 +75,51 @@ def parse_plan(text: str, task: TaskSpec, *, max_steps=32) -> TestPlan:
         if not match:
             raise ValueError('expected one complete JSON block')
         stripped = match.group(1)
-    def unique(pairs):
-        result = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError('duplicate JSON key')
-            result[key] = value
-        return result
-    raw = json.loads(stripped, object_pairs_hook=unique)
+    raw = json.loads(stripped, object_pairs_hook=_unique_keys)
     if isinstance(raw, dict) and set(raw) == {'unsupported'} and isinstance(raw['unsupported'], str):
         raise ValueError('unsupported plan: ' + raw['unsupported'][:200])
     if not isinstance(raw, dict) or set(raw) not in ({'steps'}, {'steps', 'timing'}, {'cycles', 'timing'}):
         raise ValueError('test plan must contain steps or cycles and a timing contract')
+    return raw
+
+
+def _signal_values(row, field, allowed):
+    value = row[field]
+    if not isinstance(value, dict) or not set(value) <= set(allowed):
+        raise ValueError('unknown signal in ' + field)
+    result = []
+    for name, number in value.items():
+        if isinstance(number, str) and re.fullmatch(r'(?:0|[1-9][0-9]*)', number):
+            number = int(number, 10)
+        if isinstance(number, str) and re.fullmatch(r'(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+)', number):
+            number = int(number, 0)
+        if type(number) is not int:
+            raise ValueError('signal value must be an unsigned integer literal: ' + name)
+        if not 0 <= number < 2 ** allowed[name]:
+            raise ValueError('signal value outside port width')
+        result.append((name, number))
+    return tuple(sorted(result))
+
+
+def _parse_step(row, index, inputs, outputs, prompt: str) -> StimulusStep:
+    if not isinstance(row, dict) or set(row) != {'inputs', 'wait_ns', 'expected', 'basis'}:
+        raise ValueError('invalid step fields')
+    driven, expected = _signal_values(row, 'inputs', inputs), _signal_values(row, 'expected', outputs)
+    if index == 0 and set(dict(driven)) != set(inputs):
+        raise ValueError('first step must initialize all inputs')
+    delay, basis = row['wait_ns'], row['basis']
+    if type(delay) is not int or not 1 <= delay <= 1000:
+        raise ValueError('wait_ns must be an integer from 1 to 1000')
+    if expected:
+        basis = specification_quote(resolve_basis(basis, prompt), prompt)
+    elif not isinstance(basis, str) or len(basis) > 2000:
+        raise ValueError('invalid specification basis')
+    return StimulusStep(driven, delay, expected, basis)
+
+
+def parse_plan(text: str, task: TaskSpec, *, max_steps=32) -> TestPlan:
+    """Reject injection, unsupported interfaces, ungrounded expectations and truncation."""
+    raw = _decode_plan(text)
     ports = supported_ports(task)
     if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', task.top):
         raise ValueError('unsupported top name')
@@ -97,36 +139,9 @@ def parse_plan(text: str, task: TaskSpec, *, max_steps=32) -> TestPlan:
     steps = []
     assertions = 0
     for index, row in enumerate(rows):
-        if not isinstance(row, dict) or set(row) != {'inputs', 'wait_ns', 'expected', 'basis'}:
-            raise ValueError('invalid step fields')
-        def values(field, allowed):
-            value = row[field]
-            if not isinstance(value, dict) or not set(value) <= set(allowed):
-                raise ValueError('unknown signal in ' + field)
-            result = []
-            for name, number in value.items():
-                if isinstance(number, str) and re.fullmatch(r'(?:0|[1-9][0-9]*)', number):
-                    number = int(number, 10)
-                if isinstance(number, str) and re.fullmatch(r'(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+)', number):
-                    number = int(number, 0)
-                if type(number) is not int:
-                    raise ValueError('signal value must be an unsigned integer literal: ' + name)
-                if not 0 <= number < 2 ** allowed[name]:
-                    raise ValueError('signal value outside port width')
-                result.append((name, number))
-            return tuple(sorted(result))
-        driven, expected = values('inputs', inputs), values('expected', outputs)
-        if index == 0 and set(dict(driven)) != set(inputs):
-            raise ValueError('first step must initialize all inputs')
-        delay, basis = row['wait_ns'], row['basis']
-        if type(delay) is not int or not 1 <= delay <= 1000:
-            raise ValueError('wait_ns must be an integer from 1 to 1000')
-        if expected:
-            basis = specification_quote(resolve_basis(basis, task.prompt), task.prompt)
-        elif not isinstance(basis, str) or len(basis) > 2000:
-            raise ValueError('invalid specification basis')
-        assertions += len(expected)
-        steps.append(StimulusStep(driven, delay, expected, basis))
+        step = _parse_step(row, index, inputs, outputs, task.prompt)
+        assertions += len(step.expected)
+        steps.append(step)
     if not assertions:
         raise ValueError('test plan has no expectations')
     table = parse_literal_truth_table(task)
@@ -177,121 +192,6 @@ def render_driver(plan: TestPlan) -> str:
     lines.extend([f'    $display("AGENT_DONE|{len(plan.steps)}");', '    $finish;',
                   '  end', 'endmodule', ''])
     return '\n'.join(lines)
-
-
-def analyze_trace(output: str, plan: TestPlan):
-    """Missing/unknown samples are distinct from mismatches with a hypothesis oracle."""
-    output_names = {n for n, d, _ in plan.ports if d == 'output'}
-    samples = []
-    for line in output.splitlines():
-        if not line.startswith('AGENT_SAMPLE|'):
-            continue
-        parts = line.split('|')
-        if int(parts[1]) != len(samples):
-            raise ValueError('duplicate, missing or unordered sample')
-        values = {}
-        for pair in parts[2:]:
-            name, value = pair.split('=', 1)
-            if name in values or not re.fullmatch(r'[0-9a-fA-FxXzZ]+', value.strip()):
-                raise ValueError('invalid sampled output')
-            values[name] = value.strip().lower()
-        if set(values) != output_names:
-            raise ValueError('incomplete output sample')
-        samples.append(values)
-    if len(samples) != len(plan.steps) or f'AGENT_DONE|{len(plan.steps)}' not in output.splitlines():
-        raise ValueError('simulation completion or sample count missing')
-    hypothesis_mismatches, hypothesis_assertions, first = 0, 0, None
-    hypothesis_inconclusive = 0
-    properties, first_property = [], None
-    initialized = False
-    reset_probes = []
-    history = timing_history(plan)
-    timing = plan.timing
-    def known(value):
-        return not any(c in value for c in 'xz')
-    def mismatch(index, name, expected, actual, basis, source):
-        return dict(step=index, time_ns=history[index]['time_ns'], signal=name,
-                    expected=expected, actual_hex=actual, basis=basis, oracle_source=source,
-                    timing=timing.public_dict(),
-                    input_history=[dict(row, sampled_outputs=samples[i])
-                                   for i, row in enumerate(history[:index + 1])])
-    for index, step in enumerate(plan.steps):
-        row = history[index]
-        reset_event = (timing.kind == 'sequential' and row['reset_active']
-                       and (row['active_edge'] or timing.reset_kind == 'asynchronous'))
-        property_names = set()
-        if plan.literal_table:
-            for name, expected in plan.literal_table.expected(row['inputs']).items():
-                actual = samples[index][name]
-                status = ('inconclusive' if not known(actual) else
-                          'passed' if int(actual, 16) == expected else 'failed')
-                property_names.add(name)
-                properties.append(dict(id=f'public_literal_truth_table:{index}:{name}',
-                    source='public_literal_truth_table', status=status, step=index, signal=name,
-                    specification_hash=plan.literal_table.fingerprint))
-                if status == 'failed':
-                    item = mismatch(index, name, expected, actual, plan.literal_table.basis,
-                                    'public_literal_truth_table')
-                    if first_property is None:
-                        first_property = item
-                    if first is None:
-                        first = item
-        if reset_event:
-            initialized = True
-        if timing.kind == 'sequential' and initialized:
-            for name, reset_value in timing.reset_values:
-                actual = samples[index][name]
-                source, expected = None, None
-                if reset_event:
-                    source, expected = 'explicit_reset_literal', reset_value
-                elif index and not row['active_edge']:
-                    source = 'observed_registered_hold'
-                    previous = samples[index - 1][name]
-                    expected = int(previous, 16) if known(previous) else None
-                if source:
-                    property_names.add(name)
-                    status = ('inconclusive' if expected is None or not known(actual) else
-                              'passed' if int(actual, 16) == expected else 'failed')
-                    properties.append(dict(id=f'{source}:{index}:{name}', source=source,
-                                           status=status, step=index, signal=name))
-                    if status == 'failed':
-                        item = mismatch(index, name, expected, actual,
-                                        timing.reset_basis if reset_event else timing.basis,
-                                        'spec_contract_property')
-                        if first_property is None:
-                            first_property = item
-                        if first is None:
-                            first = item
-                if (index and row['reset_active'] and not history[index-1]['reset_active']
-                        and not row['active_edge']):
-                    previous = samples[index-1][name]
-                    reset_probes.append(dict(step=index, signal=name,
-                        discriminating=known(previous) and int(previous,16) != reset_value))
-        for name, expected in step.expected:
-            if name in property_names:
-                continue  # Literal reset checks are properties, not model oracles.
-            actual = samples[index][name]
-            if not known(actual):
-                hypothesis_inconclusive += 1
-                continue
-            hypothesis_assertions += 1
-            if int(actual, 16) != expected:
-                hypothesis_mismatches += 1
-                if first is None:
-                    first = mismatch(index, name, expected, actual, step.basis, 'model_spec_hypothesis')
-    property_mismatches = sum(p['status'] == 'failed' for p in properties)
-    property_assertions = sum(p['status'] != 'inconclusive' for p in properties)
-    return dict(plan_hash=plan.fingerprint, oracle_protocol=2, samples=samples,
-                assertions=hypothesis_assertions + property_assertions,
-                mismatches=hypothesis_mismatches + property_mismatches,
-                hypothesis_assertions=hypothesis_assertions, hypothesis_mismatches=hypothesis_mismatches,
-                hypothesis_inconclusive=hypothesis_inconclusive,
-                property_assertions=property_assertions, property_mismatches=property_mismatches,
-                property_inconclusive=sum(p['status'] == 'inconclusive' for p in properties),
-                property_checks=properties, first_property_mismatch=first_property,
-                reset_kind_probes=reset_probes,
-                first_mismatch=first, valid_observation=True,
-                oracle_source=plan.oracle_source, official_verification=False)
 
 
 def run_behavior(toolchain, source: str, top: str, plan: TestPlan, timeout_s: float) -> ToolResult:

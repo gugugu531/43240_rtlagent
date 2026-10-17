@@ -59,7 +59,9 @@
 | `agent/services/tool_support.py` | 工具结果整理、日志、诊断归因和临时目录的共享实现 |
 | `agent/services/repair_feedback.py` | 摘要截断前收集自身工具根因、提供词法赋值导航，并保守比较顶层输出无驱动证据 |
 | `agent/services/port_signature.py` | 警告修复专用的保守端口声明语义比较；不支持的声明视为未知 |
-| `agent/services/behavior.py`、`timing.py`、`plan_format.py`、`literal_spec.py`、`spec_ports.py` | 可选规格自测基础：校验受支持端口、时序和计划，程序生成测试台并区分公开属性与模型假设；默认流程不调用 |
+| `agent/services/behavior.py` | 可选规格自测的计划校验、受控测试台生成和工具执行；保留原有 `analyze_trace` 导入入口 |
+| `agent/services/behavior_trace.py` | 解析仿真采样，逐步先核对公开属性、再核对未被属性覆盖的模型假设 |
+| `agent/services/timing.py`、`plan_format.py`、`literal_spec.py`、`spec_ports.py` | 规格自测的时序、周期、公开真值表与端口支持检查；默认流程不调用 |
 | `agent/nodes/behavior.py`、`agent/workflows/spec_selection.py` | 显式导入的计划/自测 Node 与可调用候选保护函数；不注册或启用新的 Workflow |
 | `agent/recording/` | 保存模型与动作证据、trace、脱敏及通用运行/模型统计 |
 | `agent/prompts/skills.py` | 加载技能包，按工具报错挑选相关技能 |
@@ -245,6 +247,9 @@ packed/unpacked 范围（含边界方向）；只忽略 wire/reg/logic 类型修
 复位依据支持非相邻的原文段落，首次与末次复位检查都逐段验证；positive/negative edge
 同样按时序规格处理。模型假设采样中的 X/Z 单独记录为不确定观察，不计入已判定断言或失配；
 没有确定失配但存在不确定观察时，自测返回不可用。
+采样解释按时间逐步处理，每一步先核对公开真值表、复位和保持属性，再核对未被这些属性覆盖的
+模型假设；因此最早的确定失配按实际采样顺序保留，同一步以公开属性为先。
+这些都是自身测试台的观察，不是官方功能验证。
 开发接口、支持范围和限制见规格自测基础（工作区开发资料）。
 
 三个新增实验入口分别为 `tool_feedback`（最多 2 次模型请求）、`spec_test_repair`（最多 3 次）和
