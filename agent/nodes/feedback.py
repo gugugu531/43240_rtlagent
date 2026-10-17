@@ -4,8 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
-from agent.core.components import Component
-from agent.core.registry import NODE_REGISTRY
+from agent.core.components import Node
 
 
 _DIAGNOSTIC_CODE_RE = re.compile(r"\[([A-Za-z][A-Za-z0-9_-]*\s+\d+-\d+)\]")
@@ -47,9 +46,11 @@ class StructuredFeedback:
         }
 
 
-@NODE_REGISTRY.register('structured_feedback')
 @dataclass(frozen=True)
-class StructuredFeedbackNode(Component):
+class StructuredFeedbackNode(Node[FeedbackInput, StructuredFeedback]):
+    component_name = 'structured_feedback'
+    input_type = FeedbackInput
+    output_type = StructuredFeedback
     """Keep the actionable excerpt and make its attribution explicit.
 
     This node deliberately does not read full logs, retrieve knowledge, reflect,

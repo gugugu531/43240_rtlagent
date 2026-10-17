@@ -9,7 +9,7 @@ from agent.core.state import CheckResult
 from agent.nodes.check import CheckInput
 
 if TYPE_CHECKING:
-    from agent.core.context import RunContext
+    from agent.core.components import RunContext
 
 
 def candidate_checks(ctx: RunContext, candidate: Candidate, *,

@@ -1,32 +1,22 @@
 """Bounded E2 repair depth and independent candidate width comparisons."""
-from dataclasses import dataclass, replace
+from dataclasses import replace
 import hashlib
 import re
 import time
 
 from agent.core.budget import BudgetExhausted
-from agent.core.model import ModelCallError, ModelRequest
-from agent.core.registry import NODE_REGISTRY, WORKFLOW_REGISTRY, build_node
-from agent.core.replay import load_initial, save_initial, runtime_hashes, task_hash, digest
+from agent.core.components import Node
+from agent.core.extraction import ExtractInput, ExtractionOutput
+from agent.core.model import ModelCallError
+from agent.core.model import ModelReply
+from agent.core.state import CheckResult
+from agent.nodes.check import CheckInput
+from agent.nodes.feedback import FeedbackInput, StructuredFeedback
+from agent.workflows.replay import load_initial, save_initial, runtime_hashes, task_hash, digest
 from agent.recording.artifacts import atomic_write_json
-from agent.nodes.extract import ExtractInput
-from agent.nodes.generate import GenerateNode, GenerateInput
+from agent.nodes.generate import GenerateInput
 from agent.workflows.evidence_ablation import EvidenceAblation
 from agent.workflows.checks import candidate_checks
-
-
-@NODE_REGISTRY.register('seeded_generate')
-@dataclass(frozen=True)
-class SeededGenerate(GenerateNode):
-    base_seed: int = 20261013
-
-    def __post_init__(self):
-        super().__post_init__()
-        ModelRequest([], seed=self.base_seed)
-        ModelRequest([], seed=self.base_seed + 2)
-
-    def run(self, ctx, input):
-        return super().run(ctx, replace(input, seed=self.base_seed + input.round - 1))
 
 
 def normalize_tool_paths(summary):
@@ -35,19 +25,29 @@ def normalize_tool_paths(summary):
 
 
 class SearchAblation(EvidenceAblation):
+    component_name = 'search_ablation'
     limit = 2
     strategy = 'repair'
 
-    def __init__(self, initial_state=None, base_seed=20261013, temperature=0.6, top_p=0.95,
-                 corpus_path=None):
-        super().__init__(initial_state, corpus_path=corpus_path)
-        self.max_rounds = self.max_model_calls = self.limit
-        self.max_request_retries = 0
+    def __init__(self, generate: Node[GenerateInput, ModelReply],
+                 extract: Node[ExtractInput, ExtractionOutput],
+                 interface: Node[CheckInput, CheckResult],
+                 lint: Node[CheckInput, CheckResult],
+                 synth: Node[CheckInput, CheckResult],
+                 feedback_builder: Node[FeedbackInput, StructuredFeedback],
+                 guidance: Node[CheckResult, tuple] | None = None, *,
+                 max_rounds: int | None = None, max_request_retries: int = 0,
+                 max_model_calls: int | None = None, minimum_action_s: float = 0.05,
+                 repair_output_drivers: bool = False) -> None:
+        rounds = self.limit if max_rounds is None else max_rounds
+        calls = self.limit if max_model_calls is None else max_model_calls
+        super().__init__(generate, extract, interface, lint, synth, feedback_builder,
+                         guidance, max_rounds=rounds,
+                         max_request_retries=max_request_retries, max_model_calls=calls,
+                         minimum_action_s=minimum_action_s,
+                         repair_output_drivers=repair_output_drivers)
         self._prefix_ready = False
         self._source = None
-        self.generate = build_node('seeded_generate', base_seed=base_seed, max_tokens=8192,
-                                   temperature=temperature, top_p=top_p, timeout_s=300.0,
-                                   prompt_style='repair', use_skills=False)
 
     def build_check_feedback(self, ctx, checks):
         normalized = [replace(c, summary=normalize_tool_paths(c.summary)) for c in checks]
@@ -63,7 +63,7 @@ class SearchAblation(EvidenceAblation):
         elapsed = time.monotonic() - ctx.started_at
         branch_wall_s = max(0.0, elapsed - (initial['initial_wall_s'] if not self._source else 0))
         selected = ctx.state.candidates.get(ctx.state.selected_candidate_id)
-        data = dict(schema_version=1, source_workflow=self._registration_name,
+        data = dict(schema_version=1, source_workflow=self.component_name,
             task_hash=task_hash(ctx.task), runtime_hashes=runtime_hashes(), service=dict(ctx.llm.backend.describe()),
             initial_sha256=initial_sha256, shared_initial_wall_s=initial['initial_wall_s'],
             branch_wall_s=branch_wall_s, requests=ctx.llm.requests,
@@ -98,7 +98,7 @@ class SearchAblation(EvidenceAblation):
 
     def run(self, ctx):
         configured = getattr(ctx, 'configuration', {}).get('effective', {}).get('runtime', {}).get('initial_state')
-        self._source = self.initial_state or configured
+        self._source = configured
         try:
             if self.strategy != 'candidates':
                 return super().run(ctx)
@@ -110,7 +110,7 @@ class SearchAblation(EvidenceAblation):
     def run_candidates(self, ctx):
         source = self._source
         if source:
-            data, reply, result, checks = load_initial(source, ctx, self.extract)
+            data, reply, result, checks = load_initial(source, ctx)
             self._initial_checkpoint = data
             self._prefix_ready = True
             ctx.apply_selection(self.choose(ctx.state))
@@ -118,7 +118,7 @@ class SearchAblation(EvidenceAblation):
             if checks and checks[-1].classify() in ('environment', 'unknown', 'timeout'):
                 return ctx.finish(reason=checks[-1].classify(), status='stopped')
         else:
-            self._identity = ctx.tools.identify()
+            self._identity = ctx.checks.identify()
             round_start = 1
         for round in range(round_start, self.limit + 1):
             if round == 3:
@@ -155,33 +155,33 @@ class SearchAblation(EvidenceAblation):
         return ctx.finish(reason='candidate_limit')
 
 
-@WORKFLOW_REGISTRY.register('search_initial')
 class SearchInitial(SearchAblation):
+    component_name = 'search_initial'
     arm = 'A0'
     limit = 1
 
 
-@WORKFLOW_REGISTRY.register('search_r1')
 class SearchRepairOnce(SearchAblation):
+    component_name = 'search_r1'
     pass
 
 
-@WORKFLOW_REGISTRY.register('search_r2')
 class SearchRepairTwice(SearchAblation):
+    component_name = 'search_r2'
     limit = 3
 
 
-@WORKFLOW_REGISTRY.register('search_r2_guided')
 class SearchGuidedRepairTwice(SearchRepairTwice):
+    component_name = 'search_r2_guided'
     arm = 'A2'
 
 
-@WORKFLOW_REGISTRY.register('search_c2')
 class SearchTwoCandidates(SearchAblation):
+    component_name = 'search_c2'
     strategy = 'candidates'
 
 
-@WORKFLOW_REGISTRY.register('search_c3')
 class SearchThreeCandidates(SearchAblation):
+    component_name = 'search_c3'
     strategy = 'candidates'
     limit = 3

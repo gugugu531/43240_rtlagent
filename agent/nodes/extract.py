@@ -1,28 +1,14 @@
 """Extract one candidate, retaining evidence even when extraction fails."""
-from dataclasses import dataclass
-from agent.core.candidate import Candidate
-from agent.core.components import Component
-from agent.core.model import ModelReply
-from agent.core.registry import NODE_REGISTRY
-from agent.nodes.extraction import ExtractionResult, extract_result
+from agent.core.components import Node
+from agent.core.extraction import ExtractInput, ExtractionOutput
+from agent.services.extraction import extract_result
 
 
-@dataclass(frozen=True)
-class ExtractInput:
-    reply: ModelReply
-    round: int = 1
-    parent_id: str | None = None
-    source_stage: str = 'generate'
+class ExtractNode(Node[ExtractInput, ExtractionOutput]):
+    component_name = 'rtl_extract'
+    input_type = ExtractInput
+    output_type = ExtractionOutput
 
-
-@dataclass(frozen=True)
-class ExtractionOutput:
-    extraction: ExtractionResult
-    candidate: Candidate | None
-
-
-@NODE_REGISTRY.register('rtl_extract')
-class ExtractNode(Component):
     def run(self, ctx, input: ExtractInput) -> ExtractionOutput:
         extracted = extract_result(input.reply.content, target_module=ctx.task.top)
         candidate = None

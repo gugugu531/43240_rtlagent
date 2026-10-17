@@ -1,12 +1,13 @@
 """Independent test-plan generation and candidate simulation actions."""
 from dataclasses import dataclass
 import json
-from agent.core.candidate import Candidate
-from agent.core.components import Component
+from agent.core.components import Node, Tool
 from agent.core.model import ModelRequest, ModelCallError
-from agent.core.registry import NODE_REGISTRY
 from agent.core.task import TaskSpec
-from agent.services.behavior import TestPlan, parse_plan, literal_truth_table_plan
+from agent.services.behavior import parse_plan, literal_truth_table_plan
+from agent.services.behavior_types import PlanResult, BehaviorInput
+from agent.core.state import CheckResult
+from agent.core.tool import CheckOutcome
 from agent.services.plan_format import evidence_catalog
 from agent.services.literal_spec import plan_kind
 from agent.services.spec_ports import supported_ports
@@ -99,15 +100,10 @@ def plan_messages(task):
 
 
 @dataclass(frozen=True)
-class PlanResult:
-    plan: TestPlan | None
-    call_id: str
-    reason: str = ''
-
-
-@NODE_REGISTRY.register('spec_test_plan')
-@dataclass(frozen=True)
-class TestPlanNode(Component):
+class TestPlanNode(Node[TaskSpec, PlanResult]):
+    component_name = 'spec_test_plan'
+    input_type = TaskSpec
+    output_type = PlanResult
     max_tokens: int = 4096
     timeout_s: float = 90.0
     top_p: float = 1.0
@@ -151,16 +147,19 @@ class TestPlanNode(Component):
 
 
 @dataclass(frozen=True)
-class BehaviorInput:
-    candidate: Candidate
-    plan: TestPlan
-
-
-@NODE_REGISTRY.register('spec_behavior_check')
-@dataclass(frozen=True)
-class BehaviorNode(Component):
+class BehaviorNode(Node[BehaviorInput, CheckResult]):
+    component_name = 'spec_behavior_check'
+    input_type = BehaviorInput
+    output_type = CheckResult
+    dependencies = {'tool': 'tool'}
+    dependency_types = {'tool': (BehaviorInput, CheckOutcome)}
+    tool: Tool[BehaviorInput, CheckOutcome]
     timeout_s: float = 60.0
 
+    def __post_init__(self):
+        if getattr(self.tool, 'check_kind', None) != 'behavior':
+            raise ValueError('behavior node requires a behavior check tool')
+
     def run(self, ctx, input: BehaviorInput):
-        return ctx.tools.behavior(input.candidate, input.plan,
-                                  timeout_s=ctx.budget.timeout_s(self.timeout_s))
+        timeout = ctx.budget.timeout_s(self.timeout_s)
+        return ctx.check(self.tool, input, candidate=input.candidate, timeout_s=timeout)

@@ -2,12 +2,12 @@
 from dataclasses import dataclass
 import math
 from agent.core.budget import BudgetExhausted
-from agent.core.components import Component
-from agent.core.model import ModelCallError
-from agent.core.registry import WORKFLOW_REGISTRY, build_node
-from agent.core.state import RunStateView, SelectionDecision, WorkflowResult
+from agent.core.components import Node, Workflow
+from agent.core.model import ModelCallError, ModelReply
+from agent.core.state import CheckResult, RunStateView, SelectionDecision, WorkflowResult
 from agent.nodes.generate import GenerateInput
-from agent.nodes.extract import ExtractInput
+from agent.core.extraction import ExtractInput, ExtractionOutput
+from agent.nodes.check import CheckInput
 from agent.workflows.checks import candidate_checks
 from agent.services.repair_feedback import (tool_repair_feedback, output_driver_warnings,
     output_driver_feedback, driver_repair_improves)
@@ -41,15 +41,25 @@ def classify_model_error(error: ModelCallError) -> str:
     return 'model_retryable' if retryable else 'model_terminal'
 
 
-@WORKFLOW_REGISTRY.register('repair_loop')
-class RepairLoop(Component):
+class RepairLoop(Workflow):
+    component_name = 'repair_loop'
+    dependencies = {'generate': 'node', 'extract': 'node', 'interface': 'node',
+                    'lint': 'node', 'synth': 'node'}
+    dependency_types = {'generate': (GenerateInput, ModelReply),
+                        'extract': (ExtractInput, ExtractionOutput),
+                        'interface': (CheckInput, CheckResult),
+                        'lint': (CheckInput, CheckResult),
+                        'synth': (CheckInput, CheckResult)}
     """Subclasses replace choose() or decide() to try other strategies."""
 
-    def __init__(self, max_rounds: int = 3, max_tokens: int = 4096,
-                 temperature: float = 0.2, timeout_s: float = 180.0,
-                 use_skills: bool = True, max_request_retries: int = 1,
+    def __init__(self, generate: Node[GenerateInput, ModelReply],
+                 extract: Node[ExtractInput, ExtractionOutput],
+                 interface: Node[CheckInput, CheckResult],
+                 lint: Node[CheckInput, CheckResult],
+                 synth: Node[CheckInput, CheckResult], *,
+                 max_rounds: int = 3, max_request_retries: int = 1,
                  max_model_calls: int | None = None, minimum_action_s: float = 0.05,
-                 repair_output_drivers: bool = True):
+                 repair_output_drivers: bool = True) -> None:
         if isinstance(max_rounds, bool) or not isinstance(max_rounds, int) or max_rounds <= 0:
             raise ValueError('max_rounds must be a positive integer')
         if max_model_calls is None:
@@ -61,20 +71,15 @@ class RepairLoop(Component):
             raise ValueError('max_model_calls must be positive')
         if not math.isfinite(minimum_action_s) or minimum_action_s < 0:
             raise ValueError('minimum_action_s must be nonnegative')
-        self.max_rounds, self.max_tokens = max_rounds, max_tokens
-        self.temperature, self.timeout_s, self.use_skills = temperature, timeout_s, use_skills
-        self.max_request_retries, self.max_model_calls = max_request_retries, max_model_calls
-        self.minimum_action_s = minimum_action_s
         if type(repair_output_drivers) is not bool:
             raise ValueError('repair_output_drivers must be boolean')
+        self.generate, self.extract = generate, extract
+        self.interface, self.lint, self.synth = interface, lint, synth
+        self.max_rounds = max_rounds
+        self.max_request_retries, self.max_model_calls = max_request_retries, max_model_calls
+        self.minimum_action_s = minimum_action_s
         self.repair_output_drivers = repair_output_drivers
         self._output_top = None
-        self.generate = build_node('rtl_generate', max_tokens=max_tokens, temperature=temperature,
-                                   timeout_s=timeout_s, prompt_style='repair', use_skills=use_skills)
-        self.extract = build_node('rtl_extract')
-        self.interface = build_node('interface_check')
-        self.lint = build_node('vivado_lint', timeout_s=300.0)
-        self.synth = build_node('vivado_synth', timeout_s=900.0)
 
     def choose(self, state: RunStateView) -> SelectionDecision:
         """Compare real evidence without turning unknown checks into passes."""

@@ -1,34 +1,38 @@
 """Minimal evidence-gated workflow: one initial candidate and at most one repair."""
 from __future__ import annotations
 
-from agent.core.registry import WORKFLOW_REGISTRY, build_node
-from agent.core.state import SelectionDecision
-from agent.nodes.feedback import FeedbackInput
+from agent.core.components import Node
+from agent.core.extraction import ExtractInput, ExtractionOutput
+from agent.core.model import ModelReply
+from agent.core.state import CheckResult, SelectionDecision
+from agent.nodes.check import CheckInput
+from agent.nodes.feedback import FeedbackInput, StructuredFeedback
+from agent.nodes.generate import GenerateInput
 from agent.workflows.repair_loop import RepairLoop
 
 
-@WORKFLOW_REGISTRY.register('evidence_repair')
 class EvidenceRepair(RepairLoop):
+    component_name = 'evidence_repair'
+    dependencies = {**RepairLoop.dependencies, 'feedback_builder': 'node'}
+    dependency_types = {**RepairLoop.dependency_types, 'feedback_builder': (FeedbackInput, StructuredFeedback)}
     """Scheme A without ICL, planning, RAG, reflection, or testbench access."""
 
-    def __init__(self, max_tokens: int = 8192, temperature: float = 0.0,
-                 timeout_s: float = 300.0, max_request_retries: int = 1,
+    def __init__(self, generate: Node[GenerateInput, ModelReply],
+                 extract: Node[ExtractInput, ExtractionOutput],
+                 interface: Node[CheckInput, CheckResult],
+                 lint: Node[CheckInput, CheckResult],
+                 synth: Node[CheckInput, CheckResult],
+                 feedback_builder: Node[FeedbackInput, StructuredFeedback], *,
+                 max_rounds: int = 2, max_request_retries: int = 1,
                  max_model_calls: int | None = None, minimum_action_s: float = 0.05,
-                 max_feedback_chars: int = 1600):
+                 repair_output_drivers: bool = False) -> None:
         if max_model_calls is None:
-            max_model_calls = 2 + max_request_retries
-        super().__init__(max_rounds=2, max_tokens=max_tokens, temperature=temperature,
-                         timeout_s=timeout_s, use_skills=False,
-                         max_request_retries=max_request_retries,
-                         max_model_calls=max_model_calls,
-                         minimum_action_s=minimum_action_s,
-                         repair_output_drivers=False)
-        self.max_feedback_chars = max_feedback_chars
-        self.generate = build_node('rtl_generate', max_tokens=max_tokens,
-                                   temperature=temperature, top_p=1.0,
-                                   timeout_s=timeout_s, prompt_style='repair', use_skills=False)
-        self.feedback_builder = build_node('structured_feedback',
-                                           max_summary_chars=max_feedback_chars)
+            max_model_calls = max_rounds + max_request_retries
+        super().__init__(generate, extract, interface, lint, synth,
+                         max_rounds=max_rounds, max_request_retries=max_request_retries,
+                         max_model_calls=max_model_calls, minimum_action_s=minimum_action_s,
+                         repair_output_drivers=repair_output_drivers)
+        self.feedback_builder = feedback_builder
 
     def choose(self, state) -> SelectionDecision:
         decision = super().choose(state)

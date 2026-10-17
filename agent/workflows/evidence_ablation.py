@@ -1,38 +1,61 @@
 """E1 arms share the existing solver loop and explicit solver-only replay."""
-from pathlib import Path
 
-from agent.core.registry import WORKFLOW_REGISTRY, build_node
-from agent.core.replay import load_initial, save_initial
+from agent.core.components import Node
+from agent.core.extraction import ExtractInput, ExtractionOutput
+from agent.core.model import ModelReply
+from agent.core.replay_contract import InitialReplayContract
+from agent.nodes.check import CheckInput
+from agent.nodes.feedback import FeedbackInput, StructuredFeedback
+from agent.nodes.generate import GenerateInput
+from agent.workflows.replay import load_initial, save_initial
 from agent.workflows.evidence_repair import EvidenceRepair
 from agent.workflows.repair_loop import AttemptState, LoopStart
+from agent.core.state import CheckResult
 
 
 class EvidenceAblation(EvidenceRepair):
+    component_name = 'evidence_ablation'
     arm = 'A1'
 
-    def __init__(self, initial_state=None, corpus_path=None):
-        super().__init__()
-        self.initial_state = initial_state
-        if self.arm == 'A0':
-            self.max_rounds = 1
-        self.guidance = build_node('repair_guidance', corpus_path=corpus_path) if self.arm == 'A2' else None
+    dependencies = {**EvidenceRepair.dependencies, 'guidance': 'node'}
+    dependency_types = {**EvidenceRepair.dependency_types, 'guidance': (CheckResult, tuple)}
+
+    def initial_replay_contract(self) -> InitialReplayContract:
+        return InitialReplayContract('scheme_a', self.extract,
+                                     (self.interface, self.lint, self.synth))
+
+    def __init__(self, generate: Node[GenerateInput, ModelReply],
+                 extract: Node[ExtractInput, ExtractionOutput],
+                 interface: Node[CheckInput, CheckResult],
+                 lint: Node[CheckInput, CheckResult],
+                 synth: Node[CheckInput, CheckResult],
+                 feedback_builder: Node[FeedbackInput, StructuredFeedback],
+                 guidance: Node[CheckResult, tuple] | None = None, *,
+                 max_rounds: int = 2, max_request_retries: int = 1,
+                 max_model_calls: int | None = None, minimum_action_s: float = 0.05,
+                 repair_output_drivers: bool = False) -> None:
+        super().__init__(generate, extract, interface, lint, synth, feedback_builder,
+                         max_rounds=max_rounds, max_request_retries=max_request_retries,
+                         max_model_calls=max_model_calls, minimum_action_s=minimum_action_s,
+                         repair_output_drivers=repair_output_drivers)
+        self.guidance = guidance
         self._identity = None
         self._initial_checkpoint = None
+        self._initial_state = None
 
     def run(self, ctx):
         # Configuration carries only a checkpoint path; its solver-only payload
         # is validated independently, never taken from a judge-bearing run folder.
         configured = getattr(ctx, 'configuration', {}).get('effective', {}).get('runtime', {}).get('initial_state')
-        if self.initial_state is None:
-            self.initial_state = configured
-        if not self.initial_state:
-            self._identity = ctx.tools.identify()
+        self._initial_state = configured
+        if not self._initial_state:
+            self._identity = ctx.checks.identify()
         return super().run(ctx)
 
     def restore(self, ctx):
-        if not self.initial_state:
+        if not self._initial_state:
             return None
-        data, reply, result, checks = load_initial(self.initial_state, ctx, self.extract)
+        data, reply, result, checks = load_initial(self._initial_state, ctx)
         self._initial_checkpoint = data
         ctx.apply_selection(self.choose(ctx.state))
         if self.arm == 'A0' or data['stop_reason'] == 'synth_passed':
@@ -55,7 +78,7 @@ class EvidenceAblation(EvidenceRepair):
         return LoopStart(result.candidate, feedback, calls, optional_pieces=self.repair_pieces(ctx, checks))
 
     def after_round(self, ctx, reply, result, checks, choice, round):
-        if round == 1 and self.arm == 'A0' and not self.initial_state:
+        if round == 1 and self.arm == 'A0' and not self._initial_state:
             save_initial(ctx.output_dir / 'initial.json', ctx, reply, result, checks, choice.reason, self._identity)
 
     def repair_pieces(self, ctx, checks):
@@ -64,16 +87,16 @@ class EvidenceAblation(EvidenceRepair):
         return ctx.execute(self.guidance, checks[-1])
 
 
-@WORKFLOW_REGISTRY.register('evidence_a0')
 class EvidenceInitial(EvidenceAblation):
+    component_name = 'evidence_a0'
     arm = 'A0'
 
 
-@WORKFLOW_REGISTRY.register('evidence_a1')
 class EvidenceStructured(EvidenceAblation):
+    component_name = 'evidence_a1'
     arm = 'A1'
 
 
-@WORKFLOW_REGISTRY.register('evidence_a2')
 class EvidenceGuided(EvidenceAblation):
+    component_name = 'evidence_a2'
     arm = 'A2'

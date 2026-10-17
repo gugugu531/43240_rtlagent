@@ -2,15 +2,17 @@
 from dataclasses import dataclass
 import time
 
-from agent.core.components import Component
+from agent.core.components import Node
 from agent.core.diagnostic import diagnostics_from_check
-from agent.core.registry import NODE_REGISTRY
+from agent.core.state import CheckResult
 from agent.services.knowledge import load_corpus, retrieve_repair_guides
 
 
-@NODE_REGISTRY.register('repair_guidance')
 @dataclass(frozen=True)
-class RepairGuidanceNode(Component):
+class RepairGuidanceNode(Node[CheckResult, tuple]):
+    component_name = 'repair_guidance'
+    input_type = CheckResult
+    output_type = tuple
     corpus_path: str | None = None
     limit: int = 2
     max_chars: int = 2400
@@ -20,8 +22,7 @@ class RepairGuidanceNode(Component):
         if check.classify() != 'code':
             ctx.emit('repair_guidance', source_id=check.id, reason='not_code_failure', hits=[])
             return ()
-        path = self.corpus_path or getattr(ctx, 'configuration', {}).get('effective', {}).get(
-            'services', {}).get('knowledge', {}).get('corpus_path')
+        path = self.corpus_path
         if not path:
             ctx.emit('repair_guidance', source_id=check.id, reason='corpus_not_configured', hits=[])
             return ()

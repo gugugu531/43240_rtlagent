@@ -4,19 +4,21 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 import json
-import math
 
 from agent.core.budget import BudgetExhausted
-from agent.core.components import Component
+from agent.core.components import Node, Workflow
 from agent.core.model import ModelCallError
-from agent.core.registry import WORKFLOW_REGISTRY, build_node
-from agent.core.replay import load_initial, save_initial
+from agent.core.replay_contract import InitialReplayContract
+from agent.workflows.replay import load_initial, save_initial
 from agent.core.state import SelectionDecision
 from agent.core.tokens import TokenCount, TokenLedger
-from agent.nodes.behavior import BehaviorInput, PlanResult
+from agent.services.behavior_types import BehaviorInput, PlanResult
 from agent.nodes.check import CheckInput
-from agent.nodes.extract import ExtractInput
+from agent.core.extraction import ExtractInput, ExtractionOutput
 from agent.nodes.generate import GenerateInput
+from agent.core.model import ModelReply
+from agent.core.state import CheckResult
+from agent.core.task import TaskSpec
 from agent.services.behavior import literal_truth_table_plan
 from agent.services.port_signature import port_signature
 from agent.services.repair_feedback import (driver_repair_improves, output_driver_feedback,
@@ -28,34 +30,38 @@ class ModelCallLimit(RuntimeError):
     pass
 
 
-class ExperimentalRepair(Component):
+class ExperimentalRepair(Workflow):
     """One repair slot; no retry, voting, judge feedback or speculative selection."""
 
+    component_name = 'experimental_repair'
+    dependencies = {name: 'node' for name in ('generate', 'alternative', 'extract',
+        'interface', 'lint', 'synth', 'plan_node', 'behavior')}
+    dependency_types = {'generate': (GenerateInput, ModelReply),
+        'alternative': (GenerateInput, ModelReply), 'extract': (ExtractInput, ExtractionOutput),
+        'interface': (CheckInput, CheckResult), 'lint': (CheckInput, CheckResult),
+        'synth': (CheckInput, CheckResult), 'plan_node': (TaskSpec, PlanResult),
+        'behavior': (BehaviorInput, CheckResult)}
     use_behavior = False
     candidates = 1
 
-    def __init__(self, initial_state=None, max_tokens=8192, timeout_s=300.0,
-                 alternative_temperature=0.4):
-        if (isinstance(alternative_temperature, bool)
-                or not isinstance(alternative_temperature, (int, float))
-                or not math.isfinite(alternative_temperature) or alternative_temperature < 0):
-            raise ValueError('alternative_temperature must be finite and nonnegative')
-        self.initial_state = initial_state
+    def initial_replay_contract(self) -> InitialReplayContract:
+        return InitialReplayContract('scheme_a', self.extract,
+                                     (self.interface, self.lint, self.synth))
+
+    def __init__(self, generate: Node[GenerateInput, ModelReply],
+                 alternative: Node[GenerateInput, ModelReply],
+                 extract: Node[ExtractInput, ExtractionOutput],
+                 interface: Node[CheckInput, CheckResult],
+                 lint: Node[CheckInput, CheckResult],
+                 synth: Node[CheckInput, CheckResult],
+                 plan_node: Node[TaskSpec, PlanResult],
+                 behavior: Node[BehaviorInput, CheckResult], *,
+                 max_tokens: int = 8192, timeout_s: float = 300.0) -> None:
+        self.generate, self.alternative, self.extract = generate, alternative, extract
+        self.interface, self.lint, self.synth = interface, lint, synth
+        self.plan_node, self.behavior = plan_node, behavior
         self.max_tokens, self.timeout_s = max_tokens, timeout_s
-        self.alternative_temperature = alternative_temperature
         self.max_calls = self.candidates + 1 + int(self.use_behavior)
-        # Match scheme A only at the initial boundary, not its control flow.
-        self.generate = build_node('rtl_generate', max_tokens=max_tokens, temperature=0.0,
-            top_p=1.0, timeout_s=timeout_s, prompt_style='repair', use_skills=False)
-        self.alternative = build_node('rtl_generate', max_tokens=max_tokens,
-            temperature=alternative_temperature, top_p=1.0, timeout_s=timeout_s,
-            prompt_style='repair', use_skills=False)
-        self.extract = build_node('rtl_extract')
-        self.interface = build_node('interface_check')
-        self.lint = build_node('vivado_lint', timeout_s=45.0)
-        self.synth = build_node('vivado_synth', timeout_s=60.0)
-        self.plan_node = build_node('spec_test_plan')
-        self.behavior = build_node('spec_behavior_check', timeout_s=45.0)
 
     def _calls(self, ctx):
         # Includes imported initial costs; deterministic plans never add a call.
@@ -113,7 +119,7 @@ class ExperimentalRepair(Component):
             raise ValueError('initial checkpoint must precede behavioral experiments')
 
     def _restore_initial(self, ctx, path):
-        data, reply, result, checks = load_initial(path, ctx, self.extract)
+        data, reply, result, checks = load_initial(path, ctx)
         self._validate_initial(ctx, data, checks)
         self._round = 1
         if result.candidate:
@@ -125,10 +131,10 @@ class ExperimentalRepair(Component):
 
     def _initial(self, ctx):
         configured = getattr(ctx, 'configuration', {}).get('effective', {}).get('runtime', {}).get('initial_state')
-        path = self.initial_state or configured
+        path = configured
         if path:
             return self._restore_initial(ctx, path)
-        identity = ctx.tools.identify()
+        identity = ctx.checks.identify()
         reply, result = self._generate(ctx)
         if result.candidate:
             self._compile(ctx, result.candidate)
@@ -370,17 +376,17 @@ class ExperimentalRepair(Component):
             return ctx.finish(reason='model_' + exc.kind, status='stopped')
 
 
-@WORKFLOW_REGISTRY.register('tool_feedback')
 class ToolFeedback(ExperimentalRepair):
+    component_name = 'tool_feedback'
     pass
 
 
-@WORKFLOW_REGISTRY.register('spec_test_repair')
 class SpecTestRepair(ExperimentalRepair):
+    component_name = 'spec_test_repair'
     use_behavior = True
 
 
-@WORKFLOW_REGISTRY.register('behavior_divergence')
 class BehaviorDivergence(ExperimentalRepair):
+    component_name = 'behavior_divergence'
     use_behavior = True
     candidates = 2

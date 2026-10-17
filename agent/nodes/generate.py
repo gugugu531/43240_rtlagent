@@ -2,9 +2,8 @@
 from dataclasses import dataclass
 import math
 from agent.core.candidate import Candidate
-from agent.core.components import Component
+from agent.core.components import Node
 from agent.core.model import ModelRequest, ModelReply
-from agent.core.registry import NODE_REGISTRY
 from agent.core.task import TaskSpec
 from agent.prompts.context import ContextAssembler, ContextPiece
 
@@ -19,9 +18,11 @@ class GenerateInput:
     seed: int | None = None
 
 
-@NODE_REGISTRY.register('rtl_generate')
 @dataclass(frozen=True)
-class GenerateNode(Component):
+class GenerateNode(Node[GenerateInput, ModelReply]):
+    component_name = 'rtl_generate'
+    input_type = GenerateInput
+    output_type = ModelReply
     max_tokens: int = 8192
     temperature: float = 0.0
     timeout_s: float = 300.0
