@@ -9,6 +9,8 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
 import json
+import difflib
+import hashlib
 import os
 import tempfile
 import time
@@ -109,12 +111,12 @@ class RunRecorder:
         self._call_seq += 1
         call = CallHandle(f'm{self._call_seq:03d}', self.run_id)
         self._calls[call.call_id] = dict(execution_id=self._execution.get())
-        self.write_event('llm', 'started', call_id=call.call_id, purpose=request.purpose,
-                         service=service_info)
         record = request.public_dict() if http_payload is None else dict(
             request=http_payload, timeout_s=request.timeout_s,
             purpose=request.purpose, profile=request.profile)
-        self._artifact(f'calls/{call.call_id}/request.json', record)
+        artifact = self._artifact(f'calls/{call.call_id}/request.json', record)
+        self.write_event('llm', 'started', call_id=call.call_id, purpose=request.purpose,
+                         service=service_info, request_artifact=artifact.public_dict() if artifact else None)
         return call
 
     def resume_call_sequence(self, initial_calls):
@@ -168,9 +170,22 @@ class RunRecorder:
             self.write_event('node', execution.status, execution_id=execution.id,
                              elapsed_s=execution.elapsed_s, output=execution.output)
 
-    def record_candidate(self, candidate):
-        self._artifact(f'candidates/{candidate.id}.v', candidate.code, text=True)
-        self.write_event('candidate', 'create', **candidate.trace_dict())
+    def record_candidate(self, candidate, parent=None):
+        artifact = self._artifact(f'candidates/{candidate.id}.v', candidate.code, text=True)
+        self.write_event('candidate', 'create', **candidate.trace_dict(),
+                         artifact=artifact.public_dict() if artifact else None)
+        if parent is not None:
+            lines = list(difflib.unified_diff(parent.code.splitlines(keepends=True),
+                candidate.code.splitlines(keepends=True), fromfile=parent.id, tofile=candidate.id))
+            diff = ''.join(lines)
+            diff_artifact = self._artifact(f'candidates/{candidate.id}.diff', diff, text=True)
+            self.write_event('candidate', 'change', candidate_id=candidate.id, parent_id=parent.id,
+                parent_hash=parent.code_hash, code_hash=candidate.code_hash,
+                changed=parent.code_hash != candidate.code_hash,
+                added_lines=sum(l.startswith('+') and not l.startswith('+++') for l in lines),
+                removed_lines=sum(l.startswith('-') and not l.startswith('---') for l in lines),
+                diff_sha256=hashlib.sha256(diff.encode()).hexdigest(),
+                diff_artifact=diff_artifact.public_dict() if diff_artifact else None)
 
     def record_selection(self, candidate, *, reason):
         self.write_event('candidate', 'select', candidate_id=candidate.id, reason=reason)

@@ -16,17 +16,18 @@ class InterfaceCheckTool(Tool[Candidate, CheckOutcome]):
     output_type = CheckOutcome
 
     def cache_identity(self, ctx) -> str:
-        return 'python-interface-v1'
+        return 'python-interface-v2'
 
     def replay_identity(self, ctx) -> str:
-        return 'python-interface-v1'
+        return 'python-interface-v2'
 
     def cache_request(self, input: Candidate):
         return {'code_hash': input.code_hash}
 
     def run(self, ctx, input: Candidate) -> CheckOutcome:
         started = time.monotonic()
-        result = check_interface_result(input.code, ctx.task.interface, ctx.task.prompt)
+        result = check_interface_result(input.code, ctx.task.interface,
+                                        ctx.task.prompt, top=ctx.task.top)
         status = {'ok': 'passed', 'mismatch': 'failed', 'advisory': 'failed',
                   'skipped': 'skipped', 'parse_error': 'error'}[result.status]
         return CheckOutcome(status, result.summary, blocking=result.blocking, rc=result.rc,

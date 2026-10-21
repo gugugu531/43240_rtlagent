@@ -1,6 +1,7 @@
 """Per-task state and public operations shared by arbitrary Python workflows."""
 from __future__ import annotations
 from dataclasses import fields, is_dataclass
+from collections.abc import Mapping
 import hashlib
 import time
 from types import MappingProxyType
@@ -50,7 +51,7 @@ def summarize(value):
         return {f.name: summarize(getattr(value, f.name)) for f in fields(value)}
     if isinstance(value, (list, tuple)):
         return [summarize(item) for item in value]
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         return {str(k): summarize(v) for k, v in value.items()}
     return dict(type=type(value).__qualname__, status='unknown')
 
@@ -175,7 +176,7 @@ class RunContext:
         if candidate.parent_id and candidate.parent_id not in self._candidates:
             raise ValueError('candidate parent is not registered')
         self._candidates[candidate.id] = candidate
-        self._recorder.record_candidate(candidate)
+        self._recorder.record_candidate(candidate, parent=self._candidates.get(candidate.parent_id))
 
     def record_extraction(self, call_id, extraction, candidate_id=None) -> None:
         self._recorder.record_extraction(call_id, extraction, candidate_id)

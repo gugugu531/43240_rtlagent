@@ -21,6 +21,7 @@ Python 定义流程和默认依赖，YAML 选择 Workflow、Node、Tool，并按
 | `tool_feedback`、`spec_test_repair`、`behavior_divergence` | 可选实验：工具反馈、规格自测、双候选行为分歧 | 分别最多 2/3/4 次模型请求；默认入口不变，不以模型期望或候选一致性证明正确 |
 | `search_initial`、`search_r1/r2/r2_guided/c2/c3` | E2：有限修复与独立候选对照 | 支持共享起点、停止点及显式随机种子；不是已确定的提交策略 |
 | `single_generate_long_output` | 长输出额度对照，选择完整预设 | 改变输出和超时额度，不作为严格 baseline 请求等价结果 |
+| `design_verify_loop` | 从公开题面独立构造设计计划和功能检查，按自身证据有限修复 | 研究流程；自编检查及综合通过不等于官方功能判定 |
 
 本 Git 仓库根目录即参赛方案包，可独立克隆、部署。工作区的开发工具、题库、官方判定器和实验记录位于仓库之外。
 
@@ -40,10 +41,14 @@ Python 定义流程和默认依赖，YAML 选择 Workflow、Node、Tool，并按
 | `agent/composition/assembler.py` | 校验类、构造参数和依赖契约，按配置惰性导入并逐题装配 |
 | `agent/tools/` | 可注入的通用 Tool 与接口、Vivado、行为自测适配器 |
 | `agent/runtime/checks.py` | RTL 检查预算、缓存、编号、候选关联与证据发布 |
-| `config/presets/` | 16 份内置 Workflow 名称配置 |
+| `config/presets/` | 17 份内置 Workflow 名称配置，含可选的设计验证预设 |
 | `agent/workflows/repair_loop.py` | 修复流程；将请求重试、逐项检查与停止处理分开，保留可替换的 `choose()` 和 `decide()` |
 | `agent/workflows/checks.py` | 修复与 E2 流程共用的检查顺序：接口、lint、综合；每完成一项就把结果交回 Workflow |
 | `agent/workflows/evidence_repair.py` | 方案 A；复用修复流程的检查和选择，只注入有限结构化诊断并最多修复一次 |
+| `agent/workflows/design_verify_loop.py` | 独立计划、检查与候选修复，限制 RTL 轮次和检查器修订 |
+| `agent/core/research.py`、`agent/core/specification.py` | 研究流程数据契约，以及仅从公开题面定位需求引文 |
+| `agent/nodes/research_json.py`、`agent/nodes/functional.py` | 结构化回复、功能套件构造与独立审阅 |
+| `agent/services/functional.py`、`agent/tools/functional.py` | 有界表达式检查、固定驱动和 Vivado 功能观测 |
 | `agent/workflows/spec_repair.py` | 三个可选实验入口；分开校验/恢复首稿、验证候选与两种选择策略，独立编排自测和修复 |
 | `agent/runtime/runner.py` | 单次求解初始化、异常处理、最终结果与记录关闭 |
 | `agent/runtime/context.py` | 本题状态、Node 执行与显式选择答案的公开接口 |
@@ -249,6 +254,12 @@ packed/unpacked 范围（含边界方向）；只忽略 wire/reg/logic 类型修
 通用接口解析器的 high 置信度不证明完整端口语义。诊断缺失、截断或格式未知时也保留旧稿。
 警告减少不代表功能正确。可用 `repair_output_drivers: false` 关闭；`evidence_repair`、E1/E2
 保持该警告触发关闭，共享的编译错误归因和修复提示更新仍适用。
+
+可选的 `design_verify_loop` 使用 `config/presets/design_verify_loop.yaml`。它从题面和接口分别构造设计计划与受限 JSON 功能套件，核对需求引文并独立审阅；不会从候选 RTL 推断期望输出。套件由固定驱动交给 Vivado 的 `xvlog`、`xelab`、`xsim` 执行，先统计实际可比较的期望位；未知或全无比较不会记作功能通过。支持有界多时钟、显式异步复位及有题面依据的输出有效条件和掩码，不能证明任意时序、跨时钟域安全或未描述的行为。
+
+流程在明确检查失败时分析代码、计划或检查器来源，限制检查器修订和 RTL 轮次，保留旧采样并对候选重测；独立验收需提供新的输入序列。套件无效或不受支持时仍可保留 RTL 和结构检查结果。预设显式关闭技能注入，避免继承旧生成节点的资料检索默认值；默认 `single_generate`、原有修复、replay 和技能流程仍保留。该研究预设总预算为 14400 秒，不能据此声称符合正式 900 秒期限。原始请求、功能日志和候选差异保存在运行工件中，不进入提交包。
+
+构造失败时，恢复请求保留最多8192字符的无效JSON原文前缀，并记录完整原文与保留部分的哈希、长度、截断及结束原因。原文始终是未解析草稿，不会因补齐或截断而自动成为有效套件；已有一次恢复及默认输出额度不增加。表达式错误给出字段路径，一次最多报告8项独立问题；时钟／复位格式冲突明确指出应使用的字段。提示要求恢复保留刺激与未被错误指向的行为，但不能保证模型遵守，也不代表歧义审阅和复杂算术检查器交付已解决。
 
 另提供可选规格自测基础，现由 `spec_test_repair` 和 `behavior_divergence` 显式使用，
 **不接入默认入口和已有 E1/E2 等流程**。显式导入

@@ -53,12 +53,13 @@ def read_events(path):
 
 
 class RuntimeMetric:
-    name, version = 'runtime', 1
+    name, version = 'runtime', 2
 
     def collect(self, sample):
         events, complete = read_events(sample.output_dir / 'trace.jsonl')
         supervision = next((x for x in reversed(events) if x.get('tool') == 'supervisor'), {})
-        checks = [x for x in events if x.get('event') == 'result' and x.get('tool') in ('check_interface','lint','synth') and 'candidate_id' in x]
+        checks = [x for x in events if x.get('event') == 'result' and
+                  all(key in x for key in ('check_id', 'candidate_id', 'kind', 'status'))]
         values = dict(solve_wall_s=sample.solve.get('wall_s'), status=sample.solve.get('status'),
                       stop_reason=supervision.get('stop_reason'),
                       node_attempts=sum(x.get('tool') == 'node' and x.get('event') == 'started' for x in events),

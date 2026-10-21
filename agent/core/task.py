@@ -17,7 +17,7 @@ class TaskSpec:
 
     @classmethod
     def from_text(cls, task_id: str, prompt: str, interface: str = '', *, top: str = '') -> TaskSpec:
-        spec = parse_expected_interface(interface, prompt)
+        spec = parse_expected_interface(interface, prompt, top=top or None)
         return cls(task_id, prompt, interface, top or spec.module_name or 'TopModule', spec)
 
     @classmethod

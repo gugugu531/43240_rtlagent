@@ -37,6 +37,7 @@ class InterfaceSpec:
     source: InterfaceSource
     confidence: Confidence
     warnings: tuple[str, ...] = ()
+    complete: bool = True
 
     @property
     def parsed(self) -> bool:
@@ -49,6 +50,7 @@ class InterfaceSpec:
             "source": self.source,
             "confidence": self.confidence,
             "warnings": list(self.warnings),
+            "complete": self.complete,
         }
 
 
@@ -90,7 +92,9 @@ class InterfaceCheckResult:
             "rc": self.rc,
             "expected_source": self.expected.source,
             "expected_confidence": self.expected.confidence,
+            "expected_complete": self.expected.complete,
             "actual_confidence": self.actual.confidence,
+            "actual_complete": self.actual.complete,
             "expected_module": self.expected.module_name,
             "actual_module": self.actual.module_name,
             "differences": [item.public_dict() for item in self.differences],
@@ -102,10 +106,14 @@ class InterfaceCheckResult:
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_]\w*$")
 _MODULE_RE = re.compile(r"\bmodule\s+([A-Za-z_]\w*)")
 _DIRECTION_RE = re.compile(r"\b(input|output|inout)\b")
-_PROMPT_PORT_RE = re.compile(
-    r"^\s*-\s*(input|output|inout)\s+([A-Za-z_]\w*)\s*,?"
-    r"\s*(?:\(\s*(\d+)\s*(?:bits?|位)\s*\))?\s*$",
-    re.MULTILINE,
+_PROMPT_PORT_LINE_RE = re.compile(r"^\s*-\s*(input|output|inout)\b(.*)$")
+_PROMPT_BULLET_RE = re.compile(r"^\s*-\s*\S")
+_PROMPT_PORT_BODY_RE = re.compile(
+    r"^\s*(?:(?:wire|reg|logic|bit|var|signed|unsigned|tri)\s+)*"
+    r"(?:\[\s*([^\]]+)\s*\]\s*)?"
+    r"(?:(?:wire|reg|logic|bit|var|signed|unsigned|tri)\s+)*"
+    r"([A-Za-z_]\w*)\s*,?\s*"
+    r"(?:\(\s*([A-Za-z_]\w*|\d+)\s*(?:bits?|位)\s*\))?\s*$"
 )
 _DECLARATION_RE = re.compile(r"\b(input|output|inout)\b(.*?);", re.DOTALL)
 _TYPE_WORDS_RE = re.compile(
@@ -113,52 +121,96 @@ _TYPE_WORDS_RE = re.compile(
 )
 
 
-def parse_expected_interface(interface: str, prompt: str = "") -> InterfaceSpec:
+def parse_expected_interface(
+        interface: str, prompt: str = "", *, top: str | None = None) -> InterfaceSpec:
     """Use an interface file when present; otherwise parse only prompt bullets."""
     if interface and interface.strip():
-        return parse_module_interface(interface, source="interface_file")
-    return parse_prompt_interface(prompt)
+        return parse_module_interface(interface, source="interface_file", top=top)
+    return parse_prompt_interface(prompt, top=top)
 
 
-def parse_prompt_interface(prompt: str) -> InterfaceSpec:
+def parse_prompt_interface(prompt: str, *, top: str | None = None) -> InterfaceSpec:
     """Parse a prose port list without treating bugfix source as a specification."""
     text = prompt or ""
-    matches = _PROMPT_PORT_RE.findall(text)
+    ports: list[PortSpec] = []
     warnings: list[str] = []
-    if not matches:
+    complete = True
+    in_port_list = False
+    for line in text.splitlines():
+        match = _PROMPT_PORT_LINE_RE.fullmatch(line)
+        if match is None:
+            if in_port_list and _PROMPT_BULLET_RE.match(line):
+                complete = False
+                warnings.append(f"unrecognized prompt port bullet: {line.strip()!r}")
+            elif line.strip():
+                in_port_list = False
+            continue
+        in_port_list = True
+        direction, body = match.groups()
+        port_match = _PROMPT_PORT_BODY_RE.fullmatch(body)
+        if port_match is None:
+            complete = False
+            warnings.append(f"could not parse prompt port line: {line.strip()!r}")
+            continue
+        range_text, name, bits = port_match.groups()
+        width: int | None = 1
+        if range_text is not None:
+            range_text = range_text.strip()
+            width, _, width_warning = _parse_width(f"[{range_text}]")
+            if width_warning:
+                warnings.append(width_warning)
+        if bits is not None:
+            if range_text is not None:
+                complete = False
+                warnings.append(f"prompt port {name!r} has both range and bit count")
+                continue
+            width = int(bits) if bits.isdigit() else None
+            if width is None:
+                range_text = bits
+                warnings.append(f"could not resolve prompt width ({bits} bits)")
+        ports.append(PortSpec(name, direction, width, range_text))
+    if not ports:
         if _MODULE_RE.search(_mask_comments(text)):
             warnings.append(
                 "embedded module text was not treated as an interface specification"
             )
         else:
             warnings.append("no prompt port list found")
-        return InterfaceSpec(None, (), "prompt_list", "none", tuple(warnings))
+        return InterfaceSpec(None, (), "prompt_list", "none", tuple(warnings), False)
 
     name_match = re.search(r"\bmodule\s+named\s+([A-Za-z_]\w*)", text)
-    if name_match:
+    if top:
+        module_name = top
+    elif name_match:
         module_name = name_match.group(1)
     else:
         module_name = "TopModule"
         warnings.append("module name not stated; defaulted to TopModule")
-    ports = tuple(
-        PortSpec(name=name, direction=direction, width=int(width) if width else 1)
-        for direction, name, width in matches
-    )
-    warnings.extend(_duplicate_port_warnings(ports))
+    duplicate_warnings = _duplicate_port_warnings(ports)
+    if duplicate_warnings:
+        complete = False
+    warnings.extend(duplicate_warnings)
     return InterfaceSpec(
-        module_name, ports, "prompt_list", "medium", tuple(warnings)
+        module_name, tuple(ports), "prompt_list", "medium", tuple(warnings),
+        complete,
     )
 
 
 def parse_module_interface(
-        text: str, *, source: InterfaceSource = "generated_code") -> InterfaceSpec:
+        text: str, *, source: InterfaceSource = "generated_code",
+        top: str | None = None) -> InterfaceSpec:
     """Parse ANSI or classic non-ANSI Verilog module declarations."""
     raw = text or ""
     cleaned = _mask_comments(raw)
-    module_match = _MODULE_RE.search(cleaned)
+    module_match = next(
+        (match for match in _MODULE_RE.finditer(cleaned)
+         if top is None or match.group(1) == top), None
+    )
     if module_match is None:
+        message = (f"module {top!r} not found" if top
+                   else "no module declaration found")
         return InterfaceSpec(
-            None, (), source, "none", ("no module declaration found",)
+            None, (), source, "none", (message,), False
         )
 
     module_name = module_match.group(1)
@@ -170,12 +222,14 @@ def parse_module_interface(
             return InterfaceSpec(
                 module_name, (), source, "low",
                 ("malformed parameter list in module declaration",),
+                False,
             )
         parameter_end = _balanced_end(cleaned, cursor)
         if parameter_end is None:
             return InterfaceSpec(
                 module_name, (), source, "low",
                 ("unterminated parameter list in module declaration",),
+                False,
             )
         cursor = _skip_space(cleaned, parameter_end + 1)
 
@@ -185,6 +239,7 @@ def parse_module_interface(
             return InterfaceSpec(
                 module_name, (), source, "low",
                 ("module declaration has no port list or semicolon",),
+                False,
             )
         return InterfaceSpec(module_name, (), source, "high", ())
 
@@ -193,6 +248,7 @@ def parse_module_interface(
         return InterfaceSpec(
             module_name, (), source, "low",
             ("unterminated module port list",),
+            False,
         )
     header = cleaned[cursor + 1:port_end]
     body = cleaned[port_end + 1:]
@@ -208,16 +264,30 @@ def parse_module_interface(
     warnings.extend(parse_warnings)
     warnings.extend(_duplicate_port_warnings(ports))
     confidence: Confidence = "high" if not warnings else "medium"
-    return InterfaceSpec(
-        module_name, tuple(ports), source, confidence, tuple(warnings)
+    complete = not any(
+        warning.startswith(("port declaration has no direction",
+                            "could not parse port name", "port '",
+                            "duplicate port"))
+        for warning in warnings
     )
+    return InterfaceSpec(module_name, tuple(ports), source, confidence,
+                         tuple(warnings), complete)
 
 
 def check_interface_result(source: str, interface: str,
-                           prompt: str = "") -> InterfaceCheckResult:
+                           prompt: str = "", *,
+                           top: str | None = None) -> InterfaceCheckResult:
     """Compare generated RTL with the authoritative or advisory expectation."""
-    expected = parse_expected_interface(interface, prompt)
-    actual = parse_module_interface(source, source="generated_code")
+    expected = parse_expected_interface(interface, prompt, top=top)
+    actual = parse_module_interface(
+        source, source="generated_code", top=top or expected.module_name)
+
+    if top and not actual.parsed:
+        summary = "; ".join(actual.warnings) or f"module {top!r} not found"
+        difference = InterfaceDifference("actual_parse", summary)
+        return InterfaceCheckResult(
+            "parse_error", True, expected, actual, (difference,), summary
+        )
 
     if not expected.parsed:
         if interface and interface.strip():
@@ -231,8 +301,14 @@ def check_interface_result(source: str, interface: str,
         )
         return InterfaceCheckResult("skipped", False, expected, actual, (), summary)
 
+    if expected.source == "interface_file" and not expected.complete:
+        summary = "interface.txt port declaration could not be parsed completely"
+        return InterfaceCheckResult(
+            "parse_error", True, expected, actual, (), summary
+        )
+
     if not actual.parsed:
-        summary = "no module declaration found in the generated code"
+        summary = "; ".join(actual.warnings) or "no module declaration found in the generated code"
         difference = InterfaceDifference("actual_parse", summary)
         return InterfaceCheckResult(
             "parse_error", True, expected, actual, (difference,), summary
@@ -282,7 +358,7 @@ def _compare_interfaces(expected: InterfaceSpec,
                 expected=port.public_dict(),
             ))
     for name, port in got.items():
-        if name not in want:
+        if expected.complete and name not in want:
             differences.append(InterfaceDifference(
                 "extra_port",
                 f"extra port {name!r} not in the declared interface",
@@ -298,10 +374,8 @@ def _compare_interfaces(expected: InterfaceSpec,
                 f"must be {expected_port.direction}",
                 name, expected_port.direction, actual_port.direction,
             ))
-        width_differs = actual_port.width != expected_port.width
-        if (actual_port.width is None and expected_port.width is None
-                and actual_port.range_text != expected_port.range_text):
-            width_differs = True
+        width_differs = (expected_port.width is not None
+                         and actual_port.width != expected_port.width)
         if width_differs:
             differences.append(InterfaceDifference(
                 "width",
@@ -338,10 +412,15 @@ def _parse_ansi_ports(items: Iterable[str]) -> tuple[list[PortSpec], list[str]]:
 
 def _parse_non_ansi_ports(
         header_items: Iterable[str], body: str) -> tuple[list[PortSpec], list[str]]:
-    header_names = [name for item in header_items
-                    if (name := _declaration_name(item)) is not None]
-    declarations: dict[str, PortSpec] = {}
     warnings: list[str] = []
+    header_names: list[str] = []
+    for item in header_items:
+        name = _declaration_name(item)
+        if name is None:
+            warnings.append(f"could not parse port name from {item.strip()!r}")
+        else:
+            header_names.append(name)
+    declarations: dict[str, PortSpec] = {}
     for match in _DECLARATION_RE.finditer(body):
         direction = match.group(1)
         declaration = match.group(2)

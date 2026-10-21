@@ -34,7 +34,8 @@
     "skills": [],
     "available_workflows": [
       "single_generate",
-      "repair_loop"
+      "repair_loop",
+      "design_verify_loop"
     ]
   },
   "generation": {},
