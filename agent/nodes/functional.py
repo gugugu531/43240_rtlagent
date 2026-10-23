@@ -16,8 +16,14 @@ from agent.services.functional import (SuiteError, analyze_expectations, suite_h
                                        validate_revision, validate_suite)
 
 
-SUITE_INSTRUCTION = """Build independent checks only from the task, never from an RTL implementation.
-Return {"status":"ready","suite":<suite>} or {"status":"unsupported","reason":"..."}.
+SUITE_RESPONSE_INSTRUCTION = """Return one complete response object:
+{"status":"ready","suite":<suite>} or {"status":"unsupported","reason":"..."}.
+This outer response is required for BOTH initial construction and every correction.
+Never return a bare suite, a patch, or only the corrected expression. The suite schema
+below describes the value of response.suite, not the top-level response.
+"""
+
+SUITE_SCHEMA_INSTRUCTION = """Build independent checks only from the task, never from an RTL implementation.
 Do not invent unspecified initialization, port widths, signedness, priority, or latency.
 Unsupported: inout/tri-state, real arithmetic, unresolvable parameters,
 unsupported operators, or uncertain output-sampling semantics. State unsupported honestly.
@@ -54,8 +60,16 @@ clocked operation of each affected domain, so
 synchronous-only reset implementations can be distinguished. Quote the reset requirement.
 Expressions must be objects: {"ref":"input or model_register"},
 {"const":integer,"width":integer}, or {"op":"operator","args":[expressions],"width":integer}.
-Operators: add sub mul and or xor shl shr asr eq ne lt le gt ge land lor not bitnot neg ite
-slice concat reduce_and reduce_or reduce_xor. and/or/xor/bitnot are bitwise; land/lor/not
+Operator argument counts are exact:
+- TWO args: add sub mul and or xor shl shr asr eq ne lt le gt ge land lor.
+- ONE arg: not bitnot neg slice reduce_and reduce_or reduce_xor.
+- THREE args: ite (condition, true value, false value).
+- ONE TO 32 args: concat.
+add is binary, not a variadic sum or a unary wrapper. To sum several terms, use nested
+binary add objects, each with an explicit result width chosen from the task semantics.
+Do not introduce a one-argument add to widen a value; use an explicitly sized constant
+and concat for zero extension when unsigned semantics require it.
+and/or/xor/bitnot are bitwise; land/lor/not
 are logical. not/land/lor MUST explicitly set result width=1, even for wider operands.
 All comparisons and reductions also require explicit width=1. Do not infer missing widths.
 ite takes condition,true,false.
@@ -91,6 +105,8 @@ This mode observes outputs, not correctness.
 For additional acceptance tests use new cases targeting omitted boundaries. Do not read or
 infer from generated RTL, and do not relax a requirement merely because a prior check failed.
 """
+
+SUITE_INSTRUCTION = SUITE_RESPONSE_INSTRUCTION + SUITE_SCHEMA_INSTRUCTION
 
 
 def _normalize_state_names(suite):
@@ -236,6 +252,7 @@ class BuildFunctionalNode(Node[SuiteInput, SuiteBuild]):
                 return SuiteBuild('invalid', reason=str(error))
         feedback = json.dumps(revision, ensure_ascii=False) if revision else input.feedback
         failure, draft, call_id = None, None, None
+        previous_response = None
         raw_text, raw_metadata = None, {}
         for attempt in range(1, self.construction_retries + 2):
             context = {'mode': input.mode, 'feedback': feedback, 'previous_suite': input.previous,
@@ -244,11 +261,16 @@ class BuildFunctionalNode(Node[SuiteInput, SuiteBuild]):
                        'construction_attempt': attempt}
             if failure:
                 context.update(construction_feedback=failure, previous_draft=draft,
+                    previous_response=previous_response,
+                    response_contract=SUITE_RESPONSE_INSTRUCTION,
                     correction_constraints='Correct only the stated construction/review defects using the task. '
                     'Preserve every existing case id, input sequence, clock edge and sample, and all '
                     'behavior not implicated by the stated defect, including reset and update phase. '
                     'Do not infer reset or unspecified values. Preserve every original revision constraint. '
-                    'previous_draft is a parsed suite; previous_raw_text, if present, is unparsed invalid '
+                    'previous_response is the entire prior parsed response, even if its envelope is invalid. '
+                    'previous_draft is only its suite field, NOT the response format to return. '
+                    'Return the complete status/suite response after correction. '
+                    'previous_raw_text, if present, is unparsed invalid '
                     'reply content and may be a truncated prefix as its metadata states, never an accepted suite.')
                 if raw_text is not None:
                     context.update(previous_raw_text=raw_text, previous_raw_text_metadata=raw_metadata)
@@ -256,6 +278,7 @@ class BuildFunctionalNode(Node[SuiteInput, SuiteBuild]):
                 'functional_suite', context, max_tokens=self.generation_max_tokens))
             call_id, review_id, preflight, mapping, changes = result.call_id, None, None, {}, []
             raw_text, raw_metadata = result.raw_text, _thaw(result.raw_text_metadata)
+            previous_response = _thaw(result.data) if result.status == 'ready' else None
             stage = 'json'
             if result.status != 'ready':
                 reason = result.reason or 'structured suite reply is invalid'
@@ -294,7 +317,7 @@ class BuildFunctionalNode(Node[SuiteInput, SuiteBuild]):
                             'check explicit synchronous reset in state.next and sampled validity/masks; '
                             'do not invent initialization or coerce unknown values to zero')
                     stage = 'review'
-                    review = ctx.execute(self.json, JsonInput(input.task, SUITE_INSTRUCTION + '\n'
+                    review = ctx.execute(self.json, JsonInput(input.task, SUITE_SCHEMA_INSTRUCTION + '\n'
                         'Independently review this fallible suite against the original task and the FULL '
                         'execution semantics above. No implicit reset exists. Inspect the independent '
                         'expectation_preflight, widths, output validity/masks and unknown counts; partial '
