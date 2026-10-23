@@ -1,0 +1,26 @@
+# HIP + MTP3 开发预设；连接已有服务，不负责启动服务或切换思考强度。
+# 输出上限包含思考；实际受剩余上下文与900秒总时限约束。
+workflow: design_verify_loop
+params: {max_rounds: 3, checker_revisions: 1, unchanged_retries: 1}
+nodes:
+  generate: {use: rtl_generate, params: {max_tokens: 32768, temperature: 0.0, top_p: 1.0, timeout_s: 840}}
+  plan: {use: design_plan, params: {plan_retries: 1, plan_max_tokens: 16384, review_max_tokens: 16384}}
+  build_suite: {use: build_suite, params: {construction_retries: 1, generation_max_tokens: 32768, review_max_tokens: 32768, reserve_s: 120}}
+tools:
+  interface: {use: interface_check}
+  lint: {use: vivado_lint}
+  synth: {use: vivado_synth}
+  functional: {use: functional_sim}
+services:
+  model:
+    backend: openai
+    base_url: http://127.0.0.1:8010/v1
+    model: qwen38-27b-q4-k-m
+    tokenizer_protocol: llama_cpp
+    max_model_len: 65536
+    timeout_s: 840
+    structured_outputs: false
+runtime:
+  deadline_s: 900
+  reserve_s: 20
+  recording: {level: full}
