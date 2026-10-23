@@ -119,15 +119,30 @@ def build_graph(ctx):
             project="rtl",
             params={"storage_dir": str(ctx.record.record_dir / "burr")},
         )
+    app = builder.build()
+    for graph_action in app.graph.actions:
+        definitions[graph_action.name].update(
+            reads=list(graph_action.reads), writes=list(graph_action.writes)
+        )
     ctx.record.emit(
         "run",
         "graph",
+        graph_schema_version=1,
         workflow=config.workflow,
+        entrypoint=app.graph.entrypoint.name,
         nodes=definitions,
+        transitions=[
+            {
+                "from": transition.from_.name,
+                "to": transition.to.name,
+                "condition": transition.condition.name,
+            }
+            for transition in app.graph.transitions
+        ],
         params=values,
         tools={name: item.model_dump() for name, item in ctx.tools.items()},
     )
-    return builder.build()
+    return app
 
 
 def run_graph(ctx):
