@@ -1,228 +1,81 @@
-"""Per-task state and public operations shared by arbitrary Python workflows."""
-from __future__ import annotations
-from dataclasses import fields, is_dataclass
-from collections.abc import Mapping
-import hashlib
-import time
-from types import MappingProxyType
-from typing import TypeVar
-from agent.recording.artifacts import ArtifactStore
-from agent.core.candidate import Candidate, CandidateFactory
-from agent.core.budget import Budget
-from agent.core.cancellation import CancellationToken
-from agent.core.components import Node, Tool, ComponentSpec, describe_component
-from agent.core.model import ModelReply
-from agent.core.state import CheckResult, NodeExecution, RunStateView, SelectionDecision, WorkflowResult
-from agent.core.task import TaskSpec
-from agent.recording.recorder import RunRecorder
-from agent.services.model import ModelService
-from agent.runtime.checks import CheckService
-from agent.runtime.tools import ManagedToolContext, ToolArtifacts
-from agent.runtime.validation import validate_component_value
-from agent.services.vivado import RtlToolchain
+"""Task-local services; the runtime does not import RTL domain code."""
 
-I = TypeVar('I')
-O = TypeVar('O')
+import dataclasses
+import hashlib
+import inspect
+import json
+from agent.runtime.registry import TOOLS, parameter_model, parameters
+from agent.runtime.recorder import serializable
 
 
 def summarize(value):
-    """Keep bodies out of node events; objects with their own events appear by ID only."""
-    if isinstance(value, Candidate):
-        return dict(candidate_id=value.id)
-    if isinstance(value, ModelReply):
-        return dict(call_id=value.call_id)
-    if isinstance(value, CheckResult):
-        return dict(check_id=value.id, status=value.status)
-    if isinstance(value, TaskSpec):
-        return dict(task_id=value.id)
-    if callable(getattr(value, 'summary_dict', None)):
-        return value.summary_dict()
-    if isinstance(value, ComponentSpec):
+    if hasattr(value, "public_dict"):
         return value.public_dict()
-    if callable(getattr(value, 'trace_dict', None)):
-        return value.trace_dict()
-    if value is None or isinstance(value, (bool, int, float)):
-        return value
-    if isinstance(value, str):
-        if len(value) <= 80 and '\n' not in value:
-            return value
-        return dict(bytes=len(value.encode('utf-8')), sha256=hashlib.sha256(value.encode('utf-8')).hexdigest())
-    if is_dataclass(value):
-        return {f.name: summarize(getattr(value, f.name)) for f in fields(value)}
-    if isinstance(value, (list, tuple)):
-        return [summarize(item) for item in value]
-    if isinstance(value, Mapping):
+    if dataclasses.is_dataclass(value):
+        return summarize(dataclasses.asdict(value))
+    if isinstance(value, dict):
         return {str(k): summarize(v) for k, v in value.items()}
-    return dict(type=type(value).__qualname__, status='unknown')
+    if isinstance(value, (list, tuple)):
+        return [summarize(v) for v in value]
+    if isinstance(value, str) and (len(value) > 200 or "\n" in value):
+        return dict(
+            bytes=len(value.encode()), sha256=hashlib.sha256(value.encode()).hexdigest()
+        )
+    return value
 
 
-class RunContext:
-    def __init__(self, task: TaskSpec, llm: ModelService, budget: Budget,
-                 artifacts: ArtifactStore, recorder: RunRecorder, *,
-                 toolchain_factory=RtlToolchain, process_executor=None,
-                 started_at: float | None = None, configuration: dict | None = None):
-        self.task, self.llm, self.budget = task, llm, budget
-        self.started_at = time.monotonic() if started_at is None else started_at
-        self.configuration = configuration if configuration is not None else {}
-        self.cancellation = CancellationToken()
-        self._artifacts, self._recorder = artifacts, recorder
-        self._candidates: dict[str, Candidate] = {}
-        self._checks: list[CheckResult] = []
-        self._executions: list[NodeExecution] = []
-        self._stack: list[str] = []
-        self._check_sequence = 0
-        self._stop_reason = None
-        self._selection_reason = None
-        self._candidate_factory = CandidateFactory()
-        from agent.runtime.processes import ProcessService
-        from agent.services.processes import ProcessExecutor
-        self.processes = ProcessService(budget, process_executor or ProcessExecutor(), self.cancellation,
-            lambda event, **fields: recorder.write_event('process', event, **fields))
-        self._tool_sequence = 0
-        self._tool_context = ManagedToolContext(task, budget, self.processes,
-            ToolArtifacts(artifacts.output_dir / "artifacts"), self.emit, toolchain_factory)
-        self.checks = CheckService(budget, self.new_check_id, self.record_check,
-                                  task=task, emit=self.emit, tool_context=self._tool_context)
+class Ctx:
+    def __init__(
+        self, *, task, budget, llm, record, processes, candidates, prompts, config
+    ):
+        self.task, self.budget, self.llm = task, budget, llm
+        self.record, self.processes, self.candidates = record, processes, candidates
+        self.prompts, self.config, self.store = prompts, config, {}
+        self.tools = dict(config.tools)
+        self.output_dir = record.output_dir
 
-    @property
-    def state(self) -> RunStateView:
-        return RunStateView(MappingProxyType(dict(self._candidates)), tuple(self._checks),
-                            tuple(self._executions),
-                            self._artifacts.selected.id if self._artifacts.selected else None,
-                            self._stop_reason)
+    def call(self, tool_name, *args, **kwargs):
+        selected = self.tools.get(tool_name)
+        implementation = selected.use if selected else tool_name
+        if implementation not in TOOLS:
+            raise ValueError(f"unknown tool: {implementation}")
+        definition = TOOLS[implementation]
+        bound = inspect.signature(definition.fn).bind_partial(self, *args, **kwargs)
+        values = dict(selected.params) if selected else {}
+        values.update({k: v for k, v in bound.arguments.items() if k != "ctx"})
+        values = parameters(definition.fn, values)
+        self.budget.timeout(self.budget.deadline_s)
+        with self.record.span(
+            "tool",
+            name=tool_name,
+            implementation=implementation,
+            input=summarize(values),
+        ):
+            result = definition.fn(self, **values)
+            self.record.emit(
+                tool_name,
+                "result",
+                output=summarize(result),
+                rc=getattr(result, "rc", None),
+                status=getattr(result, "status", None),
+                failure_kind=getattr(result, "failure_kind", None),
+                excerpt=getattr(result, "summary", ""),
+            )
+            return result
 
-    def execute(self, node: Node[I, O], input: I) -> O:
-        self.cancellation.raise_if_cancelled()
-        spec = describe_component(node)
-        if not isinstance(spec, ComponentSpec):
-            raise TypeError('node.describe() must return ComponentSpec')
-        execution_id = f'e{len(self._executions) + 1:03d}'
-        # Reserve this execution's slot before running children; nested calls
-        # append their own entries and must not overwrite the parent's result.
-        parent = self._stack[-1] if self._stack else None
-        index = len(self._executions)
-        start = time.monotonic()
-        inputs = summarize(input)
-        self._executions.append(NodeExecution(execution_id, parent, spec.public_dict(), 'started', 0.0, inputs))
-        self._stack.append(execution_id)
-        try:
-            with self._recorder.execution_scope(execution_id):
-                self._recorder.record_node(self._executions[index])
-                try:
-                    validate_component_value(node, "input_type", input)
-                    output = node.run(self, input)
-                    validate_component_value(node, "output_type", output)
-                except BaseException as exc:
-                    execution = NodeExecution(execution_id, parent, spec.public_dict(), 'failed',
-                                              time.monotonic() - start, inputs, error_type=type(exc).__name__,
-                                              error_message=str(exc)[:2000])
-                    self._executions[index] = execution
-                    self._recorder.record_node(execution)
-                    raise
-                execution = NodeExecution(execution_id, parent, spec.public_dict(), 'succeeded',
-                                          time.monotonic() - start, inputs, summarize(output))
-                self._executions[index] = execution
-                self._recorder.record_node(execution)
-                return output
-        finally:
-            # Restore the parent scope even when a nested action is cancelled.
-            self._stack.pop()
+    def dispatch(self, name, arguments):
+        result = self.call(name, **arguments)
+        return json.loads(json.dumps(result, default=serializable))
 
-    def call(self, tool: Tool[I, O], input: I, *, timeout_s: float | None = None) -> O:
-        self.cancellation.raise_if_cancelled()
-        timeout = self.budget.timeout_s(timeout_s if timeout_s is not None else self.budget.deadline_s)
-        tool_context = self._tool_context.with_timeout(timeout)
-        self._tool_sequence += 1
-        identity = f't{self._tool_sequence:03d}'
-        spec = describe_component(tool).public_dict()
-        started = time.monotonic()
-        self._recorder.write_event('tool', 'started', tool_call_id=identity,
-                                   component=spec, input=summarize(input))
-        try:
-            validate_component_value(tool, "input_type", input)
-            output = tool.run(tool_context, input)
-            validate_component_value(tool, "output_type", output)
-        except BaseException as exc:
-            self._recorder.write_event('tool', 'failed', tool_call_id=identity,
-                elapsed_s=time.monotonic() - started, error_type=type(exc).__name__,
-                error_message=str(exc)[:2000])
-            raise
-        self._recorder.write_event('tool', 'succeeded', tool_call_id=identity,
-            elapsed_s=time.monotonic() - started, output=summarize(output))
-        return output
-
-    def check(self, tool, input, *, candidate, timeout_s=None, minimum_s=0.0) -> CheckResult:
-        self.cancellation.raise_if_cancelled()
-        # Checks own their evidence IDs and publication. Routing through call()
-        # as well would create a second lifecycle record for the same work.
-        return self.checks.check(tool, input, candidate=candidate,
-                                 timeout_s=timeout_s, minimum_s=minimum_s)
-
-    def create_candidate(self, code: str, *, reply: ModelReply, round: int,
-                         parent_id: str | None = None, source_stage: str = 'generate',
-                         extraction_status: str = 'complete') -> Candidate:
-        candidate = self._candidate_factory.create(
-            code, source_stage=source_stage, round=round, parent_id=parent_id,
-            finish_reason=reply.finish_reason, extraction_status=extraction_status,
-            source_call_id=reply.call_id)
-        self.register_candidate(candidate)
-        return candidate
-
-    def register_candidate(self, candidate: Candidate) -> None:
-        if candidate.id in self._candidates:
-            raise ValueError(f'duplicate candidate: {candidate.id}')
-        if candidate.parent_id and candidate.parent_id not in self._candidates:
-            raise ValueError('candidate parent is not registered')
-        self._candidates[candidate.id] = candidate
-        self._recorder.record_candidate(candidate, parent=self._candidates.get(candidate.parent_id))
-
-    def record_extraction(self, call_id, extraction, candidate_id=None) -> None:
-        self._recorder.record_extraction(call_id, extraction, candidate_id)
-
-    def new_check_id(self) -> str:
-        self._check_sequence += 1
-        return f'k{self._check_sequence:03d}'
-
-    def record_check(self, result: CheckResult) -> None:
-        if result.candidate_id not in self._candidates:
-            raise ValueError('check candidate is not registered')
-        if any(check.id == result.id for check in self._checks):
-            raise ValueError(f'duplicate check: {result.id}')
-        self._checks.append(result)
-        self._recorder.record_check(result)
-        from agent.core.diagnostic import diagnostics_from_check
-        for diagnostic in diagnostics_from_check(result, candidate_code=self._candidates[result.candidate_id].code):
-            self._recorder.write_event('diagnostic', 'parsed', diagnostic=diagnostic.public_dict())
-
-    def select_candidate(self, candidate_id: str, *, reason: str) -> None:
-        candidate = self._candidates[candidate_id]
-        # Persist the selection before announcing it so crash recovery can
-        # rely on disk rather than a trace event whose write may be interrupted.
-        self._artifacts.select(candidate, reason=reason)
-        self._selection_reason = reason
-        self._recorder.record_selection(candidate, reason=reason)
-
-    def apply_selection(self, decision: SelectionDecision) -> None:
-        self.emit('selection_decision', candidate_id=decision.candidate_id,
-                  changed=decision.changed, reason=decision.reason,
-                  evidence_ids=decision.evidence_ids)
-        if decision.changed or (decision.candidate_id and decision.reason != self._selection_reason):
-            if decision.candidate_id is None:
-                self._artifacts.clear_selection(reason=decision.reason)
-                self._selection_reason = None
-                self.emit('selection_cleared', reason=decision.reason)
-            else:
-                self.select_candidate(decision.candidate_id, reason=decision.reason)
-
-    def emit(self, event: str, **fields) -> None:
-        self._recorder.write_event('workflow', event, **fields)
-
-    @property
-    def output_dir(self):
-        return self._artifacts.output_dir
-
-    def finish(self, *, reason: str, status='completed') -> WorkflowResult:
-        if not reason or status not in ('completed', 'stopped', 'error'):
-            raise ValueError('invalid workflow finish reason or status')
-        self._stop_reason = reason
-        return WorkflowResult(self._recorder.run_id, self._artifacts.selected, reason, status)
+    def tool_schema(self, name):
+        selected = self.tools.get(name)
+        implementation = selected.use if selected else name
+        definition = TOOLS[implementation]
+        return {
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": definition.fn.__doc__ or implementation,
+                "parameters": parameter_model(definition.fn).model_json_schema(),
+            },
+        }

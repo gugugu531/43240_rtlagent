@@ -1,0 +1,7 @@
+workflow: single_generate
+services:
+  model: {backend: mock}
+runtime:
+  deadline_s: 900
+  reserve_s: 20
+  recording: {level: full}

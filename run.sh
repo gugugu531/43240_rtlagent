@@ -36,7 +36,7 @@ export AGENT_CALLER_CWD="$PWD"
 mkdir -p "$OUT"
 
 cd "$HERE"
-# Create protocol files before starting the supervised process.
+# Create protocol files before starting the Burr application.
 [ -f "$OUT/solution.v" ] || : > "$OUT/solution.v"
 [ -f "$OUT/trace.jsonl" ] || : > "$OUT/trace.jsonl"
 
@@ -54,6 +54,6 @@ wait "$agent_pid" || rc=$?
 trap - TERM INT
 
 if [ $rc -ne 0 ]; then
-    echo "run.sh: agent exited with $rc, emitted empty solution" >&2
+    echo "run.sh: agent exited with $rc, preserved the last saved solution" >&2
 fi
 exit 0
