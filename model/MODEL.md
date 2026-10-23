@@ -70,9 +70,12 @@
 | 并发策略     | 每卡一实例 / 单实例批处理 / ... |
 
 默认启动按 `VRAM_BUDGET_GB=30` 与实际卡容量计算显存比例；显式 `GPU_UTIL` 可覆盖。
-`serve/` 原样采用上游 `f7a8bd4` 的官方示例：显存比例保留两位小数，服务模型名取本地权重目录名。
+`serve/` 基于上游 `f7a8bd4` 的官方示例：显存比例保留两位小数，服务模型名取本地权重目录名。
 `MODEL_NAME` 与 `LLM_MODEL` 只用于请求侧，应与该名称一致；启动脚本不读取 `VLLM_EXTRA_ARGS`，
-固定使用 `--no-enable-log-requests`。`manifest.json` 中的 vLLM 后端、启动入口与端口仍适用。启动参数仍是待测示例，
+固定使用 `--no-enable-log-requests`。Burr 分支增加可选 `ENABLE_TOOL_CALLING=1`，
+启用 `--enable-auto-tool-choice --tool-call-parser hermes`（解析器可显式覆盖）；内置三条流程不要求启用。
+辅助结构化请求与 RTL 生成共用 manifest 的 generation 设置，默认使用 JSON Schema 约束解码和严格校验。
+非 baseline 等价请求通过服务 `/tokenize` 计算输出余量，不再加载本地 tokenizer。`manifest.json` 中的 vLLM 后端、启动入口与端口仍适用。启动参数仍是待测示例，
 实际显存峰值和 vLLM 版本尚未验证，不能把默认预算写成实测值。
 
 ## 5. 微调

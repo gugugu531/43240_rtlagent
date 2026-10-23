@@ -3,7 +3,7 @@
 #
 # This is the configuration that must be in effect at evaluation time: local
 # open weights, single card, offline. The agent connects to this local service
-# through agent/services/model.py.
+# through agent/llm/client.py.
 #
 #   ./serve/vllm.sh
 #   export LLM_BACKEND=openai LLM_BASE_URL=http://localhost:8000/v1 LLM_MODEL=$MODEL
@@ -13,7 +13,7 @@
 # model/MODEL.md and section 3 of REPORT.md exactly, including the context
 # configuration, because run_baseline.sh has to run against the same service.
 
-set -euo pipefail
+set -eo pipefail
 
 MODEL="${MODEL:-/models/Qwen3-8B}"     # local path, not a Hub id: the sandbox is offline
 PORT="${PORT:-8000}"
@@ -44,6 +44,11 @@ PY
 fi
 echo "vllm.sh: gpu-memory-utilization=$GPU_UTIL (budget ${VRAM_BUDGET_GB} GB)" >&2
 
+TOOL_FLAGS=()
+if [ "${ENABLE_TOOL_CALLING:-0}" = 1 ]; then
+    TOOL_FLAGS=(--enable-auto-tool-choice --tool-call-parser "${TOOL_CALL_PARSER:-hermes}")
+fi
+
 exec python3 -m vllm.entrypoints.openai.api_server \
     --model "$MODEL" \
     --served-model-name "$(basename "$MODEL")" \
@@ -51,4 +56,5 @@ exec python3 -m vllm.entrypoints.openai.api_server \
     --port "$PORT" \
     --max-model-len "$MAX_LEN" \
     --gpu-memory-utilization "$GPU_UTIL" \
+    "${TOOL_FLAGS[@]}" \
     --no-enable-log-requests     # vLLM >= 0.27; the old --disable-log-requests is gone

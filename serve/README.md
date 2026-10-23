@@ -11,14 +11,11 @@
 
 ## 开发期：不需要 GPU
 
-```bash
-export LLM_BACKEND=openai
-export LLM_BASE_URL=https://api.deepseek.com/v1     # 或任意 OpenAI 兼容端点
-export LLM_API_KEY=sk-xxxxxxxx
-export LLM_MODEL=deepseek-coder
-```
-
-无需启动 `vllm.sh`，`agent/llm.py` 将直接访问所配置的端点。
+使用 `LLM_BACKEND=mock ./run.sh <输入目录> <输出目录>` 检查入口和日志。mock 仅给占位 RTL，
+不代表功能正确。三条 Burr 流程的配置位于 `config/`，默认 `single_generate.yaml`。
+模型传输统一经过 `agent/llm/client.py`；`repair_loop` 和 `design_verify_loop` 使用本地 vLLM
+`/tokenize` 计算上下文余量。结构化请求默认使用 `response_format: json_schema`，
+不支持时可在 YAML 显式设置 `services.model.structured_outputs: false`，保留严格校验和有限重问。
 
 ## 正式提交：必须是本地权重
 
@@ -31,7 +28,7 @@ export LLM_API_KEY=dummy
 export LLM_MODEL=Qwen3-8B
 ```
 
-智能体代码无需改动，差异仅在于三个环境变量。但提示词与重试策略未必可以直接平移，商用
+智能体代码无需改动，服务连接通过上述环境变量配置。但提示词与重试策略未必可以直接平移，商用
 API 与本地小模型在输出长度、指令遵循、代码格式稳定性上差异明显，围绕前者调好的东西
 换到后者常常直接失效。尽早跑一次本地模型。
 
@@ -121,3 +118,10 @@ Vivado 综合产生的大量小文件写在上面极慢。这不是优化建议�
 3. **部分算子库在 RDNA 4 上不工作**，须显式关闭。
 4. **在 gfx1100 上做 FP8 量化只省显存、不获加速**，该架构无 FP8 矩阵指令。验证阶段
    测到的量化收益不能直接外推到决赛。
+
+## 可选模型工具调用
+
+三条内置流程由 Burr 图直接调用工具。自定义节点可用 `ctx.tool_schema(name)` 取得工具定义，
+再调用 `ctx.llm.run_tools(messages, tools=[...], max_steps=4)`。对应服务启动需显式设置
+`ENABLE_TOOL_CALLING=1`，默认解析器为 `hermes`，可用 `TOOL_CALL_PARSER` 覆盖。
+这项开关不改变 `manifest.json` 的共享 generation 声明；实际支持情况需在目标服务验证。
