@@ -1,5 +1,14 @@
-"""Register the migrated implementations."""
+"""Built-in decorators register implementations when imported."""
 
-from . import baseline, checks, extract, generate, select
+from . import baseline, checks, design, extract, generate, plan, select, suite
 
-__all__ = ['baseline', 'checks', 'extract', 'generate', 'select']
+__all__ = [
+    "baseline",
+    "checks",
+    "design",
+    "extract",
+    "generate",
+    "plan",
+    "select",
+    "suite",
+]
