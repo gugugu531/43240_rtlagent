@@ -1,22 +1,43 @@
-"""Extract one candidate, retaining evidence even when extraction fails."""
-from agent.core.components import Node
-from agent.core.extraction import ExtractInput, ExtractionOutput
-from agent.services.extraction import extract_result
+"""Extract complete RTL without inventing missing text."""
+
+from agent.kit import Ctx, State, node
+from agent.rtl.extract import extract_result
 
 
-class ExtractNode(Node[ExtractInput, ExtractionOutput]):
-    component_name = 'rtl_extract'
-    assembly_roles = ['extract']
-    assembly_defaults = {'params': {}, 'dependencies': {}}
-    input_type = ExtractInput
-    output_type = ExtractionOutput
-
-    def run(self, ctx, input: ExtractInput) -> ExtractionOutput:
-        extracted = extract_result(input.reply.content, target_module=ctx.task.top)
-        candidate = None
-        if extracted.code:
-            candidate = ctx.create_candidate(
-                extracted.code, reply=input.reply, round=input.round, parent_id=input.parent_id,
-                source_stage=input.source_stage, extraction_status=extracted.status)
-        ctx.record_extraction(input.reply.call_id, extracted, candidate.id if candidate else None)
-        return ExtractionOutput(extracted, candidate)
+@node(
+    "rtl_extract",
+    reads=["reply_id", "round", "target_id"],
+    writes=["target_id", "has_candidate", "feedback", "failure_kind"],
+)
+def extract(ctx: Ctx, state: State) -> State:
+    reply = ctx.store[state["reply_id"]]
+    result = extract_result(reply.content, target_module=ctx.task.top)
+    candidate = None
+    if result.code:
+        candidate = ctx.candidates.create(
+            result.code,
+            call_id=reply.call_id,
+            round=state["round"],
+            parent_id=state.get("target_id"),
+            source_stage="repair" if state.get("target_id") else "generate",
+            extraction_status=result.status,
+            finish_reason=reply.finish_reason,
+        )
+        if ctx.candidates.selected_id is None:
+            ctx.candidates.select(candidate.id, reason="complete_fallback")
+    ctx.record.emit(
+        "extract",
+        "result",
+        source_call_id=reply.call_id,
+        status=result.status,
+        diagnostics=list(result.diagnostics),
+        candidate_id=candidate.id if candidate else None,
+    )
+    return state.update(
+        target_id=candidate.id if candidate else state.get("target_id"),
+        has_candidate=candidate is not None,
+        feedback=state.get("feedback", "")
+        if candidate
+        else "[extraction] " + "; ".join(result.diagnostics),
+        failure_kind="" if candidate else "extraction",
+    )

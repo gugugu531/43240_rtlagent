@@ -33,7 +33,8 @@
     "tools": [],
     "skills": [],
     "available_workflows": [
-      "single_generate"
+      "single_generate",
+      "repair_loop"
     ]
   },
   "generation": {},

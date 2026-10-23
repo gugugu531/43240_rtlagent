@@ -1,67 +1,38 @@
-"""Single generation action; retry decisions belong to workflows."""
-from dataclasses import dataclass
-import math
-from agent.core.candidate import Candidate
-from agent.core.components import Node
-from agent.core.model import ModelRequest, ModelReply
-from agent.core.task import TaskSpec
-from agent.prompts.context import ContextAssembler
+"""Generation is one model call; retry decisions belong to the graph."""
+
+from agent.kit import Ctx, State, node
 
 
-@dataclass(frozen=True)
-class GenerateInput:
-    task: TaskSpec
-    feedback: str = ''
-    parent: Candidate | None = None
-    round: int = 1
-    seed: int | None = None
-
-
-@dataclass(frozen=True)
-class GenerateNode(Node[GenerateInput, ModelReply]):
-    component_name = 'rtl_generate'
-    input_type = GenerateInput
-    output_type = ModelReply
-    assembly_roles = ['generate']
-    assembly_defaults = {'params': {'max_tokens': 4096, 'temperature': 0.2,
-                                    'timeout_s': 180.0, 'prompt_style': 'repair',
-                                    'minimum_s': 0.0, 'top_p': None},
-                         'dependencies': {}}
-    max_tokens: int = 8192
-    temperature: float = 0.0
-    timeout_s: float = 300.0
-    prompt_style: str = 'direct'
-    minimum_s: float = 0.0
-    top_p: float | None = None
-
-    def __post_init__(self):
-        ModelRequest([], max_tokens=self.max_tokens, temperature=self.temperature,
-                     timeout_s=self.timeout_s, top_p=self.top_p)
-        if not math.isfinite(self.minimum_s) or self.minimum_s < 0:
-            raise ValueError('minimum_s must be finite and nonnegative')
-        if self.prompt_style not in ('direct', 'repair'):
-            raise ValueError('prompt_style must be direct or repair')
-
-    def run(self, ctx, input: GenerateInput) -> ModelReply:
-        kwargs = dict(style=self.prompt_style, feedback=input.feedback,
-                      parent_code=input.parent.code if input.parent else '',
-                      counter=ctx.llm.counter, template_options=ctx.llm.template_options)
-        cap, context_limit = self.max_tokens, ctx.llm.context_limit
-        if ctx.llm.tokens.policy.strict:
-            # Reserve output against the required messages.
-            required = ContextAssembler().assemble(input.task, **kwargs)
-            cap = ctx.llm.tokens.allowance(required.count, cap)
-            total = ctx.llm.tokens.policy.total_limit
-            if total is not None:
-                remaining = total - ctx.llm.tokens.snapshot()['charged_total']
-                context_limit = min(context_limit, remaining) if context_limit is not None else remaining
-        assembly = ContextAssembler().assemble(input.task, **kwargs,
-            context_limit=context_limit, output_reserve=cap, strict=ctx.llm.strict_context)
-        ctx.emit('prompt_resources', round=input.round, **assembly.resources)
-        ctx.emit('context_assembly', round=input.round, **assembly.summary_dict())
-        return ctx.llm.chat(ModelRequest(assembly.messages, max_tokens=cap,
-                                        temperature=self.temperature,
-                                        top_p=self.top_p,
-                                        timeout_s=ctx.budget.timeout_s(self.timeout_s, self.minimum_s),
-                                        seed=input.seed,
-                                        purpose='repair' if input.parent else 'generate'))
+@node(
+    "rtl_generate",
+    reads=["feedback", "target_id", "round"],
+    writes=["reply_id", "round"],
+)
+def generate(
+    ctx: Ctx,
+    state: State,
+    *,
+    temperature: float = 0.2,
+    max_tokens: int = 4096,
+    top_p: float = 1.0,
+    timeout_s: float = 180,
+    prompt: str = "repair.j2",
+) -> State:
+    parent = ctx.candidates.get(state["target_id"]) if state.get("target_id") else None
+    messages = ctx.prompts.render(
+        prompt,
+        task=ctx.task,
+        feedback=state.get("feedback", ""),
+        parent=parent,
+        plan=ctx.store.get("plan"),
+    )
+    reply = ctx.llm.chat(
+        messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        top_p=top_p,
+        timeout_s=timeout_s,
+        purpose="repair" if parent else "generate",
+    )
+    ctx.store[reply.call_id] = reply
+    return state.update(reply_id=reply.call_id, round=state.get("round", 0) + 1)

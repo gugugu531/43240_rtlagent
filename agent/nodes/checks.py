@@ -1,0 +1,93 @@
+"""Public tools and graph actions share the same checking implementations."""
+
+import json
+from agent.kit import Ctx, State, node, tool
+from agent.rtl.interface import check_interface
+from agent.rtl.result import bind_result
+from agent.rtl.vivado import lint as run_lint, synth as run_synth
+from agent.rtl.suite.testbench import simulate
+
+
+@tool("interface_check")
+def interface(ctx: Ctx, candidate_id: str):
+    candidate = ctx.candidates.get(candidate_id)
+    return bind_result(check_interface(ctx, candidate), candidate, "interface")
+
+
+@tool("vivado_lint")
+def lint(ctx: Ctx, candidate_id: str, *, timeout_s: float = 300):
+    candidate = ctx.candidates.get(candidate_id)
+    return bind_result(run_lint(ctx, candidate, timeout_s=timeout_s), candidate, "lint")
+
+
+@tool("vivado_synth")
+def synth(ctx: Ctx, candidate_id: str, *, timeout_s: float = 300):
+    candidate = ctx.candidates.get(candidate_id)
+    return bind_result(
+        run_synth(ctx, candidate, timeout_s=timeout_s), candidate, "synth"
+    )
+
+
+@tool("functional_sim")
+def functional(ctx: Ctx, candidate_id: str, suite: dict, *, timeout_s: float = 300):
+    candidate = ctx.candidates.get(candidate_id)
+    return bind_result(
+        simulate(ctx, candidate, suite, timeout_s=timeout_s),
+        candidate,
+        "functional",
+        suite,
+    )
+
+
+def repair_feedback(check):
+    diagnostics = check.details.get("repair_diagnostics", {})
+    return json.dumps(
+        {
+            "kind": check.kind,
+            "check_id": check.id,
+            "candidate_id": check.candidate_id,
+            "status": check.status,
+            "diagnostics": diagnostics,
+            "summary": check.summary[:8000] if not diagnostics.get("items") else "",
+            "log_paths": list(check.log_paths),
+            "instruction": "Apply the correction to complete RTL; inspect declaration types and every procedural writer together.",
+        },
+        ensure_ascii=False,
+    )
+
+
+def check_stages(ctx, candidate, stages):
+    for stage in stages:
+        check = ctx.call(stage, candidate_id=candidate.id)
+        if (
+            stage == "interface"
+            and not check.blocking
+            and check.status in ("passed", "failed", "skipped")
+            and check.failure_kind not in ("environment", "timeout")
+        ):
+            continue
+        if check.blocking or check.status != "passed":
+            return check
+    return None
+
+
+@node(
+    "rtl_checks",
+    reads=["target_id"],
+    writes=["failure_kind", "feedback", "check_passed"],
+)
+def checks(
+    ctx: Ctx, state: State, *, stages: list[str] = ["interface", "lint", "synth"]
+) -> State:
+    failed = check_stages(ctx, ctx.candidates.get(state["target_id"]), stages)
+    if failed is None:
+        ctx.candidates.select(
+            state["target_id"],
+            reason="synth_passed" if "synth" in stages else "checks_passed",
+        )
+        return state.update(failure_kind="", check_passed=True)
+    return state.update(
+        failure_kind=failed.failure_kind,
+        feedback=repair_feedback(failed),
+        check_passed=False,
+    )
