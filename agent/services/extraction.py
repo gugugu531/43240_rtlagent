@@ -129,11 +129,6 @@ def extract_result(text: str, target_module: str | None = None) -> ExtractionRes
     )
 
 
-def extract_code(text: str, target_module: str | None = None) -> str:
-    """Compatibility wrapper returning only the selected source code."""
-    return extract_result(text, target_module).code
-
-
 def _fenced_rtl_blocks(text: str) -> list[_Block]:
     blocks: list[_Block] = []
     position = 0

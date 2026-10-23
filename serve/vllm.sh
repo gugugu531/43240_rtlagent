@@ -2,8 +2,8 @@
 # Start the local inference service.
 #
 # This is the configuration that must be in effect at evaluation time: local
-# open weights, single card, offline. The commercial-API path in agent/llm.py is
-# for development only -- the sandbox has no network.
+# open weights, single card, offline. The agent connects to this local service
+# through agent/services/model.py.
 #
 #   ./serve/vllm.sh
 #   export LLM_BACKEND=openai LLM_BASE_URL=http://localhost:8000/v1 LLM_MODEL=$MODEL

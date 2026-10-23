@@ -40,16 +40,3 @@ class PropertyCheckInput:
 
     def __post_init__(self):
         object.__setattr__(self, 'suite', _freeze(dict(self.suite)))
-
-
-@dataclass(frozen=True)
-class PropertyReviewInput:
-    task: TaskSpec
-    suite: Mapping[str, Any]
-
-
-@dataclass(frozen=True)
-class PropertyReview:
-    approved_ids: tuple[str, ...] = ()
-    issues: tuple[str, ...] = ()
-    call_id: str | None = None

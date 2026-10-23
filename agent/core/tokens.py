@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Protocol
 
-from agent.core.model import ModelCallError, ModelUsage, ModelRequest
+from agent.core.model import ModelCallError, ModelUsage
 
 
 def positive_integer(value, name, *, optional=False):
@@ -34,16 +33,8 @@ class TokenCount:
         return asdict(self)
 
 
-class TokenCounter(Protocol):
-    def count(self, messages, *, template_options=None) -> TokenCount: ...
-    def count_request(self, request: ModelRequest) -> TokenCount: ...
-
-
 class UnavailableCounter:
     def count(self, messages, *, template_options=None):
-        return TokenCount(reason='tokenizer_not_configured')
-
-    def count_request(self, request):
         return TokenCount(reason='tokenizer_not_configured')
 
 

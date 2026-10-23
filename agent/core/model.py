@@ -37,8 +37,6 @@ class ModelRequest:
     chat_template_kwargs: Mapping[str, Any] | None = None
     seed: int | None = None
     reasoning_effort: str | None = None
-    add_generation_prompt: bool | None = None
-    continue_final_message: bool | None = None
 
     def __post_init__(self):
         if isinstance(self.max_tokens, bool) or not isinstance(self.max_tokens, int) or self.max_tokens <= 0:
@@ -62,17 +60,6 @@ class ModelRequest:
             raise ModelCallError('seed requires a default profile and unsigned 32-bit integer', kind='config')
         if self.reasoning_effort is not None and (not isinstance(self.reasoning_effort, str) or not self.reasoning_effort):
             raise ModelCallError('reasoning_effort must be a nonempty string', kind='config')
-        for name in ('add_generation_prompt', 'continue_final_message'):
-            value = getattr(self, name)
-            if value is not None and (type(value) is not bool or self.profile == 'baseline_rtl'):
-                raise ModelCallError('prompt boundary options require booleans and a default profile', kind='config')
-        if self.continue_final_message:
-            if self.add_generation_prompt is not False:
-                raise ModelCallError('continuation requires add_generation_prompt=false', kind='config')
-            if (not self.messages or self.messages[-1].get('role') != 'assistant'
-                    or not isinstance(self.messages[-1].get('content'), str)
-                    or not self.messages[-1]['content'].strip()):
-                raise ModelCallError('continuation requires a nonempty final assistant text', kind='config')
         if self.chat_template_kwargs is not None:
             if (not isinstance(self.chat_template_kwargs, Mapping)
                     or any(not isinstance(k, str) or not isinstance(v, (bool, int, float, str))
@@ -91,9 +78,6 @@ class ModelRequest:
             result['reasoning_effort'] = self.reasoning_effort
         if self.seed is not None:
             result['seed'] = self.seed
-        for name in ('add_generation_prompt', 'continue_final_message'):
-            if getattr(self, name) is not None:
-                result[name] = getattr(self, name)
         return result
 
     def payload(self, default_model: str):
@@ -110,9 +94,6 @@ class ModelRequest:
             body['reasoning_effort'] = self.reasoning_effort
         if self.seed is not None:
             body['seed'] = self.seed
-        for name in ('add_generation_prompt', 'continue_final_message'):
-            if getattr(self, name) is not None:
-                body[name] = getattr(self, name)
         return body
 
 
@@ -136,7 +117,7 @@ class ModelReasoning:
     """Optional provider text, kept separate from final content and token usage.
 
     An absent key, explicit null and empty string retain distinct meanings.
-    Malformed or conflicting aliases never silently select a continuation text.
+    Malformed or conflicting aliases remain explicit evidence states.
     Raw malformed values remain in the recorded response, not this interface.
     """
     fields: Mapping[str, str | None] = field(default_factory=dict)

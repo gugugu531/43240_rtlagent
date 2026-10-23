@@ -5,7 +5,7 @@ from agent.core.candidate import Candidate
 from agent.core.components import Node
 from agent.core.model import ModelRequest, ModelReply
 from agent.core.task import TaskSpec
-from agent.prompts.context import ContextAssembler, ContextPiece
+from agent.prompts.context import ContextAssembler
 
 
 @dataclass(frozen=True)
@@ -14,7 +14,6 @@ class GenerateInput:
     feedback: str = ''
     parent: Candidate | None = None
     round: int = 1
-    optional_pieces: tuple[ContextPiece, ...] = ()
     seed: int | None = None
 
 
@@ -49,8 +48,7 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
                       counter=ctx.llm.counter, template_options=ctx.llm.template_options)
         cap, context_limit = self.max_tokens, ctx.llm.context_limit
         if ctx.llm.tokens.policy.strict:
-            # Reserve output against required messages first. Optional context
-            # is considered only after the remaining allowance is known.
+            # Reserve output against the required messages.
             required = ContextAssembler().assemble(input.task, **kwargs)
             cap = ctx.llm.tokens.allowance(required.count, cap)
             total = ctx.llm.tokens.policy.total_limit
@@ -58,7 +56,6 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
                 remaining = total - ctx.llm.tokens.snapshot()['charged_total']
                 context_limit = min(context_limit, remaining) if context_limit is not None else remaining
         assembly = ContextAssembler().assemble(input.task, **kwargs,
-            optional_pieces=input.optional_pieces,
             context_limit=context_limit, output_reserve=cap, strict=ctx.llm.strict_context)
         ctx.emit('prompt_resources', round=input.round, **assembly.resources)
         ctx.emit('context_assembly', round=input.round, **assembly.summary_dict())

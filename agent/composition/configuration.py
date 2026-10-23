@@ -27,9 +27,6 @@ SCHEMA = {
                  'tools': {'part': None, 'bin_dir': None, 'temp_dir': None, 'keep_work': None}},
     'runtime': {'deadline_s': None, 'reserve_s': None,
                 'recording': {'level': None, 'root': None}},
-    'experiment': {'tasks': {'root': None, 'ids': None, 'list': None, 'exclude': None},
-                   'modes': None, 'samples': None, 'solve_jobs': None, 'metric_jobs': None,
-                   'metrics': None, 'output_root': None, 'tag': None, 'judge_timeout_s': None},
 }
 DEFAULTS = {'schema_version': 2,
             'services': {'model': {'backend': 'mock', 'model': 'mock-model', 'base_url': '',
@@ -48,9 +45,7 @@ ENV_FIELDS = {'LLM_BACKEND': 'services.model.backend', 'LLM_MODEL': 'services.mo
               'AGENT_RECORD_LEVEL': 'runtime.recording.level',
               'RTL_PART': 'services.tools.part', 'VIVADO_BIN': 'services.tools.bin_dir',
               'AGENT_KEEP_WORK': 'services.tools.keep_work'}
-PATH_FIELDS = {'services.model.tokenizer_dir', 'services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root',
-               'experiment.tasks.root', 'experiment.tasks.list', 'experiment.tasks.exclude',
-               'experiment.output_root'}
+PATH_FIELDS = {'services.model.tokenizer_dir', 'services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root'}
 
 @dataclass(frozen=True)
 class ConfigDocument:
@@ -193,14 +188,6 @@ def positive(value, name, *, allow_zero=False):
     if type(value) not in (int, float) or not math.isfinite(value) or value < 0 or (value == 0 and not allow_zero):
         raise ConfigError(f'{name} must be a finite {"nonnegative" if allow_zero else "positive"} number')
     return float(value)
-
-
-def string_list(value, name):
-    if not isinstance(value, list) or any(not isinstance(v, str) or not v for v in value):
-        raise ConfigError(f'{name} must be a list of nonempty strings')
-    if len(set(value)) != len(value):
-        raise ConfigError(f'{name} must not contain duplicates')
-    return tuple(value)
 
 
 def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = None,

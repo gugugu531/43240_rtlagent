@@ -177,19 +177,11 @@ class ModelService:
             request = replace(request, timeout_s=min(request.timeout_s, self.timeout_limit_s))
         if isinstance(self.backend, HttpBackend) and request.model is None:
             request = replace(request, model=self.backend.config.model)
-        from agent.core.tokens import TokenBudgetError, TokenCount
+        from agent.core.tokens import TokenBudgetError
         from agent.prompts.context import ContextLimitError, messages_hash
-        explicit_boundary = request.add_generation_prompt is not None or request.continue_final_message is not None
-        if explicit_boundary:
-            count_request = getattr(self.counter, 'count_request', None)
-            prediction = (count_request(request) if callable(count_request) else
-                          TokenCount(reason='request_options_unsupported'))
-        else:
-            prediction = self.counter.count(request.messages,
-                template_options=request.chat_template_kwargs if request.chat_template_kwargs is not None else {})
+        prediction = self.counter.count(request.messages,
+            template_options=request.chat_template_kwargs if request.chat_template_kwargs is not None else {})
         try:
-            if explicit_boundary and prediction.status != 'exact':
-                raise ContextLimitError('prompt_boundary_input_tokens_unknown')
             cap = self.tokens.allowance(prediction, request.max_tokens)
             if self.context_limit is not None:
                 if self.strict_context and prediction.status != 'exact':

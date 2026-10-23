@@ -1,1 +1,1 @@
-"""Prompt construction and local skill selection."""
+"""Prompt construction for RTL generation and repair."""
