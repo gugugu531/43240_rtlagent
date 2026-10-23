@@ -29,6 +29,7 @@ class ModelConfig(StrictModel):
     api_key: str = ""
     timeout_s: float = Field(default=840, gt=0)
     max_model_len: int = Field(default=32768, gt=0)
+    tokenizer_protocol: Literal["vllm", "llama_cpp"] = "vllm"
     structured_outputs: bool = True
     replay_path: str | None = None
 

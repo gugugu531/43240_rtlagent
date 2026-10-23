@@ -123,13 +123,19 @@ class Client:
             },
         )
         self.record.emit(
-            "llm" if purpose not in {"models", "tokenize"} else purpose,
+            "llm"
+            if purpose not in {"models", "tokenize", "apply_template"}
+            else purpose,
             "started",
             call_id=call_id,
             purpose=purpose,
         )
         start = time.monotonic()
-        event_tool = "llm" if purpose not in {"models", "tokenize"} else purpose
+        event_tool = (
+            "llm"
+            if purpose not in {"models", "tokenize", "apply_template"}
+            else purpose
+        )
         self._active[call_id] = {"tool": event_tool, "purpose": purpose, "start": start}
         if event_tool == "llm":
             self._usage[call_id] = {"tokens_in": None, "tokens_out": None}
@@ -255,6 +261,32 @@ class Client:
         }
         if tools:
             payload["tools"] = tools
+        llama_cpp = _get(self.config, "tokenizer_protocol", "vllm") == "llama_cpp"
+        if llama_cpp:
+            template_id, template, elapsed = self._request(
+                "POST",
+                self.base_url.removesuffix("/v1") + "/apply-template",
+                payload=payload,
+                purpose="apply_template",
+                timeout_s=30,
+            )
+            prompt = template.get("prompt") if isinstance(template, dict) else None
+            if not isinstance(prompt, str) or not prompt:
+                self._invalid(
+                    template_id,
+                    "apply_template",
+                    "invalid chat template response",
+                    elapsed,
+                )
+            self.record.emit(
+                "apply_template",
+                "finished",
+                call_id=template_id,
+                rc=0,
+                elapsed_s=elapsed,
+            )
+            self._active.pop(template_id, None)
+            payload = {"content": prompt, "add_special": True, "parse_special": True}
         url = self.base_url.removesuffix("/v1") + "/tokenize"
         call_id, body, elapsed = self._request(
             "POST",
@@ -264,6 +296,15 @@ class Client:
             timeout_s=min(30, _get(self.config, "timeout_s", 180)),
         )
         count = _count(body.get("count")) if isinstance(body, dict) else None
+        if llama_cpp:
+            tokens = body.get("tokens") if isinstance(body, dict) else None
+            count = (
+                len(tokens)
+                if isinstance(tokens, list)
+                and tokens
+                and all(type(token) is int and token >= 0 for token in tokens)
+                else None
+            )
         if count is None:
             self._invalid(
                 call_id,
@@ -284,7 +325,7 @@ class Client:
         return count
 
     def _invalid(self, call_id, purpose, message, elapsed):
-        tool = purpose if purpose in {"models", "tokenize"} else "llm"
+        tool = purpose if purpose in {"models", "tokenize", "apply_template"} else "llm"
         usage = self._usage.get(call_id, {"tokens_in": None, "tokens_out": None})
         self.record.emit(
             tool,
