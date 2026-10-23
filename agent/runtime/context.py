@@ -64,8 +64,6 @@ class RunContext:
         self.task, self.llm, self.budget = task, llm, budget
         self.started_at = time.monotonic() if started_at is None else started_at
         self.configuration = configuration if configuration is not None else {}
-        self.initial_replay_contract = None
-        self._initial_replay_validated = False
         self.cancellation = CancellationToken()
         self._artifacts, self._recorder = artifacts, recorder
         self._candidates: dict[str, Candidate] = {}
@@ -222,15 +220,6 @@ class RunContext:
     @property
     def output_dir(self):
         return self._artifacts.output_dir
-
-    @property
-    def initial_replay_validated(self) -> bool:
-        return self._initial_replay_validated
-
-    def mark_initial_replay_validated(self) -> None:
-        if self.initial_replay_contract is None:
-            raise ValueError('workflow does not declare an initial replay contract')
-        self._initial_replay_validated = True
 
     def finish(self, *, reason: str, status='completed') -> WorkflowResult:
         if not reason or status not in ('completed', 'stopped', 'error'):

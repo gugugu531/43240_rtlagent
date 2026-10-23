@@ -35,7 +35,9 @@
     "available_workflows": [
       "single_generate",
       "repair_loop",
-      "design_verify_loop"
+      "design_verify_loop",
+      "behavior_search",
+      "property_repair_loop"
     ]
   },
   "generation": {},

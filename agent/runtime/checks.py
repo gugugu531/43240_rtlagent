@@ -40,23 +40,13 @@ class CheckService:
         started = time.monotonic()
         try:
             self._identity = (probe(timeout_s=self._budget.timeout_s(5.0)) if callable(probe)
-                              else dict(fingerprint=self.replay_fingerprint(), tools={}, elapsed_s=0))
+                              else dict(fingerprint=self.fingerprint(), tools={}, elapsed_s=0))
         except OSError as exc:
-            self._identity = dict(fingerprint=self.replay_fingerprint(), tools={}, elapsed_s=0,
+            self._identity = dict(fingerprint=self.fingerprint(), tools={}, elapsed_s=0,
                                   status='unavailable', error_type=type(exc).__name__)
         self._identity['elapsed_s'] = time.monotonic() - started
         self._emit('tool_identity', identity=self._identity)
         return self._identity
-
-    def replay_fingerprint(self):
-        toolchain = self._tool_context.toolchain()
-        function = getattr(toolchain, 'replay_fingerprint', None)
-        return function() if callable(function) else self.fingerprint()
-
-    def replay_provider(self, tool):
-        identity = type(tool).__dict__.get('replay_identity')
-        fingerprint = identity(tool, self._tool_context) if callable(identity) else None
-        return dict(component=describe_component(tool).public_dict(), fingerprint=fingerprint)
 
     def _cache_identity(self, tool):
         # A subclass must opt in itself: an inherited fingerprint may omit
@@ -82,12 +72,6 @@ class CheckService:
         # The toolchain alone does not identify an injected Python Tool. A run
         # may use distinct implementations or parameters for the same check kind.
         return digest([describe_component(tool).public_dict(), fingerprint])
-
-    def restore_identity(self, identity):
-        if identity.get('fingerprint') != self.replay_fingerprint():
-            raise ValueError('replay tool identity changed')
-        self._identity = identity
-        self._emit('tool_identity_restored', identity=identity)
 
     def _reuse(self, key, candidate):
         old = self.cache.get(key)

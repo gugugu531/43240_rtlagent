@@ -7,6 +7,11 @@ from pathlib import Path
 
 from agent.core.tokens import TokenCount
 
+# Continuation is verified against the Qwen3 text template and Transformers 5.16.1.
+# Other templates require a separately verified adapter; default counting is unchanged.
+_QWEN3_TEMPLATE = 'a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8'
+_CONTINUATION_TAG = 'CONTINUE_FINAL_MESSAGE_TAG '
+
 
 class LocalTokenCounter:
     def __init__(self, directory, *, expected_tokenizer_sha256=None, expected_template_sha256=None):
@@ -40,7 +45,13 @@ class LocalTokenCounter:
     def mark_mismatch(self):
         self._mismatch = True
 
-    def count(self, messages, *, template_options=None):
+    def count_request(self, request):
+        return self.count(request.messages, template_options=request.chat_template_kwargs,
+            add_generation_prompt=True if request.add_generation_prompt is None else request.add_generation_prompt,
+            continue_final_message=False if request.continue_final_message is None else request.continue_final_message)
+
+    def count(self, messages, *, template_options=None, add_generation_prompt=True,
+              continue_final_message=False):
         identity = dict(tokenizer_sha256=self.tokenizer_sha256, template_sha256=self.template_sha256)
         if self._mismatch:
             return TokenCount(status='mismatch', reason='service_usage_mismatch', **identity)
@@ -53,9 +64,29 @@ class LocalTokenCounter:
         if any(not isinstance(key, str) or type(value) not in (bool, int, float, str)
                for key, value in options.items()):
             return TokenCount(reason='unsupported_template_options', **identity)
+        if (type(add_generation_prompt) is not bool or type(continue_final_message) is not bool
+                or (add_generation_prompt and continue_final_message)
+                or set(options) & {'add_generation_prompt', 'continue_final_message', 'messages'}):
+            return TokenCount(reason='unsupported_prompt_boundary_options', **identity)
+        if continue_final_message and self.template_sha256 != _QWEN3_TEMPLATE:
+            return TokenCount(reason='continuation_template_unverified', **identity)
         try:
-            rendered = self._template.render(messages=[dict(m) for m in messages],
-                add_generation_prompt=True, **self._special, **options)
+            chat = [dict(m) for m in messages]
+            if continue_final_message:
+                # Match the installed Transformers content-marker processing, including
+                # trailing whitespace. Merely stripping the final EOS is not equivalent.
+                final = chat[-1]['content']
+                chat[-1]['content'] += _CONTINUATION_TAG
+            rendered = self._template.render(messages=chat,
+                add_generation_prompt=add_generation_prompt, **self._special, **options)
+            if continue_final_message:
+                if final.strip() not in rendered or _CONTINUATION_TAG.strip() not in rendered:
+                    return TokenCount(reason='continuation_content_transformed', **identity)
+                boundary = rendered.rindex(_CONTINUATION_TAG.strip())
+                preserves_space = rendered[boundary:].startswith(_CONTINUATION_TAG)
+                rendered = rendered[:boundary]
+                if not preserves_space:
+                    rendered = rendered.rstrip()
             # The template already supplies special tokens. Do not add them twice.
             count = len(self._tokenizer.encode(rendered, add_special_tokens=False).ids)
             return TokenCount(count, 'exact', **identity)

@@ -7,7 +7,7 @@ import math
 from collections.abc import Mapping
 from agent.core.config import ModelConfig
 from agent.core.model import (BackendResponse, ModelBackend, ModelCallError, ModelReply,
-                          ModelRequest, ModelUsage)
+                          ModelRequest, ModelUsage, ModelReasoning)
 from agent.recording.recorder import RunRecorder, RecordingError
 from agent.services.mock import mock_content
 
@@ -94,11 +94,21 @@ def _parse_reply(body, call_id, response, artifact):
         invalid('finish_reason must be a string or null')
     usage = body.get('usage')
     usage = usage if isinstance(usage, Mapping) else {}
+    reasoning_fields, invalid_reasoning = {}, []
+    for name in ('reasoning', 'reasoning_content'):
+        if name not in message:
+            continue
+        value = message[name]
+        if value is None or isinstance(value, str):
+            reasoning_fields[name] = value
+        else:
+            invalid_reasoning.append(name)
     return ModelReply(call_id, content or '', model=body.get('model') if isinstance(body.get('model'), str) else None,
                       request_id=body.get('id') if isinstance(body.get('id'), str) else None,
                       finish_reason=finish, usage=ModelUsage(_token_count(usage.get('prompt_tokens')),
                                                             _token_count(usage.get('completion_tokens'))),
-                      elapsed_s=response.elapsed_s, response_artifact=artifact)
+                      elapsed_s=response.elapsed_s, response_artifact=artifact,
+                      reasoning=ModelReasoning(reasoning_fields, tuple(invalid_reasoning)))
 
 
 def _template_subset(supplied, declared):
@@ -167,11 +177,19 @@ class ModelService:
             request = replace(request, timeout_s=min(request.timeout_s, self.timeout_limit_s))
         if isinstance(self.backend, HttpBackend) and request.model is None:
             request = replace(request, model=self.backend.config.model)
-        from agent.core.tokens import TokenBudgetError
+        from agent.core.tokens import TokenBudgetError, TokenCount
         from agent.prompts.context import ContextLimitError, messages_hash
-        prediction = self.counter.count(request.messages,
-            template_options=request.chat_template_kwargs if request.chat_template_kwargs is not None else {})
+        explicit_boundary = request.add_generation_prompt is not None or request.continue_final_message is not None
+        if explicit_boundary:
+            count_request = getattr(self.counter, 'count_request', None)
+            prediction = (count_request(request) if callable(count_request) else
+                          TokenCount(reason='request_options_unsupported'))
+        else:
+            prediction = self.counter.count(request.messages,
+                template_options=request.chat_template_kwargs if request.chat_template_kwargs is not None else {})
         try:
+            if explicit_boundary and prediction.status != 'exact':
+                raise ContextLimitError('prompt_boundary_input_tokens_unknown')
             cap = self.tokens.allowance(prediction, request.max_tokens)
             if self.context_limit is not None:
                 if self.strict_context and prediction.status != 'exact':

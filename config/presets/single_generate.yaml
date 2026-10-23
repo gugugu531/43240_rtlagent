@@ -24,7 +24,6 @@ services:
 runtime:
   deadline_s: 900
   reserve_s: 20
-  initial_state: null
   recording:
     level: full
     root: null

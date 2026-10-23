@@ -1,13 +1,16 @@
-# 按组件名选择流程；参数与依赖默认值由对应 Python 组件声明。
 schema_version: 3
-workflow: search_initial
+workflow: property_repair_loop
+params: {max_rounds: 3, max_property_revisions: 1}
+roles:
+  generate:
+    params: {max_tokens: 16384, temperature: 0.0, top_p: 1.0, timeout_s: 840.0}
 services:
   model:
     backend: mock
     model: mock-model
     base_url: ''
     api_key_env: LLM_API_KEY
-    timeout_s: 180.0
+    timeout_s: 840.0
     tokenizer_dir: null
     context_limit: null
     strict_context: false
@@ -22,9 +25,6 @@ services:
     temp_dir: /tmp
     keep_work: false
 runtime:
-  deadline_s: 900
-  reserve_s: 20
-  initial_state: null
-  recording:
-    level: full
-    root: null
+  deadline_s: 14400
+  reserve_s: 30
+  recording: {level: full, root: null}

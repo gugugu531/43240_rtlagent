@@ -1,6 +1,7 @@
 # 按组件名选择流程；参数与依赖默认值由对应 Python 组件声明。
 schema_version: 3
 workflow: repair_loop
+params: {max_rounds: 2}
 services:
   model:
     backend: mock
@@ -24,7 +25,6 @@ services:
 runtime:
   deadline_s: 900
   reserve_s: 20
-  initial_state: null
   recording:
     level: full
     root: null

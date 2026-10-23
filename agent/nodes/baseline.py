@@ -11,7 +11,7 @@ from agent.services.extraction import extract_result
 
 class BaselineGenerateNode(Node[GenerateInput, ModelReply]):
     component_name = 'baseline_generate'
-    assembly_roles = ['alternative', 'generate']
+    assembly_roles = ['generate']
     assembly_defaults = {'params': {}, 'dependencies': {}}
     input_type = GenerateInput
     output_type = ModelReply

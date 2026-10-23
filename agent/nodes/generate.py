@@ -2,9 +2,8 @@
 from dataclasses import dataclass
 import math
 from agent.core.candidate import Candidate
-from agent.core.components import Node, Tool
+from agent.core.components import Node
 from agent.core.model import ModelRequest, ModelReply
-from agent.core.skill import SkillQuery, SkillSelection
 from agent.core.task import TaskSpec
 from agent.prompts.context import ContextAssembler, ContextPiece
 
@@ -24,25 +23,17 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
     component_name = 'rtl_generate'
     input_type = GenerateInput
     output_type = ModelReply
-    dependencies = {'skill_tool': 'tool'}
-    dependency_types = {'skill_tool': (SkillQuery, SkillSelection)}
-    assembly_roles = ['generate', 'alternative']
-    # Named assembly defaults preserve the repair preset. Direct Python
-    # construction below keeps its separate, skill-free defaults.
+    assembly_roles = ['generate']
     assembly_defaults = {'params': {'max_tokens': 4096, 'temperature': 0.2,
                                     'timeout_s': 180.0, 'prompt_style': 'repair',
-                                    'use_skills': True, 'minimum_s': 0.0, 'top_p': None},
-                         'dependencies': {'skill_tool': {'component': 'skill_lookup',
-                                                         'id': 'skill_tool',
-                                                         'when': {'use_skills': True}}}}
+                                    'minimum_s': 0.0, 'top_p': None},
+                         'dependencies': {}}
     max_tokens: int = 8192
     temperature: float = 0.0
     timeout_s: float = 300.0
     prompt_style: str = 'direct'
-    use_skills: bool = False
     minimum_s: float = 0.0
     top_p: float | None = None
-    skill_tool: Tool[SkillQuery, SkillSelection] | None = None
 
     def __post_init__(self):
         ModelRequest([], max_tokens=self.max_tokens, temperature=self.temperature,
@@ -51,17 +42,10 @@ class GenerateNode(Node[GenerateInput, ModelReply]):
             raise ValueError('minimum_s must be finite and nonnegative')
         if self.prompt_style not in ('direct', 'repair'):
             raise ValueError('prompt_style must be direct or repair')
-        if self.use_skills and not isinstance(self.skill_tool, Tool):
-            raise ValueError('skill_tool is required when use_skills is true')
 
     def run(self, ctx, input: GenerateInput) -> ModelReply:
-        # Query once per repair action; both token-budget passes must use the
-        # same selection and must not perform another file lookup.
-        selected_skills = (ctx.call(self.skill_tool, SkillQuery(input.task.prompt, input.feedback))
-                           if self.use_skills and input.feedback else None)
         kwargs = dict(style=self.prompt_style, feedback=input.feedback,
                       parent_code=input.parent.code if input.parent else '',
-                      selected_skills=selected_skills,
                       counter=ctx.llm.counter, template_options=ctx.llm.template_options)
         cap, context_limit = self.max_tokens, ctx.llm.context_limit
         if ctx.llm.tokens.policy.strict:

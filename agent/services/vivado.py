@@ -20,7 +20,7 @@ against the declared interface costs nothing and removes the entire failure
 class -- which is also a demonstration that a skill need not involve a model.
 
 If Vivado is not installed, lint() and synth() return status=unavailable with a
-clear reason and the agent falls back to fewer rounds. The interface check
+clear reason and the agent stops with its current candidate. The interface check
 still works. They never pretend to have checked something they did not.
 """
 
@@ -57,7 +57,7 @@ _validate_top = validate_top
 
 
 def _implementation_sources() -> tuple[bytes, ...]:
-    """Include extracted implementations in both cache and replay identity."""
+    """Include the compiler adapter and diagnostics in cache identity."""
     from pathlib import Path
     return tuple(Path(path).read_bytes() for path in
                  (__file__, tool_contract.__file__, tool_support.__file__))
@@ -91,33 +91,6 @@ class RtlToolchain:
         except OSError:
             return None
 
-    def replay_fingerprint(self):
-        """Tool identity across runs, independent of Agent workflow/output state."""
-        import hashlib
-        from pathlib import Path
-        paths = [self.xvlog, self.xelab, self.vivado]
-        if any(path is None for path in paths):
-            return None
-        names = {'PATH', 'HOME', 'LD_LIBRARY_PATH', 'LD_PRELOAD', 'LIBRARY_PATH',
-                 'CPATH', 'C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'COMPILER_PATH',
-                 'GCC_EXEC_PREFIX', 'TCLLIBPATH', 'TCL_LIBRARY', 'TK_LIBRARY',
-                 'PYTHONPATH', 'PYTHONHOME', 'TMPDIR', 'TMP', 'TEMP', 'LANG',
-                 'LANGUAGE', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS'}
-        prefixes = ('XILINX_', 'XILINXD_', 'RDI_', 'HDI_', 'LM_', 'FLEXLM_', 'LC_')
-        environment = sorted((k, v) for k, v in os.environ.items()
-                             if k in names or k.startswith(prefixes))
-        try:
-            identity = []
-            for path in paths:
-                resolved = Path(path).resolve()
-                info = resolved.stat()
-                identity.append((str(resolved), info.st_dev, info.st_ino, info.st_size,
-                                 info.st_mtime_ns, info.st_ctime_ns))
-            return hashlib.sha256(repr(('replay-tool-v1', identity, self.config.public_dict(),
-                                        environment, _implementation_sources())).encode()).hexdigest()
-        except OSError:
-            return None
-
     def run_command(self, cmd: Sequence[str], cwd: str, timeout_s: float) -> CommandOutcome:
         if self.executor is None:
             return _run_command(cmd, cwd, timeout_s)
@@ -144,7 +117,7 @@ class RtlToolchain:
                 match = re.search(r'(?:Vivado(?: Simulator)?|xvlog|xelab)\s+v?(\d{4}\.\d+)', result.output, re.I)
                 tools[name] = dict(version=match.group(1) if match and result.status == 'ok' else None,
                                    status=result.status, command=list(result.command), log_path=result.log_path)
-        return dict(fingerprint=self.replay_fingerprint(), tools=tools, elapsed_s=time.monotonic() - started)
+        return dict(fingerprint=self.fingerprint(), tools=tools, elapsed_s=time.monotonic() - started)
 
     @property
     def available(self) -> bool:
@@ -192,26 +165,6 @@ class RtlToolchain:
                 shutil.rmtree(work, ignore_errors=True)
 
     # ----------------------------------------------------------------- synth
-
-    def behavior_fingerprint(self):
-        """Self-test reuse also depends on the simulator executable."""
-        import hashlib
-        base = self.fingerprint()
-        search = self.config.bin_dir if self.config.bin_dir is not None else os.environ.get('PATH', '')
-        xsim = shutil.which('xsim', path=search)
-        if not base or not xsim:
-            return None
-        try:
-            info = os.stat(os.path.realpath(xsim))
-            return hashlib.sha256(repr((base, os.path.realpath(xsim), info.st_dev, info.st_ino,
-                info.st_size, info.st_mtime_ns, info.st_ctime_ns)).encode()).hexdigest()
-        except OSError:
-            return None
-
-    def behavior(self, source, top, plan, timeout_s=60.0):
-        """Optional controlled self-test; never invoked by existing workflows."""
-        from agent.services.behavior import run_behavior
-        return run_behavior(self, source, top, plan, timeout_s)
 
     def synth(self, source: str, top: str,
               timeout_s: float = 900.0) -> ToolResult:

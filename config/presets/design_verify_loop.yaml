@@ -4,7 +4,7 @@ workflow: design_verify_loop
 params: {max_rounds: 3, checker_revisions: 1, plan_retries: 1, unchanged_retries: 1, plan_max_tokens: 4096, review_max_tokens: 4096}
 roles:
   generate:
-    params: {max_tokens: 16384, timeout_s: 840.0, temperature: 0.0, top_p: 1.0, use_skills: false}
+    params: {max_tokens: 16384, timeout_s: 840.0, temperature: 0.0, top_p: 1.0}
   json:
     params: {max_tokens: 8192, timeout_s: 840.0, temperature: 0.0, reserve_s: 120.0}
   suite_builder:

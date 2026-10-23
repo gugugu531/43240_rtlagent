@@ -23,11 +23,6 @@ class Budget:
     def remaining_s(self, include_reserve: bool = False) -> float:
         return max(0.0, self._deadline - self._clock() - (0.0 if include_reserve else self.reserve_s))
 
-    def consume_previous(self, elapsed_s: float):
-        """Debit a shared initial phase during controlled repair replay."""
-        if type(elapsed_s) not in (int, float) or not math.isfinite(elapsed_s) or elapsed_s < 0:
-            raise ValueError('previous elapsed time must be finite and nonnegative')
-        self._deadline -= elapsed_s
 
     def can_start(self, minimum_s: float = 0.0) -> bool:
         if not math.isfinite(minimum_s) or minimum_s < 0:

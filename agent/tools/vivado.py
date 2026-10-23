@@ -29,9 +29,6 @@ class VivadoLintTool(Tool[Candidate, CheckOutcome]):
     def cache_identity(self, ctx) -> str | None:
         return toolchain_identity(ctx, 'fingerprint')
 
-    def replay_identity(self, ctx) -> str | None:
-        return toolchain_identity(ctx, 'replay_fingerprint')
-
     def cache_request(self, input: Candidate):
         return {'code_hash': input.code_hash}
 
@@ -49,9 +46,6 @@ class VivadoSynthTool(Tool[Candidate, CheckOutcome]):
 
     def cache_identity(self, ctx) -> str | None:
         return toolchain_identity(ctx, 'fingerprint')
-
-    def replay_identity(self, ctx) -> str | None:
-        return toolchain_identity(ctx, 'replay_fingerprint')
 
     def cache_request(self, input: Candidate):
         return {'code_hash': input.code_hash}

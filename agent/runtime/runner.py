@@ -13,7 +13,6 @@ from agent.core.components import Workflow, describe_component
 from agent.core.config import ModelConfig, ToolConfig
 from agent.core.metadata import git_metadata
 from agent.core.state import WorkflowResult
-from agent.core.replay_contract import InitialReplayContract
 from agent.core.task import TaskSpec
 from agent.recording.recorder import RunRecorder, RecordingError
 from agent.runtime.specification import RunOptions
@@ -79,18 +78,6 @@ class Runner:
                     configuration['assembly_sha256'] = hashlib.sha256(json.dumps(
                         configuration['effective_assembly'], sort_keys=True, ensure_ascii=False,
                         separators=(',', ':'), allow_nan=False).encode()).hexdigest()
-            initial_state = configuration.get("effective", {}).get("runtime", {}).get("initial_state")
-            declare_replay = getattr(instance, 'initial_replay_contract', None)
-            if callable(declare_replay):
-                contract = declare_replay()
-                if not isinstance(contract, InitialReplayContract) or contract.request_policy != 'scheme_a':
-                    raise ValueError('workflow declares an unsupported initial replay contract')
-                if any(not callable(getattr(node, 'run', None)) or not callable(getattr(node, 'describe', None))
-                       for node in (contract.extract_node, *contract.check_nodes)):
-                    raise ValueError('initial replay contract requires component bindings')
-                ctx.initial_replay_contract = contract
-            elif initial_state:
-                raise ValueError("workflow does not support initial replay")
             spec = describe_component(instance)
             recorder.record_metadata(mode='agent', task_id=task.id, task=task.public_dict(),
                                      workflow=spec.public_dict(), model=config.public_dict(),
@@ -100,10 +87,6 @@ class Runner:
             recorder.record_task(task)
             recorder.write_event('agent', 'start')
             result = instance.run(ctx)
-            # Declaring replay support is not enough: a workflow that receives
-            # initial_state must actually validate and import that checkpoint.
-            if initial_state and not ctx.initial_replay_validated:
-                raise ValueError("workflow did not validate the initial checkpoint")
             if not isinstance(result, WorkflowResult):
                 raise TypeError('workflow.run() must return ctx.finish() result')
             # The return value must describe the already persisted selection;

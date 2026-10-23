@@ -18,9 +18,33 @@ class CommandOutcome:
     log_path: str | None = None
 
 
+def extract_diagnostics(log: str, limit=32):
+    """Collect roots before summary truncation; incomplete evidence stays explicit."""
+    rows, seen, omitted, truncated = [], set(), 0, False
+    for line in log.splitlines():
+        match = re.search(r'(ERROR|WARNING):\s*\[([^\]]+)\]\s*(.*)', line, re.I)
+        if not match:
+            continue
+        severity, code, message = match.groups()
+        code = ' '.join(code.upper().split())
+        if severity.upper() == 'WARNING' and code != 'SYNTH 8-3848':
+            continue
+        key = (code, message)
+        if key in seen:
+            continue
+        seen.add(key)
+        if len(rows) >= limit:
+            omitted += 1
+            continue
+        truncated |= len(message) > 700
+        symbols = re.findall(r"(?:variable|signal|net)\s+['\"]([A-Za-z_][A-Za-z0-9_$]*)['\"]", message, re.I)
+        rows.append(dict(code=code, severity=severity.lower(), message=message[:700],
+                         symbols=list(dict.fromkeys(symbols)), cascade=code == 'XSIM 43-3322'))
+    return dict(items=rows, omitted=omitted, complete=not (omitted or truncated))
+
+
 def build_result(tool: str, outcomes: Sequence[CommandOutcome],
                   work: str, keep_work: bool, log_dir=None, redactor=None) -> ToolResult:
-    from agent.services.repair_feedback import extract_diagnostics
     commands = tuple(outcome.command for outcome in outcomes)
     final = outcomes[-1]
     full_output = "\n".join(outcome.output for outcome in outcomes)

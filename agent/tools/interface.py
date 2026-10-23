@@ -18,9 +18,6 @@ class InterfaceCheckTool(Tool[Candidate, CheckOutcome]):
     def cache_identity(self, ctx) -> str:
         return 'python-interface-v2'
 
-    def replay_identity(self, ctx) -> str:
-        return 'python-interface-v2'
-
     def cache_request(self, input: Candidate):
         return {'code_hash': input.code_hash}
 

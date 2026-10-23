@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Protocol
 
-from agent.core.model import ModelCallError, ModelUsage
+from agent.core.model import ModelCallError, ModelUsage, ModelRequest
 
 
 def positive_integer(value, name, *, optional=False):
@@ -36,10 +36,14 @@ class TokenCount:
 
 class TokenCounter(Protocol):
     def count(self, messages, *, template_options=None) -> TokenCount: ...
+    def count_request(self, request: ModelRequest) -> TokenCount: ...
 
 
 class UnavailableCounter:
     def count(self, messages, *, template_options=None):
+        return TokenCount(reason='tokenizer_not_configured')
+
+    def count_request(self, request):
         return TokenCount(reason='tokenizer_not_configured')
 
 
@@ -132,15 +136,3 @@ class TokenLedger:
                                  known_calls=len(values), unknown_calls=len(calls) - len(values))
         result['entries'] = {key: dict(value) for key, value in self._calls.items()}
         return result
-
-    def import_initial(self, snapshot):
-        """Replay each original reservation/settlement under disjoint call IDs."""
-        if self._calls:
-            raise ValueError('initial accounting must precede new calls')
-        for call_id, entry in snapshot['entries'].items():
-            identity = 'initial:' + call_id
-            prediction = TokenCount(**entry['prediction'])
-            self.start(identity, predicted_input=prediction, output_cap=entry['output_cap'])
-            if entry['status'] == 'started':
-                raise ValueError('unfinished initial model request cannot be replayed')
-            self.finish(identity, usage=ModelUsage(entry['tokens_in'], entry['tokens_out']), outcome=entry['status'])

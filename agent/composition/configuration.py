@@ -14,7 +14,7 @@ from agent.core.config import ModelConfig, ToolConfig
 from agent.composition.validation import ConfigError, validate_assembly
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = ROOT / 'config/example.yaml'
+DEFAULT_CONFIG = ROOT / 'config/presets/single_generate.yaml'
 
 SCHEMA = {
     'schema_version': None, 'workflow': None, 'components': None,
@@ -25,7 +25,7 @@ SCHEMA = {
                            'token_total_limit': None, 'token_output_limit': None, 'enable_thinking': None,
                            'tokenizer_sha256': None, 'template_sha256': None},
                  'tools': {'part': None, 'bin_dir': None, 'temp_dir': None, 'keep_work': None}},
-    'runtime': {'deadline_s': None, 'reserve_s': None, 'initial_state': None,
+    'runtime': {'deadline_s': None, 'reserve_s': None,
                 'recording': {'level': None, 'root': None}},
     'experiment': {'tasks': {'root': None, 'ids': None, 'list': None, 'exclude': None},
                    'modes': None, 'samples': None, 'solve_jobs': None, 'metric_jobs': None,
@@ -39,7 +39,7 @@ DEFAULTS = {'schema_version': 2,
                                    'tokenizer_sha256': None, 'template_sha256': None},
                          'tools': {'part': 'xczu3eg-sbva484-1-e', 'bin_dir': None,
                                    'temp_dir': '/tmp', 'keep_work': False}},
-            'runtime': {'deadline_s': 900.0, 'reserve_s': 20.0, 'initial_state': None,
+            'runtime': {'deadline_s': 900.0, 'reserve_s': 20.0,
                         'recording': {'level': 'full', 'root': None}}}
 ENV_FIELDS = {'LLM_BACKEND': 'services.model.backend', 'LLM_MODEL': 'services.model.model',
               'LLM_BASE_URL': 'services.model.base_url', 'LLM_TIMEOUT_S': 'services.model.timeout_s',
@@ -49,7 +49,6 @@ ENV_FIELDS = {'LLM_BACKEND': 'services.model.backend', 'LLM_MODEL': 'services.mo
               'RTL_PART': 'services.tools.part', 'VIVADO_BIN': 'services.tools.bin_dir',
               'AGENT_KEEP_WORK': 'services.tools.keep_work'}
 PATH_FIELDS = {'services.model.tokenizer_dir', 'services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root',
-               'runtime.initial_state',
                'experiment.tasks.root', 'experiment.tasks.list', 'experiment.tasks.exclude',
                'experiment.output_root'}
 
@@ -77,7 +76,6 @@ class RuntimeConfig:
     reserve_s: float
     recording_level: str
     recording_root: Path | None
-    initial_state: Path | None
 
 
 @dataclass(frozen=True)
@@ -214,7 +212,7 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
     caller = Path(env.get("AGENT_CALLER_CWD", os.getcwd()))
     values = copy.deepcopy(DEFAULTS)
     values['workflow'] = expanded['root_id']
-    # Persist a complete schema2 graph so replay never consults named defaults.
+    # Persist a complete schema2 graph so reloading never consults named defaults.
     values['components'] = {row['id']: dict(kind=row['kind'], **{'class': row['target']},
                             params=copy.deepcopy(row['params']), inject=copy.deepcopy(row['inject']))
                             for row in expanded['components']}
@@ -258,12 +256,6 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
     assembly_data = _assembly_data(values)
     for component in assembly_data['components']:
         sources[f"components.{component['id']}.params"] = assembly_source
-        params = component.get('params', {})
-        for path_parameter in ('corpus_path', 'skill_dir'):
-            if params.get(path_parameter) is not None:
-                if not isinstance(params[path_parameter], str) or not params[path_parameter]:
-                    raise ConfigError(f'{path_parameter} must be a nonempty path or null')
-                params[path_parameter] = str((base / params[path_parameter]).resolve())
     assembly = AssemblySpec.from_dict(assembly_data)
     values['components'] = {component.id: dict(kind=component.kind, **{'class': component.target},
                             params=component.public_dict()['params'], inject=component.public_dict()['inject'])
@@ -284,7 +276,7 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
     positive(r['deadline_s'], 'runtime.deadline_s'); positive(r['reserve_s'], 'runtime.reserve_s', allow_zero=True)
     level = r['recording']['level']
     if level not in ('basic', 'full'): raise ConfigError('recording.level must be basic or full')
-    for field_name in ('services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root', 'runtime.initial_state'):
+    for field_name in ('services.tools.bin_dir', 'services.tools.temp_dir', 'runtime.recording.root'):
         val = dict(_flatten(values))[field_name]
         if val is not None and (not isinstance(val, str) or not val): raise ConfigError(f'{field_name} must be a path')
     if t['temp_dir'] is None: raise ConfigError('tools.temp_dir must be a path')
@@ -298,7 +290,6 @@ def resolve_config(document: ConfigDocument, *, env: Mapping[str, str] | None = 
                            'tokenizer_sha256', 'template_sha256')})
     tools = ToolConfig(**t)
     runtime = RuntimeConfig(r['deadline_s'], r['reserve_s'], level,
-                            Path(r['recording']['root']) if r['recording']['root'] else None,
-                            Path(r['initial_state']) if r['initial_state'] else None)
+                            Path(r['recording']['root']) if r['recording']['root'] else None)
     return ResolvedConfig(AgentConfig(assembly, ServicesConfig(model, tools, m['api_key_env']), runtime),
                           sources, values, document)
