@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 import copy
+import json
 from agent.kit import Ctx, State, node
 from agent.rtl.specification import (
     normalize_requirements,
@@ -9,6 +10,7 @@ from agent.rtl.specification import (
     source_catalog,
 )
 from agent.nodes.structured import request
+from agent.nodes.recovery import rtl_repair_blocker, stop
 
 
 def _thaw(value):
@@ -54,6 +56,7 @@ class Planner:
 
     def _plan(self, ctx, previous=None, feedback=""):
         catalog = source_catalog(ctx.task.prompt + "\n" + ctx.task.interface)
+        ctx.store["plan_behavior_conflicts"] = []
         for attempt in range(self.plan_retries + 1):
             result = request(
                 ctx,
@@ -68,6 +71,7 @@ class Planner:
                 {"previous": previous, "feedback": feedback, "sources": catalog},
                 self.plan_max_tokens,
             )
+            no_progress = result.raw_text_metadata.get("no_progress", False)
             try:
                 if result.status != "ready":
                     raise ValueError(result.reason)
@@ -80,14 +84,38 @@ class Planner:
                     "requirements, plan and uncertain fields with source references. For reject explain what remains unresolved. "
                     "An identified contradiction requires revise or reject, never accept. Check small numeric examples, "
                     "old/new state, cycle latency, and explicit structural requirements. Do not invent initialization, "
-                    "priority or latency, or resolve assumptions merely by calling them reasonable.",
+                    "priority or latency, or resolve assumptions merely by calling them reasonable. "
+                    "Report unresolved behavioral contradictions in behavior_conflicts:[{source_id,quote,reason}]. "
+                    "Each conflict must cite a public requirement and explain the incompatible observable behavior. "
+                    "Naming choices alone are not behavioral conflicts. An empty conflict list does not prove "
+                    "that unspecified behavior or every uncertain item has been resolved.",
                     "design_plan_review",
                     {"plan": plan, "sources": catalog},
                     self.review_max_tokens,
                 )
+                no_progress = audit.raw_text_metadata.get("no_progress", False)
                 if audit.status != "ready":
                     raise ValueError(audit.reason)
                 data = audit.data
+                if data.get("behavior_conflicts"):
+                    conflicts = [
+                        {
+                            **resolve_requirement(
+                                item, ctx.task.prompt + "\n" + ctx.task.interface
+                            ),
+                            "reason": item["reason"],
+                        }
+                        for item in data["behavior_conflicts"]
+                    ]
+                    ctx.store["plan_behavior_conflicts"] = conflicts
+                    ctx.record.emit(
+                        "plan", "behavior_conflict", call_id=audit.call_id,
+                        conflicts=conflicts,
+                    )
+                    raise ValueError(
+                        "Unresolved public behavioral conflicts; revise only with public evidence: "
+                        + json.dumps(conflicts, ensure_ascii=False)
+                    )
                 decision = data.get("decision")
                 if (
                     decision is not None
@@ -142,6 +170,7 @@ class Planner:
                     call_id=result.call_id,
                     review_call_id=audit.call_id,
                 )
+                ctx.store["plan_behavior_conflicts"] = []
                 return chosen
             except (ValueError, TypeError) as error:
                 feedback = str(error)
@@ -152,12 +181,17 @@ class Planner:
                     status="invalid",
                     call_id=result.call_id,
                     reason=feedback,
-                    retry=attempt < self.plan_retries,
+                    retry=attempt < self.plan_retries and not no_progress,
                 )
+                if no_progress:
+                    break
         return None
 
 
-@node("design_plan", reads=[], writes=["plan_ready"])
+@node(
+    "design_plan", reads=[],
+    writes=["plan_ready", "action", "stop_reason", "status"],
+)
 def plan(
     ctx: Ctx,
     state: State,
@@ -175,15 +209,29 @@ def plan(
     result = Planner(**options)._plan(ctx)
     ctx.store["plan"] = result
     ctx.record.emit("plan", "status", status="ready" if result else "invalid")
+    if result is None and ctx.store.get("plan_behavior_conflicts"):
+        return state.update(
+            plan_ready=False, action="finish", status="stopped",
+            stop_reason="plan_behavior_conflict",
+        )
     return state.update(plan_ready=result is not None)
 
 
-@node("revise_plan", reads=["feedback"], writes=["action", "stop_reason"])
+@node(
+    "revise_plan",
+    reads=["feedback", "round", "max_rounds", "target_id"],
+    writes=["action", "stop_reason", "status"],
+)
 def revise(ctx: Ctx, state: State) -> State:
+    # Keep the check at this public node boundary as well as the diagnosis route.
+    if reason := rtl_repair_blocker(ctx, state, origin="revise_plan"):
+        return stop(state, reason)
     revised = Planner(**ctx.store["plan_options"])._plan(
         ctx, ctx.store["plan"], state.get("feedback", "")
     )
     if revised is None:
+        if ctx.store.get("plan_behavior_conflicts"):
+            return stop(state, "plan_behavior_conflict")
         return state.update(action="finish", stop_reason="plan_revision_invalid")
     ctx.store["plan"] = revised
     return state.update(action="generate")

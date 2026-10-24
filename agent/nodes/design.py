@@ -6,14 +6,28 @@ from agent.kit import Ctx, State, node
 from agent.nodes.checks import check_stages, repair_feedback
 from agent.nodes.suite import build_suite
 from agent.nodes.plan import _quoted
+from agent.nodes.recovery import rtl_repair_blocker, stop
 from agent.nodes.structured import request
 from agent.rtl.specification import resolve_requirement
-from agent.rtl.suite.model import suite_hash
-from agent.rtl.suite.evaluate import coverage_summary
+from agent.rtl.suite.model import (
+    SuiteError, suite_hash, require_comparable_expectations,
+    require_requirement_coverage,
+)
+from agent.rtl.suite.evaluate import coverage_summary, analyze_expectations
 
 
-def stop(state, reason):
-    return state.update(action="finish", stop_reason=reason, status="stopped")
+def candidate_compile_failure(check, candidate):
+    """Only source-attributed, bound compiler diagnostics permit an RTL edit."""
+    details = check.details
+    return (
+        check.status == "error"
+        and check.failure_kind == "code"
+        and details.get("failure_kind") == "code"
+        and details.get("attribution") == "candidate"
+        and check.candidate_id == candidate.id
+        and details.get("candidate_hash") == candidate.code_hash
+        and bool(details.get("repair_diagnostics", {}).get("items"))
+    )
 
 
 def stimuli(suite):
@@ -44,6 +58,11 @@ def stimuli(suite):
         )
         for case in suite["cases"]
     }
+
+
+def comparison_stimuli(suite, analysis):
+    """Count only histories that reach a predicted comparison, never unseen tails."""
+    return {event["comparison_signature"] for event in analysis["comparison_events"]}
 
 
 @node(
@@ -156,6 +175,8 @@ def select_comparable(ctx):
         "checker_revisions",
         "verification_actions",
         "acceptance_attempted",
+        "round",
+        "max_rounds",
     ],
     writes=[
         "action",
@@ -163,6 +184,7 @@ def select_comparable(ctx):
         "status",
         "checker_unknown",
         "verification_actions",
+        "feedback",
     ],
 )
 def functional(ctx: Ctx, state: State) -> State:
@@ -182,6 +204,25 @@ def functional(ctx: Ctx, state: State) -> State:
                     "functional", candidate_id=candidate.id, suite=suite
                 )
     checks = [evidence[state["target_id"], key] for key in suites]
+    candidate = candidates[state["target_id"]]
+    compile_failure = next(
+        (check for check in checks if candidate_compile_failure(check, candidate)),
+        None,
+    )
+    if compile_failure:
+        if reason := rtl_repair_blocker(ctx, state, origin="functional_compile"):
+            return stop(state, reason)
+        feedback = repair_feedback(compile_failure)
+        ctx.record.emit(
+            "repair_feedback",
+            "result",
+            check_id=compile_failure.id,
+            candidate_id=candidate.id,
+            origin="functional_compile",
+            diagnostics=compile_failure.details["repair_diagnostics"],
+            feedback_hash=hashlib.sha256(feedback.encode()).hexdigest(),
+        )
+        return state.update(action="generate", feedback=feedback, checker_unknown=False)
     unresolved = next(
         (check for check in checks if check.status not in ("passed", "failed")), None
     )
@@ -219,7 +260,10 @@ def functional(ctx: Ctx, state: State) -> State:
 
 @node(
     "design_diagnose",
-    reads=["target_id", "checker_unknown", "revisions", "checker_revisions"],
+    reads=[
+        "target_id", "checker_unknown", "revisions", "checker_revisions",
+        "round", "max_rounds",
+    ],
     writes=["action", "feedback", "stop_reason", "status"],
 )
 def diagnose(ctx: Ctx, state: State, *, max_tokens: int = 8192) -> State:
@@ -277,6 +321,9 @@ def diagnose(ctx: Ctx, state: State, *, max_tokens: int = 8192) -> State:
         suite_hash=key,
         diagnosis=diagnosis.data,
     )
+    if cause in ("plan", "rtl"):
+        if reason := rtl_repair_blocker(ctx, state, origin="diagnosis_" + cause):
+            return stop(state, reason)
     feedback = json.dumps(
         {"diagnosis": diagnosis.data, "first_mismatch": first, "trace_window": window},
         ensure_ascii=False,
@@ -370,16 +417,43 @@ def acceptance(ctx: Ctx, state: State) -> State:
     )
     outcome = "acceptance_" + built.status
     if built.status == "ready":
+        try:
+            analysis = require_comparable_expectations(
+                built.suite, task_text=ctx.task.prompt + "\n" + ctx.task.interface
+            )
+            requirement_coverage = require_requirement_coverage(built.suite)
+        except SuiteError as error:
+            ctx.record.emit(
+                "acceptance_contract", "invalid", reason=str(error),
+                suite_hash=suite_hash(built.suite), semantic_coverage_proven=False,
+            )
+            return state.update(
+                action="final_synth", acceptance_outcome="acceptance_contract_invalid"
+            )
         key = suite_hash(built.suite)
         known = set().union(*(stimuli(s) for s in suites.values()))
         fresh = stimuli(built.suite) - known
-        if key not in suites and fresh:
+        known_comparisons = set().union(*(
+            comparison_stimuli(s, analyze_expectations(s)) for s in suites.values()
+        ))
+        fresh_comparisons = comparison_stimuli(built.suite, analysis) - known_comparisons
+        ctx.record.emit(
+            "acceptance_contract", "validated", **requirement_coverage,
+            covered_source_ids=sorted({
+                r["source_id"] for r in requirement_coverage["requirements"]
+                if r.get("source_id")
+            }),
+            new_comparison_events=len(fresh_comparisons),
+        )
+        if key not in suites and fresh_comparisons:
             suites[key] = built.suite
             ctx.record.emit(
                 "acceptance_promoted",
                 "result",
                 suite_hash=key,
                 new_stimulus_sequences=len(fresh),
+                new_comparison_events=len(fresh_comparisons),
+                requirement_coverage=requirement_coverage,
                 coverage=coverage_summary(suites.values()),
             )
             return state.update(action="functional", acceptance_outcome="")

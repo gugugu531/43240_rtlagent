@@ -59,7 +59,8 @@ def build(g, p):
         if type(value) is not int or not lo <= value <= hi:
             raise ValueError(f"{name} must be in {lo}..{hi}")
     transitions = [
-        ("plan", "build_suite"),
+        ("plan", "finish", when(action="finish")),
+        ("plan", "build_suite", default),
         ("build_suite", "generate"),
         ("generate", "extract"),
         ("extract", "dedupe", when(has_candidate=True)),
@@ -68,7 +69,7 @@ def build(g, p):
     routes = {
         "dedupe": ["structure", "generate"],
         "structure": ["functional", "synth_only", "generate"],
-        "functional": ["diagnose", "acceptance", "final_synth"],
+        "functional": ["diagnose", "acceptance", "final_synth", "generate"],
         "diagnose": ["revise_suite", "revise_plan", "generate"],
         "revise_suite": ["functional"],
         "revise_plan": ["generate"],
