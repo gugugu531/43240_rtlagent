@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import os
 import time
 from functools import wraps
@@ -49,6 +50,26 @@ def _scoped(method):
     return run
 
 
+def _chat_deadline(method):
+    """Share one time window across discovery, prompt preparation and generation."""
+    @wraps(method)
+    def run(self, *args, **kwargs):
+        limit = kwargs.get("timeout_s")
+        if limit is None:
+            limit = _get(self.config, "timeout_s", 180)
+        if not math.isfinite(limit) or limit <= 0:
+            raise ValueError("chat timeout must be positive and finite")
+        deadline = time.monotonic() + self.budget.timeout(limit)
+        previous = self._request_deadline
+        self._request_deadline = min(deadline, previous) if previous is not None else deadline
+        try:
+            return method(self, *args, **kwargs)
+        finally:
+            self._request_deadline = previous
+
+    return run
+
+
 class Client:
     def __init__(
         self, config, budget, record, generation, tool_dispatch=None, *, transport=None
@@ -60,6 +81,7 @@ class Client:
         self.requests: list[dict] = []
         self._usage: dict[str, dict] = {}
         self._active: dict[str, dict] = {}
+        self._request_deadline: float | None = None
         self._seq = 0
         self._model = _get(config, "model") or None
         self.base_url = _get(config, "base_url", "http://127.0.0.1:8000/v1").rstrip("/")
@@ -104,6 +126,15 @@ class Client:
         authenticated=True,
         call_id=None,
     ):
+        if self._request_deadline is not None:
+            available = self._request_deadline - time.monotonic()
+            if available <= 0:
+                self.record.emit(
+                    "budget", "model_deadline_exhausted", purpose=purpose,
+                    reason="chat deadline exhausted before HTTP request",
+                )
+                raise ModelError("chat deadline exhausted before HTTP request", kind="timeout")
+            timeout_s = min(timeout_s, available)
         self._seq += 1
         call_id = call_id or f"m{self._seq:04d}"
         timeout = self.budget.timeout(
@@ -191,6 +222,17 @@ class Client:
                 "tokens_out": _count(body["usage"].get("completion_tokens")),
             }
         elapsed = time.monotonic() - start
+        if self._request_deadline is not None and time.monotonic() >= self._request_deadline:
+            # A transport can return late despite its per-I/O timeout. Preserve
+            # the received bytes and usage, but do not adopt an expired result.
+            self.record.emit(
+                event_tool, "failed", call_id=call_id, purpose=purpose, rc=1,
+                http_status=response.status_code, error_kind="timeout", elapsed_s=elapsed,
+                **self._usage.get(call_id, {"tokens_in": None, "tokens_out": None}),
+                excerpt="chat deadline exhausted before response adoption",
+            )
+            self._active.pop(call_id, None)
+            raise ModelError("chat deadline exhausted before response adoption", kind="timeout", call_id=call_id)
         if not response.is_success or not json_valid:
             kind = "http" if not response.is_success else "invalid_json"
             usage = self._usage.get(call_id, {"tokens_in": None, "tokens_out": None})
@@ -342,6 +384,7 @@ class Client:
         raise ModelError(message, call_id=call_id)
 
     @_scoped
+    @_chat_deadline
     def chat(
         self,
         messages,
