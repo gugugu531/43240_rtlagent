@@ -278,10 +278,14 @@ def _validate_initial_values(suite, *, task_text=None):
                 raise SuiteError(label + ": " + str(error)) from error
             start, end = (evidence["source_span"][k] for k in ("start", "end"))
             # A substring of a negative or conditional example is not an initialization contract.
-            before = task_text[max(task_text.rfind("\n", 0, start), task_text.rfind(".", 0, start)) + 1:start]
-            after = task_text[end:task_text.find("\n", end) if "\n" in task_text[end:] else len(task_text)]
-            if re.search(r"\b(?:not|never|reset|if|when|unless|example)\b", before, re.I) or re.search(
-                r"\b(?:not\s+required|only\s+(?:if|when))\b", after, re.I
+            # Keep the preceding paragraph: a line break does not end an if/example scope.
+            paragraph_start = task_text.rfind("\n\n", 0, start)
+            before = task_text[paragraph_start + 2 if paragraph_start >= 0 else 0:start]
+            paragraph_end = task_text.find("\n\n", end)
+            after = task_text[end:paragraph_end if paragraph_end >= 0 else len(task_text)]
+            after = after.split(".", 1)[0] if not quote.rstrip().endswith(".") else ""
+            if re.search(r"\b(?:not|never|reset|if|when|unless|example|optional|conditional)\b", before, re.I) or re.search(
+                r"\b(?:not\s+required|if|when|unless|optional|conditional)\b", after, re.I
             ):
                 raise SuiteError(label + " citation is conditional, negative or reset-related")
 

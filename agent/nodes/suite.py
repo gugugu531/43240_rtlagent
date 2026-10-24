@@ -5,6 +5,7 @@ import copy
 import re
 import math
 import json
+import hashlib
 from types import SimpleNamespace
 from agent.kit import Ctx, State, node
 from agent.rtl.specification import (
@@ -19,7 +20,12 @@ from agent.rtl.suite.model import (
     validate_revision,
     validate_suite,
 )
-from agent.rtl.suite.evaluate import analyze_expectations
+from agent.rtl.suite.evaluate import (
+    analyze_expectations,
+    require_comparable_expectations,
+    require_requirement_coverage,
+)
+from agent.rtl.suite.revision import apply_expression_patch
 from agent.nodes.structured import request
 
 
@@ -53,14 +59,18 @@ Suite schema:
  "requirements":[{"id":"r1","quote":"exact verbatim excerpt from task"}],
  "state":{"model_register":{"width":integer,"next":expression}},
  "outputs":{"output_port":expression},
- "cases":[{"id":"case1","steps":[{"inputs":{"every non-clock input":integer},"edge":true,"sample":true}]}]}
+ "cases":[{"id":"case1","requirements":["r1"],"steps":[{"inputs":{"every non-clock input":integer},"edge":true,"sample":true}]}]}
 Use model_ as the prefix for EVERY model state name, separate from input/output ports.
 For mode=behavior, state and outputs are required JSON objects, never null.
 For stateless logic use "state":{}; never use "state":null. For combinational logic use
 "clock":null. Whenever outputs is present, it must be an object mapping output port names
 to expression objects, never null, an array, or a string.
-Each case starts in a fresh DUT instance. Initial register values are UNKNOWN. Never add
-initial values. No implicit reset exists: merely driving reset never changes model state;
+Each case starts in a fresh DUT instance. Initial register values are UNKNOWN unless
+the task explicitly gives an initial assignment. Only then state.model_<signal> may add
+"initial":{"value":integer,"signal":"<signal>","quote":"exact initialization excerpt"}.
+The host must recognize an explicit Verilog initial assignment or an explicit sentence
+saying the signal is initialized to that number in an initial statement. Reset values
+and plausible defaults do not establish initialization. All other states remain UNKNOWN. No implicit reset exists: merely driving reset never changes model state;
 synchronous reset MUST be an explicit condition in state.next. Drive a reset explicitly
 before sampling state-dependent outputs; sample:false
 still executes the step but excludes it from comparison. Every step specifies ALL non-clock
@@ -120,12 +130,25 @@ boundary and hold; keep the result compact. For mode=stimulus, omit state and ou
 provide only legal inputs and sampling times. For asynchronous reset in stimulus mode use
 the single clock format with async_reset values:{} and include sampled edge:false reset
 after inactive-reset clocked operation.
+Each behavior case must list requirement ids in case.requirements. Every declared requirement
+needs at least one bound case with a comparable output; every behavior case needs a comparison.
+This mapping declares test intent, not proof of semantic coverage.
 This mode observes outputs, not correctness.
 For additional acceptance tests use new cases targeting omitted boundaries. Do not read or
 infer from generated RTL, and do not relax a requirement merely because a prior check failed.
 """
 
 SUITE_INSTRUCTION = SUITE_RESPONSE_INSTRUCTION + SUITE_SCHEMA_INSTRUCTION
+
+PATCH_INSTRUCTION = (
+    """Return only {"replacements":{"approved_name":expression,...}}.
+Return exactly the names authorized in feedback, using the expression schema below.
+Do not return a whole suite or change any other field. The host merges this patch into
+previous_suite and revalidates all old cases, masks, validity and state metadata.
+Derive changes only from the quoted public specification; no RTL or observations are provided.
+"""
+    + SUITE_SCHEMA_INSTRUCTION
+)
 
 
 def _normalize_state_names(suite):
@@ -195,7 +218,7 @@ def _normalize_state_names(suite):
 _REVISION_CONSTRAINTS = (
     "Retain every original case id, input sequence, clock edges and sample. "
     "Retain ports, state names, clocks, reset bindings/polarity, output validity/masks "
-    "and source quotations. Only edit expressions named by target/names; append cases if needed. "
+    "and source quotations, including explicit initial metadata. Only edit expressions named by target/names. "
     "These same restrictions apply to every local correction; never delete old stimuli, "
     "weaken requirements, invent initialization, or replace unknown values with zero."
 )
@@ -335,6 +358,7 @@ class SuiteBuilder:
             json.dumps(revision, ensure_ascii=False) if revision else input.feedback
         )
         failure, draft, call_id = None, None, None
+        rejected = set()
         previous_response = None
         raw_text, raw_metadata = None, {}
         for attempt in range(1, self.construction_retries + 2):
@@ -352,14 +376,16 @@ class SuiteBuilder:
                     construction_feedback=failure,
                     previous_draft=draft,
                     previous_response=previous_response,
-                    response_contract=SUITE_RESPONSE_INSTRUCTION,
+                    response_contract=PATCH_INSTRUCTION
+                    if revision
+                    else SUITE_RESPONSE_INSTRUCTION,
                     correction_constraints="Correct only the stated construction/review defects using the task. "
                     "Preserve every existing case id, input sequence, clock edge and sample, and all "
                     "behavior not implicated by the stated defect, including reset and update phase. "
                     "Do not infer reset or unspecified values. Preserve every original revision constraint. "
                     "previous_response is the entire prior parsed response, even if its envelope is invalid. "
                     "previous_draft is only its suite field, NOT the response format to return. "
-                    "Return the complete status/suite response after correction. "
+                    "Return the authorized replacements object for a revision, otherwise the complete status/suite response. "
                     "previous_raw_text, if present, is unparsed invalid "
                     "reply content and may be a truncated prefix as its metadata states, never an accepted suite.",
                 )
@@ -370,8 +396,8 @@ class SuiteBuilder:
                     )
             result = request(
                 ctx,
-                SUITE_INSTRUCTION,
-                "functional_suite",
+                PATCH_INSTRUCTION if revision else SUITE_INSTRUCTION,
+                "functional_suite_patch" if revision else "functional_suite",
                 context,
                 max_tokens=self.generation_max_tokens,
                 reserve_s=self.reserve_s,
@@ -391,21 +417,56 @@ class SuiteBuilder:
                 draft = None
             elif result.data.get("status") == "unsupported":
                 reason = str(result.data.get("reason", "unsupported"))[:1000]
-                ctx.record.emit(
-                    "suite",
-                    "functional_suite",
-                    status="unsupported",
-                    attempt=attempt,
-                    call_id=call_id,
-                    reason=reason,
-                    source_scope=source_scope,
+                stage = "unsupported_review"
+                audit = request(
+                    ctx,
+                    SUITE_SCHEMA_INSTRUCTION
+                    + "\nReview the claimed inability independently. "
+                    "Distinguish a missing checker capability, genuinely missing task semantics, "
+                    "and difficulty generating the model. Complexity alone is not unsupported. "
+                    "Return confirmed:boolean, kind:capability|specification|model_limitation, "
+                    "quote or source_id from the task, and a concrete reason. Only confirm if a "
+                    "necessary public behavior cannot be represented by the supported semantics. "
+                    "If representable, reject and explain an available construction strategy.",
+                    "functional_unsupported_review",
+                    {"claim": reason, "source_catalog": source_catalog(task_text)},
+                    max_tokens=self.review_max_tokens,
+                    reserve_s=self.reserve_s,
                 )
-                return SuiteBuild("unsupported", call_id=call_id, reason=reason)
+                review_id = audit.call_id
+                if (
+                    audit.status == "ready"
+                    and audit.data.get("confirmed")
+                    and audit.data.get("kind") != "model_limitation"
+                ):
+                    ctx.record.emit(
+                        "suite",
+                        "functional_suite",
+                        status="unsupported",
+                        attempt=attempt,
+                        call_id=call_id,
+                        review_call_id=review_id,
+                        reason=reason,
+                        unsupported_kind=audit.data["kind"],
+                        review_reason=audit.data["reason"],
+                        review_source=resolve_requirement(audit.data, task_text),
+                        source_scope=source_scope,
+                    )
+                    return SuiteBuild("unsupported", call_id=call_id, reason=reason)
+                reason = "unsupported claim not confirmed: " + str(
+                    audit.data.get("reason", audit.reason)
+                )
+                draft = None
             else:
                 draft = _thaw(result.data.get("suite"))
                 try:
+                    stage = "revision" if revision else "validator"
+                    if revision:
+                        draft = apply_expression_patch(
+                            input.previous, result.data, revision, task_text=task_text
+                        )
                     stage = "validator"
-                    if result.data.get("status") != "ready":
+                    if not revision and result.data.get("status") != "ready":
                         raise SuiteError(
                             "suite response status must be ready or unsupported"
                         )
@@ -443,13 +504,16 @@ class SuiteBuilder:
                         )
                     self._validate_async_coverage(suite, task_text)
                     stage = "expectation_selfcheck"
-                    preflight = analyze_expectations(suite)
-                    if input.mode == "behavior" and preflight["comparable_values"] == 0:
-                        raise SuiteError(
-                            "expectation selfcheck found no comparable expected output values; "
-                            "check explicit synchronous reset in state.next and sampled validity/masks; "
-                            "do not invent initialization or coerce unknown values to zero"
-                        )
+                    preflight = (
+                        require_comparable_expectations(suite, task_text=task_text)
+                        if input.mode == "behavior"
+                        else analyze_expectations(suite)
+                    )
+                    coverage = (
+                        require_requirement_coverage(suite)
+                        if input.mode == "behavior"
+                        else None
+                    )
                     stage = "review"
                     review = request(
                         ctx,
@@ -467,7 +531,12 @@ class SuiteBuilder:
                         {
                             "mode": input.mode,
                             "suite": suite,
-                            "expectation_preflight": preflight,
+                            "expectation_preflight": {
+                                k: v
+                                for k, v in preflight.items()
+                                if k != "comparison_events"
+                            },
+                            "requirement_coverage": coverage,
                             "widths": {
                                 n: p["width"] for n, p in suite["ports"].items()
                             },
@@ -513,10 +582,28 @@ class SuiteBuilder:
                         revision_changes=changes,
                         state_name_mapping=mapping,
                         expectation_preflight=preflight,
+                        requirement_coverage=coverage,
                     )
                     return SuiteBuild("ready", suite, call_id)
                 except (ValueError, KeyError, TypeError, AttributeError) as error:
                     reason = str(error)
+            rejected_key = hashlib.sha256(
+                json.dumps(
+                    [
+                        stage,
+                        result.data,
+                        result.raw_text_metadata.get("original_sha256"),
+                        reason,
+                    ],
+                    sort_keys=True,
+                ).encode()
+            ).hexdigest()
+            no_progress = rejected_key in rejected or result.raw_text_metadata.get(
+                "no_progress", False
+            )
+            rejected.add(rejected_key)
+            if no_progress:
+                reason = "repeated rejected construction: no progress; " + reason
             failure = {
                 "stage": stage,
                 "reason": reason,
@@ -534,7 +621,10 @@ class SuiteBuilder:
                 source_scope=source_scope,
                 state_name_mapping=mapping,
                 recovery_remaining=self.construction_retries + 1 - attempt,
+                no_progress=no_progress,
             )
+            if no_progress:
+                break
         return SuiteBuild("invalid", call_id=call_id, reason=reason)
 
 

@@ -4,6 +4,35 @@ from .schema import validate_suite
 from .semantics import SuiteError
 from agent.rtl.identity import suite_hash
 from .evaluate import expected_traces
+import copy
+
+
+def apply_expression_patch(previous, patch, revision, *, task_text=None):
+    """Apply only the authorized names, leaving all unrelated suite data intact."""
+    if not isinstance(patch, dict) or set(patch) != {"replacements"}:
+        raise SuiteError("checker patch must contain only replacements")
+    values = patch["replacements"]
+    if not isinstance(values, dict) or set(values) != set(revision.get("names", [])):
+        raise SuiteError("checker patch must replace exactly the approved names")
+    updated = copy.deepcopy(previous)
+    target = revision.get("target")
+    for name, expression in values.items():
+        if target == "outputs" and name in updated.get("outputs", {}):
+            updated["outputs"][name] = expression
+        elif target == "state_next" and name in updated.get("state", {}):
+            updated["state"][name]["next"] = expression
+        elif target == "async_reset_values":
+            resets = [updated["async_reset"]] if updated.get("async_reset") else []
+            resets += updated.get("async_resets", [])
+            matches = [reset for reset in resets if name in reset["values"]]
+            if len(matches) != 1:
+                raise SuiteError("checker patch must identify exactly one reset value")
+            matches[0]["values"][name] = expression
+        else:
+            raise SuiteError("checker patch names a nonexistent or unsupported target")
+    updated = validate_suite(updated, task_text=task_text)
+    validate_revision(previous, updated, revision)
+    return updated
 
 
 def validate_revision(previous, revised, revision):
