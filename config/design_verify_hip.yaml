@@ -21,6 +21,13 @@ services:
     timeout_s: 840
     structured_outputs: false
 runtime:
+  auxiliary:
+    planning_s: 150
+    building_s: 240
+    acceptance_s: 150
+    recovery_s: 150
+    minimum_request_s: 20
+    acceptance_reserve_s: 60
   deadline_s: 900
   reserve_s: 20
   recording: {level: full}

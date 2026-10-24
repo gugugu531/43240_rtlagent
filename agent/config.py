@@ -44,11 +44,21 @@ class Recording(StrictModel):
     burr_tracker: bool = False
 
 
+class AuxiliaryBudget(StrictModel):
+    planning_s: float = Field(default=150, gt=0)
+    building_s: float = Field(default=240, gt=0)
+    acceptance_s: float = Field(default=150, gt=0)
+    recovery_s: float = Field(default=150, gt=0)
+    minimum_request_s: float = Field(default=20, gt=0)
+    acceptance_reserve_s: float = Field(default=60, ge=0)
+
+
 class Runtime(StrictModel):
     deadline_s: float = Field(default=900, gt=0, le=900)
     reserve_s: float = Field(default=20, ge=0)
     max_steps: int = Field(default=1000, gt=0)
     recording: Recording = Field(default_factory=Recording)
+    auxiliary: AuxiliaryBudget = Field(default_factory=AuxiliaryBudget)
 
     @model_validator(mode="after")
     def check_reserve(self):

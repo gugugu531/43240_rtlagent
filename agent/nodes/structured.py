@@ -3,11 +3,14 @@
 from dataclasses import dataclass, field
 import hashlib
 import json
+import time
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from agent.llm.structured import StructuredError
 from agent.llm.client import ModelError
 from agent.rtl.suite.model import SuiteModel
+from agent.rtl.suite.schema import Expression
+from agent.config import AuxiliaryBudget
 
 
 class Envelope(BaseModel):
@@ -27,12 +30,19 @@ class Plan(Envelope):
     uncertain: list[str] = Field(default_factory=list)
 
 
+class BehaviorConflict(Envelope):
+    source_id: str | None = None
+    quote: str | None = None
+    reason: str = Field(min_length=1)
+
+
 class PlanReview(Envelope):
     decision: Literal["accept", "revise", "reject"]
     reason: str = Field(min_length=1)
     requirements: list[Requirement] | None = None
     plan: list[str] | None = None
     uncertain: list[str] | None = None
+    behavior_conflicts: list[BehaviorConflict] = Field(default_factory=list)
 
 
 class SuiteResponse(Envelope):
@@ -53,6 +63,18 @@ class SuiteReview(Envelope):
     accepted: bool
     quote: str | None = None
     source_id: str | None = None
+    reason: str = Field(min_length=1)
+
+
+class SuitePatch(Envelope):
+    replacements: dict[str, Expression] = Field(min_length=1)
+
+
+class UnsupportedReview(Envelope):
+    confirmed: bool
+    kind: Literal["capability", "specification", "model_limitation"]
+    source_id: str | None = None
+    quote: str | None = None
     reason: str = Field(min_length=1)
 
 
@@ -86,16 +108,51 @@ SCHEMAS = {
     "functional_suite": SuiteResponse,
     "functional_suite_review": SuiteReview,
     "functional_diagnosis": Diagnosis,
+    "functional_suite_patch": SuitePatch,
+    "functional_unsupported_review": UnsupportedReview,
 }
 
 
-def request(ctx, instruction, purpose, context, max_tokens=8192, *, reserve_s=120):
-    if ctx.budget.remaining() <= reserve_s:
-        ctx.record.emit(
-            "structured", "skipped", purpose=purpose, reason="reserved_rtl_budget"
-        )
+def request_phase(purpose, context, has_candidate):
+    if purpose in ("functional_diagnosis", "functional_suite_patch") or context.get(
+        "revision_constraints"
+    ):
+        return "recovery"
+    if purpose.startswith("design_plan"):
+        return "recovery" if has_candidate else "planning"
+    return "acceptance" if has_candidate else "building"
+
+
+def request(
+    ctx, instruction, purpose, context, max_tokens=8192, *, reserve_s=120, phase=None
+):
+    """Bound all corrections by a shared stage allowance and detect unchanged failures."""
+    phase = phase or request_phase(purpose, context, bool(ctx.store.get("candidates")))
+    policy = getattr(
+        getattr(getattr(ctx, "config", None), "runtime", None), "auxiliary", None
+    )
+    policy = policy or AuxiliaryBudget()
+    cap = getattr(policy, phase + "_s")
+    if phase == "acceptance":
+        reserve_s = policy.acceptance_reserve_s
+    spent = ctx.store.setdefault("auxiliary_spent", {})
+    # Include the authorized revision scope, not retry feedback or a malformed draft.
+    scope = json.dumps(
+        [
+            phase,
+            purpose,
+            context.get("previous_suite"),
+            context.get("feedback") if purpose == "functional_suite_patch" else None,
+        ],
+        sort_keys=True,
+    )
+    history = ctx.store.setdefault("invalid_responses", {}).setdefault(scope, set())
+    blocked = ctx.store.setdefault("stalled_requests", set())
+    if scope in blocked:
         return JsonResult(
-            "invalid", reason="auxiliary time reserved for RTL and checks"
+            "invalid",
+            reason="repeated invalid response: no progress",
+            raw_text_metadata={"no_progress": True},
         )
     messages = [
         {
@@ -126,6 +183,11 @@ def request(ctx, instruction, purpose, context, max_tokens=8192, *, reserve_s=12
         task_text = ctx.task.prompt + "\n" + ctx.task.interface
         if purpose == "design_plan":
             normalize_requirements(data["requirements"], task_text)
+        elif purpose == "design_plan_review":
+            for conflict in data.get("behavior_conflicts", []):
+                resolve_requirement(conflict, task_text)
+        elif purpose == "functional_unsupported_review" and data.get("confirmed"):
+            resolve_requirement(data, task_text)
         elif purpose == "functional_suite" and data["status"] == "ready":
             # Full task quotation, symbol, width and temporal validation before adoption.
             validate_suite(data["suite"], task_text=task_text)
@@ -140,14 +202,24 @@ def request(ctx, instruction, purpose, context, max_tokens=8192, *, reserve_s=12
         # Recompute on every correction; an earlier response may have consumed
         # most of the auxiliary budget. RTL keeps its explicitly reserved time.
         normal_timeout = min(840, ctx.budget.remaining())
-        available = ctx.budget.remaining() - reserve_s
-        if available <= 0:
+        available = min(ctx.budget.remaining() - reserve_s, cap - spent.get(phase, 0))
+        if available < policy.minimum_request_s:
             ctx.record.emit(
-                "structured", "skipped", purpose=purpose, reason="reserved_rtl_budget"
+                "structured",
+                "skipped",
+                purpose=purpose,
+                reason="insufficient_auxiliary_window",
+                phase=phase,
+                available_s=max(0, available),
+                minimum_s=policy.minimum_request_s,
+                phase_spent_s=spent.get(phase, 0),
+                phase_cap_s=cap,
+                reserve_s=reserve_s,
             )
             return JsonResult(
-                "invalid", reason="auxiliary time reserved for RTL and checks"
+                "invalid", reason="insufficient auxiliary request window for " + phase
             )
+        started = time.monotonic()
         try:
             result = ctx.llm.ask(
                 messages,
@@ -177,6 +249,24 @@ def request(ctx, instruction, purpose, context, max_tokens=8192, *, reserve_s=12
                 if reply
                 else {},
             )
+            digest = invalid.raw_text_metadata.get("original_sha256")
+            if digest is not None and digest in history:
+                blocked.add(scope)
+                invalid.reason = (
+                    "repeated invalid response: no progress; " + invalid.reason
+                )
+                invalid.raw_text_metadata["no_progress"] = True
+                ctx.record.emit(
+                    "structured",
+                    "no_progress",
+                    purpose=purpose,
+                    phase=phase,
+                    call_id=error.call_id,
+                    response_sha256=digest,
+                )
+                return invalid
+            if digest is not None:
+                history.add(digest)
             if attempt == 1:
                 return invalid
             messages.extend(
@@ -198,14 +288,26 @@ def request(ctx, instruction, purpose, context, max_tokens=8192, *, reserve_s=12
                 "invalid",
                 purpose=purpose,
                 call_id=error.call_id,
-                reason="auxiliary timeout at reserved RTL boundary",
+                reason="auxiliary phase or successor budget boundary",
+                phase=phase,
                 failure_kind="timeout",
             )
             return JsonResult(
                 "invalid",
                 call_id=error.call_id,
-                reason="auxiliary timeout at reserved RTL boundary",
+                reason="auxiliary phase or successor budget boundary",
             )
         else:
             call_id = next(reversed(ctx.llm.replies), None)
             return JsonResult("ready", result.model_dump(exclude_unset=True), call_id)
+        finally:
+            spent[phase] = spent.get(phase, 0) + max(0, time.monotonic() - started)
+            ctx.record.emit(
+                "budget",
+                "auxiliary_spent",
+                phase=phase,
+                purpose=purpose,
+                spent_s=spent[phase],
+                cap_s=cap,
+                reserve_s=reserve_s,
+            )
