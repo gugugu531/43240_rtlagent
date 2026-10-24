@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Annotated, Literal, Union
 from pydantic import (
     BaseModel,
@@ -129,11 +130,18 @@ class LegacyClock(Clock):
     port: Name
 
 
+class InitialValue(Contract):
+    value: StrictInt
+    signal: Name
+    quote: Annotated[str, Field(min_length=1, max_length=1000)]
+
+
 class Register(Contract):
     width: Width
     signed: StrictBool = False
     clock: Name | None = None
     next: Expression
+    initial: InitialValue | None = None
 
 
 class Reset(Contract):
@@ -165,6 +173,7 @@ class Step(Contract):
 class Case(Contract):
     id: Annotated[str, Field(min_length=1, max_length=80)]
     steps: Annotated[list[Step], Field(min_length=1, max_length=512)]
+    requirements: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
 
 
 class SuiteModel(Contract):
@@ -197,8 +206,84 @@ class SuiteModel(Contract):
 
     @model_validator(mode="after")
     def semantic_contract(self):
-        _validate_semantics(self.model_dump(exclude_unset=True))
+        value = self.model_dump(exclude_unset=True)
+        _validate_initial_values(value)
+        _validate_semantics(value)
         return self
+
+
+_INITIAL_LITERAL = r"(?:\d+'[sS]?[bBoOdDhH][0-9a-fA-F_]+|0[xX][0-9a-fA-F]+|[+-]?\d+)"
+
+
+def _initial_literal(text):
+    if "'" not in text:
+        return int(text, 16 if text.lower().startswith("0x") else 10)
+    size, digits = text.split("'", 1)
+    signed = digits[0].lower() == "s"
+    digits = digits[1:] if signed else digits
+    radix, number = digits[0].lower(), digits[1:].replace("_", "")
+    value = int(number, {"b": 2, "o": 8, "d": 10, "h": 16}[radix])
+    width = int(size)
+    if not 1 <= width <= 256 or value >= 1 << width:
+        raise ValueError("initial literal exceeds its explicit width")
+    if signed and value & (1 << (width - 1)):
+        value -= 1 << width
+    return value
+
+
+def _validate_initial_values(suite, *, task_text=None):
+    """Accept a deliberately small, explicit initialization language, never reset inference."""
+    for name, register in suite.get("state", {}).items():
+        initial = register.get("initial")
+        if initial is None:
+            continue
+        label = f"state.{name}.initial"
+        signal, quote, value = initial["signal"], initial["quote"], initial["value"]
+        if name != "model_" + signal:
+            raise SuiteError(label + " must bind model_<signal> to the quoted register")
+        if not -(1 << (register["width"] - 1)) <= value < (1 << register["width"]):
+            raise SuiteError(label + " value exceeds register width")
+        if signal in suite["ports"] and suite["ports"][signal]["width"] != register["width"]:
+            raise SuiteError(label + " register width differs from the named public signal")
+        normalized = " ".join(quote.split()).strip()
+        escaped = re.escape(signal)
+        if not re.search(rf"(?<![\w$]){escaped}(?![\w$])", normalized):
+            raise SuiteError(label + " quoted signal is case-sensitive")
+        number = rf"(?P<value>{_INITIAL_LITERAL})"
+        patterns = (
+            rf"initial\s+{escaped}\s*=\s*{number}\s*;",
+            rf"(?:The\s+)?(?:register\s+)?{escaped}(?:\s+register)?\s+"
+            rf"(?:is\s+)?initialized\s+to\s+{number}\s+using\s+the\s+initial\s+statement\.?",
+            rf"The\s+register\s+is\s+defined\s+as\s+reg\s+\[\d+\s*:\s*\d+\]\s+"
+            rf"{escaped}\s+and\s+initialized\s+to\s+{number}\s+using\s+the\s+initial\s+statement\.?",
+        )
+        match = next((m for p in patterns if (m := re.fullmatch(p, normalized, re.I))), None)
+        try:
+            literal = _initial_literal(match["value"]) if match else None
+        except (ValueError, KeyError) as error:
+            raise SuiteError(label + ": " + str(error)) from error
+        if literal != value:
+            raise SuiteError(
+                label + " needs an explicit initial assignment or initialized-to-value initial-statement quote"
+            )
+        declared_width = re.search(r"\breg\s+\[(\d+)\s*:\s*(\d+)\]", normalized)
+        if declared_width and abs(int(declared_width[1]) - int(declared_width[2])) + 1 != register["width"]:
+            raise SuiteError(label + " register width differs from its initialization quote")
+        if task_text is not None:
+            from agent.rtl.specification import resolve_quote
+
+            try:
+                evidence = resolve_quote(quote, task_text)
+            except ValueError as error:
+                raise SuiteError(label + ": " + str(error)) from error
+            start, end = (evidence["source_span"][k] for k in ("start", "end"))
+            # A substring of a negative or conditional example is not an initialization contract.
+            before = task_text[max(task_text.rfind("\n", 0, start), task_text.rfind(".", 0, start)) + 1:start]
+            after = task_text[end:task_text.find("\n", end) if "\n" in task_text[end:] else len(task_text)]
+            if re.search(r"\b(?:not|never|reset|if|when|unless|example)\b", before, re.I) or re.search(
+                r"\b(?:not\s+required|only\s+(?:if|when))\b", after, re.I
+            ):
+                raise SuiteError(label + " citation is conditional, negative or reset-related")
 
 
 def validate_suite(suite, *, task_text=None):
@@ -207,4 +292,5 @@ def validate_suite(suite, *, task_text=None):
         value = SuiteModel.model_validate(suite).model_dump(exclude_unset=True)
     except ValidationError as error:
         raise SuiteError(str(error)) from error
+    _validate_initial_values(value, task_text=task_text)
     return _validate_semantics(value, task_text=task_text)

@@ -14,7 +14,7 @@ class CheckResult:
     command: tuple[tuple[str, ...], ...] = ()
     details: dict = field(default_factory=dict)
     log_paths: tuple[str, ...] = ()
-    failure_kind: Literal["code", "environment", "timeout", "unknown"] = "unknown"
+    failure_kind: Literal["code", "checker", "environment", "timeout", "unknown"] = "unknown"
     id: str | None = None
     kind: str = ""
     candidate_id: str | None = None

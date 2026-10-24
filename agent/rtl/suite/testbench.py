@@ -117,11 +117,13 @@ def parse_traces(output, suite, marker, *, compare_expected=True):
         }
     traces, passed, failed, first = [], [], [], None
     unknown_cases, untested_cases = [], []
+    case_comparisons = []
     compared_samples = compared_values = compared_bits = 0
     unknown_expected = unknown_actual = guard_unknown = mask_unknown = 0
     expectations = iter(expected_traces(suite))
     for ci, case in enumerate(suite["cases"]):
         mismatched, uncertain, comparisons = False, False, 0
+        prior_counts = (compared_samples, compared_values, compared_bits)
         for si, step in enumerate(case["steps"]):
             expected = next(expectations)
             if (ci, si) not in rows:
@@ -207,6 +209,16 @@ def parse_traces(output, suite, marker, *, compare_expected=True):
             passed.append(case["id"])
         else:
             untested_cases.append(case["id"])
+        case_comparisons.append(
+            {
+                "case_id": case["id"],
+                "requirements": case.get("requirements", []),
+                "compared_samples": compared_samples - prior_counts[0],
+                "compared_values": compared_values - prior_counts[1],
+                "compared_bits": compared_bits - prior_counts[2],
+                "status": "failed" if mismatched else "unknown" if uncertain else "passed" if compare_expected and comparisons else "untested",
+            }
+        )
     return dict(
         suite_hash=suite_hash(suite),
         traces=traces,
@@ -214,6 +226,7 @@ def parse_traces(output, suite, marker, *, compare_expected=True):
         failed_cases=failed,
         unknown_cases=unknown_cases,
         untested_cases=untested_cases,
+        case_comparisons=case_comparisons,
         compared_samples=compared_samples,
         compared_values=compared_values,
         compared_bits=compared_bits,
@@ -243,6 +256,8 @@ from agent.rtl.vivado import (
     process_output,
     process_status,
     classify_tool_failure,
+    classify_functional_failure,
+    extract_diagnostics,
 )
 
 
@@ -261,9 +276,10 @@ def simulate(
         return CheckResult(
             "error",
             str(error),
+            failure_kind="checker",
             details={
                 "attribution": "checker_invalid",
-                "failure_kind": "unknown",
+                "failure_kind": "checker",
                 "suite_hash": suite_hash(suite),
                 "traces": [],
                 "passed_cases": [],
@@ -414,6 +430,17 @@ def simulate(
                         == "environment"
                         else "error"
                     )
+                    failure = (
+                        "timeout"
+                        if status == "timeout"
+                        else "environment"
+                        if status == "unavailable"
+                        else classify_functional_failure(
+                            process_output(result),
+                            candidate_code=candidate.code,
+                            top=ctx.task.top,
+                        )
+                    )
                     return finish(
                         status,
                         f"functional simulation stage {index} did not complete: "
@@ -422,12 +449,16 @@ def simulate(
                         command=tuple(commands),
                         details={
                             **base,
-                            "attribution": "simulation_unresolved",
-                            "failure_kind": "timeout"
-                            if status == "timeout"
+                            "attribution": "candidate"
+                            if failure == "code"
+                            else "checker"
+                            if failure == "checker"
                             else "environment"
-                            if status == "unavailable"
-                            else classify_tool_failure(process_output(result)),
+                            if failure == "environment"
+                            else "simulation_unresolved",
+                            "failure_kind": failure,
+                            "repair_diagnostics": extract_diagnostics(process_output(result)),
+                            "simulation_stage": index,
                         },
                         log_paths=tuple(logs),
                     )

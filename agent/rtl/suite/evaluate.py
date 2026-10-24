@@ -1,6 +1,7 @@
 """Pure behavior evaluation; unknown bits remain unknown."""
 
 from __future__ import annotations
+import hashlib
 import json
 from .schema import validate_suite
 from .semantics import SuiteError
@@ -147,6 +148,27 @@ def _evaluate_bits(expr, values, widths):
         else:
             known, value = ak & bk, a ^ b
         return value & known & full, known & full, width
+    if op in ("shl", "shr", "asr"):
+        amount, amount_known, amount_width = args[1]
+        if amount_known != (1 << amount_width) - 1:
+            return 0, 0, width
+        amount = min(amount, 512)
+        signed = expr.get("signed", False) and op != "shr"
+        expanded_width = max(args[0][2], width)
+        a, known, _ = _resize(args[0], expanded_width, signed)
+        if op == "shl":
+            zeros = (1 << min(amount, width)) - 1
+            return (a << amount) & full, ((known << amount) | zeros) & full, width
+        # Preserve each known source bit; shifted-in zeros or a known sign are also known.
+        retained = min(width, max(0, expanded_width - amount))
+        fill = full ^ ((1 << retained) - 1)
+        value, known_result = a >> amount, known >> amount
+        sign = 1 << (expanded_width - 1)
+        if not signed or known & sign:
+            known_result |= fill
+            if signed and a & sign:
+                value |= fill
+        return value & known_result & full, known_result & full, width
     if all(k == (1 << w) - 1 for _, k, w in args):
         concrete = {**expr, "args": [{"const": a, "width": w} for a, _, w in args]}
         result, _ = evaluate(concrete, {}, {})
@@ -177,7 +199,16 @@ def expected_traces(suite):
     )
     result = []
     for case in suite["cases"]:
-        state = {n: (0, 0, r["width"]) for n, r in registers.items()}
+        state = {
+            n: (
+                r["initial"]["value"] & ((1 << r["width"]) - 1),
+                (1 << r["width"]) - 1,
+                r["width"],
+            )
+            if r.get("initial") is not None
+            else (0, 0, r["width"])
+            for n, r in registers.items()
+        }
         previous_inputs = {}
         for index, step in enumerate(case["steps"]):
             values = {
@@ -312,12 +343,118 @@ def analyze_expectations(suite):
         c["id"]: dict(case_id=c["id"], **dict.fromkeys(_COUNT_KEYS, 0))
         for c in suite["cases"]
     }
+    comparison_events = []
+    clock_signature = json.dumps(_clocks(suite), sort_keys=True, separators=(",", ":"))
+    prefixes = {}
     for row in expected_traces(suite):
+        prior = prefixes.get(row["case_id"], hashlib.sha256(clock_signature.encode()).hexdigest())
+        event = {
+            "inputs": {
+                n: v & ((1 << suite["ports"][n]["width"]) - 1)
+                for n, v in row["inputs"].items()
+            },
+            "edges": sorted(row["edges"]),
+        }
+        prefix = hashlib.sha256(
+            (prior + json.dumps(event, sort_keys=True, separators=(",", ":"))).encode()
+        ).hexdigest()
+        prefixes[row["case_id"]] = prefix
         counts = _expectation_counts(row, suite)
         for key, count in counts.items():
             total[key] += count
             cases[row["case_id"]][key] += count
-    return {**total, "per_case": list(cases.values()), "suite_hash": suite_hash(suite)}
+        if counts["comparable_bits"]:
+            masks = {
+                name: row["masks"][name] & row["expected_known"][name]
+                for name in row["expected"]
+                if row["valid"][name] is True
+                and row["mask_known"][name] == (1 << suite["ports"][name]["width"]) - 1
+                and row["masks"][name] & row["expected_known"][name]
+            }
+            comparison_events.append(
+                {
+                    "case_id": row["case_id"],
+                    "step": row["step"],
+                    "inputs": row["inputs"],
+                    "edges": row["edges"],
+                    "output_masks": masks,
+                    "stimulus_prefix_sha256": prefix,
+                    "comparison_signature": hashlib.sha256(
+                        (prefix + json.dumps(masks, sort_keys=True, separators=(",", ":"))).encode()
+                    ).hexdigest(),
+                }
+            )
+    return {
+        **total,
+        "per_case": list(cases.values()),
+        "comparison_events": comparison_events,
+        "suite_hash": suite_hash(suite),
+    }
+
+
+def require_comparable_expectations(suite, *, task_text=None):
+    """Reject a behavior draft that cannot finish strict comparison, before invoking RTL tools."""
+    suite = validate_suite(suite, task_text=task_text)
+    if suite["mode"] != "behavior":
+        raise SuiteError("comparable expectations require behavior mode")
+    analysis = analyze_expectations(suite)
+    failures = []
+    for case in analysis["per_case"]:
+        reasons = [
+            f"{key}={case[key]}"
+            for key in ("unknown_expected", "guard_unknown", "mask_unknown")
+            if case[key]
+        ]
+        if not case["comparable_values"]:
+            reasons.append("no comparable expected output values")
+        if reasons:
+            failures.append(f"case {case['case_id']}: " + ", ".join(reasons))
+    if failures:
+        raise SuiteError(
+            "expectation selfcheck cannot complete strict comparison: "
+            + "; ".join(failures[:8])
+            + (f"; {len(failures) - 8} further cases" if len(failures) > 8 else "")
+            + ". Derive valid initialization, warm-up and sampling from the public task; "
+            "do not coerce unknowns, disable required samples or weaken validity/masks."
+        )
+    return analysis
+
+
+def require_requirement_coverage(suite):
+    """Check declared requirement bindings and predicted comparisons, not semantic sufficiency."""
+    suite = validate_suite(suite)
+    analysis = analyze_expectations(suite)
+    counts = {case["case_id"]: case for case in analysis["per_case"]}
+    requirements = {r["id"]: r for r in suite["requirements"]}
+    bindings = {name: [] for name in requirements}
+    for case in suite["cases"]:
+        names = case.get("requirements", [])
+        if not names or len(set(names)) != len(names) or any(n not in requirements for n in names):
+            raise SuiteError(
+                f"case {case['id']} requirements must uniquely name existing requirement ids"
+            )
+        if not counts[case["id"]]["comparable_values"]:
+            raise SuiteError(f"case {case['id']} requirement binding has no predicted comparison")
+        for name in names:
+            bindings[name].append(case["id"])
+    missing = [name for name, cases in bindings.items() if not cases]
+    if missing:
+        raise SuiteError("requirements lack a case with predicted comparisons: " + ", ".join(missing))
+    return {
+        "kind": "declared_requirement_comparison_coverage",
+        "semantic_coverage_proven": False,
+        "suite_hash": suite_hash(suite),
+        "requirements": [
+            {
+                "requirement_id": name,
+                "quote": requirements[name].get("quote"),
+                "source_id": requirements[name].get("source_id"),
+                "case_ids": cases,
+                "predicted_comparable_bits": sum(counts[c]["comparable_bits"] for c in cases),
+            }
+            for name, cases in bindings.items()
+        ],
+    }
 
 
 def coverage_summary(suites):

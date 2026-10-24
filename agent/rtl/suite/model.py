@@ -4,6 +4,7 @@ from .schema import SuiteModel, validate_suite
 from .semantics import SuiteError
 from agent.rtl.identity import suite_hash
 from .revision import validate_revision
+from .evaluate import require_comparable_expectations, require_requirement_coverage
 
 __all__ = [
     "SuiteModel",
@@ -11,4 +12,6 @@ __all__ = [
     "validate_suite",
     "suite_hash",
     "validate_revision",
+    "require_comparable_expectations",
+    "require_requirement_coverage",
 ]
