@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "https://github.com/wyc888-crypto/amd-rtlagent-prompt-engineering.git",
+    "commit": "fb1c2803e5db0f32b59b9ba9100877f2a0d26412",
+    "license": "MIT"
+  },
+  "skills": [
+    {
+      "id": "rtl-sequential-state-update",
+      "description": "Derive and implement edge-triggered register, shift, rotate, and counter updates from the public clock, reset, priority, and next-state contract.",
+      "task_types": [
+        "sequential",
+        "mixed"
+      ],
+      "subtypes": [
+        "logical_shift",
+        "arithmetic_shift",
+        "rotate",
+        "counter",
+        "register"
+      ],
+      "version": "2+burr.1",
+      "phases": [
+        "generate",
+        "repair"
+      ],
+      "conflict_group": "sequential-state-update",
+      "resource": {
+        "path": "skill/rtl-sequential-state-update/skill.md",
+        "sha256": "9278f779b8f0d5a34a1f31e089cb1aa1e37fa31c040d89ef69141253d0cefd19"
+      },
+      "source": {
+        "path": "skill/rtl-sequential-state-update/SKILL.md",
+        "sha256": "3afd66e628e00af50d3df1d30000038672892c9336c7aec9d9e24505e3c1bd40"
+      },
+      "review_status": "reviewed_not_model_validated"
+    },
+    {
+      "id": "rtl-sequential-state-update-v3",
+      "description": "Implement and repair clocked registers, shifts, rotations, and counters with explicit ANSI output-variable and concatenation delivery checks.",
+      "task_types": [
+        "sequential",
+        "mixed"
+      ],
+      "subtypes": [
+        "logical_shift",
+        "arithmetic_shift",
+        "rotate",
+        "counter",
+        "register"
+      ],
+      "version": "3.0.0-candidate.1+burr.1",
+      "phases": [
+        "generate",
+        "repair"
+      ],
+      "conflict_group": "sequential-state-update",
+      "resource": {
+        "path": "skill/rtl-sequential-state-update-v3/skill.md",
+        "sha256": "dc17faf7de0e46bbedb3bb7e3bded186960fb73821dbc0705556bbbab226741e"
+      },
+      "source": {
+        "path": "skill/rtl-sequential-state-update-v3/SKILL.md",
+        "sha256": "cc36e274504975c19439889313f5bde38670e4655b7ba2183f4e26e95174ed1b"
+      },
+      "review_status": "reviewed_not_model_validated"
+    },
+    {
+      "id": "rtl-width-signed-arithmetic",
+      "description": "Derive RTL expression widths and signedness explicitly before implementing arithmetic, comparisons, extensions, truncation, and concatenation.",
+      "task_types": [
+        "combinational",
+        "sequential",
+        "mixed"
+      ],
+      "subtypes": [
+        "bit_mapping",
+        "arithmetic_shift",
+        "counter"
+      ],
+      "version": "1.0.0-candidate.1+burr.1",
+      "phases": [
+        "generate",
+        "repair"
+      ],
+      "conflict_group": "rtl-width-signed-arithmetic",
+      "resource": {
+        "path": "skill/rtl-width-signed-arithmetic/skill.md",
+        "sha256": "730fd682725a59e92edc97856c17f9791db6fb9571fdf38630950a46e997a9a9"
+      },
+      "source": {
+        "path": "skill/rtl-width-signed-arithmetic/SKILL.md",
+        "sha256": "d19a6d2aa2e6e65f3f463b0b2df8dfeffadd03eecdf4f009e31e2192a3442e74"
+      },
+      "review_status": "reviewed_not_model_validated"
+    },
+    {
+      "id": "rtl-combinational-completeness",
+      "description": "Implement complete combinational RTL with explicit defaults, full assignment coverage, and public priority semantics without unintended storage.",
+      "task_types": [
+        "combinational",
+        "mixed"
+      ],
+      "subtypes": [
+        "bit_mapping",
+        "priority_encoder",
+        "multiplexer"
+      ],
+      "version": "1.0.0-candidate.1+burr.1",
+      "phases": [
+        "generate",
+        "repair"
+      ],
+      "conflict_group": "rtl-combinational-completeness",
+      "resource": {
+        "path": "skill/rtl-combinational-completeness/skill.md",
+        "sha256": "6ac516d40b6b71b777a7bdfb0b4a31ce78d521290bbafe52149dc9880d3cb7f2"
+      },
+      "source": {
+        "path": "skill/rtl-combinational-completeness/SKILL.md",
+        "sha256": "55d29431f7b49e11e9e9ca1e69ccbd5c7d147c537f83471c143e2e29bcd58907"
+      },
+      "review_status": "reviewed_not_model_validated"
+    },
+    {
+      "id": "rtl-fsm-state-output",
+      "description": "Derive finite-state transitions and output timing from the public state, event, reset, and Moore or Mealy contract before implementing RTL.",
+      "task_types": [
+        "state_machine",
+        "mixed"
+      ],
+      "subtypes": [
+        "finite_state_machine"
+      ],
+      "version": "1.0.0-candidate.1+burr.1",
+      "phases": [
+        "generate",
+        "repair"
+      ],
+      "conflict_group": "rtl-fsm-state-output",
+      "resource": {
+        "path": "skill/rtl-fsm-state-output/skill.md",
+        "sha256": "3b1e1aa40e8ea98b76c7e423f59398fe59dac38b44a2902b32405b70a717ba2e"
+      },
+      "source": {
+        "path": "skill/rtl-fsm-state-output/SKILL.md",
+        "sha256": "cf8d2e0ff95ebaba250f16fcfab320b4c7c962462facd0395f50a662d591c1fc"
+      },
+      "review_status": "reviewed_not_model_validated"
+    }
+  ]
+}

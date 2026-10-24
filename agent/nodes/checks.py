@@ -1,6 +1,7 @@
 """Public tools and graph actions share the same checking implementations."""
 
 import json
+import uuid
 from agent.kit import Ctx, State, node, tool
 from agent.rtl.interface import check_interface
 from agent.rtl.result import bind_result
@@ -56,7 +57,31 @@ def repair_feedback(check):
     )
 
 
+def remember_repair_check(ctx, check):
+    """Hand one source-attributed compiler execution to the next repair turn."""
+    ctx.store.pop("repair_check", None)
+    if (
+        check.status == "failed"
+        and check.failure_kind == "code"
+        and check.kind in ("lint", "synth")
+    ):
+        execution_id = uuid.uuid4().hex
+        ctx.store["repair_check"] = {
+            "check": check,
+            "execution_id": execution_id,
+        }
+        ctx.record.emit(
+            "knowledge",
+            "check_evidence",
+            execution_id=execution_id,
+            check_id=check.id,
+            candidate_id=check.candidate_id,
+            candidate_hash=check.details.get("candidate_hash"),
+        )
+
+
 def check_stages(ctx, candidate, stages):
+    ctx.store.pop("repair_check", None)
     for stage in stages:
         check = ctx.call(stage, candidate_id=candidate.id)
         if (
@@ -67,6 +92,7 @@ def check_stages(ctx, candidate, stages):
         ):
             continue
         if check.blocking or check.status != "passed":
+            remember_repair_check(ctx, check)
             return check
     return None
 

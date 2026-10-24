@@ -7,6 +7,7 @@ import json
 import math
 import os
 import time
+from contextlib import contextmanager
 from functools import wraps
 
 import httpx
@@ -55,17 +56,8 @@ def _chat_deadline(method):
     @wraps(method)
     def run(self, *args, **kwargs):
         limit = kwargs.get("timeout_s")
-        if limit is None:
-            limit = _get(self.config, "timeout_s", 180)
-        if not math.isfinite(limit) or limit <= 0:
-            raise ValueError("chat timeout must be positive and finite")
-        deadline = time.monotonic() + self.budget.timeout(limit)
-        previous = self._request_deadline
-        self._request_deadline = min(deadline, previous) if previous is not None else deadline
-        try:
+        with self.request_window(limit):
             return method(self, *args, **kwargs)
-        finally:
-            self._request_deadline = previous
 
     return run
 
@@ -95,6 +87,20 @@ class Client:
         # 不从代理环境继承请求头；baseline 请求也不包含认证。
         self.http = httpx.Client(transport=transport, trust_env=False)
         self.replay = getattr(transport, "replay", None)
+
+    @contextmanager
+    def request_window(self, timeout_s=None):
+        """Bound optional preparation and chat by the same nested request window."""
+        limit = timeout_s if timeout_s is not None else _get(self.config, "timeout_s", 180)
+        if not math.isfinite(limit) or limit <= 0:
+            raise ValueError("chat timeout must be positive and finite")
+        deadline = time.monotonic() + self.budget.timeout(limit)
+        previous = self._request_deadline
+        self._request_deadline = min(deadline, previous) if previous is not None else deadline
+        try:
+            yield
+        finally:
+            self._request_deadline = previous
 
     def assert_replay_consumed(self):
         if self.replay is not None:

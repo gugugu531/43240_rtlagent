@@ -7,8 +7,10 @@ import shutil
 import tempfile
 import threading
 import time
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
+from agent.runtime.budget import BudgetExhausted
 from .result import CheckResult
 
 
@@ -46,6 +48,105 @@ def extract_diagnostics(log: str, limit=32):
             )
         )
     return dict(items=rows, omitted=omitted, complete=not (omitted or truncated))
+
+
+def banner_version(output):
+    banner = re.search(
+        r"(?im)^\s*\**\s*(?:Vivado(?: Simulator)?|xvlog|xelab)\s+v?(\d{4}\.\d+)\b",
+        output,
+    )
+    return banner.group(1) if banner else None
+
+
+def knowledge_details(executions, limit=32, version_probes=None):
+    """Keep diagnostic provenance local to each actual command invocation."""
+    items, commands, probes, omitted, complete = [], [], {}, 0, True
+    for index, (command, output, status, rc) in enumerate(executions):
+        # Tool namespaces are shared by multiple executables. Neither a code's
+        # namespace nor a previous command's banner identifies this invocation.
+        version = banner_version(output)
+        probe = (version_probes or {}).get(command[0]) if version is None else None
+        if probe is not None:
+            probes[probe["probe_id"]] = probe
+            version = probe["version"]
+        provenance = dict(
+            tool=Path(command[0]).name,
+            version=version,
+            version_source=("version_probe" if probe else "banner") if version else None,
+            version_probe_id=probe["probe_id"] if probe else None,
+            command_index=index,
+            process_status=status,
+        )
+        commands.append({**provenance, "rc": rc})
+        diagnostics = extract_diagnostics(output, limit=limit)
+        remaining = max(0, limit - len(items))
+        items.extend(
+            {
+                **item,
+                **provenance,
+                "cascade": item["cascade"] or bool(re.search(
+                    r"(?:ignored due to previous errors|failed due to (?:earlier|previous) errors)",
+                    item["message"], re.I,
+                )),
+            }
+            for item in diagnostics["items"][:remaining]
+        )
+        omitted += diagnostics["omitted"] + max(
+            0, len(diagnostics["items"]) - remaining
+        )
+        complete = complete and diagnostics["complete"]
+    return {
+        "knowledge_diagnostics": dict(
+            items=items, omitted=omitted, complete=complete and not omitted
+        ),
+        "knowledge_commands": commands,
+        "knowledge_version_probes": list(probes.values()),
+    }
+
+
+def version_probes(ctx, executions, *, deadline, cwd):
+    """Probe confirmed xvlog syntax after source checks, with a task-local cache."""
+    cache = ctx.store.setdefault("vivado_version_probes", {})
+    used = {}
+    for command, output, _, _ in executions:
+        executable_path = command[0]
+        if (
+            banner_version(output) is not None
+            or Path(executable_path).name != "xvlog"
+            or not Path(executable_path).is_absolute()
+        ):
+            continue
+        if executable_path in cache:
+            used[executable_path] = cache[executable_path]
+            continue
+        remaining = min(5.0, deadline - time.monotonic())
+        if remaining <= 0:
+            continue
+        probe_command = (executable_path, "--version")
+        try:
+            probe_timeout = ctx.budget.timeout(remaining)
+            result = ctx.processes.run(
+                probe_command, cwd=cwd, timeout_s=probe_timeout
+            )
+        except BudgetExhausted:
+            # Optional provenance cannot replace an already completed verdict.
+            continue
+        status = process_status(result)
+        probe = dict(
+            probe_id=uuid.uuid4().hex,
+            executable=executable_path,
+            command=list(probe_command),
+            process_status=status,
+            rc=result.rc,
+            timeout_s=probe_timeout,
+            elapsed_s=getattr(result, "elapsed_s", None),
+            log_path=str(result.log_path) if getattr(result, "log_path", None) else None,
+            version=banner_version(process_output(result)) if status == "ok" else None,
+        )
+        cache[executable_path] = probe
+        used[executable_path] = probe
+        ctx.record.emit("knowledge", "version_probe", **probe)
+    return used
 
 
 _INTERESTING = (
@@ -105,6 +206,16 @@ def classify_tool_failure(output: str) -> str:
         return "code"
     if re.search(
         r"ERROR: \[VRFC 10-1219\][^\n]*part-select direction is opposite from prefix index direction",
+        output,
+        re.IGNORECASE,
+    ):
+        return "code"
+    if re.search(
+        r"ERROR:\s*\[VRFC 10-9623\][^\n]*unexpected non-printable character with the hex value",
+        output,
+        re.IGNORECASE,
+    ) or re.search(
+        r"ERROR:\s*\[VRFC 10-8549\][^\n]*SystemVerilog \d{4} keyword ['\"][^'\"\n]+['\"] used in incorrect context",
         output,
         re.IGNORECASE,
     ):
@@ -269,7 +380,7 @@ def _check(ctx, candidate, kind, timeout_s):
         return CheckResult(
             "error", "invalid FPGA part", rc=2, failure_kind="environment"
         )
-    commands, logs, outcomes = [], [], []
+    commands, logs, outcomes, executions = [], [], [], []
     timeout = ctx.budget.timeout(timeout_s)
     deadline = started + timeout
     with tool_slot(ctx, timeout) as acquired:
@@ -317,6 +428,7 @@ def _check(ctx, candidate, kind, timeout_s):
                         elapsed_s=time.monotonic() - started,
                         command=tuple(commands),
                         log_paths=tuple(logs),
+                        details=knowledge_details(executions),
                     )
                 commands.append(command)
                 result = ctx.processes.run(
@@ -324,10 +436,18 @@ def _check(ctx, candidate, kind, timeout_s):
                 )
                 output = process_output(result)
                 outcomes.append(output)
+                executions.append(
+                    (command, output, process_status(result), result.rc)
+                )
                 if getattr(result, "log_path", None):
                     logs.append(str(result.log_path))
                 if process_status(result) != "ok":
                     break
+            probes = (
+                version_probes(ctx, executions, deadline=deadline, cwd=work)
+                if ctx.store.get("knowledge_rag_enabled", False)
+                else {}
+            )
     output = "\n".join(outcomes)
     status = process_status(result)
     failure = (
@@ -361,6 +481,7 @@ def _check(ctx, candidate, kind, timeout_s):
         failure_kind=failure,
         details={
             "repair_diagnostics": extract_diagnostics(output),
+            **knowledge_details(executions, version_probes=probes),
             "candidate_hash": candidate.code_hash,
             "tool_version": version.group(1) if version else None,
         },

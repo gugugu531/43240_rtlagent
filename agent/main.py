@@ -93,7 +93,7 @@ def main(argv=None):
             )
         hashes = {
             str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for directory in ("agent", "config")
+            for directory in ("agent", "config", "skill", "knowledge")
             for p in sorted((ROOT / directory).rglob("*"))
             if p.is_file() and "__pycache__" not in p.parts
         }

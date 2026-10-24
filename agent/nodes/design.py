@@ -3,7 +3,7 @@
 import hashlib
 import json
 from agent.kit import Ctx, State, node
-from agent.nodes.checks import check_stages, repair_feedback
+from agent.nodes.checks import check_stages, remember_repair_check, repair_feedback
 from agent.nodes.suite import build_suite
 from agent.nodes.plan import _quoted
 from agent.nodes.recovery import rtl_repair_blocker, stop
@@ -475,6 +475,7 @@ def acceptance(ctx: Ctx, state: State) -> State:
 def synthesis(ctx: Ctx, state: State, *, structure_only: bool = False) -> State:
     candidate = ctx.candidates.get(state["target_id"])
     check = ctx.call("synth", candidate_id=candidate.id)
+    remember_repair_check(ctx, check)
     if check.status == "passed":
         ctx.candidates.select(
             candidate.id,

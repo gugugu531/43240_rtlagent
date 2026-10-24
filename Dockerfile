@@ -25,6 +25,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 COPY config/ config/
 COPY agent/  agent/
 COPY skill/  skill/
+COPY knowledge/ knowledge/
 COPY serve/  serve/
 COPY model/  model/
 COPY run.sh run_baseline.sh baseline.py manifest.json REPORT.md LICENSE ./

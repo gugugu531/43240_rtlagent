@@ -1,120 +1,19 @@
 # 技能包
 
-技能包是领域知识的组织形式。它不是提示词的堆叠，评价标准只有一条：**他人能否照着用。**
+本目录保存可复用的 RTL 方法。运行时能力及配置见 [Skill 与诊断 RAG](../docs/knowledge.md)。方案根 README 按约定保持为空。
 
-本目录只放了一条技能作为格式示范。一份有竞争力的提交通常有 5–15 条，且每一条都能
-指出它是从哪些失败样本中总结出来的。
+当前 `repair_loop` 与 `design_verify_loop` 的 `rtl_generate` 可通过 `skill_ids` 固定选择完整方法，默认不加载。`single_generate` 继续使用 baseline 消息。技能只供 RTL 生成／修复参考，不进入独立检查器；知识不能覆盖公开题面、接口或实际工具证据。
 
----
-
-## 采用 AMD 官方技能格式
-
-`SKILL.md` 的写法与 AMD 官方的智能体技能一致（`hls-flattenable`、`hls-line-buffer`
-等）。**正文用英文**，与官方保持一致；仓库其余文档仍为中文。
-
-当前五条流程不加载技能文件；本目录保留可人工复用的接口检查知识，满足技能包的提交与阅读用途。
-导入外部技能时须核对许可证、适用工具与触发方式，不能把格式可读等同于已验证修复收益。
-
-2026-10-16 按上游参考资料更新来源：
-
-| 来源 | 上游说明的用途 |
+| 技能 ID | 用途 |
 | --- | --- |
-| [AMD Ross 技能库](https://github.com/Xilinx/ross-ai-assistant) | FPGA 设计，含 Vivado / Vitis HLS，可作为方案技能来源 |
-| [AMD Skills](https://github.com/amd/skills) | ROCm 与模型量化，供开发期编码助手使用 |
+| `rtl-sequential-state-update` | 时序状态、复位、控制优先级、移位和计数 |
+| `rtl-sequential-state-update-v3` | 同主题候选版本，增加声明与拼接交付检查；不可与 v2 同时选择 |
+| `rtl-width-signed-arithmetic` | 位宽、signedness、扩展和截断 |
+| `rtl-combinational-completeness` | 组合赋值完整性、优先级与非预期存储 |
+| `rtl-fsm-state-output` | 状态转移与 Moore／Mealy 输出时序 |
 
-这里只列候选来源，未自动导入或宣称完整兼容。正式方案技能仍需有工具版本、失败证据和明确边界。
-五条流程均不自动检索或注入技能，原技能加载与提示渲染实现已移除。
+这些资产来自 [上游分支](https://github.com/wyc888-crypto/amd-rtlagent-prompt-engineering/tree/fb1c2803e5db0f32b59b9ba9100877f2a0d26412)，按 MIT 许可迁移。完整正文用英文，目录清单保存来源版本、原文哈希与移植后哈希；已修正与本方案冲突的单模块限制，保留原版权说明。它们尚未通过本方案的真实模型效果实验。
 
----
+新方法文件使用 `skill/<id>/skill.md`，frontmatter 只有 `name` 和 `description`，必须与 [目录清单](../knowledge/catalog.json) 一致。正文保留适用／不适用条件、输入、步骤、验证、输出和行为边界。变更正文后必须同步清单哈希与版本，不能将完整方法截成无边界的片段。
 
-## 目录结构
-
-```
-skill/
-├── README.md
-└── <skill-name>/
-    └── SKILL.md
-```
-
-一条技能一个目录。目录名与文件名一律英文小写加连字符。
-
-## `SKILL.md` 的格式
-
-````markdown
----
-name: rtl-module-interface-contract
-description: 一行说清楚解决什么问题。单行，不用 YAML 块标量。
----
-
-<!--
-Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
-SPDX-License-Identifier: MIT
--->
-
-# Agent Skill: <Title>
-
-## Skill Metadata
-- **Name:** `rtl_module_interface_contract`
-- **Description:** 与 frontmatter 一致
-- **Trigger:** 什么情况下该用这条技能（散文）
-- **Log signatures:** `VRFC 10-3180`, `cannot find port`      ← 见下
-
-## System Prompt
-## Rules            ← 判定类技能：Rule 1 … Rule N，逐条可判 PASS/FAIL
-## Steps            ← 操作类技能：Step 1 … Step N，逐步给出做法与理由
-## Evidence         ← 实测数据，须标注工具版本、器件、测量口径
-## Output Format
-## Behavioral Constraints
-````
-
-frontmatter 只有 `name` 与 `description` 两项，其余信息放正文，这是官方的写法。
-
-### `Log signatures` 是本仓库加的一行，不属于官方格式
-
-官方技能由一个读过技能描述的智能体来挑选；本示范智能体是拿工具输出去匹配的，
-而散文式的 Trigger 不会出现在 `xelab` 的日志里。
-
-`- **Log signatures:**` 中的字符串只供人工对照错误日志；当前没有基于日志匹配或自动注入的实现。
-
----
-
-## 写技能的四条经验
-
-**一、「何时不用」比「何时用」重要。** 一条不说明边界的技能，模型会在不适用的场合
-照搬，引入新的失败。示范技能的 `Behavioral Constraints` 一节就是干这个的：明确写出
-哪些做法不许用（例如不许用别名 wire 绕开端口名不符、不许为了对齐接口而删掉
-输出端口上的 `reg`）。
-
-**二、记录已证伪的做法。** 「试过 X，无效，因为 Y」这类条目直接节省综合轮次，而综合
-轮次就是墙钟，墙钟就是分数。
-
-**三、实测数据必须标注口径。** 一个漂亮的数字没有用，一个标注了工具版本、器件、
-测量方式的数字才能被复用。示范技能的 `Evidence` 一节写明了「Vivado 2026.1，
-`xczu3eg-sbva484-1-e`，与参考测试台一并详细描述」，而不只是给一张表。
-
-**四、技能不必涉及大模型。** 确定性的校验脚本、结构化的踩坑清单，都是技能。
-`agent/core/interface.py` 中的接口检查 就是一例：纯文本比较，不调模型不调工具，
-能发现部分模块接口不一致问题，不能覆盖所有 L0 失败。评分标准是可复用性，不是是否调用模型。
-
----
-
-## 几个值得写成技能的方向
-
-以下为 RTL 侧常见的失败聚集处，供参考。该列表不应直接照抄提交，缺少实证支撑的
-技能条目在工程质量项上不得分。
-
-| 方向             | 典型失败                                                   | 落在哪一级 |
-| ---------------- | ---------------------------------------------------------- | ---------- |
-| 模块接口契约     | 模块名、端口名、方向、位宽不符                             | L0（本目录示范） |
-| 复位语义         | 同步写成异步、极性反了、复位值错                           | L1         |
-| 阻塞与非阻塞     | 时序逻辑用 `=`、组合逻辑用 `<=`，仿真与综合行为不一致      | L1         |
-| 敏感列表         | `always @(a)` 漏了信号，或组合逻辑分支没写全产生锁存器     | L1 / L2    |
-| FSM 编码         | 状态转移对了但输出时序差一拍（Moore 与 Mealy 混淆）        | L1         |
-| 位宽与符号       | 隐式截断、有符号无符号混用、`$signed` 用法                 | L1         |
-| 多驱动           | 同一信号在两个 `always` 块里赋值                           | L2         |
-| 不可综合构造     | `real`、延时、文件 IO、`fork/join`                         | L2         |
-| 题面含图         | 波形图、状态转移图在纯文本题面里丢失信息                   | L0 / L1    |
-| 自我验证         | 拿不到参考测试台时如何判断自己写对了                       | 这一项决定 L1 → L2 |
-
-最后一行是本赛道 L1 → L2 那 0.5 系数差的所在，是全表最大的一跳，也是官方技能包
-完全未覆盖的部分，因为该问题并非 RTL 问题，而是智能体设计问题。
+原有 `rtl-module-interface-contract/SKILL.md` 保留为人工阅读示范，未列入运行目录清单。其历史证据不作为新功能效果证明；新运行只读取清单声明的资产。不得把参考答案、官方测试台、判定反馈或任务身份映射写入技能。

@@ -1,0 +1,359 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "https://github.com/wyc888-crypto/amd-rtlagent-prompt-engineering.git",
+    "commit": "fb1c2803e5db0f32b59b9ba9100877f2a0d26412",
+    "license": "MIT"
+  },
+  "cards": [
+    {
+      "applies_when": [
+        "结构化诊断来自 xvlog 2026.1，错误码为 VRFC 10-1280。",
+        "对象确实在 always 等过程块中被赋值，且声明与语言模式可见。"
+      ],
+      "not_applicable_when": [
+        "赋值是 assign 等连续赋值，或诊断来自其他工具和未知版本。",
+        "对象只由 assign 或实例端口连续驱动。",
+        "公开题面对类型、接口或行为的明确约束与某项通用修复建议冲突时，不采用该建议。"
+      ],
+      "guidance": [
+        "把该错误解释为声明与过程驱动不兼容，再检索对应修复方法；不要直接批量替换声明。",
+        "在公开题面没有额外类型限制时，Verilog 的过程赋值输出可在 ANSI 端口声明为 output reg；SystemVerilog 可使用合适的变量类型（如 logic）。",
+        "保持端口名、方向和位宽不变，并检查是否还有其他驱动。"
+      ],
+      "verification": [
+        "重新运行同一 xvlog 阶段，确认该错误码消失并检查是否出现多驱动。",
+        "核对接口并重新运行 xvlog 和 xelab；编译与展开通过后继续独立功能检查。"
+      ],
+      "hard_negatives": [
+        "wire 被连续赋值并不需要改成 reg。",
+        "不能把所有 wire 机械替换成 reg 或 logic。"
+      ],
+      "conflict_groups": [
+        "net-versus-variable"
+      ],
+      "id": "repair-procedural-variable",
+      "version": "1.0.0-burr.1",
+      "title": "过程赋值目标的变量声明检查",
+      "phases": [
+        "repair"
+      ],
+      "triggers": [
+        {
+          "codes": [
+            "VRFC 10-1280"
+          ],
+          "tools": [
+            "xvlog"
+          ],
+          "versions": [
+            "2026.1"
+          ],
+          "message_contains_any": [
+            "procedural assignment",
+            "non-register"
+          ]
+        }
+      ],
+      "source": {
+        "path": "dev/rag/corpus/cards-v3-p1p2.json",
+        "sha256": "c94dcc65c94ef3a3a54e51c9b03b4c609e7eda23e19f5285da7b77ede7507070",
+        "card_ids": [
+          "repair-procedural-variable",
+          "diag-vrfc-10-1280"
+        ]
+      },
+      "review_status": "reviewed_not_model_validated"
+    },
+    {
+      "applies_when": [
+        "模块头采用 ANSI 端口声明，xvlog 报告对应端口重复声明。",
+        "模块头包含方向和类型，属于 ANSI 声明。"
+      ],
+      "not_applicable_when": [
+        "模块使用非 ANSI 端口列表，或名称相同但属于不同合法作用域。",
+        "模块头只有端口名，属于非 ANSI 风格。",
+        "公开题面对类型、接口或行为的明确约束与某项通用修复建议冲突时，不采用该建议。"
+      ],
+      "guidance": [
+        "先确认端口声明风格，再使用 ANSI 端口修复方法。",
+        "在模块头完成方向、类型和位宽声明，删除主体中的重复声明。"
+      ],
+      "verification": [
+        "解析模块头和主体声明，随后重新运行 xvlog。",
+        "核对端口集合、方向和位宽，再运行 xvlog。"
+      ],
+      "hard_negatives": [
+        "非 ANSI 风格需要在模块体内补全方向和类型声明。",
+        "不能删除非 ANSI 风格所必需的主体声明。"
+      ],
+      "conflict_groups": [
+        "ansi-versus-non-ansi-port"
+      ],
+      "id": "repair-ansi-port",
+      "version": "1.0.0-burr.1",
+      "title": "ANSI 端口只在模块头完成一次声明",
+      "phases": [
+        "repair"
+      ],
+      "triggers": [
+        {
+          "codes": [
+            "VRFC 10-9336"
+          ],
+          "tools": [
+            "xvlog"
+          ],
+          "versions": [
+            "2026.1"
+          ],
+          "message_contains_any": [
+            "redeclaration"
+          ]
+        }
+      ],
+      "source": {
+        "path": "dev/rag/corpus/cards-v3-p1p2.json",
+        "sha256": "c94dcc65c94ef3a3a54e51c9b03b4c609e7eda23e19f5285da7b77ede7507070",
+        "card_ids": [
+          "repair-ansi-port",
+          "diag-vrfc-10-9336"
+        ]
+      },
+      "review_status": "reviewed_not_model_validated"
+    },
+    {
+      "applies_when": [
+        "xvlog 在解析阶段报告语法错误或关键字处于错误上下文。",
+        "解析器给出首个语法错误并能读取附近源码。"
+      ],
+      "not_applicable_when": [
+        "代码已经解析成功，只在功能验证中失败。",
+        "代码已通过解析，只存在功能或时序问题。",
+        "公开题面对类型、接口或行为的明确约束与某项通用修复建议冲突时，不采用该建议。"
+      ],
+      "guidance": [
+        "报错位置只是检查起点；同时检查上一条语句和外围 begin/end。",
+        "检查当前语句、前一语句、括号、分号、begin/end 和模块头终止符。"
+      ],
+      "verification": [
+        "修复后重新解析，并以新的首个错误为准。",
+        "重新解析并重新确定首个错误，不能只确认原行不再报错。"
+      ],
+      "hard_negatives": [
+        "不能看到 syntax error 就无条件在报错行追加分号。",
+        "报错行可能只是前一条未闭合语句的受害者。"
+      ],
+      "conflict_groups": [
+        "syntax-versus-functional"
+      ],
+      "id": "repair-local-syntax",
+      "version": "1.0.0-burr.1",
+      "title": "从首个语法错误向前检查局部上下文",
+      "phases": [
+        "repair"
+      ],
+      "triggers": [
+        {
+          "codes": [
+            "VRFC 10-4982",
+            "VRFC 10-8549"
+          ],
+          "tools": [
+            "xvlog"
+          ],
+          "versions": [
+            "2026.1"
+          ],
+          "message_contains_any": [
+            "syntax error",
+            "incorrect context",
+            "unexpected token"
+          ]
+        }
+      ],
+      "source": {
+        "path": "dev/rag/corpus/cards-v3-p1p2.json",
+        "sha256": "c94dcc65c94ef3a3a54e51c9b03b4c609e7eda23e19f5285da7b77ede7507070",
+        "card_ids": [
+          "repair-local-syntax",
+          "diag-vrfc-10-4982"
+        ]
+      },
+      "review_status": "reviewed_not_model_validated"
+    },
+    {
+      "applies_when": [
+        "xvlog 明确报告某标识符在当前作用域未声明。",
+        "诊断中的名称和其使用位置可见。"
+      ],
+      "not_applicable_when": [
+        "标识符已声明但位宽、方向或功能不正确。",
+        "名称已正确声明但类型或宽度不匹配。",
+        "公开题面对类型、接口或行为的明确约束与某项通用修复建议冲突时，不采用该建议。"
+      ],
+      "guidance": [
+        "区分拼写错误、声明遗漏、作用域错误和宏展开问题。",
+        "依次检查拼写、声明、作用域和预处理条件；端口名称以题面接口为准。"
+      ],
+      "verification": [
+        "修复后重新运行解析，并检查接口名称没有被擅自改变。",
+        "重新运行 xvlog，并检查没有产生隐式 net 或接口漂移。"
+      ],
+      "hard_negatives": [
+        "不能为未知名称自动添加隐式 wire 来压掉错误。",
+        "自动新建同名信号可能掩盖拼写错误。"
+      ],
+      "conflict_groups": [
+        "declaration-versus-implicit-net"
+      ],
+      "id": "repair-undeclared-identifier",
+      "version": "1.0.0-burr.1",
+      "title": "未声明标识符的四步核对",
+      "phases": [
+        "repair"
+      ],
+      "triggers": [
+        {
+          "codes": [
+            "VRFC 10-2989"
+          ],
+          "tools": [
+            "xvlog"
+          ],
+          "versions": [
+            "2026.1"
+          ],
+          "message_contains_any": [
+            "not declared",
+            "undeclared identifier"
+          ]
+        }
+      ],
+      "source": {
+        "path": "dev/rag/corpus/cards-v3-p1p2.json",
+        "sha256": "c94dcc65c94ef3a3a54e51c9b03b4c609e7eda23e19f5285da7b77ede7507070",
+        "card_ids": [
+          "repair-undeclared-identifier",
+          "diag-vrfc-10-2989"
+        ]
+      },
+      "review_status": "reviewed_not_model_validated"
+    },
+    {
+      "applies_when": [
+        "诊断明确给出不可打印字符或字节值。",
+        "工具给出异常字节位置或字节值。"
+      ],
+      "not_applicable_when": [
+        "普通 Verilog 语法错误但没有字符编码证据。",
+        "只有一般语法错误，没有字符证据。",
+        "公开题面对类型、接口或行为的明确约束与某项通用修复建议冲突时，不采用该建议。"
+      ],
+      "guidance": [
+        "定位异常字节，只替换无意引入的字符并保持 RTL 语义。",
+        "以字节视图定位并替换异常字符，不改动合法标识符和 RTL 结构。"
+      ],
+      "verification": [
+        "检查文件编码并重新运行 xvlog。",
+        "确认文件编码稳定，并重新运行解析。"
+      ],
+      "hard_negatives": [
+        "合法注释或字符串中的非 ASCII 文本不应无证据删除。",
+        "中文注释本身不等于非法源码字节。"
+      ],
+      "conflict_groups": [
+        "encoding-versus-syntax"
+      ],
+      "id": "repair-source-encoding",
+      "version": "1.0.0-burr.1",
+      "title": "只清理有证据的异常源码字节",
+      "phases": [
+        "repair"
+      ],
+      "triggers": [
+        {
+          "codes": [
+            "VRFC 10-9623"
+          ],
+          "tools": [
+            "xvlog"
+          ],
+          "versions": [
+            "2026.1"
+          ],
+          "message_contains_any": [
+            "non-printable character"
+          ]
+        }
+      ],
+      "source": {
+        "path": "dev/rag/corpus/cards-v3-p1p2.json",
+        "sha256": "c94dcc65c94ef3a3a54e51c9b03b4c609e7eda23e19f5285da7b77ede7507070",
+        "card_ids": [
+          "repair-source-encoding",
+          "diag-vrfc-10-9623"
+        ]
+      },
+      "review_status": "reviewed_not_model_validated"
+    },
+    {
+      "applies_when": [
+        "Vivado synth_design 2026.1 报告对象含多个驱动。",
+        "综合诊断能绑定到同一对象的两个或更多驱动。"
+      ],
+      "not_applicable_when": [
+        "仅有多个读取者，或工具没有指出多个驱动。",
+        "多个条件分支位于同一过程块，或多个逻辑只读取同一对象。",
+        "公开题面对类型、接口或行为的明确约束与某项通用修复建议冲突时，不采用该建议。"
+      ],
+      "guidance": [
+        "枚举连续赋值、过程块和实例输出形成的全部驱动。",
+        "列出所有过程块、连续赋值和实例输出，只保留符合规格的单一驱动结构。"
+      ],
+      "verification": [
+        "合并或删除错误驱动后重新综合，并做功能回归。",
+        "重新综合，并对控制条件重叠和默认路径做功能验证。"
+      ],
+      "hard_negatives": [
+        "多路选择逻辑不是多个并发驱动；不能随意删除一个功能分支。",
+        "不能仅按日志顺序删除第一个或最后一个驱动。"
+      ],
+      "conflict_groups": [
+        "multiple-drivers-versus-mux"
+      ],
+      "id": "repair-multiple-drivers",
+      "version": "1.0.0-burr.1",
+      "title": "按对象枚举并归并多个驱动",
+      "phases": [
+        "repair"
+      ],
+      "triggers": [
+        {
+          "codes": [
+            "SYNTH 8-6859"
+          ],
+          "tools": [
+            "vivado"
+          ],
+          "versions": [
+            "2026.1"
+          ],
+          "message_contains_any": [
+            "multi-driven net",
+            "multiple drivers"
+          ]
+        }
+      ],
+      "source": {
+        "path": "dev/rag/corpus/cards-v3-p1p2.json",
+        "sha256": "c94dcc65c94ef3a3a54e51c9b03b4c609e7eda23e19f5285da7b77ede7507070",
+        "card_ids": [
+          "repair-multiple-drivers",
+          "diag-synth-8-6859"
+        ]
+      },
+      "review_status": "reviewed_not_model_validated"
+    }
+  ]
+}
