@@ -312,6 +312,28 @@ def check_interface_result(
             "parse_error", True, expected, actual, (difference,), summary
         )
 
+    # A missing specification prevents comparison, but does not make an invalid
+    # candidate declaration usable. Diagnose only explicit parser evidence here;
+    # unresolved parameter widths and unsupported interface types stay advisory.
+    missing_directions = tuple(
+        InterfaceDifference(
+            "missing_direction",
+            f"port {port.name!r} has no input, output or inout declaration",
+            port.name,
+            actual="unknown",
+        )
+        for port in actual.ports
+        if port.direction == "unknown"
+        and f"port {port.name!r} has no direction declaration" in actual.warnings
+    )
+    if missing_directions:
+        summary = "invalid candidate interface: " + "; ".join(
+            item.message for item in missing_directions
+        )
+        return InterfaceCheckResult(
+            "mismatch", True, expected, actual, missing_directions, summary
+        )
+
     if not expected.parsed:
         if interface and interface.strip():
             summary = "interface.txt is present but its module declaration could not be parsed"
@@ -438,6 +460,10 @@ def _parse_ansi_ports(items: Iterable[str]) -> tuple[list[PortSpec], list[str]]:
                 warnings.append(width_warning)
         if direction is None:
             warnings.append(f"port declaration has no direction: {item.strip()!r}")
+            name = _ordinary_port_name(item)
+            if name is not None:
+                ports.append(PortSpec(name, "unknown", None))
+                warnings.append(f"port {name!r} has no direction declaration")
             continue
         name = _declaration_name(item)
         if name is None:
@@ -452,12 +478,15 @@ def _parse_non_ansi_ports(
 ) -> tuple[list[PortSpec], list[str]]:
     warnings: list[str] = []
     header_names: list[str] = []
+    ordinary_names: set[str] = set()
     for item in header_items:
         name = _declaration_name(item)
         if name is None:
             warnings.append(f"could not parse port name from {item.strip()!r}")
         else:
             header_names.append(name)
+            if _ordinary_port_name(item) is not None:
+                ordinary_names.add(name)
     declarations: dict[str, PortSpec] = {}
     for match in _DECLARATION_RE.finditer(body):
         direction = match.group(1)
@@ -474,10 +503,22 @@ def _parse_non_ansi_ports(
     for name in header_names:
         port = declarations.get(name)
         if port is None:
-            warnings.append(f"port {name!r} has no direction declaration")
+            warnings.append(
+                f"port {name!r} has no direction declaration"
+                if name in ordinary_names
+                else f"could not establish direction of typed port {name!r}"
+            )
             port = PortSpec(name, "unknown", None)
         ports.append(port)
     return ports, warnings
+
+
+def _ordinary_port_name(text: str) -> str | None:
+    """Recognize ordinary net/variable ports, not interface or user-defined types."""
+    declaration = text.split("=", 1)[0]
+    declaration = re.sub(r"\[[^\]]*\]", " ", declaration)
+    declaration = _TYPE_WORDS_RE.sub(" ", declaration).strip()
+    return declaration if _IDENTIFIER_RE.fullmatch(declaration) else None
 
 
 def _parse_width(text: str) -> tuple[int | None, str | None, str | None]:

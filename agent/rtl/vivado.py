@@ -124,6 +124,91 @@ def classify_tool_failure(output: str) -> str:
     return "unknown"
 
 
+def classify_functional_failure(
+    output: str, *, candidate_code: str = "", top: str | None = None
+) -> str:
+    """Attribute compiler failures without blaming RTL for generated-driver bugs.
+
+    A driver connection diagnostic identifies the connection site, not which side
+    violates its contract. The candidate can disambiguate a missing direction;
+    an explicit inout or an unavailable source remains unresolved.
+    """
+    if classify_tool_failure(output) == "environment":
+        return "environment"
+    if re.search(
+        r"(?:error while loading shared libraries|failed to (?:launch|execute)|"
+        r"(?:xvlog|xelab|xsim): (?:command )?not found)",
+        output,
+        re.IGNORECASE,
+    ):
+        return "environment"
+
+    diagnostics = []
+    for line in output.splitlines():
+        match = re.search(r"\b(?:ERROR|FATAL):\s*\[([^\]]+)\]\s*(.*)", line, re.I)
+        if match is not None:
+            code, message = match.groups()
+            diagnostics.append((" ".join(code.upper().split()), message))
+
+    missing_directions = set()
+    if candidate_code:
+        from .interface import parse_module_interface
+
+        actual = parse_module_interface(candidate_code, top=top)
+        missing_directions = {
+            port.name
+            for port in actual.ports
+            if port.direction == "unknown"
+            and f"port {port.name!r} has no direction declaration" in actual.warnings
+        }
+
+    connection_errors = any(code == "VRFC 10-3595" for code, _ in diagnostics)
+    causes = set()
+    unresolved = False
+    for code, message in diagnostics:
+        if code == "XSIM 43-3322" or re.search(
+            r"(?:ignored due to previous errors|failed due to (?:earlier|previous) errors)",
+            message,
+            re.IGNORECASE,
+        ):
+            continue
+        location = re.search(
+            r"\[(?:[^\]\n]*[/\\])?(solution|driver)\.sv:\d+(?::\d+)?\]",
+            message,
+            re.IGNORECASE,
+        )
+        if code == "VRFC 10-3595":
+            port = re.search(r"inout port ['\"]([A-Za-z_]\w*)['\"]", message)
+            if location and location.group(1).lower() == "driver" and port:
+                if port.group(1) in missing_directions:
+                    causes.add("code")
+                else:
+                    unresolved = True
+                continue
+        # These generated drive variables become multiply driven when an input
+        # connection is interpreted as inout; retain its primary error above.
+        if connection_errors and code == "VRFC 10-3823" and re.search(
+            r"variable ['\"]rtla_c\d+_", message
+        ):
+            continue
+        if location is None:
+            unresolved = True
+        elif location.group(1).lower() == "solution":
+            causes.add("code")
+        elif re.search(
+            r"(?:cannot find port|port .*not found|module .*not found|"
+            r"cannot be connected|port .*type mismatch)",
+            message,
+            re.IGNORECASE,
+        ):
+            unresolved = True
+        else:
+            causes.add("checker")
+    if not unresolved and len(causes) == 1:
+        return causes.pop()
+    return "unknown"
+
+
 _CAPACITY = threading.BoundedSemaphore(4)
 
 
