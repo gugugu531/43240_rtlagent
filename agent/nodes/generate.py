@@ -1,6 +1,5 @@
 """Generation is one model call; retry decisions belong to the graph."""
 
-from contextlib import nullcontext
 from typing import Literal
 
 from agent.kit import Ctx, State, node
@@ -23,12 +22,17 @@ def generate(
     skill_ids: list[str] = [],
     skill_phases: list[Literal["generate", "repair"]] = ["generate", "repair"],
     rag: bool = False,
+    skill_mode: Literal['off', 'shadow', 'on'] | None = None,
+    rag_mode: Literal['off', 'shadow', 'on'] | None = None,
+    retrieval: dict = {},
     knowledge_max_tokens: int = 2048,
 ) -> State:
     # Evidence belongs to one next-generation attempt, including when knowledge
     # is disabled or extraction later fails. Never reuse a previous check.
     evidence = ctx.store.pop("repair_check", None)
-    ctx.store["knowledge_rag_enabled"] = rag
+    from agent.knowledge.policy import modes
+    sm, rm = modes(skill_mode, rag_mode, skill_ids=skill_ids, rag=rag)
+    ctx.store["knowledge_rag_enabled"] = rm != 'off'
     parent = ctx.candidates.get(state["target_id"]) if state.get("target_id") else None
     messages = ctx.prompts.render(
         prompt,
@@ -38,16 +42,17 @@ def generate(
         plan=ctx.store.get("plan"),
     )
     assembly = None
-    window = ctx.llm.request_window(timeout_s) if skill_ids or rag else nullcontext()
+    window = ctx.llm.request_window(timeout_s)
     with window:
-        if skill_ids or rag:
-            from agent.knowledge.context import prepare
+        from agent.knowledge.context import prepare
 
-            messages, assembly = prepare(
-                ctx, messages, parent, evidence,
-                skill_ids=skill_ids, skill_phases=skill_phases, rag=rag,
-                max_tokens=max_tokens, max_extra_tokens=knowledge_max_tokens,
-            )
+        messages, assembly = prepare(
+            ctx, messages, parent, evidence,
+            skill_ids=skill_ids, skill_phases=skill_phases, rag=rag,
+            max_tokens=max_tokens, max_extra_tokens=knowledge_max_tokens,
+            skill_mode=sm, rag_mode=rm, retrieval_options=retrieval,
+            raw_feedback=state.get('feedback', ''),
+        )
         reply = ctx.llm.chat(
             messages,
             temperature=temperature,

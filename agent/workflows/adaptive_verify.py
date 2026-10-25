@@ -3,6 +3,8 @@
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 from agent.kit import workflow, when, default
+from agent.knowledge.policy import RetrievalOptions, modes
+from agent.knowledge.release import validate_options
 
 
 class StageLimit(BaseModel):
@@ -26,7 +28,10 @@ class AdaptiveParameters(BaseModel):
     max_output_tokens: int = Field(default=200704, gt=0)
     knowledge_max_tokens: int = Field(default=8192, ge=0, le=8192)
     sequential_skill: Literal["rtl-sequential-state-update", "rtl-sequential-state-update-v3"] = "rtl-sequential-state-update"
-    rag: bool = True
+    rag: bool = False
+    skill_mode: Literal['off', 'shadow', 'on'] = 'on'
+    rag_mode: Literal['off', 'shadow', 'on'] | None = None
+    retrieval: RetrievalOptions = Field(default_factory=RetrievalOptions)
     temperature: float = Field(default=0.0, ge=0, le=2)
     top_p: float = Field(default=1.0, gt=0, le=1)
 
@@ -49,6 +54,9 @@ class AdaptiveParameters(BaseModel):
            "checker_status": "not_built", "stop_reason": "", "status": "stopped"},
 )
 def build(g, p):
+    _, rag_mode = modes(p.skill_mode, p.rag_mode, rag=p.rag)
+    if rag_mode != 'off':
+        validate_options(p.retrieval)
     return g.with_state(settings=p.model_dump(mode="json")).with_transitions(
         ("initialize", "analyze"), ("analyze", "generate"),
         ("generate", "build_checker", when(has_candidate=True)),

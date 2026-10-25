@@ -46,7 +46,11 @@ class Skill(Strict):
     conflict_group: Identifier
     resource: Resource
     source: Resource
-    review_status: Literal["reviewed_not_model_validated"]
+    review_status: Literal[
+        "frozen_default_fixed",
+        "frozen_candidate_not_default",
+        "frozen_rejected_fixed_ab",
+    ]
 
 
 class Catalog(Strict):
@@ -67,6 +71,7 @@ class CardOrigin(Resource):
 
 
 class Card(Strict):
+    language: Literal['en']
     id: Identifier
     version: Text
     title: Text
@@ -79,7 +84,7 @@ class Card(Strict):
     hard_negatives: Texts
     conflict_groups: list[Identifier]
     source: CardOrigin
-    review_status: Literal["reviewed_not_model_validated"]
+    review_status: Literal["frozen_exact_shadow_not_default"]
 
 
 class Corpus(Strict):
@@ -159,12 +164,12 @@ def load_assets(*, skills=False, rag=False, root=ROOT):
 
 
 def card_text(card):
-    lines = [f"[知识卡 {card.id}@{card.version}] {card.title}"]
+    lines = [f"[Knowledge Card {card.id}@{card.version}] {card.title}"]
     for label, values in (
-        ("适用", card.applies_when), ("不适用", card.not_applicable_when),
-        ("方法", card.guidance), ("验证", card.verification),
-        ("禁止", card.hard_negatives),
+        ("Use when", card.applies_when), ("Do not use when", card.not_applicable_when),
+        ("Method", card.guidance), ("Verify", card.verification),
+        ("Forbidden / hard negatives", card.hard_negatives),
     ):
-        lines.append(label + "：\n" + "\n".join("- " + value for value in values))
-    lines.append("本卡为通用方法，未证明当前候选功能正确；必须重新执行检查。")
+        lines.append(label + ":\n" + "\n".join("- " + value for value in values))
+    lines.append("This card provides a general method, not proof that the current candidate is functionally correct. Re-run the checks.")
     return "\n".join(lines)

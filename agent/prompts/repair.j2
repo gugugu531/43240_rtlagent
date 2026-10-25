@@ -1,56 +1,65 @@
-## 题目
+## Task
 
 {{ task.prompt }}
 
-## 从题面解析的模块接口
+## Module interface parsed from the task
 
 {{ task.interface }}
 {% if plan %}
-设计计划（可能有误，以原题为准）：
+Design plan (may be incorrect; the original task takes precedence):
 {{ plan | tojson }}
 {% endif %}
 {% if feedback %}
-## 上一轮的实现
+## Previous implementation
 
 ```verilog
 {{ parent.code if parent else "" }}
 ```
 
-## 工具反馈
+## Tool feedback
 
 ```
 {{ feedback }}
 ```
 
-## 本轮要做的事
+## Required actions for this round
 
-如果有多驱动错误，先逐个核查反馈中列出的信号及其所有赋值位置，包括复位分支。
-复位块只写一次也算一个驱动。状态寄存器应有唯一的时钟块写入者；如需组合计算，使用
-独立的 next 值并提供默认值。纯组合信号保留一个组合写入来源。保持题面规定的有效沿、
-复位类型、优先级及周期行为，不能仅重命名变量或删除复位、功能分支来消除错误。
-反馈中的行号、赋值位置和最近的块头只是词法导航，不是作用域或驱动证明。
+For multiple-driver errors, inspect each reported signal and all of its assignment sites,
+including reset branches. A block that writes only once during reset still counts as a driver.
+Each state register must have a single clocked writer. If combinational next-state calculation
+is needed, use a separate next value with defaults. Keep one combinational writer for a purely
+combinational signal. Preserve the specified active edges, reset type, priorities, and cycle
+behavior. Do not merely rename variables or delete reset or functional branches to remove errors.
+Feedback line numbers, assignment sites, and nearby block headers are lexical navigation aids,
+not proof of scope or driver ownership.
 
-1. 区分根因与连带结果：`XSIM 43-3322` 通常只是 elaboration 失败汇总。
-   核查所有独立根因，不能把第二个信号的报错直接当成第一个的连带结果。
-2. 判断这是哪一类失败：
-   - **接口不符** —— `interface mismatch`、`cannot find port`、`Module <X> not found`。
-     照接口重写模块头，端口名一个字都不要改。这类失败得分为 0，优先处理。
-   - **语法错误** —— `VRFC 10-4982 syntax error`，多半是模块头缺分号、
-     `begin`/`end` 不配对、位宽写法有误。
-   - **不可综合的构造** —— 根据诊断正文和源代码定位，不仅凭错误编号猜原因。
-     只改确实违反综合要求的构造，不改变题面规定的行为。
-   - **意外的锁存器或多驱动** —— 组合逻辑分支没写全，或同一信号在两个 always
-     块里被赋值。
-     `VRFC 10-3818` 的每个变量都要核查，不能漏掉“只在复位时写”的块。
-   - **顶层输出无驱动** —— `Synth 8-3848` 是综合警告，不是编译失败。
-     按公开题面实现缺失输出，不按相似名字盲接内部信号，也不能随意接常量来消除警告。
-     编译、综合成功或警告减少都不证明功能正确。
-3. **只改必要的部分。** 上一轮已经正确的地方不要重写，重写会引入新的错误。
-   接口一致要求保持模块名、端口名、方向、位宽和顺序，并遵守题面明确指定的类型约束。
-   题面未明确限制 net/variable 类型时，允许根据自身编译诊断修正端口声明中的变量类型
-   （如 reg/logic）；这不允许增删或重命名端口，也不允许改变连接与功能。
-4. 若同一个错误连续两轮未解决，换一条思路，不要在同一处继续微调。
+1. Distinguish root causes from downstream symptoms: `XSIM 43-3322` is usually only an
+   elaboration-failure summary. Check every independent root cause; do not assume an error
+   on a second signal is a consequence of the first.
+2. Classify the failure:
+   - **Interface mismatch**: `interface mismatch`, `cannot find port`, or `Module <X> not found`.
+     Rewrite the module header to match the interface without changing any port name.
+     These failures score zero and must be handled first.
+   - **Syntax error**: `VRFC 10-4982 syntax error`, often caused by a missing module-header
+     semicolon, unmatched `begin`/`end`, or an invalid width expression.
+   - **Unsynthesizable construct**: locate the cause using the diagnostic text and source,
+     not the error number alone. Change only constructs that actually violate synthesis
+     requirements, while preserving the behavior specified by the task.
+   - **Unintended latch or multiple drivers**: incomplete combinational branches or assignments
+     to one signal in two always blocks. Inspect every variable reported by `VRFC 10-3818`,
+     including blocks that write only during reset.
+   - **Undriven top-level output**: `Synth 8-3848` is a synthesis warning, not a compilation failure.
+     Implement missing outputs according to the public task. Do not blindly connect similarly
+     named internal signals or arbitrary constants just to suppress a warning.
+     Successful compilation or synthesis, or fewer warnings, does not prove functional correctness.
+3. **Change only what is necessary.** Do not rewrite previously correct parts and introduce
+   new errors. Preserve module and port names, directions, widths, order, and any explicit type
+   constraints. If the task does not restrict net versus variable types, your own compiler
+   diagnostics may justify correcting a port's variable type (such as reg/logic). This does not
+   permit adding, removing, or renaming ports, or changing connections or functionality.
+4. If the same error remains unresolved for two consecutive rounds, try a different approach
+   instead of continuing small edits at the same location.
 
-输出完整的修正后文件，仍然只输出一个 ```verilog 代码块，块外不要有任何文字。
+Output the complete corrected file in exactly one fenced ```verilog code block, with no text outside it.
 
 {% endif %}

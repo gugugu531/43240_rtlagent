@@ -360,7 +360,7 @@ def check_interface_result(
             return InterfaceCheckResult(
                 "parse_error", True, expected, actual, (), summary
             )
-        summary = "接口既不在 interface 里，也没能从题面解析出端口表，本次跳过检查"
+        summary = "No interface declaration was supplied and no port list could be parsed from the task; interface checking is skipped"
         return InterfaceCheckResult("skipped", False, expected, actual, (), summary)
 
     if expected.source == "interface_file" and not expected.complete:
@@ -388,7 +388,7 @@ def check_interface_result(
 
     detail = "; ".join(item.message for item in differences)
     if expected.source == "prompt_list":
-        summary = "⚠ 与题面端口清单不符（题面为散文，仅供参考，未拦截）: " + detail
+        summary = "Port list differs from the task (prose-derived interface; advisory only, not blocking): " + detail
         return InterfaceCheckResult(
             "advisory", False, expected, actual, differences, summary
         )

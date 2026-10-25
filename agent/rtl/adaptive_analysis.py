@@ -127,15 +127,8 @@ def choose_route(task, analysis=None, *, sequential_skill="rtl-sequential-state-
         raise ValueError("unknown sequential Skill version")
     if analysis is None:
         return RouteDecision("structural", "analysis_unavailable", (), ("behavior_not_analyzed",))
-    skills = []
-    if analysis.kind == "fsm":
-        skills.append("rtl-fsm-state-output")
-    elif analysis.kind in ("sequential", "protocol"):
-        skills.append(sequential_skill)
-    elif analysis.kind == "combinational":
-        skills.append("rtl-combinational-completeness")
-    if analysis.kind == "arithmetic" or set(analysis.risks) & {"width", "signed"}:
-        skills.append("rtl-width-signed-arithmetic")
+    from agent.knowledge.policy import route_skill_ids
+    skills = route_skill_ids(analysis.kind, analysis.risks, sequential_skill)
     reason = "analysis_route_with_host_limits"
     route = analysis.route
     uncovered = list(analysis.ambiguities)

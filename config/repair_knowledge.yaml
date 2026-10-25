@@ -1,5 +1,5 @@
-# 固定时序方法 + 本次代码失败的诊断检索；仅用于适合该 Skill 的公开题面。
-# 单因素对照保留其它设置，只改 skill_ids: [] 或 rag: false。
+# 冻结的通用时序 Skill；RAG 已与 Skill 分离，默认保持关闭。
+# 单因素对照保留其它设置，只改 skill_ids: []。
 workflow: repair_loop
 params: {max_rounds: 2}
 nodes:
@@ -11,7 +11,7 @@ nodes:
       timeout_s: 180
       skill_ids: [rtl-sequential-state-update]
       skill_phases: [generate, repair]
-      rag: true
+      rag: false
       knowledge_max_tokens: 2048
   check: {use: rtl_checks, params: {stages: [interface, lint, synth]}}
 tools:

@@ -1,69 +1,70 @@
-# Skill 与诊断 RAG
+# Skill 与 RAG 框架 v1
 
 [文档入口](index.md) · [架构](architecture.md) · [扩展规范](development.md)
 
-本功能把本地 Skill（完整方法）与 RAG（检索增强生成）的通用知识卡加入 RTL 生成请求。它是 `rtl_generate` 的可选能力，适用于 `repair_loop` 和 `design_verify_loop`；不增加工作流，也不改变答案选择规则。原有预设默认关闭，`single_generate` 继续使用 baseline 固定消息。
+本版是运行接口与小型机械验收，不代表知识收益验收或全系统效果冻结。默认 RAG 关闭，包括 `adaptive_verify`。`single_generate` 的 baseline 固定消息与实现保持不变。
 
-## 使用
+英文发布版 `framework-v1-en.1` 将系统／修复提示、知识包装、接口反馈摘要及六张历史卡统一为英文。32 张英文卡正文、向量和准入决策不变；自然语言缺失事实描述只做翻译，不因此开放注入。用户题面、工具原始输出按原样保留，不自动翻译；中文识别正则和开发文档不是模型包装残余。
 
-从方案目录运行；依赖、模型和工具须预先准备：
+## 模式与准入
 
-```bash
-LLM_BACKEND=mock ./run.sh <公开题面目录> <新输出目录> --config config/repair_knowledge.yaml
-```
+`rtl_generate` 节点支持 `skill_mode`、`rag_mode`，均为 `off / shadow / on`。自适应工作流的同名参数位于顶层 `params`。
 
-[修复预设](../config/repair_knowledge.yaml) 与 [设计预设](../config/design_verify_knowledge.yaml) 分别沿用原流程的生成预算和采样设置，只增加知识参数。默认选中的时序 Skill 适用于寄存器、计数器、移位等公开题面，不代表对所有题型适用。选择方法由配置负责，当前不按题号、目录名或模型自动路由。
+- `off` 不检索、不装配。
+- `shadow` 检索并记录准入，但不更改生成消息，也不请求知识装配的 tokenizer。记录的是“准入后待装配”，不宣称已通过 token 预算。
+- `on` 只有通过准入和预算的完整知识段才进入请求。
 
-| `nodes.generate.params` 参数 | 默认值与含义 |
+旧配置兼容：未设置模式时，非空 `skill_ids` 表示 Skill on；`rag: true` 表示 RAG on。显式模式与旧 `rag: true` 冲突时报配置错误。自适应 Skill 默认 on，保留原主机映射，经同一个准入层过滤。
+
+时序 v2 可自动准入；v3 仅供固定注入实验，自动选择不启用非默认候选。位宽、组合逻辑、FSM 仍处于 fixed A/B 拒绝状态。显式选择拒绝／未知／冲突 Skill 在构图阶段报错，模型请求之前停止；自动选择记录拒绝原因并继续无知识生成。自动路由入口是主线 `choose_route`，离线旧路由器不被视为第二个运行时权威。路由收益尚未验收。
+
+## 统一检索接口
+
+`retrieval` 配置：
+
+| 字段 | 默认值 |
 | --- | --- |
-| `skill_ids` | `[]`；固定选取最多两个不同 Skill |
-| `skill_phases` | `[generate, repair]`；在哪些阶段尝试加入完整方法 |
-| `rag` | `false`；启用当前代码检查失败的精确检索 |
-| `knowledge_max_tokens` | `2048`，范围 0～8192；可选知识相对必要消息的最大 token 增量 |
+| `strategy` | `exact`；可选 `bm25 / dense / hybrid` |
+| `retrieve_k` | 5，上限 32 |
+| `inject_k` | 1，本版固定上限 |
+| `fallback` | `empty`；可显式改为 `exact` |
+| `release_id` | `framework-v1-en.1` |
+| `release_sha256 / policy_sha256` | 未显式设置时使用随包 `runtime-lock.json`；显式值必须与锁文件一致 |
+| `embedding_url` | 空；服务根 URL，客户端追加 `/v1/embeddings` |
+| `embedding_transport` | `http`；可选 `ssh` |
+| `embedding_timeout_s` | 2 秒，最大 10 秒 |
+| `embedding_ssh_host / embedding_ssh_port` | 空 / 22；仅 SSH 使用 |
 
-只启用 RAG 可设置 `skill_ids: []`、`rag: true`。只启用 Skill 则设置 `rag: false`。同一对照应保持其余参数、模型、题面和工具一致；不要拿 baseline 与修复流程的差异归因为知识收益。YAML 节点覆盖仍替换整个组件的参数，省略的字段使用函数默认值。
+HTTP 不使用环境代理，不跟随跳转。SSH 要求已有可信主机密钥，服务 URL 必须是远端 loopback HTTP；只运行固定 curl 请求，查询通过标准输入传输。模型别名、1024 维度、有限数值和非零向量均验证。别名校验不能替代服务端权重哈希审计。
 
-## 资产
+发布包包含 32 张英文卡及冻结文档向量，不含开发查询、标签、参考 RTL 或判定结果。BM25 使用冻结分词与参数；dense 为精确点积；hybrid 为 exact/BM25/dense 的 RRF（常数 60）。F24 是额外受限 exact 通道，没有伪造向量，trace 用 `lane: restricted_exact` 区分。完整系统排名不能直接冒充原 32 卡离线指标。
 
-[目录清单](../knowledge/catalog.json) 登记五个方法：时序 v2、时序 v3、位宽与符号、组合逻辑完整性、FSM 状态与输出。v2/v3 共用冲突组，禁止同时选择。任务类型字段是维护者的说明，不是自动匹配器。原接口示范 `SKILL.md` 不在运行目录清单中。
+embedding 只接收限长、路径脱敏后的首个有效工具诊断及工具元数据，不接收完整题面或 RTL。知识准备最多使用剩余请求窗口的 10% 且不超过 5 秒；embedding 超时进一步限制在该窗口的一半，给生成保留时间。超时、断连、模型／向量不兼容按配置降级，记录有效后端及延迟。服务失败使用 `retrieval_unavailable`，不算正确空返回；还应检查 `embedding_error` 和 `effective_strategy`。
 
-[卡库](../knowledge/cards.json) 含六类方法：过程赋值变量、ANSI 重复声明、局部语法、未声明标识符、异常字符、多驱动。每张卡保留适用／不适用条件、方法、验证要求、反例与来源。来源固定为上游分支提交 `fb1c2803e5db0f32b59b9ba9100877f2a0d26412`，采用 MIT 许可；方法正文按当前接口与完整文件要求修订，版本带 `burr.1`。`reviewed_not_model_validated` 表示已审阅内容，不表示真实模型收益或官方通过。
+## 保守准入边界
 
-运行时只从方案 `knowledge/` 与 `skill/` 读取固定资产，不访问上游仓库或开发区。来源元数据中的上游路径仅用于追溯，不是待加载路径。实验族、人工指定正确卡、检索标签、参考答案、官方测试台和判定反馈未导入。
+检索先检查候选 ID／哈希、执行 ID、检查器哈希、状态、诊断完整性和版本。只采用工具顺序中的首个非级联 error，次生诊断不能授权注入。
 
-加载器拒绝额外字段、重复键、重复 ID、错误类型、路径越界、符号链接、超大文件，以及 Skill 正文哈希或 frontmatter 不符。每题首次使用时固定资产对象；修改资产须启动新运行。卡库身份以实际文件哈希记录，Skill 额外由目录清单校验正文哈希；哈希不是对内容正确性的证明。
+32 卡原政策中的 `model_not_needed`、`correct_empty_by_default`、缺功能夹具等直接拒绝。自然语言“缺失事实”不能靠词面猜测：尚无机械证据时记录 `missing_fact_not_mechanically_established`，不开放注入。明确反馈片段以及候选／原始反馈哈希绑定的 correct_empty 检查点也能拒绝；自适应反馈不是旧检查点原始格式时，不伪造哈希命中。
 
-## 检索和证据
+本版正向注入路径是 F24：lint、xvlog 2026.1、首诊断 VRFC 10-4982 且 `syntax error near ','`、当前代码存在错误复制项拼接形态；先排除注释与字符串。无候选形态、未知版本、次生错误、已提供相同方法均不注入。正则是受限形态守卫，不是完整 Verilog 语法证明，仍须重新检查和功能验证。
 
-`check_stages()` 和设计流程的最终综合交接本次 `CheckResult`，分配独立 `execution_id`。每次生成开始消费一次交接，即使知识关闭或后续提取失败也不会复用。
+原 `knowledge/cards.json` 六卡快照保留为历史资产，不是本版检索入口。不要把六卡宽匹配称为 F24 准入。K=1 天然禁止卡间共同注入；扩大 K 必须实现并验收冲突政策，不能仅修改上限。
 
-只有以下条件同时成立才检索：
+## 发布与记录
 
-- 当前父候选 ID、代码哈希、检查器哈希均匹配；检查类型为 `lint` 或 `synth`。
-- 状态为 `failed`、失败类型为 `code`；环境失败、未知、超时、功能失配、提取失败和成功检查上的警告不触发。
-- 逐命令诊断完整，且错误来自失败命令，具有明确工具与版本。
-- 错误码、工具、版本、错误正文词组同时匹配卡片触发条件；连带诊断不作为根因。
+`python -m agent.knowledge.publish <实验仓库>` 从声明源文件生成 `knowledge/runtime-v1.json` 与摘要。发布验证 corpus/index 配对和 F24 投影哈希；运行加载再检查文件摘要、唯一 ID、文档投影哈希和向量。Skill 仍使用 catalog 的版本／正文哈希／状态校验。源文件变更需重新发布和验收，禁止直接手改向量。
 
-检索不使用题号、任务路径或候选代码做搜索词。结果按卡片 ID 排序，最多选一张；其它命中记为 `injection_limit`。语义上的适用与不适用限制随正文保留，由生成模型结合公开题面核查；当前没有用程序证明每条自然语言适用条件。只支持卡片声明的 Vivado 2026.1，未知或其它版本不匹配。错误词组和当前代码失败归因白名单都可能限制召回。
+英文发布采用 schema 2，并生成 `runtime-lock.json`。每条准入规则、检查点规则和文档向量元数据都绑定实际英文卡的 `card_version` 与规范 JSON 的 `card_sha256`。旧策略版本仅保留在 `source_card_version` 作来源记录，不能参与当前卡版本匹配。F24 的卡哈希与确定性谓词 ID 单独绑定；发布锁同时固定准入策略、索引和六卡快照的摘要。历史六卡版本更新为 `1.0.1-burr.en.1`，其原 `source` 仍表示上游来源，不冒充译文哈希。
 
-单条诊断的工具取实际命令名，版本取该命令的 banner；`xvlog` 无 banner 时允许在剩余检查时间内调用相同可执行文件的 `--version`，每题缓存探测结果并记录来源。未知探测结果仍保留未知。原 `repair_diagnostics` 保持原格式，新来源信息在 `knowledge_diagnostics/knowledge_commands/knowledge_version_probes` 中。
+`repair_rag_shadow.yaml` 显式固定发布／策略摘要；其它开启 RAG 的配置至少使用同一锁文件，显式错误 pin 在模型调用前拒绝。重新发布后应同步显式 pin 并运行测试，不能只改外层文件摘要。翻译改变了生成提示的语言，因此旧效果结果不自动成为本版收益证据。
 
-## 上下文和预算
+每次装配记录 `skill_selected / skill_rejected`、`retrieval.retrieved / admitted / rejected`、完整段预算结果和 `sent`，并保存原消息／实际消息哈希与耗时。`model_result` 绑定 call ID。可选资源或 tokenizer 失败保留原消息继续求解；配置错误由预检处理，硬性总任务超时不吞掉。
 
-先渲染完整原消息，保留公开题面、接口、当前候选、反馈和计划。固定 Skill 按配置顺序尝试，然后尝试知识卡；方法正文保持完整。通过统一模型客户端对完整消息分词，只有总输入加原 `max_tokens` 不超过上下文上限，且增量不超过 `knowledge_max_tokens` 时才加入。否则整段省略，不截掉限制或压缩必要内容。原消息已挤占输出空间时省略所有知识，保留原客户端的处理方式。
+`framework-outcome.json` 汇总完整新稿交付、候选选择、solution 哈希、工具结果和阶段成本。`selected_latest_complete` 不等于“本次修复成功”：没有新稿时 latest complete 仍可能是旧稿，须同时检查 `deliveries`。外部评分与评分候选默认为 null，不猜测尚未运行的主办方评分。
 
-底层 `agent.knowledge.context.prepare()` 支持显式 `diagnostic_first=True`：存在父候选时先装配匹配的诊断卡，再按原顺序装配 Skill，并记录选择。默认值为 false，当前 `rtl_generate` 保持原顺序。`adaptive_verify` 将通过原文引用校验的短分析映射为至多两个固定 Skill ID，修复时启用诊断卡优先；旧工作流的固定选择不变，详见[自适应工作流](adaptive.md)。
+## 验收与后续
 
-知识放在明确标记的 user 参考区，不替换 system 消息。最多两条 Skill 加一张卡，额外分词最多四次；实际生成仍沿用客户端最终分词。知识准备、模型发现、分词与生成共享节点请求时间窗及全题截止。分词不可用明确失败，不用字符估算替代；mock 的近似分词仅验证流程。
+`python -m unittest discover -s tests -v` 使用合成场景，不依赖题库、参考答案或在线模型。包括命中、correct_empty、版本／候选拒绝、自动 Skill 拒绝、预算不足、服务失败、未交付，以及实际 Burr 修复图的 off/shadow 消息逐项相同检查。
 
-## 独立性和记录
-
-知识不进入规划、检查器构造、审核、修订或独立验收；`structured.request()` 和这些节点保持原输入边界。功能检查不因检索命中而视为通过。
-
-- `source.json` 增加 `skill/knowledge` 文件哈希。
-- `knowledge/check_evidence` 记录本次执行引用与候选身份。
-- `knowledge/resources` 记录本题实际加载资源。
-- `knowledge/assembly` 记录命中、拒绝、整段加入或省略、预算、消息哈希及父候选绑定；full 模式另存 `knowledge/<assembly_id>.json`。
-- `knowledge/model_result` 关联成功返回的模型调用；实际发送内容以对应 `calls/` 请求为准。装配完成不等于模型已收到，脱敏后的记录也不一定与发送字节相同。
-
-新增卡或方法必须审核来源、边界与许可证，并用正反例检查加载、匹配、拒绝和预算。检索命中、模型修改、子候选重新检查、功能通过和官方成绩分别记录。无开发目录的包已能加载资源，并不代替正式镜像、真实模型或目标 GPU 验收。
+机械验收后仍需：逐卡补足缺失事实可执行谓词；固定框架优化 Skill 正文；固定资产比较检索器；独立优化准入与表达；最后验证自动路由、联合使用、留出集与 balanced60。默认 RAG 不因框架连通而打开。

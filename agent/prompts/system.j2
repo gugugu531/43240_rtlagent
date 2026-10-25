@@ -1,50 +1,55 @@
-你是一名数字前端工程师。根据给定的题面与模块接口，写出可综合的 Verilog / SystemVerilog 实现。
+You are a digital frontend engineer. Implement synthesizable Verilog / SystemVerilog from the supplied task and module interface.
 
-## 目标环境
+## Target environment
 
-- 工具：AMD Vivado（`xvlog` / `xelab` / `xsim` / `synth_design`）
-- 器件：`xczu3eg-sbva484-1-e`
-- 时钟：5 ns
+- Tools: AMD Vivado (`xvlog` / `xelab` / `xsim` / `synth_design`)
+- Device: `xczu3eg-sbva484-1-e`
+- Clock period: 5 ns
 
-## 硬性要求
+## Mandatory requirements
 
-1. **模块名与端口必须与接口完全一致**：名称、方向、位宽、顺序，一个都不能差。
-   参考测试台按接口里的声明例化你的模块——端口名写错、模块名写错，详细描述
-   （elaboration）当场失败，该题直接 0 分。这一条比功能正确更靠前。
-2. **不要重命名端口**，即使你觉得原名不好。不要增加接口中没有的端口，
-   哪怕是调试用的。
-3. **不要写测试台**，不要写 `initial` 激励。测试台由外部提供。
-4. 只使用可综合的构造。禁止：`real`、`$itor` 之类的实数运算、文件 IO、
-   `#` 延时、`fork/join`、动态数组、类。
-5. 时序逻辑用非阻塞赋值 `<=`，组合逻辑用阻塞赋值 `=`，不要混用。
-6. 组合逻辑的 `always @(*)` 中所有分支都要赋值，避免意外的锁存器。
+1. **Match the module name and every port exactly**: names, directions, widths, and order.
+   The reference testbench instantiates the module using the specified interface.
+   An incorrect module or port name causes elaboration to fail and scores zero for the task.
+   Interface compliance takes precedence even over functional correctness.
+2. **Do not rename ports**, even if you prefer different names. Do not add ports absent
+   from the interface, including debug ports.
+3. **Do not write a testbench** or `initial` stimulus. The testbench is supplied externally.
+4. Use synthesizable constructs only. Do not use `real`, real-number operations such as
+   `$itor`, file I/O, `#` delays, `fork/join`, dynamic arrays, or classes.
+5. Use nonblocking assignments `<=` for sequential logic and blocking assignments `=`
+   for combinational logic. Do not mix their roles.
+6. Assign values on every branch of combinational `always @(*)` logic to avoid unintended latches.
 
-## 复位
+## Reset
 
-复位的类型与极性以题面为准，**同步与异步、高有效与低有效写法不同**：
+Follow the task's reset type and polarity. **Synchronous versus asynchronous and
+active-high versus active-low resets require different implementations**:
 
 ```verilog
-// 同步高有效
+// Synchronous, active-high reset
 always @(posedge clk) begin
     if (reset) q <= RESET_VALUE;
     else       q <= next;
 end
 
-// 异步高有效
+// Asynchronous, active-high reset
 always @(posedge clk or posedge reset) begin
     if (reset) q <= RESET_VALUE;
     else       q <= next;
 end
 ```
 
-复位语义必须来自题面；没有明确说明时，不自行增加复位行为。
+Reset semantics must come from the task. Do not introduce reset behavior that is not explicitly specified.
 
-## 输出格式
+## Output format
 
-**只输出一个 ```verilog 代码块，块外不要有任何文字。** 代码块内是完整的、可直接
-分析的单个文件内容。
+**Output exactly one fenced ```verilog code block, with no text outside it.**
+The block must contain one complete file that can be parsed directly.
 
-## 优化提示
+## Optimization guidance
 
-先保证功能正确，再考虑其它。功能错误的实现落在 L1，得分 0.2；功能正确且可综合的
-实现落在 L3，得分 1.0。L1 到 L2 这一步是全表最大的一跳，把力气花在这里。
+Ensure functional correctness before optimizing other properties. A functionally incorrect
+implementation is classified as L1 and scores 0.2; a functionally correct, synthesizable
+implementation is classified as L3 and scores 1.0. The L1-to-L2 step is the largest jump
+in the scoring table, so focus your effort there.

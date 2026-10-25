@@ -6,14 +6,18 @@ agent/prompts/context.py at fb1c2803e5db0f32b59b9ba9100877f2a0d26412.
 
 import json
 import uuid
+import time
+from contextlib import nullcontext
 
 from .assets import card_text, load_assets, sha256
 from .retrieval import retrieve
+from .policy import modes, select_skills
 
 NOTICE = (
-    "以下是可选的通用参考方法，不是题目要求或检查结论。仅在适用时使用；"
-    "原题、接口和本次工具证据优先。不得补猜未指定行为，也不得省略所需模块。"
-    "最终仍须遵循上文的 RTL 输出格式。"
+    "The following material provides optional general methods, not task requirements or checker conclusions. "
+    "Use it only when applicable. The original task, interface, and current tool evidence take precedence. "
+    "Do not invent unspecified behavior or omit required modules. "
+    "Continue to follow the RTL output format specified above."
 )
 
 
@@ -21,7 +25,9 @@ def messages_hash(messages):
     return sha256(json.dumps(messages, ensure_ascii=False, sort_keys=True))
 
 
-def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, max_tokens, max_extra_tokens, diagnostic_first=False):
+def _prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, max_tokens, max_extra_tokens, diagnostic_first=False, skill_mode=None, rag_mode=None, retrieval_options=None, automatic=False, raw_feedback=None):
+    started = time.monotonic()
+    sm, rm = modes(skill_mode, rag_mode, skill_ids=skill_ids, rag=rag)
     if len(skill_ids) > 2 or len(set(skill_ids)) != len(skill_ids):
         raise ValueError("select at most two distinct skills")
     if not skill_phases or len(set(skill_phases)) != len(skill_phases):
@@ -31,34 +37,29 @@ def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, ma
     if type(diagnostic_first) is not bool:
         raise ValueError("diagnostic_first must be boolean")
     phase = "repair" if parent is not None else "generate"
-    key = ("knowledge_assets", bool(skill_ids), rag)
+    key = ("knowledge_assets", bool(skill_ids) and sm != 'off', False)
     if key not in ctx.store:
-        ctx.store[key] = load_assets(skills=bool(skill_ids), rag=rag)
+        ctx.store[key] = load_assets(skills=key[1], rag=False)
         ctx.record.emit("knowledge", "resources", resources=ctx.store[key]["resources"])
     assets = ctx.store[key]
-    pieces, groups = [], set()
-    for skill_id in skill_ids:
-        if skill_id not in assets["skills"]:
-            raise ValueError("unknown skill: " + skill_id)
+    pieces = []
+    selected, rejected = select_skills(assets, skill_ids, skill_phases, automatic=automatic) if sm != 'off' else ([], [])
+    for skill_id in selected:
         skill, body = assets["skills"][skill_id]
-        if skill.conflict_group in groups:
-            raise ValueError("conflicting skill methods: " + skill.conflict_group)
-        groups.add(skill.conflict_group)
-        if not set(skill_phases).issubset(skill.phases):
-            raise ValueError("unsupported phase for skill: " + skill_id)
         pieces.append({
             "id": skill_id, "version": skill.version, "kind": "skill",
             "text": f"[Skill {skill_id}@{skill.version}]\n{body}",
             "eligible": phase in skill_phases, "resource_sha256": skill.resource.sha256,
         })
     retrieval = {"reason": "disabled"}
-    if rag:
-        cards, retrieval = retrieve(assets["cards"], evidence, parent)
+    if rm != 'off':
+        from .runtime import retrieve_runtime
+        cards, retrieval = retrieve_runtime(evidence, parent, retrieval_options or {}, messages, raw_feedback)
         for card in cards:
             pieces.append({
-                "id": card.id, "version": card.version, "kind": "knowledge_card",
-                "text": card_text(card), "eligible": True,
-                "resource_sha256": sha256(card.model_dump_json()),
+                "id": card['card_id'], "version": card['version'], "kind": "knowledge_card",
+                "text": card['projection_text'], "eligible": True,
+                "resource_sha256": sha256(json.dumps(card, sort_keys=True)),
             })
     if diagnostic_first and parent is not None:
         pieces.sort(key=lambda piece: piece["kind"] != "knowledge_card")
@@ -70,11 +71,14 @@ def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, ma
         "required_messages_sha256": messages_hash(messages),
         "output_reserve": max_tokens, "max_extra_tokens": max_extra_tokens,
         "diagnostic_first": diagnostic_first,
+        "skill_mode": sm, "rag_mode": rm, "skill_selected": selected, "skill_rejected": rejected,
         "resources": assets["resources"], "retrieval": retrieval, "pieces": [],
     }
     packed = [dict(message) for message in messages]
     base_count = None
-    if any(piece["eligible"] for piece in pieces) and max_extra_tokens:
+    def active(piece):
+        return (sm if piece['kind'] == 'skill' else rm) == 'on'
+    if any(piece["eligible"] and active(piece) for piece in pieces) and max_extra_tokens:
         base_count = ctx.llm.tokenize(messages)
     report["required_tokens"] = base_count
     limit = ctx.config.services.model.max_model_len
@@ -85,6 +89,8 @@ def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, ma
         reason = "included"
         if not piece["eligible"]:
             reason = "phase_mismatch"
+        elif not active(piece):
+            reason = "shadow_only"
         elif not max_extra_tokens:
             reason = "knowledge_budget"
         elif digest in seen or any(text in message["content"] for message in messages):
@@ -105,7 +111,32 @@ def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, ma
         report["pieces"].append({
             k: v for k, v in piece.items() if k not in ("text", "eligible")
         } | {"text_sha256": digest, "status": reason})
-    report.update(messages_sha256=messages_hash(packed), packed_tokens=count)
+    report.update(messages_sha256=messages_hash(packed), packed_tokens=count,
+                  sent=[p['id'] for p in report['pieces'] if p['status'] == 'included'],
+                  elapsed_ms=round((time.monotonic()-started)*1000, 3))
     ctx.record.write_json(f"knowledge/{assembly_id}.json", report)
     ctx.record.emit("knowledge", "assembly", **report)
     return packed, report
+
+
+def prepare(ctx, messages, parent, evidence, **options):
+    """Preflight rejects configuration errors; optional runtime failures fail closed."""
+    from agent.llm.client import ModelError
+    try:
+        remaining = ctx.llm.optional_preparation_budget_s() if hasattr(ctx.llm, 'optional_preparation_budget_s') else None
+        if remaining is not None:
+            if remaining < 0.01:
+                raise ModelError('no optional preparation time', kind='timeout')
+            retrieval_options = dict(options.get('retrieval_options') or {})
+            retrieval_options['embedding_timeout_s'] = min(retrieval_options.get('embedding_timeout_s', 2.0), remaining / 2)
+            options['retrieval_options'] = retrieval_options
+        with ctx.llm.request_window(remaining) if remaining is not None else nullcontext():
+            return _prepare(ctx, messages, parent, evidence, **options)
+    except (ModelError, OSError, ValueError) as error:
+        report = {'assembly_id': uuid.uuid4().hex, 'reason': 'optional_knowledge_failure',
+                  'error': type(error).__name__, 'pieces': [], 'sent': [],
+                  'required_messages_sha256': messages_hash(messages),
+                  'messages_sha256': messages_hash(messages)}
+        ctx.record.emit('knowledge', 'assembly', **report)
+        ctx.record.write_json(f"knowledge/{report['assembly_id']}.json", report)
+        return messages, report
