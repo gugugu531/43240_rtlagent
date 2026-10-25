@@ -55,6 +55,10 @@ def _chat_deadline(method):
     """Share one time window across discovery, prompt preparation and generation."""
     @wraps(method)
     def run(self, *args, **kwargs):
+        if self._allowance_ledger is not None and self._permit is None:
+            raise ModelError("completion requires an active permit", kind="allowance")
+        if self._permit is not None and self._permit.call_id is not None:
+            raise ModelError("one permit allows exactly one completion request", kind="allowance")
         limit = kwargs.get("timeout_s")
         with self.request_window(limit):
             return method(self, *args, **kwargs)
@@ -74,6 +78,8 @@ class Client:
         self._usage: dict[str, dict] = {}
         self._active: dict[str, dict] = {}
         self._request_deadline: float | None = None
+        self._allowance_ledger = None
+        self._permit = None
         self._seq = 0
         self._model = _get(config, "model") or None
         self.base_url = _get(config, "base_url", "http://127.0.0.1:8000/v1").rstrip("/")
@@ -91,7 +97,10 @@ class Client:
     @contextmanager
     def request_window(self, timeout_s=None):
         """Bound optional preparation and chat by the same nested request window."""
-        limit = timeout_s if timeout_s is not None else _get(self.config, "timeout_s", 180)
+        limit = timeout_s if timeout_s is not None else (
+            self._permit.timeout_s if self._permit is not None
+            else _get(self.config, "timeout_s", 180)
+        )
         if not math.isfinite(limit) or limit <= 0:
             raise ValueError("chat timeout must be positive and finite")
         deadline = time.monotonic() + self.budget.timeout(limit)
@@ -101,6 +110,38 @@ class Client:
             yield
         finally:
             self._request_deadline = previous
+
+    @contextmanager
+    def permitted(self, permit):
+        """Opt in to one ledger; preparation and one completion share its window."""
+        from agent.runtime.allowance import AllowanceError, CompletionPermit
+
+        if not isinstance(permit, CompletionPermit):
+            raise TypeError("a granted CompletionPermit is required")
+        if self._permit is not None:
+            raise ModelError("nested completion permits are not allowed", kind="allowance")
+        if permit._ledger.budget is not self.budget or (
+            self._allowance_ledger is not None and permit._ledger is not self._allowance_ledger
+        ):
+            raise ModelError("completion permit belongs to another ledger or budget", kind="allowance")
+        try:
+            permit._begin()
+        except AllowanceError as error:
+            raise ModelError(str(error), kind="allowance") from error
+        self._allowance_ledger = permit._ledger
+        previous = self._request_deadline
+        self._permit = permit
+        self._request_deadline = min(previous, permit.deadline) if previous is not None else permit.deadline
+        try:
+            if permit.remaining_s() <= 0:
+                raise ModelError("completion permit expired before preparation", kind="timeout")
+            if any(key in self.generation for key in ("messages", "model", "prompt", "input")):
+                raise ModelError("generation metadata cannot replace permitted request inputs", kind="allowance")
+            yield permit
+        finally:
+            self._request_deadline = previous
+            self._permit = None
+            permit._finish()
 
     def assert_replay_consumed(self):
         if self.replay is not None:
@@ -132,8 +173,20 @@ class Client:
         authenticated=True,
         call_id=None,
     ):
+        completion = method.upper() == "POST" and url.rstrip("/").endswith("/chat/completions")
+        permit = self._permit if completion else None
+        if completion and self._allowance_ledger is not None:
+            if permit is None:
+                raise ModelError("completion requires an active permit", kind="allowance")
+            from agent.runtime.allowance import AllowanceError
+            try:
+                permit._check_send(payload.get("max_tokens") if isinstance(payload, dict) else None)
+            except AllowanceError as error:
+                raise ModelError(str(error), kind="allowance") from error
         if self._request_deadline is not None:
             available = self._request_deadline - time.monotonic()
+            if self._permit is not None:
+                available = min(available, self._permit.remaining_s())
             if available <= 0:
                 self.record.emit(
                     "budget", "model_deadline_exhausted", purpose=purpose,
@@ -144,7 +197,8 @@ class Client:
         self._seq += 1
         call_id = call_id or f"m{self._seq:04d}"
         timeout = self.budget.timeout(
-            min(timeout_s, _get(self.config, "timeout_s", 180))
+            timeout_s if self._permit is not None
+            else min(timeout_s, _get(self.config, "timeout_s", 180))
         )
         headers = {"Content-Type": "application/json"}
         api_key = _get(self.config, "api_key")
@@ -159,24 +213,23 @@ class Client:
                 "timeout_s": timeout,
             },
         )
-        self.record.emit(
-            "llm"
-            if purpose not in {"models", "tokenize", "apply_template"}
-            else purpose,
-            "started",
-            call_id=call_id,
-            purpose=purpose,
-        )
-        start = time.monotonic()
         event_tool = (
             "llm"
-            if purpose not in {"models", "tokenize", "apply_template"}
+            if permit is not None or purpose not in {"models", "tokenize", "apply_template"}
             else purpose
         )
+        self.record.emit(event_tool, "started", call_id=call_id, purpose=purpose)
+        start = time.monotonic()
         self._active[call_id] = {"tool": event_tool, "purpose": purpose, "start": start}
         if event_tool == "llm":
             self._usage[call_id] = {"tokens_in": None, "tokens_out": None}
         try:
+            if permit is not None:
+                try:
+                    permit._sent(call_id, payload["max_tokens"])
+                except AllowanceError as error:
+                    self._usage.pop(call_id, None)
+                    raise ModelError(str(error), kind="allowance") from error
             response = self.http.request(
                 method,
                 url,
@@ -205,6 +258,8 @@ class Client:
             raise ModelError(
                 f"model {kind} failure", kind=kind, call_id=call_id
             ) from exc
+        if permit is not None:
+            permit._response()
         # 无论 HTTP 状态码与 JSON 格式是否有效，保留原始响应。
         self.record.write_text(f"calls/{call_id}/response.txt", response.text)
         self.record.write_json(
@@ -218,6 +273,8 @@ class Client:
             json_valid = False
         else:
             self.record.write_json(f"calls/{call_id}/response.json", body)
+        if permit is not None:
+            permit._response(body)
         if (
             event_tool == "llm"
             and isinstance(body, dict)
@@ -341,7 +398,7 @@ class Client:
             url,
             payload=payload,
             purpose="tokenize",
-            timeout_s=min(30, _get(self.config, "timeout_s", 180)),
+            timeout_s=30 if self._permit is not None else min(30, _get(self.config, "timeout_s", 180)),
         )
         count = _count(body.get("count")) if isinstance(body, dict) else None
         if llama_cpp:
@@ -406,7 +463,7 @@ class Client:
     ):
         model = self.baseline_model() if baseline else self.model()
         limit = _get(self.config, "max_model_len")
-        if limit is not None and not baseline:
+        if limit is not None and (not baseline or self._permit is not None):
             count = self.tokenize(messages, model=model, tools=tools)
             max_tokens = min(max_tokens, limit - count)
             if max_tokens <= 0:
@@ -426,6 +483,21 @@ class Client:
             "max_tokens": max_tokens,
             **self.generation,
         }
+        if self._permit is not None:
+            # Generation metadata is merged first so it cannot expand a permit
+            # or bypass the context-space calculation above.
+            caps = [max_tokens, self._permit.max_tokens, payload.get("max_tokens")]
+            for name in ("max_completion_tokens", "max_output_tokens"):
+                if name in payload:
+                    caps.append(payload[name])
+            if any(type(cap) is not int or cap <= 0 for cap in caps):
+                raise ModelError("invalid permitted output-token limit", kind="allowance")
+            if payload.get("n", 1) != 1 or type(payload.get("n", 1)) is not int:
+                raise ModelError("one permit requires exactly one completion choice", kind="allowance")
+            payload["max_tokens"] = min(caps)
+            for name in ("max_completion_tokens", "max_output_tokens"):
+                if name in payload:
+                    payload[name] = payload["max_tokens"]
         if response_format is not None:
             payload["response_format"] = response_format
         if tools:
@@ -438,6 +510,7 @@ class Client:
             purpose=purpose,
             timeout_s=timeout_s
             if timeout_s is not None
+            else self._permit.timeout_s if self._permit is not None
             else _get(self.config, "timeout_s", 180),
             authenticated=not baseline,
         )
