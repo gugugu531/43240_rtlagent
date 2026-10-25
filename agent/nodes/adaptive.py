@@ -11,6 +11,7 @@ from agent.rtl.adaptive_analysis import analysis_request, parse_analysis, choose
 from agent.rtl.adaptive_check import (
     checker_request, parse_checker, review_request, approve_review,
     revision_request, parse_checker_revision,
+    format_correction_request, parse_format_correction,
 )
 from agent.rtl.adaptive_repair import repair_request, parse_repair
 from agent.rtl.adaptive_assessment import BehaviorAssessment, CandidateAssessment
@@ -79,7 +80,8 @@ def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True, 
 def _generation_messages(ctx):
     data = _data(ctx)
     return ctx.prompts.render("repair.j2", task=ctx.task, feedback="", parent=None,
-                              plan=data["analysis"].model_dump(mode="json") if data.get("analysis") else None)
+                              plan=data["analysis"].model_dump(mode="json", exclude={"requirements"})
+                              if data.get("analysis") else None)
 
 
 def _candidate(ctx, reply, *, parent=None, stage="draft", extraction=None):
@@ -173,7 +175,39 @@ def build_checker(ctx: Ctx, state: State) -> State:
     draft = parse_checker(reply.content, ctx.task, state["route"], finish_reason=reply.finish_reason)
     data["checker_draft"] = draft
     _save(ctx, "checker-draft", draft.public_dict())
+    if draft.preflight.get("format_correction_eligible"):
+        data["checker_syntax_reply"] = reply
+        return state.update(checker_status="format_invalid")
     return state.update(checker_status=draft.status)
+
+
+@node("adaptive_correct_checker_format", reads=[], writes=["checker_status"])
+def correct_checker_format(ctx: Ctx, state: State) -> State:
+    data, settings = _data(ctx), _data(ctx)["settings"]
+    if data["checker_revision_used"]:
+        raise ValueError("checker recovery is limited to one format correction or semantic revision")
+    original, prior_reply = data["checker_draft"], data["checker_syntax_reply"]
+    messages = format_correction_request(ctx.task, original, prior_reply.content,
+                                         finish_reason=prior_reply.finish_reason)
+    data["checker_revision_used"] = True
+    lineage = {"attempt": 1, "original_call_id": prior_reply.call_id,
+               "original_response_sha256": original.preflight["response_sha256"],
+               "original_draft_artifact": "adaptive/checker-draft.json", "status": "started"}
+    data["checker_format_correction"] = lineage
+    _save(ctx, "checker-format-correction", lineage)
+    reply = _request(ctx, "format_correction", messages, limits=settings["revision"],
+                     followup_s=settings["review"]["timeout_s"] + _rtl_followup(settings))
+    lineage.update(status="unavailable", request=data["request_outcomes"]["format_correction"])
+    if reply is not None:
+        draft = parse_format_correction(reply.content, ctx.task, original, prior_reply.content,
+                                        original_finish_reason=prior_reply.finish_reason,
+                                        finish_reason=reply.finish_reason)
+        data["checker_draft"] = draft
+        _save(ctx, "checker-format-corrected-draft", draft.public_dict())
+        lineage.update(status=draft.status, checker_hash=draft.checker_hash or None,
+                       reason=draft.reason, binding=draft.preflight.get("format_correction"))
+    _save(ctx, "checker-format-correction", lineage)
+    return state.update(checker_status=lineage["status"])
 
 
 def _rtl_followup(settings):
@@ -183,7 +217,7 @@ def _rtl_followup(settings):
 def _review_checker(ctx, draft, stage):
     data, settings = _data(ctx), _data(ctx)["settings"]
     followup = _rtl_followup(settings)
-    if stage == "review":
+    if stage == "review" and not data["checker_revision_used"]:
         followup += settings["revision"]["timeout_s"] + settings["rereview"]["timeout_s"]
     reply = _request(ctx, stage, review_request(ctx.task, draft), followup_s=followup)
     if reply is None:
@@ -197,8 +231,12 @@ def _review_checker(ctx, draft, stage):
 
 @node("adaptive_review_checker", reads=[], writes=["checker_status"])
 def review_checker(ctx: Ctx, state: State) -> State:
-    frozen = _review_checker(ctx, _data(ctx)["checker_draft"], "review")
-    return state.update(checker_status=frozen.status if frozen else "review_unavailable")
+    data = _data(ctx)
+    frozen = _review_checker(ctx, data["checker_draft"], "review")
+    status = frozen.status if frozen else "review_unavailable"
+    if status == "rejected" and data["checker_revision_used"]:
+        status = "rejected_after_format_correction"
+    return state.update(checker_status=status)
 
 
 @node("adaptive_revise_checker", reads=[], writes=["checker_status"])
@@ -429,6 +467,7 @@ def finish(ctx: Ctx, state: State) -> State:
         "semantic_completeness_proven": False,
         "repair_authority_revoked": data.get("repair_authority_revoked"),
         "checker_revision": data.get("checker_revision"),
+        "checker_format_correction": data.get("checker_format_correction"),
         "selection": data.get("selection"), "request_outcomes": data["request_outcomes"],
         "budget": data["ledger"].snapshot(),
     })

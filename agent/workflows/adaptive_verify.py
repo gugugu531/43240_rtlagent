@@ -1,4 +1,4 @@
-"""First draft, one bounded checker revision, and one evidenced RTL repair."""
+"""First draft, one bounded checker recovery, and one evidenced RTL repair."""
 
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
@@ -38,6 +38,7 @@ class AdaptiveParameters(BaseModel):
         "initialize": "adaptive_initialize", "analyze": "adaptive_analyze",
         "generate": "adaptive_generate", "rescue": "adaptive_rescue",
         "build_checker": "adaptive_build_checker", "review_checker": "adaptive_review_checker",
+        "correct_checker_format": "adaptive_correct_checker_format",
         "revise_checker": "adaptive_revise_checker", "rereview_checker": "adaptive_rereview_checker",
         "check": "adaptive_check", "decide": "adaptive_decide",
         "repair": "adaptive_repair", "recheck": "adaptive_recheck",
@@ -54,7 +55,10 @@ def build(g, p):
         ("generate", "rescue", default),
         ("rescue", "check", when(has_candidate=True)), ("rescue", "finish", default),
         ("build_checker", "review_checker", when(checker_status="ready")),
+        ("build_checker", "correct_checker_format", when(checker_status="format_invalid")),
         ("build_checker", "check", default),
+        ("correct_checker_format", "review_checker", when(checker_status="ready")),
+        ("correct_checker_format", "check", default),
         ("review_checker", "revise_checker", when(checker_status="rejected")),
         ("review_checker", "check", default),
         ("revise_checker", "rereview_checker", when(checker_status="ready")),
