@@ -162,4 +162,3 @@ class CompletionLedger:
             raise ValueError("explicit termination evidence is required")
         permit.terminal_confirmed = True
         self._emit("termination_confirmed", permit, evidence=evidence)
-
