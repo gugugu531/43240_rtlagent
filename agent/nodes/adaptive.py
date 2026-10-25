@@ -277,7 +277,15 @@ def _check_candidate(ctx, candidate, allowance_s):
         return check
 
     interface = run_structure("interface")
-    lint = run_structure("lint", skipped=interface.blocking)
+    # A candidate declaration our parser cannot read still needs a compiler
+    # diagnosis. Keep the interface error intact: it cannot authorize a repair,
+    # functional sampling, or promotion of an unverifiable child on its own.
+    candidate_parse_error = (
+        interface.status == "error" and interface.failure_kind == "unknown"
+        and interface.details.get("parse_error_scope") == "candidate"
+    )
+    compile_allowed = not interface.blocking or candidate_parse_error
+    lint = run_structure("lint", skipped=not compile_allowed)
     if approved and lint.status == "passed" and not interface.blocking and end > time.monotonic():
         with ctx.record.span("adaptive_observe", candidate_id=candidate.id, route=frozen.route):
             trace = observe(ctx, candidate, plan, timeout_s=end - time.monotonic())
@@ -304,7 +312,7 @@ def _check_candidate(ctx, candidate, allowance_s):
         assessment["behavior"] = {"route": frozen.route, "status": status,
                                   "failure_kind": trace.failure_kind, "details": details}
         _save(ctx, f"assessments/{candidate.id}/behavior", assessment["behavior"])
-    run_structure("synth", skipped=lint.status != "passed" or interface.blocking)
+    run_structure("synth", skipped=lint.status != "passed" or not compile_allowed)
     data["assessments"][candidate.id] = assessment
     data.setdefault("checks", {})[candidate.id] = checks
     _save(ctx, f"assessments/{candidate.id}/assessment", assessment)
@@ -408,13 +416,19 @@ def finish(ctx: Ctx, state: State) -> State:
     selected = ctx.candidates.selected_id
     assessment = data["assessments"].get(selected, {})
     structure = assessment.get("structure", {})
-    structural_passed = all(structure.get(stage, {}).get("status") == "passed" for stage in ("lint", "synth"))
+    interface = structure.get("interface", {})
+    structural_passed = (
+        interface.get("status") in ("passed", "failed", "skipped")
+        and not interface.get("blocking", True)
+        and all(structure.get(stage, {}).get("status") == "passed" for stage in ("lint", "synth"))
+    )
     functional_passed = assessment.get("behavior", {}).get("status") == "passed"
     status = "completed" if structural_passed and functional_passed and not data.get("repair_authority_revoked") else "stopped"
     _save(ctx, "result", {
         "status": status, "selected_id": selected, "delivery": "complete_rtl" if selected else "empty",
         "stop_reason": state["stop_reason"], "checker_status": state["checker_status"],
         "route": data["routing"].public_dict(), "structural_passed": structural_passed,
+        "interface_verified": interface.get("status") == "passed",
         "functional_passed": functional_passed, "assessment": assessment,
         "coverage_scope": assessment.get("behavior", {}).get("route", "structural"),
         "semantic_completeness_proven": False,

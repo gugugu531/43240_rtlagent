@@ -83,6 +83,21 @@ class InterfaceCheckResult:
     def rc(self) -> int:
         return 1 if self.blocking else 0
 
+    @property
+    def parse_error_scope(self) -> str | None:
+        if self.status != "parse_error":
+            return None
+        # An unreadable explicit contract takes precedence when both sides fail.
+        # Candidate parser limitations are not proof of invalid RTL: a caller may
+        # obtain compiler diagnostics without treating this result as a pass.
+        if self.expected.source == "interface_file" and (
+            not self.expected.parsed or not self.expected.complete
+        ):
+            return "public"
+        if any(item.kind == "actual_parse" for item in self.differences):
+            return "candidate"
+        return "public"
+
     def trace_dict(self) -> dict[str, object]:
         return {
             "status": self.status,
@@ -95,6 +110,7 @@ class InterfaceCheckResult:
             "actual_complete": self.actual.complete,
             "expected_module": self.expected.module_name,
             "actual_module": self.actual.module_name,
+            "parse_error_scope": self.parse_error_scope,
             "differences": [item.public_dict() for item in self.differences],
             "warnings": list(self.expected.warnings + self.actual.warnings),
             "excerpt": self.summary[:500],
