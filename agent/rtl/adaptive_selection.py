@@ -80,13 +80,17 @@ def _bound(result, assessment, *, behavior=False):
 
 def _structure(assessment, *, require_complete=False):
     results = assessment["structure"]
-    if set(results) - {"interface", "lint", "synth"}:
+    if set(results) - {"interface", "lint", "synth", "observation"}:
         raise AssessmentError("unknown structure check kind")
-    if require_complete and set(results) != {"interface", "lint", "synth"}:
+    if require_complete and not {"interface", "lint", "synth"}.issubset(results):
         raise AssessmentError("promotion requires interface, lint and synthesis assessments")
     failures, executions = [], []
     for kind, result in results.items():
         details = _bound(result, assessment)
+        if kind == "observation":
+            _hash(assessment.get("check_plan_hash"), "observation sampling plan")
+            if details.get("plan_hash") != assessment["check_plan_hash"]:
+                raise AssessmentError("observation compilation used a different sampling plan")
         executions.append(details["execution_id"])
         if (result.get("status") == "failed" and result.get("failure_kind") == "code"
                 and (kind != "interface" or result.get("blocking") is True)
@@ -98,8 +102,10 @@ def _structure(assessment, *, require_complete=False):
 
 
 def _structure_ok(assessment):
-    _structure(assessment, require_complete=True)
+    failures = _structure(assessment, require_complete=True)
     structure = assessment["structure"]
+    if "observation" in failures:
+        raise AssessmentError("child observation compilation has a known RTL code failure")
     for kind in ("lint", "synth"):
         if (structure[kind].get("status") != "passed" or type(structure[kind].get("rc")) is not int
                 or structure[kind]["rc"] != 0 or structure[kind].get("failure_kind") in ("environment", "timeout", "checker")):
@@ -323,7 +329,12 @@ def repair_opportunity(assessment, checker=None):
         _identity(assessment)
         failures = _structure(assessment)
         if failures:
-            kind = next(name for name in ("interface", "lint", "synth") if name in failures)
+            kind = next(name for name in ("interface", "lint", "observation", "synth") if name in failures)
+            if kind == "observation":
+                _frozen(checker)
+                if (assessment.get("checker_hash") != checker.checker_hash
+                        or assessment.get("check_plan_hash") != check_plan_hash(checker)):
+                    raise AssessmentError("observation error is not bound to the approved public checker")
             return {"kind": "structure", "check": kind, "failure": assessment["structure"][kind]}
         if not _has_behavior(assessment):
             return None
@@ -374,7 +385,14 @@ def promotion_decision(parent, child, *, repair_kind, checker=None):
             if isinstance(behavior, dict) and isinstance(behavior.get("details"), dict) and behavior["details"].get("execution_id"):
                 identity = behavior["details"]["execution_id"]
                 if identity in executions:
-                    raise AssessmentError("behavior execution reused a structure execution identity")
+                    observation = assessment["structure"].get("observation", {})
+                    if observation.get("details", {}).get("execution_id") != identity:
+                        raise AssessmentError("behavior execution reused an unrelated structure execution identity")
+                    # Observation and interpretation describe the same actual sample run.
+                    # A second invented UUID would incorrectly imply another execution.
+                    alias = observation["details"].get("sampling_execution_id", identity)
+                    if alias != identity:
+                        raise AssessmentError("observation sampling execution alias is inconsistent")
                 executions.add(identity)
         if old_executions & new_executions:
             raise AssessmentError("child reused an execution from a parent check")
