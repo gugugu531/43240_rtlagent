@@ -19,8 +19,13 @@ response per obligation, not unique transaction pairing. Check whether abort and
 warmup are justified and stimuli can exercise the required scenario. Do not infer
 floor-integer square root semantics for an approximate fixed-point algorithm.
 
-Preflight proves syntax/source binding and predicted comparability only; it contains
-no actual DUT comparisons and does not prove your semantic judgement correct.
+Preflight is a compact static summary of syntax/source binding and predicted
+comparability, not DUT evidence or proof of semantic correctness. It retains global
+and per-case counts, unknown/excluded counts, requirement bindings and any warnings;
+redundant per-event comparison tables and their signatures remain in the saved draft.
+The full checker, stimuli and public citations are supplied. Review their semantics
+and relevant boundary cases; do not reconstruct every precomputed event table or
+hash. Zero comparisons, unknown values and unexercised requirements are not passes.
 Reject a concrete disagreement with the public requirement; use unknown if semantics
 cannot be determined. Do not demand a different unstated design convention, infer
 missing requirements, or approve simply because the checker runs. Accepted checking

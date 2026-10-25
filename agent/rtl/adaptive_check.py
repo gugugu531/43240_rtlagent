@@ -362,6 +362,21 @@ def _check_integrity(draft):
         raise CheckerError("checker content no longer matches its construction hash")
 
 
+def _review_preflight(draft):
+    """Omit redundant event tables only from the review message, not the saved draft."""
+    summary = draft.preflight  # The property returns an independent JSON copy.
+    for key in ("sampling_plan_hash", "response_form"):
+        summary.pop(key, None)
+    expectations = summary.get("expectations")
+    if isinstance(expectations, dict):
+        for key in ("comparison_events", "suite_hash"):
+            expectations.pop(key, None)
+    coverage = summary.get("coverage")
+    if isinstance(coverage, dict):
+        coverage.pop("suite_hash", None)
+    return summary
+
+
 def review_request(task, draft):
     _check_integrity(draft)
     if _task_hash(task) != draft.task_hash:
@@ -371,7 +386,7 @@ def review_request(task, draft):
         {"role": "user", "content": _canonical({
             "task": _public_task(task), "source_catalog": source_catalog(task.prompt + "\n" + task.interface),
             "route": draft.route, "checker_hash": draft.checker_hash,
-            "checker": draft.payload, "preflight": draft.preflight,
+            "checker": draft.payload, "preflight": _review_preflight(draft),
         })},
     ]
 
