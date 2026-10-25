@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import hashlib
 import itertools
 import json
+import math
 from pathlib import Path
 import re
 
@@ -52,6 +53,12 @@ def _route(route):
     return route
 
 
+def _failure_reason(error):
+    # A decoder error can include an invalid key verbatim. Keep its escaped form
+    # readable and recordable without accepting or silently dropping characters.
+    return str(error).encode("utf-8", errors="backslashreplace").decode("utf-8")[:4000]
+
+
 def _load(text, *, finish_reason=None, max_bytes=524288):
     if finish_reason == "length":
         raise CheckerError("checker response was truncated by the output limit")
@@ -86,9 +93,15 @@ def _load(text, *, finish_reason=None, max_bytes=524288):
         if count > 20000:
             raise CheckerError("checker JSON exceeds the value count limit")
         if isinstance(node, dict):
+            for key in node:
+                key.encode("utf-8")
             pending.extend(node.values())
         elif isinstance(node, list):
             pending.extend(node)
+        elif isinstance(node, str):
+            node.encode("utf-8")
+        elif isinstance(node, float) and not math.isfinite(node):
+            raise CheckerError("checker JSON contains a non-finite number")
     return value
 
 
@@ -351,7 +364,7 @@ def parse_checker(text, task, route, *, finish_reason=None):
         return CheckerDraft("ready", route, "schema and preflight passed; semantic review is still required",
                             checker_hash, task_hash, _canonical(payload), _canonical(preflight))
     except (ValueError, TypeError, KeyError, RecursionError, OverflowError) as error:
-        return CheckerDraft("invalid", route, str(error)[:4000], "", task_hash)
+        return CheckerDraft("invalid", route, _failure_reason(error), "", task_hash)
 
 
 def _check_integrity(draft):
@@ -415,7 +428,7 @@ def approve_review(text, draft, *, finish_reason=None):
         status = {"accept": "approved", "reject": "rejected", "unknown": "unknown"}[review["decision"]]
         reason = review["reason"][:4000]
     except (ValueError, TypeError, KeyError, RecursionError, OverflowError) as error:
-        reason = str(error)[:4000]
+        reason = _failure_reason(error)
     return FrozenChecker(status, draft.route, reason, draft.checker_hash, draft.task_hash,
                          draft._payload_json, draft._preflight_json, _canonical(review))
 
@@ -477,6 +490,21 @@ def _preserve_revision_scope(original, revised, route):
                 raise CheckerError("revision must preserve original property IDs and requirement bindings")
 
 
+def _revision_comparison(payload, route):
+    # Fill schema defaults only for no-op detection. Stored payloads and their
+    # construction/review hashes retain the exact validated representation.
+    if route == "model":
+        return SuiteModel.model_validate(payload).model_dump(mode="json")
+    from agent.rtl.properties import PropertySuite
+
+    normalized = PropertySuite.model_validate(payload).model_dump(mode="json")
+    normalized["properties"].sort(key=lambda prop: prop["id"])
+    for prop in normalized["properties"]:
+        for key in ("requirements", "abort_requirements"):
+            prop[key].sort()
+    return normalized
+
+
 def parse_checker_revision(text, task, draft, rejected, *, finish_reason=None):
     """Strictly preflight a changed checker; only a fresh review can authorize its use."""
     try:
@@ -486,14 +514,8 @@ def parse_checker_revision(text, task, draft, rejected, *, finish_reason=None):
             return revised
         original_payload, revised_payload = draft.payload, revised.payload
         _preserve_revision_scope(original_payload, revised_payload, draft.route)
-        # Property order is presentational; reordering alone is not a correction.
-        if draft.route == "properties":
-            for payload in (original_payload, revised_payload):
-                payload["properties"].sort(key=lambda prop: prop["id"])
-                for prop in payload["properties"]:
-                    for key in ("requirements", "abort_requirements"):
-                        prop[key].sort()
-        if original_payload == revised_payload:
+        if (_revision_comparison(original_payload, draft.route)
+                == _revision_comparison(revised_payload, draft.route)):
             raise CheckerError("checker revision made no substantive contract change")
         preflight = {**revised.preflight, "revision": {
             "attempt": 1, "parent_checker_hash": draft.checker_hash,
@@ -504,4 +526,4 @@ def parse_checker_revision(text, task, draft, rejected, *, finish_reason=None):
                             revised.checker_hash, revised.task_hash,
                             revised._payload_json, _canonical(preflight))
     except (ValueError, TypeError, KeyError, RecursionError, OverflowError) as error:
-        return CheckerDraft("invalid", draft.route, str(error)[:4000], "", _task_hash(task))
+        return CheckerDraft("invalid", draft.route, _failure_reason(error), "", _task_hash(task))
