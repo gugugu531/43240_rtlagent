@@ -283,8 +283,13 @@ def _model_preflight(value, task):
     }
 
 
-def _async_preflight(value, task_text):
-    """Require an off-edge reset observation when the public text explicitly requires it."""
+def _has_positive_async_reset(text):
+    """Recognize explicit mentions, excluding local reset negations in English/Chinese.
+
+    This is a conservative preflight, not a semantic review. Keep negation local
+    to each mention so a different reset's negative clause cannot hide a positive
+    requirement. Apply the same rule to public text and supporting quotations.
+    """
     pattern = (
         r"\basync(?:hronous(?:ly)?)?\b(?:[\s-]+(?:active|low|high|level|sensitive))*"
         r"[\s-]+(?:reset|clear)(?:s|ting|ing)?\b|"
@@ -292,10 +297,34 @@ def _async_preflight(value, task_text):
         r"[\s-]+async(?:hronous(?:ly)?)?\b|异步(?:的|低电平|高电平|有效|\s)*(?:复位|清零)|"
         r"(?:复位|清零)(?:为|是|采用|使用|\s)*异步"
     )
-    if not re.search(pattern, task_text, re.I):
+    negative_before = (
+        r"\b(?:no|without|neither|not|never|[a-z]+n['’]t)\s+"
+        r"(?:(?:an?|any|use|uses|using|have|has|need|needs|require|requires|"
+        r"support|supports|provide|provides|implement|implements|include|includes)\s+)*$|"
+        r"\bnon[-\s]$|\b(?:instead\s+of|rather\s+than)\s+(?:an?\s+)?$|"
+        r"(?:没有|无需|不|未|无|非)"
+        r"(?:\s*(?:任何|一个|应该|应|需要|要求|支持|采用|使用|提供|实现|包含))*\s*$"
+    )
+    negative_after = (
+        r"^\s*(?:(?:is|are|was|should|must|shall|will|can|may|does|do)\s+)?"
+        r"(?:also\s+)?(?:(?:not|(?:is|are|was|were)n['’]t)\s+(?:be\s+)?"
+        r"(?:required|needed|supported|used|implemented|provided|"
+        r"present|available|exist)|absent|unnecessary)\b|"
+        r"^\s*(?:不需要|无需|不支持|不使用|不采用|不存在|未使用|未采用|未实现|不是必需)"
+    )
+    for match in re.finditer(pattern, text, re.I):
+        if not (re.search(negative_before, text[:match.start()], re.I)
+                or re.search(negative_after, text[match.end():], re.I)):
+            return True
+    return False
+
+
+def _async_preflight(value, task_text):
+    """Require an off-edge reset observation when the public text explicitly requires it."""
+    if not _has_positive_async_reset(task_text):
         return
     resets = value.get("async_resets") or ([value["async_reset"]] if value.get("async_reset") else [])
-    if not resets or not any(re.search(pattern, r["quote"], re.I) for r in value["requirements"]):
+    if not resets or not any(_has_positive_async_reset(r["quote"]) for r in value["requirements"]):
         raise CheckerError("explicit asynchronous reset needs a quoted asynchronous reset model")
     clocks = set(value.get("clocks") or {value["clock"]["port"]: value["clock"]})
     for reset in resets:
