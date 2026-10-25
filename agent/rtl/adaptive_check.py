@@ -332,9 +332,21 @@ def parse_checker(text, task, route, *, finish_reason=None):
                 raise CheckerError("unsupported needs exactly status and a nonempty reason")
             return CheckerDraft("unsupported", route, response["reason"][:4000], "", task_hash,
                                 _preflight_json=_canonical({"claim_independently_confirmed": False}))
-        if set(response) != {"status", "checker"} or response.get("status") != "ready" or not isinstance(response.get("checker"), dict):
-            raise CheckerError("ready response needs exactly status and a checker object")
-        payload, preflight = (_model_preflight if route == "model" else _properties_preflight)(response["checker"], task)
+        if set(response).intersection({"status", "checker", "reason"}):
+            if set(response) != {"status", "checker"} or response.get("status") != "ready" or not isinstance(response.get("checker"), dict):
+                raise CheckerError("ready response needs exactly status and a checker object")
+            value, response_form = response["checker"], "wrapped"
+        else:
+            # A bare checker is an explicit alternate grammar, never a repaired wrapper.
+            required = {"schema_version", "requirements"} | (
+                {"mode", "ports", "outputs", "cases"} if route == "model"
+                else {"sampling", "properties"}
+            )
+            if not required.issubset(response):
+                raise CheckerError(f"bare {route} checker needs its complete top-level structure")
+            value, response_form = response, "bare_checker"
+        payload, preflight = (_model_preflight if route == "model" else _properties_preflight)(value, task)
+        preflight = {**preflight, "response_form": response_form}
         checker_hash = _digest({"task_hash": task_hash, "route": route, "checker": payload})
         return CheckerDraft("ready", route, "schema and preflight passed; semantic review is still required",
                             checker_hash, task_hash, _canonical(payload), _canonical(preflight))
