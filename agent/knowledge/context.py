@@ -21,13 +21,15 @@ def messages_hash(messages):
     return sha256(json.dumps(messages, ensure_ascii=False, sort_keys=True))
 
 
-def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, max_tokens, max_extra_tokens):
+def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, max_tokens, max_extra_tokens, diagnostic_first=False):
     if len(skill_ids) > 2 or len(set(skill_ids)) != len(skill_ids):
         raise ValueError("select at most two distinct skills")
     if not skill_phases or len(set(skill_phases)) != len(skill_phases):
         raise ValueError("skill_phases must be nonempty and unique")
     if type(max_extra_tokens) is not int or not 0 <= max_extra_tokens <= 8192:
         raise ValueError("knowledge_max_tokens must be in 0..8192")
+    if type(diagnostic_first) is not bool:
+        raise ValueError("diagnostic_first must be boolean")
     phase = "repair" if parent is not None else "generate"
     key = ("knowledge_assets", bool(skill_ids), rag)
     if key not in ctx.store:
@@ -58,6 +60,8 @@ def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, ma
                 "text": card_text(card), "eligible": True,
                 "resource_sha256": sha256(card.model_dump_json()),
             })
+    if diagnostic_first and parent is not None:
+        pieces.sort(key=lambda piece: piece["kind"] != "knowledge_card")
     assembly_id = uuid.uuid4().hex
     report = {
         "assembly_id": assembly_id, "phase": phase,
@@ -65,6 +69,7 @@ def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, ma
         "parent_hash": parent.code_hash if parent else None,
         "required_messages_sha256": messages_hash(messages),
         "output_reserve": max_tokens, "max_extra_tokens": max_extra_tokens,
+        "diagnostic_first": diagnostic_first,
         "resources": assets["resources"], "retrieval": retrieval, "pieces": [],
     }
     packed = [dict(message) for message in messages]
