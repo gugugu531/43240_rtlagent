@@ -122,10 +122,14 @@ _TYPE_WORDS_RE = re.compile(
 def parse_expected_interface(
     interface: str, prompt: str = "", *, top: str | None = None
 ) -> InterfaceSpec:
-    """Use an interface file when present; otherwise parse only prompt bullets."""
+    """Use an interface file, or conservative public prompt declarations."""
     if interface and interface.strip():
         return parse_module_interface(interface, source="interface_file", top=top)
-    return parse_prompt_interface(prompt, top=top)
+    from agent.rtl.public_interface import supplement_public_interface
+
+    return supplement_public_interface(
+        prompt, parse_prompt_interface(prompt, top=top), top=top
+    )
 
 
 def parse_prompt_interface(prompt: str, *, top: str | None = None) -> InterfaceSpec:
