@@ -16,12 +16,12 @@ class AdaptiveParameters(BaseModel):
     profile: StageLimit = StageLimit(timeout_s=180, max_tokens=4096)
     draft: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     construction: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
-    review: StageLimit = StageLimit(timeout_s=360, max_tokens=8192)
+    review: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     repair: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     first_tools_s: float = Field(default=300, gt=0)
     recheck_tools_s: float = Field(default=600, gt=0)
     max_calls: int = Field(default=5, gt=0, le=5)
-    max_output_tokens: int = Field(default=110592, gt=0)
+    max_output_tokens: int = Field(default=135168, gt=0)
     knowledge_max_tokens: int = Field(default=8192, ge=0, le=8192)
     sequential_skill: Literal["rtl-sequential-state-update", "rtl-sequential-state-update-v3"] = "rtl-sequential-state-update"
     rag: bool = True

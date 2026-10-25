@@ -1,7 +1,7 @@
 # 普通可配置预算；没有独立研究模式。参数覆盖见工作流的 AdaptiveParameters。
 workflow: adaptive_verify
 runtime:
-  deadline_s: 5400
+  deadline_s: 7200
   reserve_s: 120
   recording: {level: full}
 services:
