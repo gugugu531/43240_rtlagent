@@ -12,6 +12,8 @@
 小模型的8寄存器限制按命名状态变量计数，例如6位数据寄存器加3位计数器是2个变量，不是9个。
 编译与功能修复共用一次名额；只有明确代码错误或获准检查器的有效反例才修。归因和完整RTL在同一请求中返回，
 checker可疑或题意未定不改稿。首稿未形成时最多一次rescue，且服务已返回有效响应；rescue取消构造和正常修复。
+归因决策可使用JSON代码块或唯一裸JSON前缀；`rtl_error`之后必须紧跟唯一完整Verilog代码块。
+两种形式执行相同字段与RTL校验，拒绝重复键、额外正文、多个对象/代码块和截断，不补猜决策。
 HTTP结束未确认时不追加请求，已有候选继续保留。
 
 使用 `AGENT_CONFIG=config/adaptive_verify.yaml ./run.sh <input> <output>`；HIP服务使用 `config/adaptive_hip.yaml`。

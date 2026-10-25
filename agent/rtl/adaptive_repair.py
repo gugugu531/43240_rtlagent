@@ -31,21 +31,43 @@ def parse_repair(text, top, *, finish_reason=None):
         raise ValueError("combined repair response was truncated")
     if not isinstance(text, str) or len(text.encode()) > 524288:
         raise ValueError("invalid combined repair response size")
-    match = re.fullmatch(
-        r"\s*```json\s*\n(.*?)\n```\s*(?:```(?:verilog|systemverilog|sv)\s*\n(.*?)\n```\s*)?",
-        text, re.DOTALL,
-    )
-    if not match:
-        raise ValueError("repair requires one JSON decision and an optional complete RTL block")
+    envelope_error = "repair requires one JSON decision and an optional complete RTL block"
+    body = text.strip()
+    header = re.match(r"```json[ \t]*\r?\n", body)
+    if body.startswith("```") and header is None:
+        raise ValueError(envelope_error)
+    if header:
+        body = body[header.end():].lstrip(" \t\r\n")
     try:
-        decision = strict_json(match.group(1))
+        # raw_decode locates the exact JSON boundary, including escaped quotes and
+        # braces in strings. strict_json still enforces the decision's full rules.
+        _, end = json.JSONDecoder().raw_decode(body)
+        decision = strict_json(body[:end])
     except RecursionError as error:
         raise ValueError("repair decision JSON nesting exceeds the parser limit") from error
+    remainder = body[end:]
+    if header:
+        closing = re.match(r"[ \t\r\n]*\n```[ \t]*(?:\r?\n|$)", remainder)
+        if closing is None:
+            raise ValueError(envelope_error)
+        remainder = remainder[closing.end():]
+    elif remainder.strip() and re.match(r"[ \t]*\r?\n", remainder) is None:
+        raise ValueError(envelope_error)
+    remainder = remainder.strip()
+    code = None
+    if remainder:
+        match = re.fullmatch(
+            r"```(?:verilog|systemverilog|sv)[ \t]*\r?\n(.*?)\r?\n```",
+            remainder, re.DOTALL,
+        )
+        if match is None or "```" in match.group(1):
+            raise ValueError(envelope_error)
+        code = match.group(1)
     if (not isinstance(decision, dict) or set(decision) != {"decision", "reason"}
+            or not isinstance(decision["decision"], str)
             or decision["decision"] not in {"rtl_error", "checker_suspect", "spec_unclear"}
             or not isinstance(decision["reason"], str) or not decision["reason"].strip()):
         raise ValueError("invalid repair attribution")
-    code = match.group(2)
     if (decision["decision"] == "rtl_error") != (code is not None):
         raise ValueError("only attributed RTL errors may contain a replacement")
     extraction = extract_result(f"```verilog\n{code}\n```", top) if code is not None else None
