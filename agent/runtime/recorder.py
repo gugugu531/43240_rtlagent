@@ -37,7 +37,11 @@ class Recorder:
             self.record_dir.mkdir(parents=True, exist_ok=True)
         self.redactor = Redactor(secrets)
         self.seq = 0
-        self._stream = (self.output_dir / "trace.jsonl").open("w", encoding="utf-8")
+        # Preserve malformed external text as escapes; evidence must not fail
+        # before the consumer can classify an invalid model/tool response.
+        self._stream = (self.output_dir / "trace.jsonl").open(
+            "w", encoding="utf-8", errors="backslashreplace"
+        )
 
     def emit(self, tool, event, **fields):
         self.seq += 1
@@ -45,7 +49,7 @@ class Recorder:
         fields.setdefault("tokens_in", None)
         fields.setdefault("tokens_out", None)
         excerpt = str(fields.pop("excerpt", ""))
-        fields["excerpt"] = excerpt.encode("utf-8")[:2048].decode(
+        fields["excerpt"] = excerpt.encode("utf-8", errors="backslashreplace")[:2048].decode(
             "utf-8", errors="ignore"
         )
         active = _span.get()
@@ -105,7 +109,9 @@ class Recorder:
         if not path.is_relative_to(self.record_dir.resolve()):
             raise ValueError("record path escapes run directory")
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.redactor.copy(str(text)), encoding="utf-8")
+        path.write_text(
+            self.redactor.copy(str(text)), encoding="utf-8", errors="backslashreplace"
+        )
         return str(path)
 
     def write_json(self, relative, data):
