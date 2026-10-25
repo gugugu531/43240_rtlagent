@@ -13,6 +13,7 @@ from agent.rtl.adaptive_check import (
     revision_request, parse_checker_revision,
 )
 from agent.rtl.adaptive_repair import repair_request, parse_repair
+from agent.rtl.adaptive_assessment import BehaviorAssessment, CandidateAssessment
 from agent.rtl.extract import extract_result
 from agent.rtl.result import CheckResult, bind_result, checker_hash
 
@@ -240,7 +241,7 @@ def rereview_checker(ctx: Ctx, state: State) -> State:
     return state.update(checker_status=status)
 
 
-def _check_candidate(ctx, candidate, allowance_s):
+def _check_candidate(ctx, candidate, allowance_s) -> CandidateAssessment:
     from agent.rtl.adaptive_selection import check_plan_hash
     from agent.rtl.observation import observe, sampling_plan_from_suite
     from agent.rtl.properties import evaluate_properties
@@ -251,16 +252,15 @@ def _check_candidate(ctx, candidate, allowance_s):
     plan = (frozen.payload["sampling"] if frozen.route == "properties"
             else sampling_plan_from_suite(frozen.payload)) if approved else None
     end = time.monotonic() + allowance_s
-    assessment = {
-        "candidate_id": candidate.id, "candidate_hash": candidate.code_hash,
-        "parent_id": candidate.parent_id,
-        "parent_hash": ctx.candidates.get(candidate.parent_id).code_hash if candidate.parent_id else None,
-        "execution_id": uuid.uuid4().hex, "checker_hash": frozen.checker_hash if approved else "",
-        "check_plan_hash": check_plan_hash(frozen) if approved else "",
-        "checker_implementation_hash": checker_hash(), "structure": {},
-        "behavior": {"route": frozen.route if approved else "structural", "status": "not_executed", "details": {}},
-    }
-    checks = {}
+    assessment = CandidateAssessment(
+        candidate_id=candidate.id, candidate_hash=candidate.code_hash,
+        parent_id=candidate.parent_id,
+        parent_hash=ctx.candidates.get(candidate.parent_id).code_hash if candidate.parent_id else None,
+        execution_id=uuid.uuid4().hex, checker_hash=frozen.checker_hash if approved else "",
+        check_plan_hash=check_plan_hash(frozen) if approved else "",
+        checker_implementation_hash=checker_hash(),
+        behavior=BehaviorAssessment(route=frozen.route if approved else "structural"),
+    )
 
     def run_structure(stage, *, skipped=False):
         remaining = min(end - time.monotonic(), ctx.budget.remaining())
@@ -271,8 +271,7 @@ def _check_candidate(ctx, candidate, allowance_s):
         else:
             check = ctx.call(stage, candidate_id=candidate.id, **({} if stage == "interface" else {"timeout_s": remaining}))
         check = replace(check, details={**check.details, "execution_id": uuid.uuid4().hex})
-        checks[stage] = check
-        assessment["structure"][stage] = check.trace_dict()
+        assessment.structure[stage] = check
         _save(ctx, f"assessments/{candidate.id}/{stage}", check.trace_dict())
         return check
 
@@ -298,8 +297,7 @@ def _check_candidate(ctx, candidate, allowance_s):
             failure_kind=trace.failure_kind, elapsed_s=trace.elapsed_s, log_paths=tuple(trace.log_paths),
             details={"execution_id": trace.execution_id, "plan_hash": trace.plan_hash,
                      "sampling_status": trace.status}), candidate, "observation")
-        checks["observation"] = observation_check
-        assessment["structure"]["observation"] = observation_check.trace_dict()
+        assessment.structure["observation"] = observation_check
         _save(ctx, f"assessments/{candidate.id}/observation-check", observation_check.trace_dict())
         if trace.status == "complete":
             details = evaluate_properties(frozen.payload, trace) if frozen.route == "properties" else evaluate_model(frozen.payload, trace)
@@ -308,14 +306,14 @@ def _check_candidate(ctx, candidate, allowance_s):
                 else "untested" if details["untested_cases"] else "passed" if details["compared_bits"] else "untested")
         else:
             details, status = trace.public_dict(), trace.status
-        details = {**details, "checker_hash": assessment["checker_implementation_hash"]}
-        assessment["behavior"] = {"route": frozen.route, "status": status,
-                                  "failure_kind": trace.failure_kind, "details": details}
-        _save(ctx, f"assessments/{candidate.id}/behavior", assessment["behavior"])
+        details = {**details, "checker_hash": assessment.checker_implementation_hash}
+        assessment.behavior = BehaviorAssessment(
+            route=frozen.route, status=status, failure_kind=trace.failure_kind, details=details,
+        )
+        _save(ctx, f"assessments/{candidate.id}/behavior", assessment.behavior.public_dict())
     run_structure("synth", skipped=lint.status != "passed" or not compile_allowed)
     data["assessments"][candidate.id] = assessment
-    data.setdefault("checks", {})[candidate.id] = checks
-    _save(ctx, f"assessments/{candidate.id}/assessment", assessment)
+    _save(ctx, f"assessments/{candidate.id}/assessment", assessment.public_dict())
     return assessment
 
 
@@ -331,7 +329,7 @@ def decide(ctx: Ctx, state: State) -> State:
 
     data = _data(ctx)
     assessment = data["assessments"][state["target_id"]]
-    opportunity = repair_opportunity(assessment, data["checker"])
+    opportunity = repair_opportunity(assessment.public_dict(), data["checker"])
     data["opportunity"] = opportunity
     allowed = opportunity is not None and not data["rescue_used"] and not data["repair_used"]
     _save(ctx, "repair-opportunity", {"opportunity": opportunity, "allowed": allowed})
@@ -366,7 +364,7 @@ def repair(ctx: Ctx, state: State) -> State:
     _save(ctx, "repair-evidence", prompt_evidence)
     evidence = None
     for stage in ("lint", "synth"):
-        check = data["checks"][parent.id].get(stage)
+        check = data["assessments"][parent.id].structure.get(stage)
         if check and check.status == "failed" and check.failure_kind == "code":
             evidence = {"check": check, "execution_id": check.details["execution_id"]}
             break
@@ -401,8 +399,11 @@ def select(ctx: Ctx, state: State) -> State:
     from agent.rtl.adaptive_selection import promotion_decision
 
     data = _data(ctx)
-    outcome = promotion_decision(data["assessments"][state["parent_id"]], data["assessments"][state["target_id"]],
-                                 repair_kind=data["opportunity"]["kind"], checker=_approved_checker(ctx))
+    outcome = promotion_decision(
+        data["assessments"][state["parent_id"]].public_dict(),
+        data["assessments"][state["target_id"]].public_dict(),
+        repair_kind=data["opportunity"]["kind"], checker=_approved_checker(ctx),
+    )
     data["selection"] = outcome
     _save(ctx, "selection", outcome)
     if outcome["allowed"]:
@@ -414,23 +415,17 @@ def select(ctx: Ctx, state: State) -> State:
 def finish(ctx: Ctx, state: State) -> State:
     data = _data(ctx)
     selected = ctx.candidates.selected_id
-    assessment = data["assessments"].get(selected, {})
-    structure = assessment.get("structure", {})
-    interface = structure.get("interface", {})
-    structural_passed = (
-        interface.get("status") in ("passed", "failed", "skipped")
-        and not interface.get("blocking", True)
-        and all(structure.get(stage, {}).get("status") == "passed" for stage in ("lint", "synth"))
-    )
-    functional_passed = assessment.get("behavior", {}).get("status") == "passed"
+    assessment = data["assessments"].get(selected)
+    structural_passed = assessment is not None and assessment.structural_passed
+    functional_passed = assessment is not None and assessment.behavior.status == "passed"
     status = "completed" if structural_passed and functional_passed and not data.get("repair_authority_revoked") else "stopped"
     _save(ctx, "result", {
         "status": status, "selected_id": selected, "delivery": "complete_rtl" if selected else "empty",
         "stop_reason": state["stop_reason"], "checker_status": state["checker_status"],
         "route": data["routing"].public_dict(), "structural_passed": structural_passed,
-        "interface_verified": interface.get("status") == "passed",
-        "functional_passed": functional_passed, "assessment": assessment,
-        "coverage_scope": assessment.get("behavior", {}).get("route", "structural"),
+        "interface_verified": assessment is not None and assessment.interface_verified,
+        "functional_passed": functional_passed, "assessment": assessment.public_dict() if assessment else {},
+        "coverage_scope": assessment.behavior.route if assessment else "structural",
         "semantic_completeness_proven": False,
         "repair_authority_revoked": data.get("repair_authority_revoked"),
         "checker_revision": data.get("checker_revision"),

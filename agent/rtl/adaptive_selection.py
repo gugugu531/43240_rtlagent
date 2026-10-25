@@ -4,28 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 
+from agent.rtl.adaptive_assessment import (
+    AssessmentError, validate_assessment, bound_details, structural_failures,
+)
 from agent.rtl.identity import suite_hash
 from agent.rtl.observation import sampling_hash, sampling_plan_from_suite
 from agent.rtl.properties import property_hash
 from agent.rtl.suite.evaluate import expected_traces
-
-
-class AssessmentError(ValueError):
-    pass
-
-
-def _hash(value, name):
-    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value):
-        raise AssessmentError(name + " must be a SHA256 hex digest")
-    return value
-
-
-def _name(value, name):
-    if not isinstance(value, str) or not value or len(value) > 256:
-        raise AssessmentError(name + " must be a nonempty bounded identifier")
-    return value
 
 
 def _integer(value, high, name):
@@ -53,56 +39,8 @@ def check_plan_hash(checker):
     return sampling_hash(plan)
 
 
-def _identity(assessment):
-    if not isinstance(assessment, dict):
-        raise AssessmentError("candidate assessment must be an object")
-    _name(assessment.get("candidate_id"), "candidate_id")
-    _hash(assessment.get("candidate_hash"), "candidate_hash")
-    _name(assessment.get("execution_id"), "assessment execution_id")
-    _hash(assessment.get("checker_implementation_hash"), "checker_implementation_hash")
-    if not isinstance(assessment.get("structure"), dict):
-        raise AssessmentError("assessment needs a structure result map")
-
-
-def _bound(result, assessment, *, behavior=False):
-    if not isinstance(result, dict) or not isinstance(result.get("details"), dict):
-        raise AssessmentError("each tool result needs its full bound details")
-    details = result["details"]
-    if not behavior and result.get("candidate_id") != assessment["candidate_id"]:
-        raise AssessmentError("tool candidate_id differs from assessment")
-    if details.get("candidate_hash") != assessment["candidate_hash"]:
-        raise AssessmentError("tool candidate_hash differs from assessment")
-    _name(details.get("execution_id"), "tool execution_id")
-    if details.get("checker_hash") != assessment["checker_implementation_hash"]:
-        raise AssessmentError("tool checker implementation differs from assessment")
-    return details
-
-
-def _structure(assessment, *, require_complete=False):
-    results = assessment["structure"]
-    if set(results) - {"interface", "lint", "synth", "observation"}:
-        raise AssessmentError("unknown structure check kind")
-    if require_complete and not {"interface", "lint", "synth"}.issubset(results):
-        raise AssessmentError("promotion requires interface, lint and synthesis assessments")
-    failures, executions = [], []
-    for kind, result in results.items():
-        details = _bound(result, assessment)
-        if kind == "observation":
-            _hash(assessment.get("check_plan_hash"), "observation sampling plan")
-            if details.get("plan_hash") != assessment["check_plan_hash"]:
-                raise AssessmentError("observation compilation used a different sampling plan")
-        executions.append(details["execution_id"])
-        if (result.get("status") == "failed" and result.get("failure_kind") == "code"
-                and (kind != "interface" or result.get("blocking") is True)
-                and type(result.get("rc")) is int and result["rc"] != 0):
-            failures.append(kind)
-    if len(executions) != len(set(executions)):
-        raise AssessmentError("structure checks must have distinct execution identities")
-    return failures
-
-
 def _structure_ok(assessment):
-    failures = _structure(assessment, require_complete=True)
+    failures = structural_failures(assessment, require_complete=True)
     structure = assessment["structure"]
     if "observation" in failures:
         raise AssessmentError("child observation compilation has a known RTL code failure")
@@ -303,7 +241,7 @@ def _behavior(assessment, checker):
     behavior = assessment.get("behavior")
     if not isinstance(behavior, dict) or behavior.get("route") != checker.route:
         raise AssessmentError("behavior route differs from frozen checker")
-    details = _bound(behavior, assessment, behavior=True)
+    details = bound_details(behavior, assessment, behavior=True)
     if behavior.get("status") not in ("passed", "failed", "unknown", "untested", "error"):
         raise AssessmentError("behavior execution did not complete")
     if behavior.get("failure_kind") in ("checker", "environment", "timeout"):
@@ -326,8 +264,8 @@ def _has_behavior(assessment):
 def repair_opportunity(assessment, checker=None):
     """Return a reliable repair trigger, or None; never infer one from a summary."""
     try:
-        _identity(assessment)
-        failures = _structure(assessment)
+        validate_assessment(assessment)
+        failures = structural_failures(assessment)
         if failures:
             kind = next(name for name in ("interface", "lint", "observation", "synth") if name in failures)
             if kind == "observation":
@@ -355,8 +293,8 @@ def promotion_decision(parent, child, *, repair_kind, checker=None):
     try:
         if repair_kind not in ("structure", "behavior"):
             raise AssessmentError("repair_kind must be structure or behavior")
-        _identity(parent)
-        _identity(child)
+        validate_assessment(parent)
+        validate_assessment(child)
         if child.get("parent_id") != parent["candidate_id"] or child.get("parent_hash") != parent["candidate_hash"]:
             raise AssessmentError("child lineage does not bind the actual parent candidate")
         if child["candidate_id"] == parent["candidate_id"] or child["candidate_hash"] == parent["candidate_hash"]:
@@ -371,7 +309,7 @@ def promotion_decision(parent, child, *, repair_kind, checker=None):
                 if (assessment.get("checker_hash") != checker.checker_hash
                         or assessment.get("check_plan_hash") != check_plan_hash(checker)):
                     raise AssessmentError("parent/child checker or sampling plan differs from frozen checker")
-        failures = _structure(parent)
+        failures = structural_failures(parent)
         evidence["interface_unverified"] = _structure_ok(child)
         for kind, result in parent["structure"].items():
             if result["details"]["execution_id"] == child["structure"][kind]["details"]["execution_id"]:
