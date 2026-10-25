@@ -8,8 +8,8 @@
 | 新节点、工具、工作流、模型协议和检查器如何接入；可运行示例与验证要求 | [模块扩展与开发规范](development.md) |
 | 恢复条件、检查器补丁、比较覆盖、阶段预算及真实效果的验收边界 | [恢复链路与验证契约](recovery.md) |
 | 固定 Skill、诊断检索、预算与资产边界 | [Skill 与诊断 RAG](knowledge.md) |
-| 中立采样、独立行为比较与局部性质解释 | [自适应检查组件](adaptive.md) |
-| 已实现的三条工作流 | [工作流源码](../agent/workflows/__init__.py) |
+| 首稿优先、一次修复、中立采样与局部性质解释 | [自适应工作流](adaptive.md) |
+| 已实现的四条工作流 | [工作流源码](../agent/workflows/__init__.py) |
 | 配置结构、环境覆盖与默认值 | [配置实现](../agent/config.py)、[默认配置](../config/single_generate.yaml) |
 | 模型声明与服务运行方式 | [模型声明](../model/MODEL.md)、[服务说明](../serve/README.md) |
 

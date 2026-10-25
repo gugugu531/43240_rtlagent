@@ -55,7 +55,10 @@ def parse_analysis(text, task, *, finish_reason=None):
         raise ValueError("analysis output truncated")
     if not text.strip() or len(text) > 65536:
         raise ValueError("analysis final content missing or too large")
-    result = TaskAnalysis.model_validate(strict_json(text), strict=True)
+    try:
+        result = TaskAnalysis.model_validate(strict_json(text), strict=True)
+    except RecursionError as error:
+        raise ValueError("analysis JSON nesting exceeds the parser limit") from error
     source = task.prompt + "\n" + task.interface
     for quote in result.requirements:
         resolve_quote(quote, source)
@@ -96,7 +99,10 @@ def choose_route(task, analysis=None, *, sequential_skill="rtl-sequential-state-
     reason = "analysis_route_with_host_limits"
     route = analysis.route
     uncovered = list(analysis.ambiguities)
-    if any(p.direction == "inout" for p in task.expected_interface.ports):
+    expected = task.expected_interface
+    if not expected.parsed or not expected.complete or not expected.ports or any(p.width is None for p in expected.ports):
+        route, reason = "structural", "public_interface_unresolved"
+    elif any(p.direction == "inout" for p in expected.ports):
         route, reason = "structural", "inout_not_supported"
     elif len(analysis.clocks) > 1:
         route, reason = "structural", "multiple_clock_domains_not_supported"

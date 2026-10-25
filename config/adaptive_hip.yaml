@@ -1,0 +1,15 @@
+# 连接已有 HIP + MTP3 服务；权重、后端和 medium 声明须在真实实验冻结副本中核实。
+workflow: adaptive_verify
+runtime:
+  deadline_s: 5400
+  reserve_s: 120
+  recording: {level: full}
+services:
+  model:
+    backend: openai
+    base_url: http://127.0.0.1:8010/v1
+    model: qwen38-27b-q4-k-m
+    tokenizer_protocol: llama_cpp
+    max_model_len: 65536
+    timeout_s: 1200
+    structured_outputs: false

@@ -1,0 +1,368 @@
+"""Explicit adaptive stages. Checks never select or mutate the frozen checker."""
+
+from dataclasses import replace
+import time
+import uuid
+
+from agent.kit import Ctx, State, node
+from agent.llm.client import ModelError
+from agent.runtime.allowance import CompletionLedger
+from agent.rtl.adaptive_analysis import analysis_request, parse_analysis, choose_route
+from agent.rtl.adaptive_check import checker_request, parse_checker, review_request, approve_review
+from agent.rtl.adaptive_repair import repair_request, parse_repair
+from agent.rtl.extract import extract_result
+from agent.rtl.result import CheckResult, bind_result, checker_hash
+
+
+def _data(ctx):
+    return ctx.store["adaptive"]
+
+
+def _approved_checker(ctx):
+    checker = _data(ctx)["checker"]
+    return checker if checker is not None and checker.repair_authorized else None
+
+
+def _save(ctx, name, value):
+    path = ctx.record.write_json(f"adaptive/{name}.json", value)
+    ctx.record.emit("adaptive", "artifact", name=name, path=path,
+                    status=value.get("status") if isinstance(value, dict) else None)
+
+
+def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True, parent=None, evidence=None):
+    data = _data(ctx)
+    if stage in data["attempted"]:
+        raise ValueError(f"adaptive stage may only request once: {stage}")
+    data["attempted"].add(stage)
+    settings, ledger = data["settings"], data["ledger"]
+    limits = limits or settings[stage]
+    permit = ledger.reserve(stage, **limits, followup_s=followup_s, optional=optional)
+    if permit is None:
+        data["request_outcomes"][stage] = {"status": "not_sent", "reason": ledger.last_denial}
+        return None
+    assembly = None
+    try:
+        with ctx.llm.permitted(permit):
+            if stage in ("draft", "rescue", "repair"):
+                from agent.knowledge.context import prepare
+
+                messages, assembly = prepare(
+                    ctx, messages, parent, evidence,
+                    skill_ids=list(data["routing"].skill_ids), skill_phases=["generate", "repair"],
+                    rag=settings["rag"] and parent is not None,
+                    max_tokens=limits["max_tokens"], max_extra_tokens=settings["knowledge_max_tokens"],
+                    diagnostic_first=parent is not None,
+                )
+            reply = ctx.llm.chat(messages, purpose=f"adaptive_{stage}",
+                                 temperature=settings["temperature"], top_p=settings["top_p"], **limits)
+        if assembly is not None:
+            ctx.record.emit("knowledge", "model_result", assembly_id=assembly["assembly_id"],
+                            messages_sha256=assembly["messages_sha256"], call_id=reply.call_id)
+        data["request_outcomes"][stage] = {"status": "returned", "call_id": reply.call_id,
+                                            "finish_reason": reply.finish_reason}
+        return reply
+    except ModelError as error:
+        data["request_outcomes"][stage] = {"status": "error", "kind": error.kind, "reason": str(error)}
+        ctx.record.emit("adaptive", "request_failed", stage=stage, kind=error.kind, reason=str(error))
+        return None
+    finally:
+        _save(ctx, "completion-ledger", ledger.snapshot())
+        _save(ctx, "request-outcomes", data["request_outcomes"])
+
+
+def _generation_messages(ctx):
+    data = _data(ctx)
+    return ctx.prompts.render("repair.j2", task=ctx.task, feedback="", parent=None,
+                              plan=data["analysis"].model_dump(mode="json") if data.get("analysis") else None)
+
+
+def _candidate(ctx, reply, *, parent=None, stage="draft", extraction=None):
+    if reply is None:
+        return None
+    extraction = extraction or extract_result(reply.content, ctx.task.top)
+    _save(ctx, f"{stage}-extraction", extraction.trace_dict())
+    if (extraction.status != "ok" or not extraction.complete
+            or not extraction.target_module_found or extraction.suspected_truncation):
+        return None
+    candidate = ctx.candidates.create(
+        extraction.code, source_stage=f"adaptive_{stage}", round=2 if parent else 1,
+        parent_id=parent.id if parent else None, finish_reason=reply.finish_reason,
+        extraction_status=extraction.status, call_id=reply.call_id,
+    )
+    if parent is None:
+        ctx.candidates.select(candidate.id, reason="complete_unverified_fallback")
+    return candidate
+
+
+@node("adaptive_initialize", reads=["settings"], writes=[])
+def initialize(ctx: Ctx, state: State) -> State:
+    if "adaptive" in ctx.store:
+        raise ValueError("adaptive initialization must run exactly once")
+    settings = state["settings"]
+    ctx.store["adaptive"] = {
+        "settings": settings, "ledger": CompletionLedger(ctx.budget, ctx.record,
+            max_calls=settings["max_calls"], max_output_tokens=settings["max_output_tokens"]),
+        "attempted": set(), "request_outcomes": {}, "assessments": {},
+        "analysis": None, "routing": choose_route(ctx.task), "checker": None,
+        "rescue_used": False, "repair_used": False,
+    }
+    ctx.store["knowledge_rag_enabled"] = settings["rag"]
+    _save(ctx, "settings", settings)
+    return state
+
+
+@node("adaptive_analyze", reads=[], writes=["route"])
+def analyze(ctx: Ctx, state: State) -> State:
+    data, settings = _data(ctx), _data(ctx)["settings"]
+    reply = _request(ctx, "profile", analysis_request(ctx.task),
+                     followup_s=settings["draft"]["timeout_s"] + settings["first_tools_s"], optional=False)
+    if reply:
+        try:
+            data["analysis"] = parse_analysis(reply.content, ctx.task, finish_reason=reply.finish_reason)
+            _save(ctx, "analysis", {"status": "valid", **data["analysis"].model_dump(mode="json")})
+        except ValueError as error:
+            _save(ctx, "analysis", {"status": "invalid", "reason": str(error)})
+    data["routing"] = choose_route(ctx.task, data["analysis"], sequential_skill=settings["sequential_skill"])
+    _save(ctx, "route", data["routing"].public_dict())
+    return state.update(route=data["routing"].route)
+
+
+@node("adaptive_generate", reads=[], writes=["target_id", "has_candidate", "stop_reason"])
+def generate(ctx: Ctx, state: State) -> State:
+    data = _data(ctx)
+    reply = _request(ctx, "draft", _generation_messages(ctx), followup_s=data["settings"]["first_tools_s"], optional=False)
+    # Only a well-formed HTTP reply establishes a usable service for one rescue.
+    data["draft_reply"] = reply
+    candidate = _candidate(ctx, reply)
+    return state.update(target_id=candidate.id if candidate else None, has_candidate=candidate is not None,
+                        stop_reason="" if candidate else "no_complete_first_draft")
+
+
+@node("adaptive_rescue", reads=[], writes=["target_id", "has_candidate", "route", "stop_reason"])
+def rescue(ctx: Ctx, state: State) -> State:
+    data = _data(ctx)
+    if ctx.candidates.selected_id is not None:
+        raise ValueError("rescue cannot replace a complete first draft")
+    data["rescue_used"] = True
+    data["routing"] = replace(data["routing"], route="structural", reason="first_draft_rescue")
+    reply = None
+    if data.get("draft_reply") is not None:
+        reply = _request(ctx, "rescue", _generation_messages(ctx), limits=data["settings"]["draft"],
+                         followup_s=data["settings"]["first_tools_s"], optional=False)
+    candidate = _candidate(ctx, reply, stage="rescue")
+    return state.update(target_id=candidate.id if candidate else None, has_candidate=candidate is not None,
+                        route="structural", stop_reason="rescue_structural_only" if candidate else "no_complete_candidate")
+
+
+@node("adaptive_build_checker", reads=["route"], writes=["checker_status"])
+def build_checker(ctx: Ctx, state: State) -> State:
+    data, settings = _data(ctx), _data(ctx)["settings"]
+    if state["route"] == "structural":
+        return state.update(checker_status="not_requested")
+    followup = settings["review"]["timeout_s"] + settings["first_tools_s"] + settings["repair"]["timeout_s"] + settings["recheck_tools_s"]
+    reply = _request(ctx, "construction", checker_request(ctx.task, state["route"]), followup_s=followup)
+    if reply is None:
+        return state.update(checker_status="unavailable")
+    draft = parse_checker(reply.content, ctx.task, state["route"], finish_reason=reply.finish_reason)
+    data["checker_draft"] = draft
+    _save(ctx, "checker-draft", draft.public_dict())
+    return state.update(checker_status=draft.status)
+
+
+@node("adaptive_review_checker", reads=[], writes=["checker_status"])
+def review_checker(ctx: Ctx, state: State) -> State:
+    data, settings = _data(ctx), _data(ctx)["settings"]
+    draft = data["checker_draft"]
+    followup = settings["first_tools_s"] + settings["repair"]["timeout_s"] + settings["recheck_tools_s"]
+    reply = _request(ctx, "review", review_request(ctx.task, draft), followup_s=followup)
+    if reply is None:
+        return state.update(checker_status="review_unavailable")
+    frozen = approve_review(reply.content, draft, finish_reason=reply.finish_reason)
+    data["checker"] = frozen
+    _save(ctx, "frozen-checker", frozen.public_dict())
+    return state.update(checker_status=frozen.status)
+
+
+def _check_candidate(ctx, candidate, allowance_s):
+    from agent.rtl.adaptive_selection import check_plan_hash
+    from agent.rtl.observation import observe, sampling_plan_from_suite
+    from agent.rtl.properties import evaluate_properties
+    from agent.rtl.adaptive_execute import evaluate_model
+
+    data, frozen = _data(ctx), _data(ctx)["checker"]
+    approved = frozen is not None and frozen.repair_authorized
+    plan = (frozen.payload["sampling"] if frozen.route == "properties"
+            else sampling_plan_from_suite(frozen.payload)) if approved else None
+    end = time.monotonic() + allowance_s
+    assessment = {
+        "candidate_id": candidate.id, "candidate_hash": candidate.code_hash,
+        "parent_id": candidate.parent_id,
+        "parent_hash": ctx.candidates.get(candidate.parent_id).code_hash if candidate.parent_id else None,
+        "execution_id": uuid.uuid4().hex, "checker_hash": frozen.checker_hash if approved else "",
+        "check_plan_hash": check_plan_hash(frozen) if approved else "",
+        "checker_implementation_hash": checker_hash(), "structure": {},
+        "behavior": {"route": frozen.route if approved else "structural", "status": "not_executed", "details": {}},
+    }
+    checks = {}
+
+    def run_structure(stage, *, skipped=False):
+        remaining = min(end - time.monotonic(), ctx.budget.remaining())
+        if skipped or remaining <= 0:
+            check = bind_result(CheckResult(
+                "skipped" if skipped else "timeout", "prior structural stage incomplete" if skipped else "tool allowance exhausted",
+                failure_kind="unknown" if skipped else "timeout"), candidate, stage)
+        else:
+            check = ctx.call(stage, candidate_id=candidate.id, **({} if stage == "interface" else {"timeout_s": remaining}))
+        check = replace(check, details={**check.details, "execution_id": uuid.uuid4().hex})
+        checks[stage] = check
+        assessment["structure"][stage] = check.trace_dict()
+        _save(ctx, f"assessments/{candidate.id}/{stage}", check.trace_dict())
+        return check
+
+    interface = run_structure("interface")
+    lint = run_structure("lint", skipped=interface.blocking)
+    if approved and lint.status == "passed" and not interface.blocking and end > time.monotonic():
+        with ctx.record.span("adaptive_observe", candidate_id=candidate.id, route=frozen.route):
+            trace = observe(ctx, candidate, plan, timeout_s=end - time.monotonic())
+            data.setdefault("observations", {})[candidate.id] = trace
+            _save(ctx, f"assessments/{candidate.id}/observations", trace.public_dict())
+        observation_status = "passed" if trace.status == "complete" else (
+            "failed" if trace.failure_kind == "code" else trace.status)
+        observation_check = bind_result(CheckResult(
+            observation_status, trace.summary, rc=0 if trace.status == "complete" else (trace.rc or 1),
+            failure_kind=trace.failure_kind, elapsed_s=trace.elapsed_s, log_paths=tuple(trace.log_paths),
+            details={"execution_id": trace.execution_id, "plan_hash": trace.plan_hash,
+                     "sampling_status": trace.status}), candidate, "observation")
+        checks["observation"] = observation_check
+        assessment["structure"]["observation"] = observation_check.trace_dict()
+        _save(ctx, f"assessments/{candidate.id}/observation-check", observation_check.trace_dict())
+        if trace.status == "complete":
+            details = evaluate_properties(frozen.payload, trace) if frozen.route == "properties" else evaluate_model(frozen.payload, trace)
+            status = details.get("status") if frozen.route == "properties" else (
+                "failed" if details["failed_cases"] else "unknown" if details["unknown_cases"]
+                else "untested" if details["untested_cases"] else "passed" if details["compared_bits"] else "untested")
+        else:
+            details, status = trace.public_dict(), trace.status
+        details = {**details, "checker_hash": assessment["checker_implementation_hash"]}
+        assessment["behavior"] = {"route": frozen.route, "status": status,
+                                  "failure_kind": trace.failure_kind, "details": details}
+        _save(ctx, f"assessments/{candidate.id}/behavior", assessment["behavior"])
+    run_structure("synth", skipped=lint.status != "passed" or interface.blocking)
+    data["assessments"][candidate.id] = assessment
+    data.setdefault("checks", {})[candidate.id] = checks
+    _save(ctx, f"assessments/{candidate.id}/assessment", assessment)
+    return assessment
+
+
+@node("adaptive_check", reads=["target_id"], writes=[])
+def check(ctx: Ctx, state: State) -> State:
+    _check_candidate(ctx, ctx.candidates.get(state["target_id"]), _data(ctx)["settings"]["first_tools_s"])
+    return state
+
+
+@node("adaptive_decide", reads=["target_id"], writes=["action", "stop_reason"])
+def decide(ctx: Ctx, state: State) -> State:
+    from agent.rtl.adaptive_selection import repair_opportunity
+
+    data = _data(ctx)
+    assessment = data["assessments"][state["target_id"]]
+    opportunity = repair_opportunity(assessment, data["checker"])
+    data["opportunity"] = opportunity
+    allowed = opportunity is not None and not data["rescue_used"] and not data["repair_used"]
+    _save(ctx, "repair-opportunity", {"opportunity": opportunity, "allowed": allowed})
+    return state.update(action="repair" if allowed else "finish", stop_reason="repair_available" if allowed else "assessment_complete")
+
+
+@node("adaptive_repair", reads=["target_id"], writes=["target_id", "parent_id", "action", "stop_reason"])
+def repair(ctx: Ctx, state: State) -> State:
+    data = _data(ctx)
+    if data["repair_used"] or data["rescue_used"]:
+        raise ValueError("only one RTL repair is allowed, and none after rescue")
+    data["repair_used"] = True
+    parent = ctx.candidates.get(state["target_id"])
+    prompt_evidence = dict(data["opportunity"])
+    observation = data.get("observations", {}).get(parent.id)
+    if observation is not None and prompt_evidence.get("counterexample"):
+        import json
+
+        counterexample = prompt_evidence["counterexample"]
+        case_id = counterexample["case_id"]
+        last_step = counterexample.get("end_step", counterexample.get("step", counterexample.get("trigger_step", 0)))
+        history = [{"step": row["step"], "phase": row["phase"], "clock_tick": row["clock_tick"], "values": row["values"]}
+                   for row in observation.rows if row["case_id"] == case_id and row["step"] <= last_step]
+        omitted = []
+        # Full reset-to-failure observations stay in the saved artifact. If a wide
+        # interface is too large, remove oldest intermediate pairs, never bits.
+        while len(history) > 4 and len(json.dumps(history)) > 20000:
+            removed = history.pop(2)
+            omitted.append({"step": removed["step"], "phase": removed["phase"]})
+        prompt_evidence["observations"] = {"case_id": case_id, "rows": history,
+            "omitted": omitted, "complete_history_artifact": observation.artifacts.get("rows")}
+    _save(ctx, "repair-evidence", prompt_evidence)
+    evidence = None
+    for stage in ("lint", "synth"):
+        check = data["checks"][parent.id].get(stage)
+        if check and check.status == "failed" and check.failure_kind == "code":
+            evidence = {"check": check, "execution_id": check.details["execution_id"]}
+            break
+    reply = _request(ctx, "repair", repair_request(ctx.task, parent, prompt_evidence,
+                     _approved_checker(ctx) if prompt_evidence["kind"] == "behavior" else None),
+                     followup_s=data["settings"]["recheck_tools_s"], parent=parent, evidence=evidence)
+    if reply is None:
+        return state.update(action="finish", stop_reason="repair_not_completed")
+    try:
+        decision, extraction = parse_repair(reply.content, ctx.task.top, finish_reason=reply.finish_reason)
+        _save(ctx, "repair-decision", decision)
+    except ValueError as error:
+        _save(ctx, "repair-decision", {"status": "invalid", "reason": str(error)})
+        return state.update(action="finish", stop_reason="repair_invalid")
+    if decision["decision"] != "rtl_error":
+        data["repair_authority_revoked"] = decision["decision"]
+        return state.update(action="finish", stop_reason=decision["decision"])
+    child = _candidate(ctx, reply, parent=parent, stage="repair", extraction=extraction)
+    if child is None or child.code_hash == parent.code_hash:
+        return state.update(action="finish", stop_reason="repair_unchanged" if child else "repair_incomplete")
+    return state.update(target_id=child.id, parent_id=parent.id, action="recheck", stop_reason="awaiting_recheck")
+
+
+@node("adaptive_recheck", reads=["target_id"], writes=[])
+def recheck(ctx: Ctx, state: State) -> State:
+    _check_candidate(ctx, ctx.candidates.get(state["target_id"]), _data(ctx)["settings"]["recheck_tools_s"])
+    return state
+
+
+@node("adaptive_select", reads=["target_id", "parent_id"], writes=["stop_reason"])
+def select(ctx: Ctx, state: State) -> State:
+    from agent.rtl.adaptive_selection import promotion_decision
+
+    data = _data(ctx)
+    outcome = promotion_decision(data["assessments"][state["parent_id"]], data["assessments"][state["target_id"]],
+                                 repair_kind=data["opportunity"]["kind"], checker=_approved_checker(ctx))
+    data["selection"] = outcome
+    _save(ctx, "selection", outcome)
+    if outcome["allowed"]:
+        ctx.candidates.select(state["target_id"], reason=outcome["reason"])
+    return state.update(stop_reason=outcome["reason"])
+
+
+@node("adaptive_finish", reads=["stop_reason", "checker_status"], writes=["status", "stop_reason"])
+def finish(ctx: Ctx, state: State) -> State:
+    data = _data(ctx)
+    selected = ctx.candidates.selected_id
+    assessment = data["assessments"].get(selected, {})
+    structure = assessment.get("structure", {})
+    structural_passed = all(structure.get(stage, {}).get("status") == "passed" for stage in ("lint", "synth"))
+    functional_passed = assessment.get("behavior", {}).get("status") == "passed"
+    status = "completed" if structural_passed and functional_passed and not data.get("repair_authority_revoked") else "stopped"
+    _save(ctx, "result", {
+        "status": status, "selected_id": selected, "delivery": "complete_rtl" if selected else "empty",
+        "stop_reason": state["stop_reason"], "checker_status": state["checker_status"],
+        "route": data["routing"].public_dict(), "structural_passed": structural_passed,
+        "functional_passed": functional_passed, "assessment": assessment,
+        "coverage_scope": assessment.get("behavior", {}).get("route", "structural"),
+        "semantic_completeness_proven": False,
+        "repair_authority_revoked": data.get("repair_authority_revoked"),
+        "selection": data.get("selection"), "request_outcomes": data["request_outcomes"],
+        "budget": data["ledger"].snapshot(),
+    })
+    return state.update(status=status, stop_reason=state["stop_reason"] or "assessment_complete")

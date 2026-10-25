@@ -35,7 +35,8 @@
     "available_workflows": [
       "single_generate",
       "repair_loop",
-      "design_verify_loop"
+      "design_verify_loop",
+      "adaptive_verify"
     ]
   },
   "generation": {},
