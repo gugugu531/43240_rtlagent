@@ -181,12 +181,7 @@ class TraceRun:
         return asdict(self)
 
 
-def parse_observations(text, plan, marker, *, candidate_hash="", execution_id=""):
-    """Reject malformed, duplicated, missing and out-of-order samples; preserve X/Z."""
-    plan = validate_sampling_plan(plan)
-    if not re.fullmatch(r"[a-f0-9]{16}", marker):
-        raise SuiteError("invalid observation marker")
-    ports = sorted(plan["ports"])
+def _expected_events(plan):
     expected = {}
     for ci, case in enumerate(plan["cases"]):
         tick = 0
@@ -194,13 +189,88 @@ def parse_observations(text, plan, marker, *, candidate_hash="", execution_id=""
             for phase in ("pre", "post"):
                 if phase == "post":
                     tick += int(step["edge"] if plan["clock"] else True)
-                expected[ci, si, phase] = tick
+                expected[ci, si, phase] = {
+                    "case_id": case["id"], "case_index": ci, "step": si,
+                    "clock_tick": tick, "phase": phase, "sample": step["sample"],
+                    "edge": step["edge"] if plan["clock"] else False,
+                }
+    return expected
+
+
+def _validate_rows(rows, plan):
+    """Audit structured events, allowing independent cases to interleave."""
+    expected, last = _expected_events(plan), {}
+    if not isinstance(rows, list) or len(rows) != len(expected):
+        raise SuiteError("trace row count differs from sampling plan")
+    fields = {"case_id", "case_index", "step", "clock_tick", "phase", "sample", "edge", "values"}
+    for row in rows:
+        if not isinstance(row, dict) or set(row) != fields:
+            raise SuiteError("unexpected trace row fields")
+        if (any(type(row[key]) is not int for key in ("case_index", "step", "clock_tick"))
+                or any(type(row[key]) is not bool for key in ("sample", "edge"))
+                or not isinstance(row["phase"], str)):
+            raise SuiteError("trace event metadata has invalid types")
+        ci, si, phase = row["case_index"], row["step"], row["phase"]
+        metadata = {key: value for key, value in row.items() if key != "values"}
+        if metadata != expected.get((ci, si, phase)):
+            raise SuiteError("trace metadata differs from fixed sampling plan")
+        ordinal = si * 2 + int(phase == "post")
+        if ordinal != last.get(ci, -1) + 1:
+            raise SuiteError("duplicate or out-of-order observation event")
+        last[ci] = ordinal
+        values = row["values"]
+        if not isinstance(values, dict) or set(values) != set(plan["ports"]):
+            raise SuiteError("trace public ports differ from sampling plan")
+        for name, port in plan["ports"].items():
+            value, width = values[name], port["width"]
+            if not isinstance(value, dict) or set(value) != {"bits", "known", "width"}:
+                raise SuiteError("invalid trace bit structure")
+            if any(type(value[key]) is not int for key in value) or value["width"] != width:
+                raise SuiteError("trace value width or type differs from sampling plan")
+            full = (1 << width) - 1
+            if not 0 <= value["bits"] <= full or not 0 <= value["known"] <= full or value["bits"] & ~value["known"]:
+                raise SuiteError("trace unknown bits must remain unknown")
+            if port["direction"] != "input":
+                continue
+            step = plan["cases"][ci]["steps"][si]
+            clock = plan["clock"]
+            if clock and name == clock["port"]:
+                active = phase == "post" and step["edge"]
+                number = int(clock["edge"] == "posedge") if active else int(clock["edge"] != "posedge")
+            else:
+                number = step["inputs"][name] & full
+            if value != {"bits": number, "known": full, "width": width}:
+                raise SuiteError("observed input differs from the fixed stimulus")
+
+
+def validate_trace(trace, plan):
+    """Require a complete, identified trace of exactly the fixed sampling plan."""
+    plan = validate_sampling_plan(plan)
+    if not isinstance(trace, TraceRun) or trace.status != "complete":
+        raise SuiteError("comparison needs a complete neutral TraceRun")
+    if trace.plan_hash != sampling_hash(plan):
+        raise SuiteError("trace sampling hash differs from comparison plan")
+    if (not isinstance(trace.execution_id, str) or not trace.execution_id
+            or not isinstance(trace.candidate_hash, str)
+            or not re.fullmatch(r"[a-f0-9]{64}", trace.candidate_hash)):
+        raise SuiteError("trace needs candidate SHA256 and execution identity")
+    if type(trace.sampling_version) is not int or trace.sampling_version != 1:
+        raise SuiteError("unsupported trace sampling version")
+    _validate_rows(trace.rows, plan)
+
+
+def parse_observations(text, plan, marker, *, candidate_hash="", execution_id=""):
+    """Decode the wire protocol, then apply the shared structured event checks."""
+    plan = validate_sampling_plan(plan)
+    if not re.fullmatch(r"[a-f0-9]{16}", marker):
+        raise SuiteError("invalid observation marker")
+    ports, expected = sorted(plan["ports"]), _expected_events(plan)
     prefix, done = f"RTLA_OBS_{marker}|", f"RTLA_OBS_DONE_{marker}"
-    seen, ordered, last = {}, [], {}
+    rows = []
     completed = False
     for line in text.splitlines():
         if line == done:
-            if completed or len(seen) != len(expected):
+            if completed or len(rows) != len(expected):
                 raise SuiteError("duplicate or premature observation completion marker")
             completed = True
             continue
@@ -208,18 +278,16 @@ def parse_observations(text, plan, marker, *, candidate_hash="", execution_id=""
             continue
         if completed:
             raise SuiteError("observation emitted after completion")
+        if len(rows) >= len(expected):
+            raise SuiteError("observation event count exceeds sampling plan")
         parts = line[len(prefix):].split("|")
         if len(parts) != len(ports) + 4 or not all(re.fullmatch(r"\d+", p) for p in parts[:3]):
             raise SuiteError("malformed observation event")
         ci, si, tick = map(int, parts[:3])
         phase = parts[3]
         key = ci, si, phase
-        if key not in expected or key in seen or tick != expected[key]:
-            raise SuiteError("duplicate or unexpected observation event/tick/phase")
-        ordinal = si * 2 + int(phase == "post")
-        if ordinal != last.get(ci, -1) + 1:
-            raise SuiteError("out-of-order observation event")
-        last[ci] = ordinal
+        if key not in expected:
+            raise SuiteError("unexpected observation event/phase")
         values = {}
         for name, token in zip(ports, parts[4:]):
             width = plan["ports"][name]["width"]
@@ -231,26 +299,12 @@ def parse_observations(text, plan, marker, *, candidate_hash="", execution_id=""
                 if char in "01":
                     bits, known = bits | int(char), known | 1
             values[name] = {"bits": bits, "known": known, "width": width}
-        step = plan["cases"][ci]["steps"][si]
-        for name, port in plan["ports"].items():
-            if port["direction"] != "input":
-                continue
-            if plan["clock"] and name == plan["clock"]["port"]:
-                active = phase == "post" and step["edge"]
-                number = int(plan["clock"]["edge"] == "posedge") if active else int(plan["clock"]["edge"] != "posedge")
-            else:
-                number = step["inputs"][name] & ((1 << port["width"]) - 1)
-            if values[name] != {"bits": number, "known": (1 << port["width"]) - 1, "width": port["width"]}:
-                raise SuiteError("observed input differs from the fixed stimulus")
-        row = {"case_id": plan["cases"][ci]["id"], "case_index": ci, "step": si,
-               "clock_tick": tick, "phase": phase, "sample": step["sample"],
-               "edge": step["edge"] if plan["clock"] else False, "values": values}
-        seen[key] = row
-        ordered.append(row)
-    if len(seen) != len(expected) or not completed:
+        rows.append({**expected[key], "clock_tick": tick, "values": values})
+    if not completed:
         raise SuiteError("observation trace or completion marker is incomplete")
-    return TraceRun("complete", sampling_hash(plan), candidate_hash, execution_id, ordered,
-                    summary=f"collected {len(ordered)} pre/post samples; no expected behavior checked")
+    _validate_rows(rows, plan)
+    return TraceRun("complete", sampling_hash(plan), candidate_hash, execution_id, rows,
+                    summary=f"collected {len(rows)} pre/post samples; no expected behavior checked")
 
 
 def observe(ctx, candidate, plan, *, timeout_s=300.0):

@@ -115,6 +115,32 @@ def parse_traces(output, suite, marker, *, compare_expected=True):
             name: _parse_value(token, suite["ports"][name]["width"])
             for name, token in zip(outputs, parts[2:])
         }
+    return compare_trace_rows(rows, suite, compare_expected=compare_expected)
+
+
+def compare_trace_rows(rows, suite, *, compare_expected=True):
+    """Compare event outputs as { (case, step): { port: (bits, known) } }.
+
+    Both the legacy wire parser and neutral observation adapter use this entry;
+    expected values are computed exclusively from the independent suite model.
+    """
+    suite = validate_suite(suite)
+    expected_keys = {(ci, si) for ci, case in enumerate(suite["cases"])
+                     for si in range(len(case["steps"]))}
+    if (not isinstance(rows, dict) or set(rows) != expected_keys
+            or any(not isinstance(key, tuple) or any(type(i) is not int for i in key) for key in rows)):
+        raise SuiteError("simulation event set differs from the suite")
+    outputs = {n: p["width"] for n, p in suite["ports"].items() if p["direction"] == "output"}
+    for values in rows.values():
+        if not isinstance(values, dict) or set(values) != set(outputs):
+            raise SuiteError("simulation output ports differ from the suite")
+        for name, value in values.items():
+            if not isinstance(value, tuple) or len(value) != 2 or any(type(i) is not int for i in value):
+                raise SuiteError("simulation output needs integer bits and known mask")
+            bits, known = value
+            full = (1 << outputs[name]) - 1
+            if not 0 <= bits <= full or not 0 <= known <= full or bits & ~known:
+                raise SuiteError("simulation bits or known mask exceeds declared width")
     traces, passed, failed, first = [], [], [], None
     unknown_cases, untested_cases = [], []
     case_comparisons = []
@@ -126,8 +152,6 @@ def parse_traces(output, suite, marker, *, compare_expected=True):
         prior_counts = (compared_samples, compared_values, compared_bits)
         for si, step in enumerate(case["steps"]):
             expected = next(expectations)
-            if (ci, si) not in rows:
-                raise SuiteError("simulation event count is incomplete")
             raw = rows[ci, si]
             actual = {
                 n: v if k == (1 << suite["ports"][n]["width"]) - 1 else None

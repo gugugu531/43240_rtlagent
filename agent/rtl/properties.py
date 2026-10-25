@@ -8,7 +8,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import Discriminator, Field, StrictBool, StrictInt, Tag, ValidationError, model_validator
 
-from .observation import SamplingPlan, TraceRun, sampling_hash, validate_sampling_plan
+from .observation import SamplingPlan, validate_sampling_plan, validate_trace
 from .suite.evaluate import _evaluate_bits
 from .suite.schema import Constant, Contract, Name, Requirement, Width
 from .suite.semantics import SuiteError, _validate_expr
@@ -196,48 +196,6 @@ def property_hash(suite):
     return hashlib.sha256(json.dumps(validate_properties(suite), sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def _validate_trace(trace, plan):
-    if not isinstance(trace, TraceRun) or trace.status != "complete":
-        raise SuiteError("properties need a complete neutral TraceRun")
-    if trace.plan_hash != sampling_hash(plan):
-        raise SuiteError("trace sampling hash differs from property plan")
-    if not isinstance(trace.execution_id, str) or not trace.execution_id or not isinstance(trace.candidate_hash, str) or len(trace.candidate_hash) != 64 or any(c not in "0123456789abcdef" for c in trace.candidate_hash):
-        raise SuiteError("property trace needs candidate SHA256 and execution identity")
-    if type(trace.sampling_version) is not int or trace.sampling_version != 1:
-        raise SuiteError("unsupported trace sampling version")
-    if not isinstance(trace.rows, list) or len(trace.rows) != 2 * sum(len(c["steps"]) for c in plan["cases"]):
-        raise SuiteError("trace row count differs from sampling plan")
-    # Reuse the wire parser to audit public input values, order, ticks and full row count.
-    from .observation import parse_observations
-    lines = []
-    marker = "0000000000000000"
-    ports = sorted(plan["ports"])
-    for row in trace.rows:
-        if not isinstance(row, dict) or set(row) != {"case_id", "case_index", "step", "clock_tick", "phase", "sample", "edge", "values"}:
-            raise SuiteError("unexpected trace row fields")
-        if any(type(row[key]) is not int for key in ("case_index", "step", "clock_tick")) or any(type(row[key]) is not bool for key in ("sample", "edge")):
-            raise SuiteError("trace event metadata has invalid types")
-        if not isinstance(row["values"], dict) or set(row["values"]) != set(ports):
-            raise SuiteError("trace public ports differ from sampling plan")
-        encoded = []
-        for name in ports:
-            bits = row["values"][name]
-            if not isinstance(bits, dict) or set(bits) != {"bits", "known", "width"}:
-                raise SuiteError("invalid trace bit structure")
-            width = plan["ports"][name]["width"]
-            if any(type(bits[k]) is not int for k in bits) or bits["width"] != width:
-                raise SuiteError("trace value width or type differs from sampling plan")
-            full = (1 << width) - 1
-            if not 0 <= bits["bits"] <= full or not 0 <= bits["known"] <= full or bits["bits"] & ~bits["known"]:
-                raise SuiteError("trace unknown bits must remain unknown")
-            encoded.append("b:" + "".join(str((bits["bits"] >> b) & 1) if bits["known"] & (1 << b) else "x" for b in reversed(range(width))))
-        lines.append(f"RTLA_OBS_{marker}|{row['case_index']}|{row['step']}|{row['clock_tick']}|{row['phase']}|" + "|".join(encoded))
-    lines.append(f"RTLA_OBS_DONE_{marker}")
-    audited = parse_observations("\n".join(lines), plan, marker, candidate_hash=trace.candidate_hash, execution_id=trace.execution_id)
-    if audited.rows != trace.rows:
-        raise SuiteError("trace metadata differs from fixed sampling plan")
-
-
 def _value(expr, events, index, anchor, ports):
     values, widths = {}, {}
 
@@ -268,7 +226,7 @@ def evaluate_properties(suite, trace):
     """Evaluate finite obligations. Zero triggers and unresolved windows never pass."""
     suite = validate_properties(suite)
     plan = suite["sampling"]
-    _validate_trace(trace, plan)
+    validate_trace(trace, plan)
     rows = {(r["case_index"], r["step"], r["phase"]): r for r in trace.rows}
     per_property, obligations, unknown_triggers = [], [], []
     for prop in suite["properties"]:
