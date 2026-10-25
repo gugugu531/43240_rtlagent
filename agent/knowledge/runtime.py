@@ -112,12 +112,19 @@ def embed(data, query, options, trace=None):
             response = client.post(url, json=request)
             response.raise_for_status()
             payload = response.json()
+    if not isinstance(payload, dict):
+        raise ValueError('invalid_embedding_response')
     if payload.get('model') != data['model']['runtime_alias']:
         raise ValueError('embedding_model_mismatch')
+    rows = payload.get('data')
+    if (not isinstance(rows, list) or len(rows) != 1
+            or not isinstance(rows[0], dict) or 'embedding' not in rows[0]):
+        raise ValueError('invalid_embedding_response')
+    result = vector(rows[0]['embedding'], data['model']['dimensions'])
     if trace is not None:
         trace['embedding_model'] = payload['model']
         trace['embedding_usage'] = payload.get('usage')
-    return vector(payload['data'][0]['embedding'], data['model']['dimensions'])
+    return result
 
 
 INVALID_REPLICATION = re.compile(r'(?<!\{)\{\s*(?:\d+|[A-Za-z_$][A-Za-z0-9_$]*)\s*\{[^{}]+\}\s*,')

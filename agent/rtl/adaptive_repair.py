@@ -21,6 +21,15 @@ def _diagnostic_key(item):
     return tuple(item.get(name) for name in ("code", "severity", "message"))
 
 
+def _solver_provenance(item):
+    # Optional retrieval probes belong to the RAG evidence, not the base prompt.
+    # Retain versions printed by the actual source-check command.
+    if item.get("version_source") == "version_probe":
+        item["version"] = None
+        item["version_source"] = None
+    item.pop("version_probe_id", None)
+
+
 def _failure_context(failure):
     """Make a prompt view without changing the bound check or its saved trace."""
     result = deepcopy(failure)
@@ -28,6 +37,8 @@ def _failure_context(failure):
     sources = {name: details.pop(name) for name in
                ("knowledge_diagnostics", "repair_diagnostics") if name in details}
     commands = {command.get("command_index"): command for command in details.get("knowledge_commands", [])}
+    for command in commands.values():
+        _solver_provenance(command)
     items, seen = [], set()
     for source_name, source in sources.items():
         for original in source.get("items", []):
@@ -36,9 +47,10 @@ def _failure_context(failure):
                 continue
             seen.add(key)
             item = deepcopy(original)
+            _solver_provenance(item)
             # The command table carries version provenance once per invocation.
             command = commands.get(item.get("command_index"), {})
-            for name in ("tool", "version", "version_source", "version_probe_id"):
+            for name in ("tool", "version", "version_source"):
                 if name in command and item.get(name) == command[name]:
                     item.pop(name, None)
             item["message"] = _source_location(item["message"])
@@ -65,8 +77,6 @@ def _failure_context(failure):
         result["command"] = [[PurePosixPath(command[0]).name, *command[1:]]
                              for command in result["command"]]
     details.pop("knowledge_version_probes", None)
-    for command in details.get("knowledge_commands", []):
-        command.pop("version_probe_id", None)
     return result
 
 

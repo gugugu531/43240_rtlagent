@@ -14,6 +14,8 @@
 - `shadow` 检索并记录准入，但不更改生成消息，也不请求知识装配的 tokenizer。记录的是“准入后待装配”，不宣称已通过 token 预算。
 - `on` 只有通过准入和预算的完整知识段才进入请求。
 
+工具编译输出没有版本时，RAG 可额外探测版本用于检索准入和日志。自适应修复的基础消息只保留编译输出自身携带的版本；额外探测所得版本及探测标识不进入基础消息，因此 `shadow` 不会借由诊断元数据改变求解提示。原始检查记录和检索使用的版本证据完整保留。
+
 旧配置兼容：未设置模式时，非空 `skill_ids` 表示 Skill on；`rag: true` 表示 RAG on。显式模式与旧 `rag: true` 冲突时报配置错误。自适应 Skill 默认 on，保留原主机映射，经同一个准入层过滤。
 
 时序 v2 可自动准入；v3 仅供固定注入实验，自动选择不启用非默认候选。位宽、组合逻辑、FSM 仍处于 fixed A/B 拒绝状态。显式选择拒绝／未知／冲突 Skill 在构图阶段报错，模型请求之前停止；自动选择记录拒绝原因并继续无知识生成。自动路由入口是主线 `choose_route`，离线旧路由器不被视为第二个运行时权威。路由收益尚未验收。
@@ -39,7 +41,7 @@ HTTP 不使用环境代理，不跟随跳转。SSH 要求已有可信主机密�
 
 发布包包含 32 张英文卡及冻结文档向量，不含开发查询、标签、参考 RTL 或判定结果。BM25 使用冻结分词与参数；dense 为精确点积；hybrid 为 exact/BM25/dense 的 RRF（常数 60）。F24 是额外受限 exact 通道，没有伪造向量，trace 用 `lane: restricted_exact` 区分。完整系统排名不能直接冒充原 32 卡离线指标。
 
-embedding 只接收限长、路径脱敏后的首个有效工具诊断及工具元数据，不接收完整题面或 RTL。知识准备最多使用剩余请求窗口的 10% 且不超过 5 秒；embedding 超时进一步限制在该窗口的一半，给生成保留时间。超时、断连、模型／向量不兼容按配置降级，记录有效后端及延迟。服务失败使用 `retrieval_unavailable`，不算正确空返回；还应检查 `embedding_error` 和 `effective_strategy`。
+embedding 只接收限长、路径脱敏后的首个有效工具诊断及工具元数据，不接收完整题面或 RTL。知识准备最多使用剩余请求窗口的 10% 且不超过 5 秒；embedding 超时进一步限制在该窗口的一半，给生成保留时间。超时、断连、响应 JSON 结构不合法、模型／向量不兼容按配置降级，记录有效后端及延迟；HTTP 200 也必须通过结构校验。服务失败使用 `retrieval_unavailable`，不算正确空返回；还应检查 `embedding_error` 和 `effective_strategy`。
 
 ## 保守准入边界
 
@@ -61,7 +63,9 @@ embedding 只接收限长、路径脱敏后的首个有效工具诊断及工具�
 
 每次装配记录 `skill_selected / skill_rejected`、`retrieval.retrieved / admitted / rejected`、完整段预算结果和 `sent`，并保存原消息／实际消息哈希与耗时。`model_result` 绑定 call ID。可选资源或 tokenizer 失败保留原消息继续求解；配置错误由预检处理，硬性总任务超时不吞掉。
 
-`framework-outcome.json` 汇总完整新稿交付、候选选择、solution 哈希、工具结果和阶段成本。`selected_latest_complete` 不等于“本次修复成功”：没有新稿时 latest complete 仍可能是旧稿，须同时检查 `deliveries`。外部评分与评分候选默认为 null，不猜测尚未运行的主办方评分。
+`framework-outcome.json` 的汇总 schema 为 2，汇总完整新稿交付、候选选择、solution 哈希、工具结果和阶段成本。`latest_complete_candidate_id` 只统计有明确 `complete_new_draft: true` 交付证据的候选，按候选创建顺序取最后一份；交付通过候选 ID 绑定，只有未记录候选 ID 的旧式自适应事件才通过唯一的模型调用 ID 关联。创建候选、保存答案和默认 `extraction_status` 均不能证明完整性。
+
+`selected_candidate_complete` 为 true／false／null，表示明确完整、明确不完整或缺少证据。baseline 保持主办方提取行为，未执行完整性验证时为 null；此时 `selected_latest_complete` 也为 null。`selected_latest_complete` 不等于“本次修复成功”：没有新稿时 latest complete 仍可能是旧稿，须同时检查 `deliveries`；完整交付也不代表 RTL 通过编译或功能检查。外部评分与评分候选默认为 null，不猜测尚未运行的主办方评分。
 
 ## 验收与后续
 
