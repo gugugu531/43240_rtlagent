@@ -3,11 +3,19 @@
 from __future__ import annotations
 import argparse
 import hashlib
+import math
 import os
 from pathlib import Path
 import signal
 import shutil
 import time
+
+
+def positive_seconds(value):
+    seconds = float(value)
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise argparse.ArgumentTypeError("deadline must be positive and finite")
+    return seconds
 
 
 def main(argv=None):
@@ -18,7 +26,7 @@ def main(argv=None):
     parser.add_argument("--config", type=Path, default=os.environ.get("AGENT_CONFIG"))
     parser.add_argument("--top", default=os.environ.get("RTL_TOP", ""))
     parser.add_argument("--deadline-s", type=float)
-    parser.add_argument("--hard-deadline-s", type=float)
+    parser.add_argument("--hard-deadline-s", type=positive_seconds)
     parser.add_argument("--reserve-s", type=float)
     parser.add_argument("--record-root", type=Path)
     parser.add_argument("--record-level", choices=("basic", "full"))
@@ -34,7 +42,15 @@ def main(argv=None):
     status, reason = "error", "initialization_error"
     old_handlers = {}
 
+    def arm_deadline():
+        # Re-arm long deadlines without overflowing the platform timer.
+        remaining = budget.remaining_s(include_reserve=True)
+        signal.setitimer(signal.ITIMER_REAL, min(86400.0, max(0.001, remaining)))
+
     def interrupt(signum, frame):
+        if signum == signal.SIGALRM and budget.remaining_s(include_reserve=True) > 0:
+            arm_deadline()
+            return
         raise Deadline("deadline" if signum == signal.SIGALRM else "cancelled")
 
     try:
@@ -61,7 +77,9 @@ def main(argv=None):
         )
         record.close()
         record = configured_record
-        deadline = min(config.runtime.deadline_s, args.hard_deadline_s or 900)
+        deadline = config.runtime.deadline_s
+        if args.hard_deadline_s is not None:
+            deadline = min(deadline, args.hard_deadline_s)
         budget = Budget(
             deadline,
             min(config.runtime.reserve_s, max(0, deadline - 0.001)),
@@ -70,14 +88,17 @@ def main(argv=None):
         )
         for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGALRM):
             old_handlers[sig] = signal.signal(sig, interrupt)
-        signal.setitimer(
-            signal.ITIMER_REAL, max(0.001, budget.remaining_s(include_reserve=True))
-        )
+        arm_deadline()
         record.emit(
             "run", "start", input=str(args.input.resolve()), source_root=str(ROOT)
         )
         record.emit(
             "run", "config", configuration=evidence, record_dir=str(record.record_dir)
+        )
+        record.emit(
+            "budget", "configured", configured_s=config.runtime.deadline_s,
+            external_limit_s=args.hard_deadline_s, effective_s=deadline,
+            reserve_s=budget.reserve_s,
         )
         record.write_json("configuration.json", evidence)
         from agent.runtime.process import ProcessManager
