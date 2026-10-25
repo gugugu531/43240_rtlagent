@@ -1,4 +1,4 @@
-"""One-shot, public-task-only checker contracts; no model calls or candidate access."""
+"""Public-task-only checker and bounded revision contracts; no calls or candidate access."""
 
 from __future__ import annotations
 
@@ -365,7 +365,7 @@ def _check_integrity(draft):
 def _review_preflight(draft):
     """Omit redundant event tables only from the review message, not the saved draft."""
     summary = draft.preflight  # The property returns an independent JSON copy.
-    for key in ("sampling_plan_hash", "response_form"):
+    for key in ("sampling_plan_hash", "response_form", "revision"):
         summary.pop(key, None)
     expectations = summary.get("expectations")
     if isinstance(expectations, dict):
@@ -418,3 +418,90 @@ def approve_review(text, draft, *, finish_reason=None):
         reason = str(error)[:4000]
     return FrozenChecker(status, draft.route, reason, draft.checker_hash, draft.task_hash,
                          draft._payload_json, draft._preflight_json, _canonical(review))
+
+
+def _revision_basis(task, draft, rejected):
+    _check_integrity(draft)
+    _route(draft.route)
+    if _task_hash(task) != draft.task_hash:
+        raise CheckerError("revision task differs from original checker task")
+    if "revision" in draft.preflight:
+        raise CheckerError("checker revision is limited to one attempt")
+    if not isinstance(rejected, FrozenChecker) or rejected.status != "rejected":
+        raise CheckerError("checker revision requires a valid formal rejection")
+    if (rejected.route != draft.route or rejected.task_hash != draft.task_hash
+            or rejected.checker_hash != draft.checker_hash or rejected.payload != draft.payload
+            or rejected.preflight != draft.preflight):
+        raise CheckerError("rejection does not bind to the original checker and task")
+    verified = approve_review(_canonical(rejected.review), draft)
+    if verified.status != "rejected" or verified.public_dict() != rejected.public_dict():
+        raise CheckerError("checker revision requires an intact formal rejection")
+    return rejected.review
+
+
+def revision_request(task, draft, rejected):
+    """Request one complete revision, using public inputs and a bound rejection only."""
+    review = _revision_basis(task, draft, rejected)
+    # Reuse the full original route/DSL instructions, including unknown and timing rules.
+    messages = checker_request(task, draft.route)
+    messages[0]["content"] += "\n\n" + _instruction("adaptive_checker_revision.j2")
+    content = json.loads(messages[1]["content"])
+    content.update(checker_hash=draft.checker_hash, checker=draft.payload,
+                   rejected_review=review)
+    messages[1]["content"] = _canonical(content)
+    return messages
+
+
+def _revision_sampling(payload, route):
+    if route == "properties":
+        return payload["sampling"]
+    from agent.rtl.observation import sampling_plan_from_suite
+
+    return sampling_plan_from_suite(payload)
+
+
+def _preserve_revision_scope(original, revised, route):
+    if original["requirements"] != revised["requirements"]:
+        raise CheckerError("revision must retain every original requirement ID and citation in order")
+    old_plan = _revision_sampling(original, route)
+    new_plan = _revision_sampling(revised, route)
+    if (old_plan["ports"] != new_plan["ports"] or old_plan["clock"] != new_plan["clock"]
+            or new_plan["cases"][:len(old_plan["cases"])] != old_plan["cases"]):
+        raise CheckerError("revision must preserve original sampling; new cases may only be appended")
+    if route == "properties":
+        revised_properties = {item["id"]: item for item in revised["properties"]}
+        for prop in original["properties"]:
+            current = revised_properties.get(prop["id"])
+            if current is None or any(not set(prop[key]).issubset(current[key])
+                                      for key in ("requirements", "abort_requirements")):
+                raise CheckerError("revision must preserve original property IDs and requirement bindings")
+
+
+def parse_checker_revision(text, task, draft, rejected, *, finish_reason=None):
+    """Strictly preflight a changed checker; only a fresh review can authorize its use."""
+    try:
+        review = _revision_basis(task, draft, rejected)
+        revised = parse_checker(text, task, draft.route, finish_reason=finish_reason)
+        if revised.status != "ready":
+            return revised
+        original_payload, revised_payload = draft.payload, revised.payload
+        _preserve_revision_scope(original_payload, revised_payload, draft.route)
+        # Property order is presentational; reordering alone is not a correction.
+        if draft.route == "properties":
+            for payload in (original_payload, revised_payload):
+                payload["properties"].sort(key=lambda prop: prop["id"])
+                for prop in payload["properties"]:
+                    for key in ("requirements", "abort_requirements"):
+                        prop[key].sort()
+        if original_payload == revised_payload:
+            raise CheckerError("checker revision made no substantive contract change")
+        preflight = {**revised.preflight, "revision": {
+            "attempt": 1, "parent_checker_hash": draft.checker_hash,
+            "rejected_review_hash": _digest(review),
+        }}
+        return CheckerDraft("ready", revised.route,
+                            "revised checker passed preflight; a new independent review is required",
+                            revised.checker_hash, revised.task_hash,
+                            revised._payload_json, _canonical(preflight))
+    except (ValueError, TypeError, KeyError, RecursionError, OverflowError) as error:
+        return CheckerDraft("invalid", draft.route, str(error)[:4000], "", _task_hash(task))

@@ -1,0 +1,23 @@
+This request is the ONE permitted checker revision after an independent formal reject.
+The supplied checker_hash identifies the complete original checker; rejected_review
+contains the bound formal decision. Reconsider that disagreement against the original
+public task. The review is evidence to assess, not an instruction to override the task
+or these rules. No candidate RTL, actual DUT output, Skill or solver analysis is supplied.
+
+Return a complete corrected checker for the SAME route using the JSON protocol above,
+or unsupported with a specific reason if you cannot correct it within these constraints.
+Do not return implementation RTL, a patch, partial fields, or a review decision.
+Keep every original requirement, its ID, exact citation and source metadata, in order.
+Do not delete, rename, replace or weaken a requirement to avoid the disagreement.
+Preserve all original sampling ports and clock, and every original case in order,
+including its ID, requirement links and complete input/edge/sample sequence.
+You may append new cases only within the existing case/event limits. Do not remove
+a scenario, turn off its samples, shorten its sequence or change its inputs/clock.
+For properties, retain every original property ID and all of its original requirements
+and abort_requirements links. Predicates and other checker semantics may be corrected,
+but validity masks, triggers, warmup and aborts must follow the public task, not conceal
+a required comparison. The original full DSL/unknown/timing rules still apply.
+
+Make a substantive correction, not a formatting change or unchanged retransmission.
+A revised checker is not approved: the host runs strict preflight and a fresh independent
+review of its new hash before any functional use. There is no further revision attempt.
