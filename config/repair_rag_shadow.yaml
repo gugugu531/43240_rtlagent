@@ -1,4 +1,4 @@
-# 冻结的 K=1 exact 诊断 RAG 影子预设；不注入 Skill，不是默认运行配置。
+# Pinned English K=1 exact RAG shadow preset; no Skill injection, not the default.
 workflow: repair_loop
 params: {max_rounds: 2}
 nodes:
@@ -10,7 +10,13 @@ nodes:
       timeout_s: 180
       skill_ids: []
       skill_phases: [generate, repair]
-      rag: true
+      rag_mode: shadow
+      retrieval:
+        strategy: exact
+        fallback: empty
+        release_id: framework-v1-en.1
+        release_sha256: 8474fee979a28257db2d1ce02130a74bf2c11fd6271c9212546723157ed4cb54
+        policy_sha256: d303209fd583c6e9c74e08d09e2f59b4a2a74ee4f38292089c5fe34f30c5807a
       knowledge_max_tokens: 2048
   check: {use: rtl_checks, params: {stages: [interface, lint, synth]}}
 tools:

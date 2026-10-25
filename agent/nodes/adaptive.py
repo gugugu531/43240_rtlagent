@@ -58,6 +58,8 @@ def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True, 
                     rag=settings["rag"] and parent is not None,
                     max_tokens=limits["max_tokens"], max_extra_tokens=settings["knowledge_max_tokens"],
                     diagnostic_first=parent is not None,
+                    skill_mode=settings['skill_mode'], rag_mode=settings['rag_mode'],
+                    retrieval_options=settings['retrieval'], automatic=True,
                 )
             reply = ctx.llm.chat(messages, purpose=f"adaptive_{stage}",
                                  temperature=settings["temperature"], top_p=settings["top_p"], **limits)
@@ -87,6 +89,10 @@ def _candidate(ctx, reply, *, parent=None, stage="draft", extraction=None):
         return None
     extraction = extraction or extract_result(reply.content, ctx.task.top)
     _save(ctx, f"{stage}-extraction", extraction.trace_dict())
+    ctx.record.emit('extract', 'delivery', source_call_id=reply.call_id, stage=stage,
+                    parent_id=parent.id if parent else None, finish_reason=reply.finish_reason,
+                    complete_new_draft=bool(extraction.status == 'ok' and extraction.complete
+                        and extraction.target_module_found and not extraction.suspected_truncation))
     if (extraction.status != "ok" or not extraction.complete
             or not extraction.target_module_found or extraction.suspected_truncation):
         return None
@@ -112,7 +118,8 @@ def initialize(ctx: Ctx, state: State) -> State:
         "analysis": None, "routing": choose_route(ctx.task), "checker": None,
         "rescue_used": False, "repair_used": False, "checker_revision_used": False,
     }
-    ctx.store["knowledge_rag_enabled"] = settings["rag"]
+    from agent.knowledge.policy import modes
+    ctx.store["knowledge_rag_enabled"] = modes(settings['skill_mode'], settings['rag_mode'], rag=settings['rag'])[1] != 'off'
     _save(ctx, "settings", settings)
     return state
 

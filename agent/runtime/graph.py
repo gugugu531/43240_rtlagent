@@ -94,6 +94,9 @@ def build_graph(ctx):
             raise ValueError(f"unknown node: {selected['use']}")
         definition = NODES[selected["use"]]
         params = parameters(definition.fn, selected.get("params", {}))
+        if selected['use'] == 'rtl_generate':
+            from agent.knowledge.policy import validate_selection
+            validate_selection(params)
         selected["params"] = params
         actions[name] = bind_node(definition, ctx, params)
     values = dict(workflow.params)

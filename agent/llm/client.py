@@ -112,6 +112,13 @@ class Client:
         self.http = httpx.Client(transport=transport, trust_env=False)
         self.replay = getattr(transport, "replay", None)
 
+    def optional_preparation_budget_s(self):
+        """Optional knowledge may use at most 10% of the remaining call window."""
+        available = self.budget.remaining_s()
+        if self._request_deadline is not None:
+            available = min(available, max(0.0, self._request_deadline - time.monotonic()))
+        return min(5.0, available * 0.1)
+
     @contextmanager
     def request_window(self, timeout_s=None):
         """Bound optional preparation and chat by the same nested request window."""

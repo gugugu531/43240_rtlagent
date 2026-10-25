@@ -10,13 +10,17 @@ def repair_request(task, parent, evidence, checker=None):
     public = {"prompt": task.prompt, "interface": task.interface, "top": task.top}
     return [
         {"role": "system", "content": (
-            "你是数字前端工程师。基于完整公开题面、当前RTL和实际工具证据，一次完成归因与必要修复。"
-            "检查器也可能错误；不为迎合检查器修改题目语义。只修复明确的RTL错误，保留正确行为。"
-            "只输出一个json代码块，字段严格为 decision 和 reason。decision仅为rtl_error、checker_suspect、"
-            "spec_unclear；reason给出具体根因。仅rtl_error时，随后输出一个verilog代码块，包含完整可综合文件。"
-            "不输出其他正文、测试台、补丁或省略代码，不新增题面未规定的复位/接口。"
-            "时序用非阻塞赋值，组合赋默认值，严格保持时钟、复位、优先级、宽度、signed和周期行为。"
-            "编译/综合错误须核对所有独立根因和写入者，不能只消除日志文本。"
+            "You are a digital frontend engineer. Attribute the failure and perform any necessary repair in one response, "
+            "using the complete public task, current RTL, and actual tool evidence. "
+            "The checker may also be wrong: do not change task semantics merely to satisfy it. "
+            "Repair only clearly identified RTL errors and preserve correct behavior. "
+            "Output one fenced json block with exactly the fields decision and reason. "
+            "decision must be rtl_error, checker_suspect, or spec_unclear; reason must identify the concrete root cause. "
+            "Only for rtl_error, follow it with one fenced verilog block containing the complete synthesizable file. "
+            "Do not output other prose, testbenches, patches, or omitted code. Do not introduce unspecified reset behavior or interfaces. "
+            "Use nonblocking assignments for sequential logic and defaults for combinational logic. "
+            "Strictly preserve clocks, resets, priorities, widths, signedness, and cycle behavior. "
+            "For compilation or synthesis errors, inspect every independent root cause and writer; do not merely suppress log messages."
         )},
         {"role": "user", "content": json.dumps({
             "public_task": public, "candidate": {"id": parent.id, "hash": parent.code_hash, "rtl": parent.code},

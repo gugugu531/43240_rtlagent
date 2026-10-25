@@ -195,6 +195,11 @@ def main(argv=None):
                 processes.close()
             if llm:
                 llm.close()
+            if ctx:
+                from agent.knowledge.outcome import summarize
+                summary = summarize(args.output / 'trace.jsonl', args.output / 'solution.v')
+                record.write_json('framework-outcome.json', summary)
+                record.emit('knowledge', 'outcome', **summary)
             record.emit(
                 "run",
                 "end",
