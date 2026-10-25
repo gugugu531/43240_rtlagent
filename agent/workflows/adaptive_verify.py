@@ -1,4 +1,4 @@
-"""First draft, one independent checker, and at most one evidenced RTL repair."""
+"""First draft, one bounded checker revision, and one evidenced RTL repair."""
 
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
@@ -17,11 +17,13 @@ class AdaptiveParameters(BaseModel):
     draft: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     construction: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     review: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
+    revision: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
+    rereview: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     repair: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     first_tools_s: float = Field(default=300, gt=0)
     recheck_tools_s: float = Field(default=600, gt=0)
-    max_calls: int = Field(default=5, gt=0, le=5)
-    max_output_tokens: int = Field(default=135168, gt=0)
+    max_calls: int = Field(default=7, gt=0, le=7)
+    max_output_tokens: int = Field(default=200704, gt=0)
     knowledge_max_tokens: int = Field(default=8192, ge=0, le=8192)
     sequential_skill: Literal["rtl-sequential-state-update", "rtl-sequential-state-update-v3"] = "rtl-sequential-state-update"
     rag: bool = True
@@ -36,6 +38,7 @@ class AdaptiveParameters(BaseModel):
         "initialize": "adaptive_initialize", "analyze": "adaptive_analyze",
         "generate": "adaptive_generate", "rescue": "adaptive_rescue",
         "build_checker": "adaptive_build_checker", "review_checker": "adaptive_review_checker",
+        "revise_checker": "adaptive_revise_checker", "rereview_checker": "adaptive_rereview_checker",
         "check": "adaptive_check", "decide": "adaptive_decide",
         "repair": "adaptive_repair", "recheck": "adaptive_recheck",
         "select": "adaptive_select", "finish": "adaptive_finish",
@@ -51,7 +54,11 @@ def build(g, p):
         ("generate", "rescue", default),
         ("rescue", "check", when(has_candidate=True)), ("rescue", "finish", default),
         ("build_checker", "review_checker", when(checker_status="ready")),
-        ("build_checker", "check", default), ("review_checker", "check"),
+        ("build_checker", "check", default),
+        ("review_checker", "revise_checker", when(checker_status="rejected")),
+        ("review_checker", "check", default),
+        ("revise_checker", "rereview_checker", when(checker_status="ready")),
+        ("revise_checker", "check", default), ("rereview_checker", "check"),
         ("check", "decide"), ("decide", "repair", when(action="repair")),
         ("decide", "finish", default),
         ("repair", "recheck", when(action="recheck")), ("repair", "finish", default),

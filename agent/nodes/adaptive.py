@@ -8,7 +8,10 @@ from agent.kit import Ctx, State, node
 from agent.llm.client import ModelError
 from agent.runtime.allowance import CompletionLedger
 from agent.rtl.adaptive_analysis import analysis_request, parse_analysis, choose_route
-from agent.rtl.adaptive_check import checker_request, parse_checker, review_request, approve_review
+from agent.rtl.adaptive_check import (
+    checker_request, parse_checker, review_request, approve_review,
+    revision_request, parse_checker_revision,
+)
 from agent.rtl.adaptive_repair import repair_request, parse_repair
 from agent.rtl.extract import extract_result
 from agent.rtl.result import CheckResult, bind_result, checker_hash
@@ -39,6 +42,8 @@ def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True, 
     permit = ledger.reserve(stage, **limits, followup_s=followup_s, optional=optional)
     if permit is None:
         data["request_outcomes"][stage] = {"status": "not_sent", "reason": ledger.last_denial}
+        _save(ctx, "completion-ledger", ledger.snapshot())
+        _save(ctx, "request-outcomes", data["request_outcomes"])
         return None
     assembly = None
     try:
@@ -104,7 +109,7 @@ def initialize(ctx: Ctx, state: State) -> State:
             max_calls=settings["max_calls"], max_output_tokens=settings["max_output_tokens"]),
         "attempted": set(), "request_outcomes": {}, "assessments": {},
         "analysis": None, "routing": choose_route(ctx.task), "checker": None,
-        "rescue_used": False, "repair_used": False,
+        "rescue_used": False, "repair_used": False, "checker_revision_used": False,
     }
     ctx.store["knowledge_rag_enabled"] = settings["rag"]
     _save(ctx, "settings", settings)
@@ -159,7 +164,8 @@ def build_checker(ctx: Ctx, state: State) -> State:
     data, settings = _data(ctx), _data(ctx)["settings"]
     if state["route"] == "structural":
         return state.update(checker_status="not_requested")
-    followup = settings["review"]["timeout_s"] + settings["first_tools_s"] + settings["repair"]["timeout_s"] + settings["recheck_tools_s"]
+    followup = (settings["review"]["timeout_s"] + settings["revision"]["timeout_s"]
+                + settings["rereview"]["timeout_s"] + _rtl_followup(settings))
     reply = _request(ctx, "construction", checker_request(ctx.task, state["route"]), followup_s=followup)
     if reply is None:
         return state.update(checker_status="unavailable")
@@ -169,18 +175,69 @@ def build_checker(ctx: Ctx, state: State) -> State:
     return state.update(checker_status=draft.status)
 
 
-@node("adaptive_review_checker", reads=[], writes=["checker_status"])
-def review_checker(ctx: Ctx, state: State) -> State:
+def _rtl_followup(settings):
+    return settings["first_tools_s"] + settings["repair"]["timeout_s"] + settings["recheck_tools_s"]
+
+
+def _review_checker(ctx, draft, stage):
     data, settings = _data(ctx), _data(ctx)["settings"]
-    draft = data["checker_draft"]
-    followup = settings["first_tools_s"] + settings["repair"]["timeout_s"] + settings["recheck_tools_s"]
-    reply = _request(ctx, "review", review_request(ctx.task, draft), followup_s=followup)
+    followup = _rtl_followup(settings)
+    if stage == "review":
+        followup += settings["revision"]["timeout_s"] + settings["rereview"]["timeout_s"]
+    reply = _request(ctx, stage, review_request(ctx.task, draft), followup_s=followup)
     if reply is None:
-        return state.update(checker_status="review_unavailable")
+        return None
     frozen = approve_review(reply.content, draft, finish_reason=reply.finish_reason)
     data["checker"] = frozen
+    _save(ctx, "checker-initial-review" if stage == "review" else "checker-revised-review", frozen.public_dict())
     _save(ctx, "frozen-checker", frozen.public_dict())
-    return state.update(checker_status=frozen.status)
+    return frozen
+
+
+@node("adaptive_review_checker", reads=[], writes=["checker_status"])
+def review_checker(ctx: Ctx, state: State) -> State:
+    frozen = _review_checker(ctx, _data(ctx)["checker_draft"], "review")
+    return state.update(checker_status=frozen.status if frozen else "review_unavailable")
+
+
+@node("adaptive_revise_checker", reads=[], writes=["checker_status"])
+def revise_checker(ctx: Ctx, state: State) -> State:
+    data, settings = _data(ctx), _data(ctx)["settings"]
+    if data["checker_revision_used"]:
+        raise ValueError("only one checker revision is allowed")
+    original, rejected = data["checker_draft"], data["checker"]
+    # The component validates the formal rejection before a request can be sent.
+    messages = revision_request(ctx.task, original, rejected)
+    data["checker_revision_used"] = True
+    lineage = {"attempt": 1, "parent_checker_hash": original.checker_hash,
+               "initial_review_artifact": "adaptive/checker-initial-review.json",
+               "revised_checker_hash": None, "status": "started"}
+    data["checker_revision"] = lineage
+    _save(ctx, "checker-revision", lineage)
+    reply = _request(ctx, "revision", messages,
+                     followup_s=settings["rereview"]["timeout_s"] + _rtl_followup(settings))
+    lineage.update(status="unavailable", request=data["request_outcomes"]["revision"])
+    if reply is not None:
+        draft = parse_checker_revision(reply.content, ctx.task, original, rejected,
+                                       finish_reason=reply.finish_reason)
+        data["revised_checker_draft"] = draft
+        _save(ctx, "checker-revised-draft", draft.public_dict())
+        lineage.update(status=draft.status, revised_checker_hash=draft.checker_hash or None,
+                       binding=draft.preflight.get("revision"), reason=draft.reason)
+    _save(ctx, "checker-revision", lineage)
+    return state.update(checker_status=lineage["status"])
+
+
+@node("adaptive_rereview_checker", reads=[], writes=["checker_status"])
+def rereview_checker(ctx: Ctx, state: State) -> State:
+    data = _data(ctx)
+    frozen = _review_checker(ctx, data["revised_checker_draft"], "rereview")
+    status = frozen.status if frozen else "rereview_unavailable"
+    data["checker_revision"].update(status=status,
+                                    rereview_artifact="adaptive/checker-revised-review.json" if frozen else None,
+                                    rereview_request=data["request_outcomes"]["rereview"])
+    _save(ctx, "checker-revision", data["checker_revision"])
+    return state.update(checker_status=status)
 
 
 def _check_candidate(ctx, candidate, allowance_s):
@@ -362,6 +419,7 @@ def finish(ctx: Ctx, state: State) -> State:
         "coverage_scope": assessment.get("behavior", {}).get("route", "structural"),
         "semantic_completeness_proven": False,
         "repair_authority_revoked": data.get("repair_authority_revoked"),
+        "checker_revision": data.get("checker_revision"),
         "selection": data.get("selection"), "request_outcomes": data["request_outcomes"],
         "budget": data["ledger"].snapshot(),
     })
