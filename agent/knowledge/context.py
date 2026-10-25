@@ -41,6 +41,8 @@ def prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, ma
         if skill_id not in assets["skills"]:
             raise ValueError("unknown skill: " + skill_id)
         skill, body = assets["skills"][skill_id]
+        if skill.review_status == "frozen_rejected_fixed_ab":
+            raise ValueError("skill rejected by frozen fixed A/B: " + skill_id)
         if skill.conflict_group in groups:
             raise ValueError("conflicting skill methods: " + skill.conflict_group)
         groups.add(skill.conflict_group)

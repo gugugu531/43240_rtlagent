@@ -12,7 +12,9 @@
 LLM_BACKEND=mock ./run.sh <公开题面目录> <新输出目录> --config config/repair_knowledge.yaml
 ```
 
-[修复预设](../config/repair_knowledge.yaml) 与 [设计预设](../config/design_verify_knowledge.yaml) 分别沿用原流程的生成预算和采样设置，只增加知识参数。默认选中的时序 Skill 适用于寄存器、计数器、移位等公开题面，不代表对所有题型适用。选择方法由配置负责，当前不按题号、目录名或模型自动路由。
+[修复预设](../config/repair_knowledge.yaml) 与 [设计预设](../config/design_verify_knowledge.yaml) 分别沿用原流程的生成预算和采样设置，只启用冻结的时序 Skill v2；RAG 保持关闭。默认选中的时序 Skill 适用于寄存器、计数器、移位等公开题面，不代表对所有题型适用。选择方法由配置负责，当前不按题号、目录名或模型自动路由。
+
+RAG 与 Skill 已分离冻结。[RAG 影子预设](../config/repair_rag_shadow.yaml) 只启用当前候选代码失败上的 K=1 exact 检索，不加载 Skill，也不是默认运行配置。开发集上的 BM25、Qwen3-Embedding-0.6B dense 和 RRF hybrid 只用于离线影子比较；未通过跨题族正确率门槛，因此没有导入运行包或替换 exact 路径。
 
 | `nodes.generate.params` 参数 | 默认值与含义 |
 | --- | --- |
@@ -25,9 +27,9 @@ LLM_BACKEND=mock ./run.sh <公开题面目录> <新输出目录> --config config
 
 ## 资产
 
-[目录清单](../knowledge/catalog.json) 登记五个方法：时序 v2、时序 v3、位宽与符号、组合逻辑完整性、FSM 状态与输出。v2/v3 共用冲突组，禁止同时选择。任务类型字段是维护者的说明，不是自动匹配器。原接口示范 `SKILL.md` 不在运行目录清单中。
+[目录清单](../knowledge/catalog.json) 登记五个方法：时序 v2、时序 v3、位宽与符号、组合逻辑完整性、FSM 状态与输出。时序 v2 冻结为通用固定正文；v3 因存在局部正确性收益但有稳定长尾，保留为非默认候选。位宽、组合逻辑和 FSM 候选在固定正文 A/B 中未通过正确性／成本门槛，冻结为拒绝状态，运行时会拒绝装配。v2/v3 共用冲突组，禁止同时选择。任务类型字段是维护者的说明，不是自动匹配器。原接口示范 `SKILL.md` 不在运行目录清单中。
 
-[卡库](../knowledge/cards.json) 含六类方法：过程赋值变量、ANSI 重复声明、局部语法、未声明标识符、异常字符、多驱动。每张卡保留适用／不适用条件、方法、验证要求、反例与来源。来源固定为上游分支提交 `fb1c2803e5db0f32b59b9ba9100877f2a0d26412`，采用 MIT 许可；方法正文按当前接口与完整文件要求修订，版本带 `burr.1`。`reviewed_not_model_validated` 表示已审阅内容，不表示真实模型收益或官方通过。
+[卡库](../knowledge/cards.json) 含六类方法：过程赋值变量、ANSI 重复声明、局部语法、未声明标识符、异常字符、多驱动。每张卡保留适用／不适用条件、方法、验证要求、反例与来源。来源固定为上游分支提交 `fb1c2803e5db0f32b59b9ba9100877f2a0d26412`，采用 MIT 许可；方法正文按当前接口与完整文件要求修订，版本带 `burr.1`。`frozen_exact_shadow_not_default` 表示正文和 exact 触发边界已冻结为影子条件，不表示真实模型收益、官方通过或允许扩大默认检索范围。
 
 运行时只从方案 `knowledge/` 与 `skill/` 读取固定资产，不访问上游仓库或开发区。来源元数据中的上游路径仅用于追溯，不是待加载路径。实验族、人工指定正确卡、检索标签、参考答案、官方测试台和判定反馈未导入。
 

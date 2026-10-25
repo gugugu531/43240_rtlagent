@@ -46,7 +46,11 @@ class Skill(Strict):
     conflict_group: Identifier
     resource: Resource
     source: Resource
-    review_status: Literal["reviewed_not_model_validated"]
+    review_status: Literal[
+        "frozen_default_fixed",
+        "frozen_candidate_not_default",
+        "frozen_rejected_fixed_ab",
+    ]
 
 
 class Catalog(Strict):
@@ -79,7 +83,7 @@ class Card(Strict):
     hard_negatives: Texts
     conflict_groups: list[Identifier]
     source: CardOrigin
-    review_status: Literal["reviewed_not_model_validated"]
+    review_status: Literal["frozen_exact_shadow_not_default"]
 
 
 class Corpus(Strict):

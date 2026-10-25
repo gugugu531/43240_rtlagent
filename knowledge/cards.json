@@ -63,7 +63,7 @@
           "diag-vrfc-10-1280"
         ]
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_exact_shadow_not_default"
     },
     {
       "applies_when": [
@@ -120,7 +120,7 @@
           "diag-vrfc-10-9336"
         ]
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_exact_shadow_not_default"
     },
     {
       "applies_when": [
@@ -180,7 +180,7 @@
           "diag-vrfc-10-4982"
         ]
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_exact_shadow_not_default"
     },
     {
       "applies_when": [
@@ -238,7 +238,7 @@
           "diag-vrfc-10-2989"
         ]
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_exact_shadow_not_default"
     },
     {
       "applies_when": [
@@ -295,7 +295,7 @@
           "diag-vrfc-10-9623"
         ]
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_exact_shadow_not_default"
     },
     {
       "applies_when": [
@@ -353,7 +353,7 @@
           "diag-synth-8-6859"
         ]
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_exact_shadow_not_default"
     }
   ]
 }

@@ -34,7 +34,7 @@
         "path": "skill/rtl-sequential-state-update/SKILL.md",
         "sha256": "3afd66e628e00af50d3df1d30000038672892c9336c7aec9d9e24505e3c1bd40"
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_default_fixed"
     },
     {
       "id": "rtl-sequential-state-update-v3",
@@ -64,7 +64,7 @@
         "path": "skill/rtl-sequential-state-update-v3/SKILL.md",
         "sha256": "cc36e274504975c19439889313f5bde38670e4655b7ba2183f4e26e95174ed1b"
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_candidate_not_default"
     },
     {
       "id": "rtl-width-signed-arithmetic",
@@ -93,7 +93,7 @@
         "path": "skill/rtl-width-signed-arithmetic/SKILL.md",
         "sha256": "d19a6d2aa2e6e65f3f463b0b2df8dfeffadd03eecdf4f009e31e2192a3442e74"
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_rejected_fixed_ab"
     },
     {
       "id": "rtl-combinational-completeness",
@@ -121,7 +121,7 @@
         "path": "skill/rtl-combinational-completeness/SKILL.md",
         "sha256": "55d29431f7b49e11e9e9ca1e69ccbd5c7d147c537f83471c143e2e29bcd58907"
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_rejected_fixed_ab"
     },
     {
       "id": "rtl-fsm-state-output",
@@ -147,7 +147,7 @@
         "path": "skill/rtl-fsm-state-output/SKILL.md",
         "sha256": "cf8d2e0ff95ebaba250f16fcfab320b4c7c962462facd0395f50a662d591c1fc"
       },
-      "review_status": "reviewed_not_model_validated"
+      "review_status": "frozen_rejected_fixed_ab"
     }
   ]
 }
