@@ -20,6 +20,24 @@ def _count(value):
     return value if type(value) is int and value >= 0 else None
 
 
+def _valid_response_text(value):
+    """Check decoded JSON text without recursing or changing external values."""
+    pending = [value]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, str):
+            try:
+                item.encode("utf-8")
+            except UnicodeEncodeError:
+                return False
+        elif isinstance(item, dict):
+            pending.extend(item.keys())
+            pending.extend(item.values())
+        elif isinstance(item, list):
+            pending.extend(item)
+    return True
+
+
 def _scoped(method):
     @wraps(method)
     def run(self, *args, **kwargs):
@@ -268,11 +286,9 @@ class Client:
         json_valid = True
         try:
             body = response.json()
-        except ValueError:
+        except (ValueError, RecursionError):
             body = None
             json_valid = False
-        else:
-            self.record.write_json(f"calls/{call_id}/response.json", body)
         if permit is not None:
             permit._response(body)
         if (
@@ -284,6 +300,15 @@ class Client:
                 "tokens_in": _count(body["usage"].get("prompt_tokens")),
                 "tokens_out": _count(body["usage"].get("completion_tokens")),
             }
+        text_valid = json_valid and _valid_response_text(body)
+        if text_valid:
+            try:
+                self.record.write_json(f"calls/{call_id}/response.json", body)
+            except RecursionError:
+                # Decoding and recording can have different nesting limits.
+                # The raw response text/status are already preserved;
+                # filesystem failures must still propagate to the runtime.
+                json_valid = False
         elapsed = time.monotonic() - start
         if self._request_deadline is not None and time.monotonic() >= self._request_deadline:
             # A transport can return late despite its per-I/O timeout. Preserve
@@ -296,8 +321,16 @@ class Client:
             )
             self._active.pop(call_id, None)
             raise ModelError("chat deadline exhausted before response adoption", kind="timeout", call_id=call_id)
-        if not response.is_success or not json_valid:
-            kind = "http" if not response.is_success else "invalid_json"
+        if not response.is_success or not json_valid or not text_valid:
+            kind = (
+                "http" if not response.is_success
+                else "invalid_json" if not json_valid
+                else "response"
+            )
+            message = (
+                "response JSON contains text that cannot be encoded as UTF-8"
+                if kind == "response" else f"HTTP {response.status_code}: {kind}"
+            )
             usage = self._usage.get(call_id, {"tokens_in": None, "tokens_out": None})
             self.record.emit(
                 event_tool,
@@ -309,12 +342,10 @@ class Client:
                 error_kind=kind,
                 elapsed_s=elapsed,
                 **usage,
-                excerpt=f"HTTP {response.status_code}: {kind}",
+                excerpt=message,
             )
             self._active.pop(call_id, None)
-            raise ModelError(
-                f"HTTP {response.status_code}: {kind}", kind=kind, call_id=call_id
-            )
+            raise ModelError(message, kind=kind, call_id=call_id)
         return call_id, body, elapsed
 
     @_scoped
