@@ -1,0 +1,33 @@
+Development migration, 2026-10-26
+
+This checkout was cloned from git@github.com:gugugu531/43240_rtlagent.git at
+d57eedfdeaac6150dc8f5685f5c6ef45c76cf8da. Work continues on the local branch
+dev/skill-rag-followup-20261026. No old framework directory was overlaid.
+
+optimization-v2 contains 24 byte-identical previously untracked development files
+from /home/cloudia/FPGACHINA/worktrees/rtlagent-main/dev/optimization-v2.
+The source checkout has not been modified. File hashes are in
+optimization-v3/migration.json. The older broad experimental worktree remains an
+external historical archive; it is not a deployable replacement for this repository.
+
+The v2 README and initial experiment manifest are HISTORICAL. Their blocked-upload
+and eight-call pilot descriptions were superseded by the separately authorized
+12-call cloud-batch-manifest.json and the completed batch evidence. See
+optimization-v3/previous-batch-summary.json for the actual completed results.
+
+Do not change the historical dc32c2f framework pin to make it pass on d57eedf.
+The historical pilot requires its archived dc32c2f framework snapshot. New jobs
+use separately named manifests with hashes of the updated framework and input files.
+
+Production agent/, knowledge/, skill/, and config/ remain at the fetched version.
+Candidate Skill bodies and admission prototypes live only under dev/. Existing
+default-off RAG and rejected automatic Skill statuses have not been promoted.
+
+Migration checks: 51 repository tests and 19 historical development tests passed
+on the new checkout. New development tests are documented separately. None of
+these tests is holdout, balanced60, or product acceptance.
+
+Raw thinking, credentials, virtual environments, model weights, hidden judge files,
+and EDA scratch are not committed. The compact historical summary records source
+hashes without the raw reasoning text. Public synthetic fixtures under v3 are
+authored development material, not hidden benchmark assets.

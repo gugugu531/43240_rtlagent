@@ -1,0 +1,79 @@
+{
+  "batch_id": "skill-v2-three-arm-development-20261026",
+  "framework_commit": "dc32c2fc4ff5d0a489ba27e70809ad9b7387cbb2",
+  "status": "preregistered",
+  "dataset_role": "development",
+  "acceptance": false,
+  "queue": [
+    {
+      "case": "nf-prob105-rotate",
+      "arm": "control"
+    },
+    {
+      "case": "nf-prob105-rotate",
+      "arm": "skill-v2"
+    },
+    {
+      "case": "nf-prob105-rotate",
+      "arm": "boundary-only"
+    },
+    {
+      "case": "nf-prob062-combinational",
+      "arm": "skill-v2"
+    },
+    {
+      "case": "nf-prob062-combinational",
+      "arm": "boundary-only"
+    },
+    {
+      "case": "nf-prob062-combinational",
+      "arm": "control"
+    },
+    {
+      "case": "nf-prob138-fsm-output",
+      "arm": "boundary-only"
+    },
+    {
+      "case": "nf-prob138-fsm-output",
+      "arm": "control"
+    },
+    {
+      "case": "nf-prob138-fsm-output",
+      "arm": "skill-v2"
+    },
+    {
+      "case": "nf-prob146-fsm-protocol",
+      "arm": "control"
+    },
+    {
+      "case": "nf-prob146-fsm-protocol",
+      "arm": "boundary-only"
+    },
+    {
+      "case": "nf-prob146-fsm-protocol",
+      "arm": "skill-v2"
+    }
+  ],
+  "model": "qwen38-27b-q4-k-m",
+  "temperature": 0,
+  "top_p": 1,
+  "seed": 20261025,
+  "thinking": true,
+  "max_tokens": 16384,
+  "rag_mode": "off",
+  "automatic_skill_injection": false,
+  "global_wall_limit_s": 21600,
+  "intended_contrast": "no knowledge vs candidate domain method vs domain-neutral delivery boundary",
+  "caveat": "One reused development sample per checkpoint/arm; no statistical or promotion claim.",
+  "files": {
+    "run_cloud_batch.py": "f398d3cda45bf65c3d076b339d7309e0c42ced0ff27f37e6a6135c9c83944e04",
+    "run_skill_pilot.py": "12a3a875d16722d9773f94dd0bf8304490b3d3d7f68afbcd4d4c81f34335aff1",
+    "boundary-only.txt": "47a8b5e88e9f8f4f60ba0edfe62b77efbeb3e5e6db3e90b7df9736a96dad39d8",
+    "inputs.json": "8abe38382a52ee981b62a0c562c5fca6fbf77f384276ae9dc33d586578ac0f7c",
+    "framework-pin.json": "383288a79b0b39571b5e18c5729ea8aabee7e082e313229d9524fdabb57d54de",
+    "width-v2.txt": "b4d1a5723ab9e6f4f142e2878941d5626f3e03bcbd8a0b11205f3c8419357670",
+    "combinational-v2.txt": "c6b28740142ec725990f9ab99ee59105570c2c04b9b5efb20c1180d5bac435d2",
+    "fsm-v2.txt": "70f75f1bb0731fa2f8969be6ac76139de9356a02c739327c2cb5c2eba820f5c6",
+    "test_cloud_batch.py": "c37f6ef45d20f98fc0c7b33cda2f34df65ebf8a1209e9c665e23fee524cabfa1"
+  }
+}
