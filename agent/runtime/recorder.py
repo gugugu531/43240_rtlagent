@@ -105,17 +105,25 @@ class Recorder:
     def write_text(self, relative, text):
         if self.level != "full":
             return None
+        return self._write_record(relative, self.redactor.copy(str(text)))
+
+    def _write_record(self, relative, text):
+        """Write already-sanitized content without altering its encoding."""
+        if self.level != "full":
+            return None
         path = (self.record_dir / relative).resolve()
         if not path.is_relative_to(self.record_dir.resolve()):
             raise ValueError("record path escapes run directory")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            self.redactor.copy(str(text)), encoding="utf-8", errors="backslashreplace"
+            text, encoding="utf-8", errors="backslashreplace"
         )
         return str(path)
 
     def write_json(self, relative, data):
-        return self.write_text(
+        # Redact values before serialization; text redaction after json.dumps
+        # can consume escape characters and corrupt the JSON document.
+        return self._write_record(
             relative,
             json.dumps(
                 self.redactor.copy(json.loads(json.dumps(data, default=serializable))),
