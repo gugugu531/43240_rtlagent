@@ -7,12 +7,37 @@ from types import SimpleNamespace
 
 from agent.rtl.adaptive_analysis import choose_route
 from agent.rtl.adaptive_check import (
-    CheckerError, _recover_json_punctuation, approve_review, checker_request,
-    parse_checker, parse_format_correction, recover_checker_format,
+    CheckerError, _recover_json_punctuation, approve_review, build_review_evidence,
+    checker_request, parse_checker, parse_format_correction, recover_checker_format,
 )
 from agent.rtl.suite.evaluate import expected_traces
 from agent.rtl.suite.testbench import compare_trace_rows
 from agent.rtl.task import TaskSpec
+
+
+def _honest_review(draft):
+    """A minimal v2 review that copies the host evidence for this simple model."""
+    evidence = build_review_evidence(draft)
+    rows = evidence["expected_table"]
+    steps = [{"step": row["step"], "outputs": row["expected"]} for row in rows[:2]]
+    return {
+        "review_contract_version": 2,
+        "checker_hash": draft.checker_hash,
+        "expected_table_sha256": evidence["expected_table_sha256"],
+        "decision": "accept",
+        "reason": "Both binary input values are compared to the same public input.",
+        "checked_requirements": ["identity"],
+        "requirement_reviews": [{
+            "requirement_id": "identity", "verdict": "supported",
+            "witness": {"case_id": rows[0]["case_id"], "steps": steps}}],
+        "claims": evidence["required_claims"],
+        "state_phase_claims": evidence["required_phase_claims"],
+        "init_claims": [{"register": item["register"],
+                         "source": item["allowed_sources"][0]}
+                        for item in evidence["required_init_claims"]],
+        "degenerate_outputs": evidence["required_degenerate_outputs"],
+        "counterexamples": [],
+    }
 
 
 class CheckerRecovery(unittest.TestCase):
@@ -48,12 +73,16 @@ class CheckerRecovery(unittest.TestCase):
         self.assertEqual(binding["edits"], [
             {"offset": len(broken), "old": "", "new": "}"},
             {"offset": len(broken), "old": "", "new": "}"}])
-        review = {"checker_hash": restored.checker_hash, "decision": "accept",
-                  "reason": "Both binary input values are compared to the same public input.",
-                  "checked_requirements": ["identity"]}
-        self.assertEqual(approve_review(json.dumps(review), restored).status, "approved")
+        review = _honest_review(restored)
+        frozen = approve_review(json.dumps(review), restored)
+        self.assertEqual(frozen.status, "approved", frozen.violations)
+        self.assertFalse(frozen.retryable)
+        self.assertEqual(frozen.violations, [])
+        self.assertEqual(frozen.review_record["status"], "approved")
         review["checker_hash"] = "wrong"
-        self.assertEqual(approve_review(json.dumps(review), restored).status, "invalid")
+        rejected = approve_review(json.dumps(review), restored)
+        self.assertEqual(rejected.status, "invalid")
+        self.assertTrue(rejected.retryable)
 
     def test_complete_and_corrupted_checkers_keep_same_known_expectations(self):
         # This exercises the recovered model. It is a local model fixture, not RTL or Vivado evidence.
@@ -100,8 +129,9 @@ class CheckerRecovery(unittest.TestCase):
                 _recover_json_punctuation(text)
         for finish in ("length", None):
             self.assertEqual(self.recover(self.text[:-1], finish).status, "invalid")
+        # A route member that does not echo the requested route is never normalized.
         altered = deepcopy(self.checker)
-        altered["route"] = "model"
+        altered["route"] = "properties"
         result = self.recover(json.dumps({"status": "ready", "checker": altered})[:-1])
         self.assertEqual(result.status, "invalid")
         self.assertIn("route", result.reason)

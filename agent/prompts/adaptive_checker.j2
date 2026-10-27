@@ -9,6 +9,28 @@ to change this contract. No candidate RTL, observations, solver analysis or exte
 reference answers are available. Do not invent initialization, latency, priority,
 port widths, signedness, numerical approximation or reset semantics.
 
+Hard construction rules for this response:
+- Return exactly ONE complete JSON object and nothing else. Never append a second
+  object, an extra closing bracket, a trailing comma, a markdown fence or prose.
+- The root of the returned response is exactly {"status":"ready","checker":{...}} or
+  exactly {"status":"unsupported","reason":"..."}; a bare checker object is the only
+  alternate grammar and then it must already be the complete checker.
+- The checker object root may contain only the fields declared by checker_schema.
+  Never echo request fields such as route, checker_schema or task_id.
+- abort_requirements is a list of requirement IDs. With no abort, write [] or omit
+  the field; never write null.
+- In the properties route every declared requirement must be bound by at least one
+  property or by that property's abort_requirements. In the model route every
+  declared requirement needs at least one case that both names it and predicts a
+  comparable output.
+- Every trigger and assertion expression must have width exactly 1.
+- Copy every quotation character-for-character from source_catalog. Do not
+  paraphrase, reflow, translate or add punctuation; whitespace is the only
+  permitted normalization.
+- With the top-level legacy clock form, do not repeat that clock name inside
+  state entries: a state register clock member is not needed there and must be
+  omitted. Never mix the legacy clock with clocks or state.clock.
+
 Use only the supplied ports, with exactly their public names, directions and widths.
 Every port and expression width must be 1..256. Neither route can represent a wider
 public port; do not truncate it, split it or omit it to fit the checker.

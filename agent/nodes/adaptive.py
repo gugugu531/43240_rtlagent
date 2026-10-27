@@ -13,7 +13,7 @@ from agent.rtl.adaptive_check import (
     revision_request, parse_checker_revision,
     recover_checker_format,
 )
-from agent.rtl.adaptive_repair import repair_request, parse_repair
+from agent.rtl.adaptive_repair import repair_request, parse_repair, diagnostic_codes
 from agent.rtl.adaptive_assessment import BehaviorAssessment, CandidateAssessment
 from agent.rtl.extract import extract_result
 from agent.rtl.result import CheckResult, bind_result, checker_hash
@@ -79,11 +79,21 @@ def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True, 
         _save(ctx, "request-outcomes", data["request_outcomes"])
 
 
+def _plan_projection(analysis):
+    """Routing metadata only; the original task stays authoritative for generation."""
+    if analysis is None:
+        return None
+    return {
+        "classification": {"kind": analysis.kind, "clocks": list(analysis.clocks),
+                           "risks": list(analysis.risks)},
+        "ambiguities": list(analysis.ambiguities),
+    }
+
+
 def _generation_messages(ctx, *, failure=None):
     data = _data(ctx)
     messages = ctx.prompts.render("repair.j2", task=ctx.task, feedback="", parent=None,
-                              plan=data["analysis"].model_dump(mode="json", exclude={"requirements"})
-                              if data.get("analysis") else None)
+                              plan=_plan_projection(data.get("analysis")))
     if failure is not None:
         import json
 
@@ -149,6 +159,7 @@ def initialize(ctx: Ctx, state: State) -> State:
         "attempted": set(), "request_outcomes": {}, "assessments": {},
         "analysis": None, "routing": choose_route(ctx.task), "checker": None,
         "rescue_used": False, "repair_used": False, "checker_revision_used": False,
+        "review_retry_used": False, "review_contract": {},
     }
     from agent.knowledge.policy import modes
     ctx.store["knowledge_rag_enabled"] = modes(settings['skill_mode'], settings['rag_mode'], rag=settings['rag'])[1] != 'off'
@@ -191,9 +202,21 @@ def rescue(ctx: Ctx, state: State) -> State:
     data["rescue_used"] = True
     data["routing"] = replace(data["routing"], route="structural", reason="first_draft_rescue")
     reply = None
-    if data.get("draft_reply") is not None:
-        reply = _request(ctx, "rescue", _generation_messages(ctx, failure=data["draft_failure"]), limits=data["settings"]["draft"],
+    draft_reply = data.get("draft_reply")
+    if draft_reply is not None:
+        failure = data.get("draft_failure")
+        _save(ctx, "rescue-context", {
+            "source_call_id": getattr(draft_reply, "call_id", None),
+            "failure_present": failure is not None,
+            "reason": "draft_failure_present" if failure is not None else "draft_failure_missing",
+        })
+        reply = _request(ctx, "rescue", _generation_messages(ctx, failure=failure), limits=data["settings"]["draft"],
                          followup_s=data["settings"]["first_tools_s"], optional=False)
+    else:
+        _save(ctx, "rescue-context", {
+            "source_call_id": None, "failure_present": False,
+            "reason": "first_draft_request_failed",
+        })
     candidate = _candidate(ctx, reply, stage="rescue")
     return state.update(target_id=candidate.id if candidate else None, has_candidate=candidate is not None,
                         route="structural", stop_reason="rescue_structural_only" if candidate else "no_complete_candidate")
@@ -244,6 +267,21 @@ def _rtl_followup(settings):
     return settings["first_tools_s"] + settings["repair"]["timeout_s"] + settings["recheck_tools_s"]
 
 
+def _review_record(frozen, stage, *, model_calls):
+    violations = []
+    for item in getattr(frozen, "violations", None) or []:
+        violations.append(item if isinstance(item, str) else str(item))
+    return {"stage": stage, "attempts": model_calls, "status": frozen.status,
+            "violations": violations, "model_calls": model_calls}
+
+
+def _record_review_contract(ctx, stage, contract):
+    data = _data(ctx)
+    data.setdefault("review_contract", {})[stage] = contract
+    _save(ctx, "review-contract", data["review_contract"])
+    return contract
+
+
 def _review_checker(ctx, draft, stage):
     data, settings = _data(ctx), _data(ctx)["settings"]
     followup = _rtl_followup(settings)
@@ -251,8 +289,31 @@ def _review_checker(ctx, draft, stage):
         followup += settings["revision"]["timeout_s"] + settings["rereview"]["timeout_s"]
     reply = _request(ctx, stage, review_request(ctx.task, draft), followup_s=followup)
     if reply is None:
+        _record_review_contract(ctx, stage, {"stage": stage, "attempts": 0,
+                                             "status": "not_sent", "violations": [],
+                                             "model_calls": 0})
         return None
     frozen = approve_review(reply.content, draft, finish_reason=reply.finish_reason)
+    contract = _review_record(frozen, stage, model_calls=1)
+    # One controlled retry only when the host rejected the review contract itself and
+    # the freeze is retryable. A semantic reject or unknown is never retried.
+    if stage == "review" and not data["review_retry_used"] and frozen.status == "invalid":
+        contract["first_status"] = frozen.status
+        contract["retryable"] = bool(getattr(frozen, "retryable", False))
+        if contract["retryable"]:
+            data["review_retry_used"] = True
+            contract["first_violations"] = contract["violations"]
+            retry = _request(ctx, "review_retry",
+                             review_request(ctx.task, draft, violations=contract["violations"]),
+                             followup_s=followup)
+            contract.update(attempts=2, retry_used=True)
+            if retry is None:
+                contract["retry_status"] = "not_sent"
+            else:
+                frozen = approve_review(retry.content, draft, finish_reason=retry.finish_reason)
+                contract.update(model_calls=2, status=frozen.status, retry_status=frozen.status,
+                                violations=_review_record(frozen, stage, model_calls=2)["violations"])
+    _record_review_contract(ctx, stage, contract)
     data["checker"] = frozen
     _save(ctx, "checker-initial-review" if stage == "review" else "checker-revised-review", frozen.public_dict())
     _save(ctx, "frozen-checker", frozen.public_dict())
@@ -264,8 +325,14 @@ def review_checker(ctx: Ctx, state: State) -> State:
     data = _data(ctx)
     frozen = _review_checker(ctx, data["checker_draft"], "review")
     status = frozen.status if frozen else "review_unavailable"
-    if status == "rejected" and data["checker_revision_used"]:
-        status = "rejected_after_format_correction"
+    if status == "rejected":
+        if data["checker_revision_used"]:
+            status = "rejected_after_format_correction"
+        elif data["review_retry_used"]:
+            # The single contract retry consumes the one recovery slot: a revision
+            # would exceed the 7-call completion bound, so finish instead.
+            data["checker_revision_used"] = True
+            status = "rejected_after_review_retry"
     return state.update(checker_status=status)
 
 
@@ -429,20 +496,32 @@ def repair(ctx: Ctx, state: State) -> State:
             omitted.append({"step": removed["step"], "phase": removed["phase"]})
         prompt_evidence["observations"] = {"case_id": case_id, "rows": history,
             "omitted": omitted, "complete_history_artifact": observation.artifacts.get("rows")}
-    _save(ctx, "repair-evidence", prompt_evidence)
     evidence = None
     for stage in ("lint", "synth"):
         check = data["assessments"][parent.id].structure.get(stage)
         if check and check.status == "failed" and check.failure_kind == "code":
             evidence = {"check": check, "execution_id": check.details["execution_id"]}
             break
+    checker = _approved_checker(ctx)
+    if prompt_evidence.get("kind") == "behavior" and checker is not None:
+        # Only the public checker schema is exposed so the model can name a real requirement.
+        prompt_evidence["requirement_ids"] = [item["id"] for item in
+                                              checker.payload.get("requirements") or []]
+    else:
+        failure = prompt_evidence.get("failure")
+        details = failure.get("details") if isinstance(failure, dict) else None
+        prompt_evidence["diagnostic_codes"] = diagnostic_codes(details)
+    _save(ctx, "repair-evidence", prompt_evidence)
     reply = _request(ctx, "repair", repair_request(ctx.task, parent, prompt_evidence,
-                     _approved_checker(ctx) if prompt_evidence["kind"] == "behavior" else None),
+                     checker if prompt_evidence["kind"] == "behavior" else None),
                      followup_s=data["settings"]["recheck_tools_s"], parent=parent, evidence=evidence)
     if reply is None:
         return state.update(action="finish", stop_reason="repair_not_completed")
     try:
-        decision, extraction = parse_repair(reply.content, ctx.task.top, finish_reason=reply.finish_reason)
+        decision, extraction = parse_repair(
+            reply.content, ctx.task.top, task=ctx.task, evidence=prompt_evidence,
+            checker_payload=checker.payload if checker is not None else None,
+            finish_reason=reply.finish_reason)
         _save(ctx, "repair-decision", decision)
     except ValueError as error:
         _save(ctx, "repair-decision", {"status": "invalid", "reason": str(error)})
@@ -498,6 +577,8 @@ def finish(ctx: Ctx, state: State) -> State:
         "repair_authority_revoked": data.get("repair_authority_revoked"),
         "checker_revision": data.get("checker_revision"),
         "checker_format_correction": data.get("checker_format_correction"),
+        "review_contract": data.get("review_contract") or {},
+        "review_retry_used": data.get("review_retry_used", False),
         "selection": data.get("selection"), "request_outcomes": data["request_outcomes"],
         "budget": data["ledger"].snapshot(),
     })

@@ -19,6 +19,7 @@ class AdaptiveParameters(BaseModel):
     draft: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     construction: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     review: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
+    review_retry: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     revision: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     rereview: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
     repair: StageLimit = StageLimit(timeout_s=1200, max_tokens=32768)
@@ -54,6 +55,9 @@ class AdaptiveParameters(BaseModel):
            "checker_status": "not_built", "stop_reason": "", "status": "stopped"},
 )
 def build(g, p):
+    # Fail before any model call when the configured Skill cannot be auto-admitted.
+    from agent.knowledge.policy import assert_automatic_skill_allowed
+    assert_automatic_skill_allowed(p.sequential_skill)
     _, rag_mode = modes(p.skill_mode, p.rag_mode, rag=p.rag)
     if rag_mode != 'off':
         validate_options(p.retrieval)

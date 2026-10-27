@@ -60,6 +60,35 @@ def _structure_ok(assessment):
     return interface.get("status") != "passed"
 
 
+MISMATCH_LIMIT = 32
+
+
+def _model_mismatches(failed, context, limit=MISMATCH_LIMIT):
+    """Bound actual failing-bit rows for the repair prompt; never infer them from summaries."""
+    rows = []
+    for case_id, step, signal, bit in sorted(failed)[:limit]:
+        row = context[(case_id, step, signal)]
+        mask = 1 << bit
+        rows.append({
+            "case_id": case_id, "step": step, "signal": signal, "bit": bit,
+            "expected_value": 1 if row["expected_bits"][signal] & mask else 0,
+            "actual_value": 1 if row["actual_bits"][signal] & mask else 0,
+        })
+    return rows
+
+
+def _property_mismatches(failed, context, limit=MISMATCH_LIMIT):
+    """Bound failed obligations with the boolean hold values recorded by the checker."""
+    rows = []
+    for key in sorted(failed)[:limit]:
+        observations = context[key].get("observations") or []
+        observed = observations[-1].get("value") if observations else None
+        rows.append({"property_id": key[0], "case_id": key[1], "trigger_step": key[2],
+                     "expected_holds": True,
+                     "observed_holds": observed if type(observed) is bool else None})
+    return rows
+
+
 def _model(details, payload):
     if details.get("suite_hash") != suite_hash(payload):
         raise AssessmentError("model result suite_hash differs from frozen checker")
@@ -115,7 +144,8 @@ def _model(details, payload):
                           "expected_bits_value": row["expected_bits"][key[2]],
                           "actual_bits_value": row["actual_bits"][key[2]]}
     return {"passed": passed, "failed": failed, "unknown": unknown, "excluded": excluded,
-            "present": passed | failed | unknown | excluded, "counterexample": counterexample}
+            "present": passed | failed | unknown | excluded, "counterexample": counterexample,
+            "mismatches": _model_mismatches(failed, context)}
 
 
 def _properties(details, payload):
@@ -230,7 +260,8 @@ def _properties(details, payload):
         if type(result.get("unknown")) is not int or result["unknown"] != count_unknown[result["property_id"]]:
             raise AssessmentError("property unknown count disagrees with evidence")
     return {"passed": passed, "failed": failed, "unknown": unknown, "excluded": excluded,
-            "present": present, "counterexample": context[sorted(failed)[0]] if failed else None}
+            "present": present, "counterexample": context[sorted(failed)[0]] if failed else None,
+            "mismatches": _property_mismatches(failed, context)}
 
 
 def _behavior(assessment, checker):
@@ -280,6 +311,7 @@ def repair_opportunity(assessment, checker=None):
         if facts["failed"]:
             return {"kind": "behavior", "route": checker.route,
                     "counterexample": facts["counterexample"],
+                    "failed_mismatches": facts["mismatches"],
                     "failed": len(facts["failed"]), "passed": len(facts["passed"]),
                     "unknown": len(facts["unknown"])}
     except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
