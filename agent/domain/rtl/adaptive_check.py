@@ -9,8 +9,9 @@ import json
 import math
 import re
 
+from pathlib import Path
+
 from agent.llm.structured import strict_json
-from agent.context.prompts import PROMPT_DIR
 from agent.domain.rtl.adaptive_context import public_context, prompt_schema
 from agent.domain.rtl.suite.schema import SuiteModel, validate_suite
 from agent.domain.rtl.suite.semantics import _validate_expr
@@ -276,7 +277,8 @@ class FrozenChecker(CheckerDraft):
 
 
 def _instruction(name):
-    return (PROMPT_DIR / name).read_text(encoding="utf-8")
+    # Checker contract text belongs to the domain layer, not the prompt packer.
+    return (Path(__file__).parent / "instructions" / name).read_text(encoding="utf-8")
 
 
 def checker_request(task, route):

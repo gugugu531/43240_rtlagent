@@ -15,8 +15,8 @@
 | 新模型协议或后端 | `agent/llm/` 与 `agent/config.py` | 请求、分词、生成声明、错误、用量、重放与真实服务验证 |
 | 新 RTL 检查语义或仿真能力 | `agent/domain/rtl/` 与检查工具适配层 | 输入范围、未知值、采样、比较、候选／检查器身份 |
 | 固定方法或诊断卡 | `skill/`、`knowledge/`、`agent/domain/knowledge/` | 版本和哈希、适用边界、完整片段、当前检查绑定；见 [知识契约](knowledge.md) |
-| 新提示模板 | `agent/context/prompts/` 与使用它的节点 | 模板变量、公开信息边界、响应 schema、语义校验 |
-| 预算、进程或记录机制 | `agent/runtime/` | 跨工作流兼容、取消、资源回收、日志字段与迁移行为 |
+| 新提示模板 | `agent/context/prompts/`；检查器契约指令在 `agent/domain/rtl/instructions/` | 模板变量、公开信息边界、响应 schema、语义校验 |
+| 预算、进程或记录机制 | `agent/runtime/`、`agent/observability/` | 跨工作流兼容、取消、资源回收、日志字段与迁移行为 |
 
 先复用已有能力，再新增接口。相同检查逻辑不应分别复制到节点、工具调用和新工作流中。仅更换参数不必新建实现；改变输入／输出或失败语义时，不能假装只是一个预设。
 

@@ -284,14 +284,14 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 
 | 层 | 现有实现 | 缺口 |
 | --- | --- | --- |
-| L0 | `agent/main.py`、`agent/config.py`、`runtime/budget.py`、`runtime/process.py` | 收尾已接入 `finalize()`；`RunContext` 尚未独立 |
-| L1 | `runtime/graph.py`、`runtime/agent_loop.py`、`runtime/stages.py`、`agent/orchestration/workflows/*`、`agent/orchestration/nodes/*` | Stage 描述与工具循环已实现；阶段预算仍来自工作流参数 |
-| L2 | `runtime/prompt.py`、`agent/context/prompts/*`、`knowledge/context.py`、`rtl/adaptive_context.py` | `ContextBundle` 与 `PromptAssembly` 已实现并记录；打包仍由 knowledge 层执行 |
-| L3 | `agent/llm/client.py`、`llm/router.py`、`llm/types.py`、`runtime/allowance.py` | profile 路由已实现；`Usage` 对象与按角色配额仍待细化 |
-| L4 | `runtime/registry.py`、`runtime/tool_result.py`、`Ctx.call/dispatch/tool_schema` | `ToolResult` 与工具分类已实现；工具白名单仍按阶段硬编码 |
-| L5 | `rtl/*`、`rtl/suite/*`、`knowledge/*` | 保持 |
-| L6 | `runtime/recorder.py`、`dev/log-viewer.html` | `submission`/`publish` 事件已加入；查看器按新字段兼容 |
-| L7 | `rtl/candidate.py`、`rtl/submission.py`、`nodes/submission_tools.py` | 提交网关与 `submit_answer` 已实现；`selected` 策略已可配置 |
+| L0 | `agent/main.py`、`agent/config.py`、`agent/runtime/budget.py`、`agent/runtime/process.py` | 收尾已接入 `finalize()`；`RunContext` 尚未独立 |
+| L1 | `agent/orchestration/graph.py`、`agent_loop.py`、`stages.py`、`workflows/*`、`nodes/*` | Stage 描述与工具循环已实现；阶段预算仍来自工作流参数 |
+| L2 | `agent/context/prompt.py`、`agent/context/prompts/*`、`agent/domain/knowledge/context.py`、`agent/domain/rtl/adaptive_context.py` | `ContextBundle` 与 `PromptAssembly` 已实现；检查器指令在 `agent/domain/rtl/instructions/` |
+| L3 | `agent/llm/client.py`、`agent/llm/router.py`、`agent/llm/types.py`、`agent/runtime/allowance.py` | profile 路由已实现；`Usage` 对象与按角色配额仍待细化 |
+| L4 | `agent/tools/registry.py`、`agent/tools/result.py`、`Ctx.call/dispatch/tool_schema` | `ToolResult` 与工具分类已实现；工具白名单仍按阶段硬编码 |
+| L5 | `agent/domain/rtl/*`、`agent/domain/rtl/suite/*`、`agent/domain/knowledge/*` | 保持 |
+| L6 | `agent/observability/recorder.py`、`agent/observability/redaction.py`、`dev/log-viewer.html` | `submission`/`publish` 事件已加入；查看器按新字段兼容 |
+| L7 | `agent/domain/rtl/candidate.py`、`agent/submission/gateway.py`、`agent/orchestration/nodes/submission_tools.py` | 提交网关与 `submit_answer` 已实现；`selected` 策略已可配置 |
 
 迁移顺序：接口与提交网关 → 工具信封 → 编排 Stage → LLM 路由。每一步先保持现有工作流可运行，
 再切换 `adaptive_verify`；默认入口的切换点见第 9 节第 6 条。

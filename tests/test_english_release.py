@@ -27,7 +27,10 @@ class EnglishRelease(unittest.TestCase):
         return json.loads(raw),read_lock(),raw,(ROOT/'knowledge/cards.json').read_bytes()
 
     def test_all_prompt_templates_and_wrappers_english(self):
-        for path in (ROOT/'agent/context/prompts').glob('*.j2'):
+        template_paths = list((ROOT/'agent/context/prompts').glob('*.j2'))
+        template_paths += list((ROOT/'agent/domain/rtl/instructions').glob('*.j2'))
+        self.assertTrue(template_paths)
+        for path in template_paths:
             self.assert_english(path.read_text())
         self.assert_english(NOTICE)
         self.assert_english((ROOT/'agent/domain/rtl/adaptive_repair.py').read_text())

@@ -3,9 +3,6 @@
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-# Shared with domain code that loads a single static instruction file.
-PROMPT_DIR = Path(__file__).parent
-
 
 class TemplateRenderer:
     def __init__(self, paths=None):
