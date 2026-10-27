@@ -17,3 +17,6 @@ services:
     timeout_s: 1200
     max_model_len: 32768
     structured_outputs: false
+  profiles:
+    small: {enabled: false, model: Qwen/Qwen3-0.6B}
+    large: {enabled: false}

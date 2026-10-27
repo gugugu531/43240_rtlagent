@@ -86,7 +86,8 @@ def _chat_deadline(method):
 
 class Client:
     def __init__(
-        self, config, budget, record, generation, tool_dispatch=None, *, transport=None
+        self, config, budget, record, generation, tool_dispatch=None, *,
+        transport=None, profiles=None,
     ):
         self.config, self.budget, self.record = config, budget, record
         self.generation = copy.deepcopy(generation)
@@ -101,6 +102,9 @@ class Client:
         self._seq = 0
         self._model = _get(config, "model") or None
         self.base_url = _get(config, "base_url", "http://127.0.0.1:8000/v1").rstrip("/")
+        # Profiles live beside the model config, so the caller injects the
+        # services table explicitly; a dict config may still carry `profiles`.
+        self.profiles = profiles if profiles is not None else (_get(config, "profiles", {}) or {})
         backend = _get(config, "backend", "openai")
         if transport is None and backend in {"mock", "replay"}:
             from .mock import make_transport
@@ -383,6 +387,23 @@ class Client:
         except ModelError:
             return "default"
 
+    def _profile(self, name):
+        if not name:
+            return None
+        entry = self.profiles.get(name) if isinstance(self.profiles, dict) else None
+        if entry is None or not _get(entry, "enabled", False):
+            return None
+        return entry
+
+    def profile_model(self, name):
+        entry = self._profile(name)
+        return (_get(entry, "model", "") or self.model()) if entry else self.model()
+
+    def profile_base_url(self, name):
+        entry = self._profile(name)
+        value = _get(entry, "base_url", None) if entry else None
+        return (value or self.base_url).rstrip("/")
+
     def model(self):
         if self._model is None:
             try:
@@ -395,7 +416,8 @@ class Client:
         return self._model
 
     @_scoped
-    def tokenize(self, messages, *, model=None, tools=None):
+    def tokenize(self, messages, *, model=None, tools=None, base_url=None):
+        base_url = (base_url or self.base_url).rstrip("/")
         payload = {
             "model": model or self.model(),
             "messages": messages,
@@ -408,7 +430,7 @@ class Client:
         if llama_cpp:
             template_id, template, elapsed = self._request(
                 "POST",
-                self.base_url.removesuffix("/v1") + "/apply-template",
+                base_url.removesuffix("/v1") + "/apply-template",
                 payload=payload,
                 purpose="apply_template",
                 timeout_s=30,
@@ -430,7 +452,7 @@ class Client:
             )
             self._active.pop(template_id, None)
             payload = {"content": prompt, "add_special": True, "parse_special": True}
-        url = self.base_url.removesuffix("/v1") + "/tokenize"
+        url = base_url.removesuffix("/v1") + "/tokenize"
         call_id, body, elapsed = self._request(
             "POST",
             url,
@@ -498,11 +520,15 @@ class Client:
         response_format=None,
         tools=None,
         baseline=False,
+        profile=None,
     ):
-        model = self.baseline_model() if baseline else self.model()
+        model = self.baseline_model() if baseline else self.profile_model(profile)
+        base_url = self.base_url if baseline else self.profile_base_url(profile)
         limit = _get(self.config, "max_model_len")
         if limit is not None and (not baseline or self._permit is not None):
-            count = self.tokenize(messages, model=model, tools=tools)
+            count = self.tokenize(
+                messages, model=model, tools=tools, base_url=base_url
+            )
             max_tokens = min(max_tokens, limit - count)
             if max_tokens <= 0:
                 self.record.emit(
@@ -541,15 +567,17 @@ class Client:
         if tools:
             payload.update(tools=tools, tool_choice="auto")
         self.requests.append(copy.deepcopy(payload))
+        entry = self._profile(profile) if not baseline else None
+        profile_timeout = _get(entry, "timeout_s", None) if entry else None
         call_id, body, elapsed = self._request(
             "POST",
-            self.base_url + "/chat/completions",
+            base_url + "/chat/completions",
             payload=payload,
             purpose=purpose,
             timeout_s=timeout_s
             if timeout_s is not None
             else self._permit.timeout_s if self._permit is not None
-            else _get(self.config, "timeout_s", 180),
+            else profile_timeout or _get(self.config, "timeout_s", 180),
             authenticated=not baseline,
         )
         try:
@@ -599,6 +627,8 @@ class Client:
             tokens_out=reply.tokens_out,
             empty_content=not reply.content,
             elapsed_s=elapsed,
+            model=model,
+            profile=profile,
             excerpt=reply.content[:2000],
         )
         self._active.pop(call_id, None)

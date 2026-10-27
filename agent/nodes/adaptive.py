@@ -19,6 +19,9 @@ from agent.rtl.extract import extract_result
 from agent.rtl.result import CheckResult, bind_result, checker_hash
 from agent.rtl.submission import SubmissionGateway
 from agent.runtime.agent_loop import LoopResult, run_tool_loop
+from agent.runtime.prompt import ContextBundle, record_assembly
+from agent.runtime.stages import stage_spec
+from agent.llm.router import profile_for_stage
 
 
 class _ToolStepUnavailable(RuntimeError):
@@ -46,7 +49,7 @@ def _prepare_generation(ctx, messages, *, parent=None, evidence=None, max_tokens
     settings = data["settings"]
     from agent.knowledge.context import prepare
 
-    return prepare(
+    packed, report = prepare(
         ctx, messages, parent, evidence,
         skill_ids=list(data["routing"].skill_ids), skill_phases=["generate", "repair"],
         rag=settings["rag"] and parent is not None,
@@ -55,6 +58,8 @@ def _prepare_generation(ctx, messages, *, parent=None, evidence=None, max_tokens
         skill_mode=settings['skill_mode'], rag_mode=settings['rag_mode'],
         retrieval_options=settings['retrieval'], automatic=True,
     )
+    record_assembly(ctx, "generate" if parent is None else "repair", packed, report)
+    return packed, report
 
 
 def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True,
@@ -79,16 +84,20 @@ def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True,
                     ctx, messages, parent=parent, evidence=evidence,
                     max_tokens=limits["max_tokens"],
                 )
+            profile = profile_for_stage(stage) or None
             reply = ctx.llm.chat(
                 messages, purpose=f"adaptive_{stage}",
                 temperature=settings["temperature"], top_p=settings["top_p"],
-                tools=tools, **limits,
+                tools=tools, profile=profile, **limits,
             )
         if assembly is not None:
             ctx.record.emit("knowledge", "model_result", assembly_id=assembly["assembly_id"],
                             messages_sha256=assembly["messages_sha256"], call_id=reply.call_id)
-        data["request_outcomes"][stage] = {"status": "returned", "call_id": reply.call_id,
-                                            "finish_reason": reply.finish_reason}
+        data["request_outcomes"][stage] = {
+            "status": "returned", "call_id": reply.call_id,
+            "finish_reason": reply.finish_reason,
+            "profile": profile, "model": getattr(reply, "model", None),
+        }
         return reply
     except ModelError as error:
         data["request_outcomes"][stage] = {"status": "error", "kind": error.kind, "reason": str(error)}
@@ -137,9 +146,12 @@ def _generation_reply(ctx, *, stage, messages):
     """
     data = _data(ctx)
     settings = data["settings"]
-    steps = settings.get("tool_steps", 0)
+    spec = stage_spec(stage)
+    # The configured step budget is capped by the stage's declared maximum;
+    # stages without model-callable tools stay single-call.
+    steps = min(settings.get("tool_steps", 0), spec.max_steps)
     limits = settings["draft"]
-    if steps <= 0:
+    if steps <= 0 or not spec.tools:
         return _request(ctx, stage, messages, limits=limits,
                         followup_s=settings["first_tools_s"], optional=False)
     # Pack knowledge once so every tool step sees the same assembled prompt.
@@ -167,7 +179,7 @@ def _generation_reply(ctx, *, stage, messages):
             chat=chat,
             dispatch=ctx.dispatch,
             messages=prepared_messages,
-            tools=[ctx.tool_schema("submit_answer"), ctx.tool_schema("finish_task")],
+            tools=[ctx.tool_schema(name) for name in spec.tools],
             max_steps=steps,
         )
     except _ToolStepUnavailable:
@@ -258,6 +270,10 @@ def analyze(ctx: Ctx, state: State) -> State:
             _save(ctx, "analysis", {"status": "invalid", "reason": str(error)})
     data["routing"] = choose_route(ctx.task, data["analysis"], sequential_skill=settings["sequential_skill"])
     _save(ctx, "route", data["routing"].public_dict())
+    # Structured context is evidence for assembly; it does not replace the
+    # original task text in any prompt.
+    data["context"] = ContextBundle.for_task(ctx.task, data["routing"])
+    _save(ctx, "context-bundle", data["context"].public_dict())
     return state.update(route=data["routing"].route)
 
 

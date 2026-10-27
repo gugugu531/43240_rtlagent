@@ -11,3 +11,8 @@ services:
     timeout_s: 1200
     max_model_len: 32768
     structured_outputs: false
+  # 小模型占位，默认关闭并回落到主模型。启用前须在 manifest.json 的
+  # auxiliary_models 与 model/MODEL.md 中声明，并确认 32 GB 总预算。
+  profiles:
+    small: {enabled: false, model: Qwen/Qwen3-0.6B}
+    large: {enabled: false}

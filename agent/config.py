@@ -34,8 +34,24 @@ class ModelConfig(StrictModel):
     replay_path: str | None = None
 
 
+class ModelProfile(StrictModel):
+    """Optional per-role model override; disabled entries fall back to `model`."""
+
+    enabled: bool = False
+    model: str = ""
+    base_url: str | None = None
+    timeout_s: float | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def enabled_requires_model(self):
+        if self.enabled and not self.model:
+            raise ValueError("enabled model profile requires a model name")
+        return self
+
+
 class Services(StrictModel):
     model: ModelConfig = Field(default_factory=ModelConfig)
+    profiles: dict[str, ModelProfile] = Field(default_factory=dict)
 
 
 class Recording(StrictModel):

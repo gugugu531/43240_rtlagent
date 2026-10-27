@@ -120,7 +120,19 @@ flowchart TB
 
 约束：
 
-- profile 到具体模型的映射写在配置中；未配置时回落到主模型。
+- profile 到具体模型的映射写在配置中；未配置或未启用时回落到主模型。
+- 角色映射在 `agent/llm/router.py`，配置在 `services.profiles`：
+
+  ```yaml
+  services:
+    model: {backend: openai, base_url: http://127.0.0.1:8000/v1}
+    profiles:
+      small: {enabled: false, model: Qwen/Qwen3-0.6B}
+      large: {enabled: false}
+  ```
+
+  `Client.chat(profile=...)` 只切换模型名、可选 base URL 和超时；思考设置仍取 manifest。
+  实际 `model` 与 `profile` 写入每次 `llm/finished` 事件和 `request_outcomes`。
 - `small` profile 的占位模型为 `Qwen/Qwen3-0.6B`，仅用于接口联调，默认不启用。
   启用前必须补 `manifest.json` 的 `auxiliary_models` 与 `model/MODEL.md` 的声明。
 - 所有模型必须在 `manifest.json` 中声明；辅助模型同时写入 `model/MODEL.md`（名称、基座、参数量、用途、运行位置、显存）。
@@ -175,8 +187,11 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 ## 5. 编排层
 
 - 工作流仍由显式节点和条件边组成；节点返回状态，图决定下一步。
-- 每个节点对应一个 Stage 描述：`role`、`tools`、`max_steps`、`reads`、`writes`、`budget`。
-- Stage 内的工具循环是有界的；达到上限后返回最后一次回复，并记录 `tool_limit`，不自动追加请求。
+- 每个节点对应一个 Stage 描述：`role`、`tools`、`max_steps`。当前实现在
+  `agent/runtime/stages.py` 的 `ADAPTIVE_STAGES`，请求辅助标签（如 `draft_tool_2`）
+  通过 `stage_spec()` 回落到同一描述。
+- Stage 内的工具循环是有界的；作者阶段声明 `submit_answer`/`finish_task`，其余阶段没有
+  模型可调用工具。达到上限后返回最后一次回复，并记录 `step_limit`，不自动追加请求。
 - State 只保存路由字段：`route`、`target_id`、`parent_id`、`has_candidate`、`action`、`checker_status`、`stop_reason`、`status`。
 - 候选、上下文、轨迹和证据保存在 `ctx.store` 与 `records/`，不进入 State 快照。
 
@@ -234,9 +249,9 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 | 层 | 现有实现 | 缺口 |
 | --- | --- | --- |
 | L0 | `agent/main.py`、`agent/config.py`、`runtime/budget.py`、`runtime/process.py` | 收尾已接入 `finalize()`；`RunContext` 尚未独立 |
-| L1 | `runtime/graph.py`、`runtime/agent_loop.py`、`agent/workflows/*`、`agent/nodes/*` | 有界工具循环已实现并接入作者阶段；Stage 描述尚未独立 |
-| L2 | `agent/prompts/*`、`knowledge/context.py`、`rtl/adaptive_context.py` | 中央装配器与 `ContextBundle` 仍是目标 |
-| L3 | `agent/llm/client.py`、`llm/types.py`、`runtime/allowance.py` | profile 路由、`Usage`、按角色配额 |
+| L1 | `runtime/graph.py`、`runtime/agent_loop.py`、`runtime/stages.py`、`agent/workflows/*`、`agent/nodes/*` | Stage 描述与工具循环已实现；阶段预算仍来自工作流参数 |
+| L2 | `runtime/prompt.py`、`agent/prompts/*`、`knowledge/context.py`、`rtl/adaptive_context.py` | `ContextBundle` 与 `PromptAssembly` 已实现并记录；打包仍由 knowledge 层执行 |
+| L3 | `agent/llm/client.py`、`llm/router.py`、`llm/types.py`、`runtime/allowance.py` | profile 路由已实现；`Usage` 对象与按角色配额仍待细化 |
 | L4 | `runtime/registry.py`、`runtime/tool_result.py`、`Ctx.call/dispatch/tool_schema` | `ToolResult` 与工具分类已实现；工具白名单仍按阶段硬编码 |
 | L5 | `rtl/*`、`rtl/suite/*`、`knowledge/*` | 保持 |
 | L6 | `runtime/recorder.py`、`dev/log-viewer.html` | `submission`/`publish` 事件已加入；查看器按新字段兼容 |

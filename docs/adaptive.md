@@ -116,6 +116,10 @@ Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protoc
 
 `tool_steps` 默认 0，作者阶段仍为单次调用。设为大于 0 时，首稿/救援最多经过指定步数的模型-工具循环，白名单只有 `submit_answer` 与 `finish_task`；每一步都独立申请 completion 许可，因此会计入 `max_calls` 与输出 token 额度。实验配置为 `config/adaptive_tools.yaml`（`tool_steps: 2`）。目标服务必须支持工具调用；未验证前不进入正式默认配置。
 
+模型 profile 按角色固定映射：分析者 `small`，作者、构造、复核、归因 `large`。配置在 `services.profiles`，未启用或未知 profile 回落主模型；只切换模型名、可选 base URL 和超时，思考设置仍取 manifest。每次模型调用在事件和 `request_outcomes` 中记录 `profile` 与实际 `model`。小模型占位为 `Qwen/Qwen3-0.6B`，默认关闭。
+
+上下文装配在 `adaptive_analyze` 保存 `context-bundle.json`；生成前记录一次 `prompt/assembly`，包含保留/丢弃的知识条目、消息哈希和 token 估算。装配失败仍按知识层原有规则失败关闭，不改变原题文本。
+
 ## 预算、日志与诊断
 
 | 阶段 | 单次秒数 | 输出 token 上限 |

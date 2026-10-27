@@ -157,7 +157,10 @@ def main(argv=None):
         record.write_json(
             "task.json", dict(task_id=task.id, prompt=task.prompt, top=task.top)
         )
-        llm = Client(config.services.model, budget, record, load_generation())
+        llm = Client(
+            config.services.model, budget, record, load_generation(),
+            profiles=config.services.profiles,
+        )
         ctx = Ctx(
             task=task,
             budget=budget,

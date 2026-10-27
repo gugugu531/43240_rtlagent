@@ -1,8 +1,9 @@
 # Agent 接口契约
 
-状态：部分实现。`ToolResult`、有界工具循环、提交网关与 `submit_answer`/`finish_task`
-已落地；LLM profile 路由与 `ContextBundle` 仍是目标接口。分层背景见
-[Agent 分层与编排设计](agent-layers.md)。字段名以下文为准；实现时若需偏离，先更新本文件。
+状态：已实现。`ToolResult`、有界工具循环、提交网关、`submit_answer`/`finish_task`、
+模型 profile 路由、`ContextBundle`、`PromptAssembly` 与 Stage 描述均已落地。
+`Usage` 对象仍以内联字段记录。分层背景见 [Agent 分层与编排设计](agent-layers.md)。
+字段名以下文为准；实现时若需偏离，先更新本文件。
 
 ## 1. LLM 接口
 
@@ -24,7 +25,9 @@ class LLMRequest:
 
 - `messages` 由 L2 装配层生成；LLM 层不拼接业务上下文。
 - `params` 的来源是工作流参数与清单声明；思考开关不允许按调用覆盖。
-- `profile` 只决定模型与配额，不改变消息内容。
+- `profile` 只决定模型与配额，不改变消息内容。实现为 `Client.chat(profile=...)`：
+  未配置、未启用或未知 profile 都回落到主模型；`profile` 与实际 `model` 写入
+  `llm/finished` 事件。角色映射见 `agent/llm/router.py`。
 
 ### 1.2 回复与用量
 
@@ -135,6 +138,8 @@ class ToolResult:
 }
 ```
 
+- 实现位置：`agent/runtime/prompt.py` 的 `ContextBundle`；`adaptive_analyze` 保存
+  `adaptive/context-bundle.json`。任务段只存题面哈希与字节数，不复制正文。
 - 大段正文只存引用；`content` 仅用于短结构。
 - `trust` 取值：`host`、`frozen`、`observed`、`model`。模型生成的建议不能标成 `host`。
 - 已冻结证据只读；后续节点只追加 section。
@@ -170,7 +175,9 @@ class StageSpec:
 ```
 
 默认值：分析、构造、复核、归因 `max_steps=1`；作者与修复 `max_steps=3`；纯宿主阶段
-`max_steps=0` 且不调用模型。
+`max_steps=0` 且不调用模型。实现表为 `agent/runtime/stages.py` 的 `ADAPTIVE_STAGES`；
+`stage_spec()` 同时接受节点名和请求标签（`draft_tool_2`）。当前只有作者阶段声明了
+`submit_answer` 与 `finish_task`。
 
 ## 5. 提交接口
 
