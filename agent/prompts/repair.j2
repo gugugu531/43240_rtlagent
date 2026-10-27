@@ -2,9 +2,17 @@
 
 {{ task.prompt }}
 
-## Module interface parsed from the task
+## Required top module and public interface evidence
 
+Required top module name: `{{ task.top }}`. Emit this exact name.
+Parsed public interface (including source, confidence, completeness and warnings):
+{{ task.expected_interface.public_dict() | tojson }}
+Unknown widths or incomplete declarations remain unresolved; consult the original public task.
+Do not treat embedded buggy RTL as an authoritative interface or invent missing declarations.
+{% if task.interface %}
+Explicit interface text:
 {{ task.interface }}
+{% endif %}
 {% if plan %}
 Design plan (may be incorrect; the original task takes precedence):
 {{ plan | tojson }}

@@ -79,11 +79,36 @@ def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True, 
         _save(ctx, "request-outcomes", data["request_outcomes"])
 
 
-def _generation_messages(ctx):
+def _generation_messages(ctx, *, failure=None):
     data = _data(ctx)
-    return ctx.prompts.render("repair.j2", task=ctx.task, feedback="", parent=None,
+    messages = ctx.prompts.render("repair.j2", task=ctx.task, feedback="", parent=None,
                               plan=data["analysis"].model_dump(mode="json", exclude={"requirements"})
                               if data.get("analysis") else None)
+    if failure is not None:
+        import json
+
+        messages[-1]["content"] += (
+            "\n\n## Previous delivery failure\n"
+            + json.dumps(failure, ensure_ascii=False)
+            + "\nThe previous response did not produce an accepted implementation. "
+            "Recheck the public task and exact top name; a valid module name alone does not prove behavior. "
+            "Deliver one complete implementation in one fenced verilog block in the final response. "
+            "Do not only describe or plan the solution."
+        )
+    return messages
+
+
+def _delivery_failure(reply, extraction, top):
+    """Describe observed delivery evidence, without guessing why content is absent."""
+    return {
+        "source_call_id": reply.call_id,
+        "finish_reason": reply.finish_reason,
+        "required_top": top,
+        "final_content_present": bool(reply.content.strip()),
+        "kind": ("length_truncated" if reply.finish_reason == "length" else
+                 "no_final_content" if not reply.content.strip() else "extraction_rejected"),
+        "extraction": extraction.trace_dict(),
+    }
 
 
 def _candidate(ctx, reply, *, parent=None, stage="draft", extraction=None):
@@ -97,6 +122,11 @@ def _candidate(ctx, reply, *, parent=None, stage="draft", extraction=None):
                         and extraction.target_module_found and not extraction.suspected_truncation))
     if (extraction.status != "ok" or not extraction.complete
             or not extraction.target_module_found or extraction.suspected_truncation):
+        failure = _delivery_failure(reply, extraction, ctx.task.top)
+        # Standalone extraction consumers also use this helper without workflow state.
+        if "adaptive" in ctx.store:
+            _data(ctx)[f"{stage}_failure"] = failure
+        _save(ctx, f"{stage}-failure", failure)
         return None
     candidate = ctx.candidates.create(
         extraction.code, source_stage=f"adaptive_{stage}", round=2 if parent else 1,
@@ -162,7 +192,7 @@ def rescue(ctx: Ctx, state: State) -> State:
     data["routing"] = replace(data["routing"], route="structural", reason="first_draft_rescue")
     reply = None
     if data.get("draft_reply") is not None:
-        reply = _request(ctx, "rescue", _generation_messages(ctx), limits=data["settings"]["draft"],
+        reply = _request(ctx, "rescue", _generation_messages(ctx, failure=data["draft_failure"]), limits=data["settings"]["draft"],
                          followup_s=data["settings"]["first_tools_s"], optional=False)
     candidate = _candidate(ctx, reply, stage="rescue")
     return state.update(target_id=candidate.id if candidate else None, has_candidate=candidate is not None,

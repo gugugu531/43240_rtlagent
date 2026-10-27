@@ -14,25 +14,37 @@ from agent.runtime.budget import BudgetExhausted
 from .result import CheckResult
 
 
+_DIAGNOSTIC = re.compile(
+    r"\b(CRITICAL\s+WARNING|ERROR|WARNING|FATAL):\s*(?:\[([^\]]+)\]\s*)?(.*)", re.I
+)
+_DIAGNOSTIC_SCOPE = "ERROR, WARNING, CRITICAL WARNING and FATAL lines; INFO excluded"
+
+
 def extract_diagnostics(log: str, limit=32):
-    """Collect roots before summary truncation; incomplete evidence stays explicit."""
-    rows, seen, omitted, truncated = [], set(), 0, False
-    for line in log.splitlines():
-        match = re.search(r"(ERROR|WARNING):\s*\[([^\]]+)\]\s*(.*)", line, re.I)
+    """Retain all diagnostic severities, in source order, with explicit limits.
+
+    Completeness covers unique diagnostic lines, not the full tool transcript.
+    Repeated diagnostics are counted separately; messages are never interpreted
+    as source defects here. Attribution remains the classifier's responsibility.
+    """
+    limit = max(0, limit)
+    rows, seen, omitted, truncated, duplicates = [], set(), 0, 0, 0
+    for line_number, line in enumerate(log.splitlines(), 1):
+        match = _DIAGNOSTIC.search(line)
         if not match:
             continue
         severity, code, message = match.groups()
-        code = " ".join(code.upper().split())
-        if severity.upper() == "WARNING" and code != "SYNTH 8-3848":
-            continue
-        key = (code, message)
+        code = " ".join(code.upper().split()) if code else None
+        severity = " ".join(severity.lower().split())
+        key = (severity, code, message)
         if key in seen:
+            duplicates += 1
             continue
         seen.add(key)
         if len(rows) >= limit:
             omitted += 1
             continue
-        truncated |= len(message) > 700
+        truncated += int(len(message) > 700)
         symbols = re.findall(
             r"(?:variable|signal|net)\s+['\"]([A-Za-z_][A-Za-z0-9_$]*)['\"]",
             message,
@@ -41,13 +53,18 @@ def extract_diagnostics(log: str, limit=32):
         rows.append(
             dict(
                 code=code,
-                severity=severity.lower(),
+                severity=severity,
                 message=message[:700],
+                line_number=line_number,
+                message_truncated=len(message) > 700,
                 symbols=list(dict.fromkeys(symbols)),
                 cascade=code == "XSIM 43-3322",
             )
         )
-    return dict(items=rows, omitted=omitted, complete=not (omitted or truncated))
+    return dict(
+        items=rows, omitted=omitted, truncated=truncated, duplicates=duplicates,
+        complete=not (omitted or truncated), scope=_DIAGNOSTIC_SCOPE, limit=limit,
+    )
 
 
 def banner_version(output):
@@ -60,7 +77,9 @@ def banner_version(output):
 
 def knowledge_details(executions, limit=32, version_probes=None):
     """Keep diagnostic provenance local to each actual command invocation."""
+    limit = max(0, limit)
     items, commands, probes, omitted, complete = [], [], {}, 0, True
+    truncated, duplicates = 0, 0
     for index, (command, output, status, rc) in enumerate(executions):
         # Tool namespaces are shared by multiple executables. Neither a code's
         # namespace nor a previous command's banner identifies this invocation.
@@ -95,9 +114,12 @@ def knowledge_details(executions, limit=32, version_probes=None):
             0, len(diagnostics["items"]) - remaining
         )
         complete = complete and diagnostics["complete"]
+        truncated += diagnostics["truncated"]
+        duplicates += diagnostics["duplicates"]
     return {
         "knowledge_diagnostics": dict(
-            items=items, omitted=omitted, complete=complete and not omitted
+            items=items, omitted=omitted, truncated=truncated, duplicates=duplicates,
+            complete=complete and not omitted, scope=_DIAGNOSTIC_SCOPE, limit=limit,
         ),
         "knowledge_commands": commands,
         "knowledge_version_probes": list(probes.values()),
@@ -150,10 +172,6 @@ def version_probes(ctx, executions, *, deadline, cwd):
 
 
 _INTERESTING = (
-    "ERROR:",
-    "CRITICAL WARNING:",
-    "error:",
-    "WARNING: [Synth 8-3848]",
     "Synthesis finished",
     "Synthesis failed",
     "Mismatches:",
@@ -168,13 +186,16 @@ def summarize_log(log: str, budget: int = 2000) -> str:
     carry a verdict, drop the rest, and mark the truncation honestly.
     """
     lines = [ln.rstrip() for ln in log.splitlines()]
-    keep = [ln for ln in lines if any(k in ln for k in _INTERESTING)]
+    keep = [ln for ln in lines if _DIAGNOSTIC.search(ln) or any(k in ln for k in _INTERESTING)]
     if not keep:
         keep = lines[-40:]
 
     text = "\n".join(keep)
+    budget = max(0, budget)
     if len(text) > budget:
         text = text[:budget] + f"\n... [truncated, {len(text) - budget} more chars]"
+    if len(keep) < len(lines):
+        text += f"\n... [{len(lines) - len(keep)} other log lines omitted]"
     return text
 
 
