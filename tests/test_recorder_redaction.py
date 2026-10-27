@@ -26,6 +26,22 @@ class RecorderRedactionTests(unittest.TestCase):
     def written(self, relative):
         return (self.recorder.record_dir / relative).read_text(encoding="utf-8")
 
+    def test_emit_uses_contract_timestamps(self):
+        # docs/API_CONTRACT.md asks for Unix seconds; ts_iso is the readable copy.
+        from datetime import datetime
+
+        self.recorder.emit("probe", "result", rc=0)
+        rows = [
+            strict_loads(line)
+            for line in (self.recorder.output_dir / "trace.jsonl").read_text(
+                encoding="utf-8"
+            ).splitlines()
+        ]
+        row = rows[-1]
+        self.assertIsInstance(row["ts"], float)
+        parsed = datetime.fromisoformat(row["ts_iso"])
+        self.assertAlmostEqual(parsed.timestamp(), row["ts"], places=3)
+
     def test_write_json_emits_strict_parseable_json_with_escaped_secrets(self):
         # Text-level redaction after json.dumps corrupted JSON when a secret
         # carried escape characters; object-level redaction must not.
