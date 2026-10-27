@@ -27,7 +27,7 @@
     "http_port": 7860
   },
   "agent": {
-    "workflow": "single_generate",
+    "workflow": "adaptive_verify",
     "max_rounds": 1,
     "temperature": 0.0,
     "tools": [],

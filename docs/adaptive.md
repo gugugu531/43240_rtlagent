@@ -1,6 +1,6 @@
 # 自适应工作流与检查
 
-本页描述已实现的 `adaptive_verify`，默认入口保持 `single_generate`。机制验收、离线重放与真实小样本分别记录；`ready`、`approved`、`completed` 只表示对应阶段的状态，不代表题目功能正确或官方成绩。本版本未包含真实模型或 Vivado 的实测结论，真实模型效果与检查器构造质量仍未验证。
+本页描述已实现的 `adaptive_verify`。`refactor/adaptive-orchestration` 分支的 `run.sh` 默认使用 `adaptive_verify`，显式 `AGENT_CONFIG` 仍可覆盖；`main` 在封存前保持 `single_generate`。机制验收、离线重放与真实小样本分别记录；`ready`、`approved`、`completed` 只表示对应阶段的状态，不代表题目功能正确或官方成绩。本版本未包含真实模型或 Vivado 的实测结论，真实模型效果与检查器构造质量仍未验证。
 
 ## 工作流与恢复路径
 
@@ -32,7 +32,7 @@
 
 Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protocol 对应当前配置的时序方法，combinational 对应组合完整性方法，arithmetic 或 width/signed 风险追加宽度方法，最多两个。若 `analysis.clocks` 为空且（kind 为 sequential/protocol 或命中无时钟 latch 门禁），移除时序方法；候选在生成前仍要经过自动准入：只有默认冻结版本可自动准入，其它状态记录拒绝原因并继续无知识生成，实际发送看知识装配的 `skill_selected`/`sent`，不能把 `skill_candidates` 当成已发送。生成的 `sequential_skill` 在构图阶段用 catalog/资产校验自动准入，配置为未经批准的 v3 候选会在任何模型请求前报错停止，不再静默失效。checker 不消费 Skill、诊断卡、候选或实际输出。
 
-使用 `AGENT_CONFIG=config/adaptive_verify.yaml ./run.sh <input> <output>` 运行；HIP 服务使用 `config/adaptive_hip.yaml`。新预设默认连接真实服务，服务、模型和思考声明须在实验副本中核对。默认总时限 9600 秒、收尾 120 秒，没有独立研究模式。`params` 使用工作流的 `AdaptiveParameters` 严格校验，可调整阶段限额；阶段额度必须连同后继预留一起放入剩余工作时间。
+本分支直接使用 `./run.sh <input> <output>` 即运行 `adaptive_verify`；需要对照旧流程时显式设置 `AGENT_CONFIG=config/single_generate.yaml`。HIP 服务使用 `config/adaptive_hip.yaml`。新预设默认连接真实服务，服务、模型和思考声明须在实验副本中核对。默认总时限 9600 秒、收尾 120 秒，没有独立研究模式。`params` 使用工作流的 `AdaptiveParameters` 严格校验，可调整阶段限额；阶段额度必须连同后继预留一起放入剩余工作时间。
 
 ## 检查器构造、归一化与预检证据
 
@@ -141,4 +141,4 @@ Vivado 摘要及结构化诊断先保留 ERROR、CRITICAL WARNING、FATAL（含�
 
 离线重放与组件测试只说明“若模型给出契约形状，宿主能按规则判断”；真实模型下 v2 复核/归因首次通过率、重试次数与 token 增量未验证。旧 review 响应在新契约下 invalid 是显式兼容边界；旧批次的通过率、`ready`/`approved` 数量与官方成绩不因规则变化而改写。
 
-本版本未包含真实模型、Vivado 或官方判定请求的实测结论；宽预算实验不能当作符合 900 秒赛事预算的成绩。旧三条工作流和默认配置保持原样，新行为只影响 `adaptive_verify`。
+本版本未包含真实模型、Vivado 或官方判定请求的实测结论；宽预算实验不能当作符合 900 秒赛事预算的成绩。旧三条工作流的配置保持原样；本分支默认入口已切到 `adaptive_verify`，`main` 在封存前不变。

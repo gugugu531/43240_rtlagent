@@ -53,10 +53,14 @@ class Recorder:
             "utf-8", errors="ignore"
         )
         active = _span.get()
+        # docs/API_CONTRACT.md asks for Unix seconds; keep an ISO copy for
+        # human-readable logs and the local viewer.
+        now = time.time()
         row = dict(
             run_id=self.run_id,
             seq=self.seq,
-            ts=datetime.now(timezone.utc).isoformat(),
+            ts=now,
+            ts_iso=datetime.fromtimestamp(now, timezone.utc).isoformat(),
             tool=tool,
             event=event,
             span_id=active[0] if active else None,

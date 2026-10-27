@@ -1,7 +1,22 @@
 # Agent 分层与编排设计
 
-状态：分层与接口方向已确认；逐节点最简输入输出仍待确认，代码尚未按本设计改动。
+状态：分层、接口方向、入口切换与日志格式已确认；代码开始按本设计改动，逐节点最简输入输出仍待确认。
 适用分支：`refactor/adaptive-orchestration`。数据契约见 [Agent 接口契约](agent-interfaces.md)。
+
+## 0. 已确认决策（2026-10-28）
+
+1. **工具双路径。** 模型可自主调用工具；节点也可指定调用。两条路径共用注册、校验、预算和记录。
+2. **提交暂用 last-write-wins。** 工具写候选并发布；`selected_id` 仍记录，切换开关保留。
+3. **模型 profile 固定映射。** 角色决定 profile，不让模型自己选模型。
+4. **默认入口切换点为 `run.sh`。** 未设置 `AGENT_CONFIG` 时使用 `config/adaptive_verify.yaml`，
+   显式环境变量仍然优先。本分支按此实现；`main` 在封存前保持 `single_generate`。
+5. **封存前不切默认流程。** 本次改造只在分支验证，封存版本不包含该改造。
+6. **辅助模型占位。** 选用 `Qwen/Qwen3-0.6B` 作为 `small` profile 占位，默认不启用、
+   回落到主模型。启用前必须补 `manifest.json` 的 `auxiliary_models` 与 `model/MODEL.md`
+   的名称、基座、参数量、用途、运行位置和显存，并确认与主模型合计不超过 32 GB。
+7. **退出码对齐赛事契约。** `run.sh` 在 `solution.v` 有非空白内容时返回 0，否则返回非 0。
+8. **`trace.jsonl` 时间格式对齐赛事契约。** `ts` 为 Unix 秒（浮点），另存 `ts_iso` 供人阅读；
+   日志查看器优先使用 `ts_iso`。
 
 本文只描述目标结构。现有实现的行为边界仍以 [架构与设计原则](architecture.md) 和
 [自适应工作流](adaptive.md) 为准；两者冲突时，本文标注“待实现”，不把计划写成已实现。
@@ -105,6 +120,8 @@ flowchart TB
 约束：
 
 - profile 到具体模型的映射写在配置中；未配置时回落到主模型。
+- `small` profile 的占位模型为 `Qwen/Qwen3-0.6B`，仅用于接口联调，默认不启用。
+  启用前必须补 `manifest.json` 的 `auxiliary_models` 与 `model/MODEL.md` 的声明。
 - 所有模型必须在 `manifest.json` 中声明；辅助模型同时写入 `model/MODEL.md`（名称、基座、参数量、用途、运行位置、显存）。
 - 单卡 32 GB 上限包含主模型、辅助模型和运行时开销。
 - 思考开关和生成参数统一取 `manifest.json` 的声明，不按调用切换。
@@ -224,10 +241,10 @@ flowchart TB
    将其计入工程质量与作弊复核。新事件不得移除这些字段。
 5. **900 秒单题上限。** `SCORING.md` 与 `API_CONTRACT.md` 均以赛事方时钟为准；投题服务已在
    `deadline_s - 10` 秒发送 `SIGTERM`，agent 必须更早自行收尾。
-6. **默认入口当前不会运行 `adaptive_verify`。** `agent/config.py` 在未指定 `AGENT_CONFIG` 时
-   加载 `config/single_generate.yaml`；`manifest.json` 的 `agent.workflow` 仍是
-   `single_generate`；`serve/start.sh` 不设置 `AGENT_CONFIG`。改造完成后若不做切换，正式投题
-   仍走旧流程。可选切换点：
+6. **默认入口原本不会运行 `adaptive_verify`。** `agent/config.py` 在未指定 `AGENT_CONFIG` 时
+   加载 `config/single_generate.yaml`；`manifest.json` 的 `agent.workflow` 原本是
+   `single_generate`；`serve/start.sh` 不设置 `AGENT_CONFIG`。本分支已按方案 A 在 `run.sh`
+   设默认值，显式环境变量仍可覆盖；`main` 在封存前保持 `single_generate`。可选切换点：
 
    | 切换点 | 覆盖范围 | 代价 |
    | --- | --- | --- |
@@ -237,10 +254,18 @@ flowchart TB
 
    切换后须同步 `manifest.json` 的 `agent.workflow`，并核对 `model/MODEL.md` 的模型、上下文
    和显存声明。
+7. **900 秒预算与 `adaptive_verify` 默认阶段限额不匹配。** `config/adaptive_verify.yaml`
+   使用 `AdaptiveParameters` 默认值：`draft` 1200 秒、`profile` 180 秒，并且
+   `CompletionLedger.reserve()` 会连同后继预留一起检查剩余时间。投题服务把
+   `AGENT_DEADLINE_S` 设为剩余时间（约 890 秒）后，`profile` 请求需要
+   `draft.timeout_s + first_tools_s = 1500` 秒的后继空间，会被判为
+   `insufficient_followup_time`，导致分析、首稿都不发送。当前分支冒烟已复现该拒绝。
+   在正式切到 `adaptive_verify` 前，必须为 900 秒预算重设阶段限额与后继预留，并单独验证。
 
 ## 10. 待确认
 
 - 默认工作流切换点（`run.sh` / `agent/config.py` / `serve/start.sh`）以及是否在封存前切换。
+- 900 秒预算下的阶段限额与后继预留重设；重设前不得把 `adaptive_verify` 用于正式投题。
 - 切换时 `manifest.json` 的 `agent.workflow` 与 `model/MODEL.md` 的同步内容。
 - 逐节点的最简输入输出与工具白名单。
 - `run.sh` 当前无论成功失败都退出 0；`API_CONTRACT.md` 第八节写的是非 0 表示放弃本题。

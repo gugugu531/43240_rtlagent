@@ -8,9 +8,9 @@
 #   <output_dir>/solution.v   generated Verilog/SystemVerilog (empty file if we failed)
 #   <output_dir>/trace.jsonl    one JSON object per tool / model call
 #
-# The contract is: never fail loudly. "Could not solve it" and "the service is
-# broken" must stay distinguishable at the protocol level, so a failed run still
-# produces an empty solution.v and exits 0.
+# Exit code follows docs/API_CONTRACT.md section 8: 0 when solution.v contains
+# an answer, non-zero when the task was given up. "Could not solve it" still
+# leaves an empty solution.v so the service can distinguish it from a crash.
 
 set -eo pipefail
 
@@ -29,9 +29,12 @@ case "$OUT" in
     *) OUT="$PWD/$OUT" ;;
 esac
 
-if [ -n "${AGENT_CONFIG:-}" ]; then
-    case "$AGENT_CONFIG" in /*) ;; *) export AGENT_CONFIG="$PWD/$AGENT_CONFIG" ;; esac
-fi
+# This development branch defaults to adaptive_verify. An explicit
+# AGENT_CONFIG still wins, and the sealed main branch keeps single_generate
+# until this refactor is merged.
+: "${AGENT_CONFIG:=config/adaptive_verify.yaml}"
+case "$AGENT_CONFIG" in /*) ;; *) AGENT_CONFIG="$PWD/$AGENT_CONFIG" ;; esac
+export AGENT_CONFIG
 export AGENT_CALLER_CWD="$PWD"
 mkdir -p "$OUT"
 
@@ -40,10 +43,16 @@ cd "$HERE"
 [ -f "$OUT/solution.v" ] || : > "$OUT/solution.v"
 [ -f "$OUT/trace.jsonl" ] || : > "$OUT/trace.jsonl"
 
+answer_ready() {
+    # A whitespace-only file is not an answer; the contract counts content.
+    [ -s "$OUT/solution.v" ] || return 1
+    [ -n "$(tr -d '[:space:]' < "$OUT/solution.v")" ]
+}
+
 stop_agent() {
     kill -TERM "$agent_pid" 2>/dev/null || true
     wait "$agent_pid" || true
-    exit 0
+    if answer_ready; then exit 0; else exit 1; fi
 }
 
 rc=0
@@ -56,4 +65,8 @@ trap - TERM INT
 if [ $rc -ne 0 ]; then
     echo "run.sh: agent exited with $rc, preserved the last saved solution" >&2
 fi
-exit 0
+if answer_ready; then
+    exit 0
+fi
+echo "run.sh: no answer produced" >&2
+exit 1
