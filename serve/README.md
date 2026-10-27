@@ -12,7 +12,10 @@
 ## 开发期：不需要 GPU
 
 使用 `LLM_BACKEND=mock ./run.sh <输入目录> <输出目录>` 检查入口和日志。mock 仅给占位 RTL，
-不代表功能正确。四条内置工作流的配置位于 `config/`，默认 `single_generate.yaml`；另有 Skill/RAG 与自适应工作流预设。
+不代表功能正确。四条内置工作流的配置位于 `config/`；`agent/config.py` 的代码默认仍是
+`single_generate.yaml`，而分支 `refactor/adaptive-orchestration` 的 `run.sh` 在未设置
+`AGENT_CONFIG` 时改用 `config/adaptive_verify.yaml`。另有 Skill/RAG、工具循环
+（`adaptive_tools.yaml`）与自适应工作流预设。
 模型传输统一经过 `agent/llm/client.py`；`repair_loop`、`design_verify_loop` 与 `adaptive_verify` 等
 非 baseline 生成流程使用服务端 `/tokenize` 计算上下文余量（`single_generate` 走 baseline 请求，不做该计算）。结构化请求默认使用 `response_format: json_schema`，
 不支持时可在 YAML 显式设置 `services.model.structured_outputs: false`，保留严格校验和有限重问。
@@ -121,7 +124,15 @@ Vivado 综合产生的大量小文件写在上面极慢。这不是优化建议�
 
 ## 可选模型工具调用
 
-四条内置流程由 Burr 图直接调用工具。自定义节点可用 `ctx.tool_schema(name)` 取得工具定义，
-再调用 `ctx.llm.run_tools(messages, tools=[...], max_steps=4)`。对应服务启动需显式设置
+内置流程默认由 Burr 图直接调用工具。分支的 `adaptive_verify` 在作者阶段还支持有界的
+模型工具循环：`tool_steps` 默认 0，`config/adaptive_tools.yaml` 设为 2；白名单为
+`submit_answer` 与 `finish_task`，每一步独立消耗 completion 许可。循环实现位于
+`agent/orchestration/agent_loop.py`，工具结果统一为 `agent/tools/result.py` 的
+`ToolResult`。
+
+自定义节点仍可用 `ctx.tool_schema(name)` 取得工具定义，再调用
+`ctx.llm.run_tools(messages, tools=[...], max_steps=4)`。对应服务启动需显式设置
 `ENABLE_TOOL_CALLING=1`，默认解析器为 `hermes`，可用 `TOOL_CALL_PARSER` 覆盖。
 这项开关不改变 `manifest.json` 的共享 generation 声明；实际支持情况需在目标服务验证。
+2026-10-28 的 llama.cpp 开发服务已实测返回 `tool_calls` 并触发 `submit_answer`，
+但该服务不是 manifest 声明的正式 vLLM 服务。

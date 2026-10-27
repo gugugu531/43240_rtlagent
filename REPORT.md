@@ -8,7 +8,7 @@
 | --- | --- |
 | 队伍 | 43240 |
 | Track | RTL |
-| 当前默认 Workflow | `single_generate` |
+| 当前默认 Workflow | 分支 `adaptive_verify`；`main`/封存 `single_generate` |
 | 最终模型与推理服务 | 待确定，与 manifest.json、model/MODEL.md 同步填写 |
 
 ## 1. 设计目标
@@ -20,13 +20,18 @@
 
 ## 2. 总体架构
 
-默认入口为 `run.sh` → `python3 -m agent.main` → 单进程 Burr 图（默认 `single_generate`）。
-默认流程调用一次模型，使用本地未修改 baseline 的提示、采样和提取规则，不加载技能或调用 Vivado。
+默认入口为 `run.sh` → `python3 -m agent.main` → 单进程 Burr 图。分支默认
+`adaptive_verify`；`main` 与封存版本仍为 `single_generate`，保持一次模型调用、
+baseline 提示与提取、不加载技能或调用 Vivado。
+
+分支的 `adaptive_verify` 路径为：短分析 → 保存首稿 → 独立检查器构造/复核 →
+接口/lint/综合与可选行为检查 → 一次归因与修复 → 同计划复检选稿。作者阶段可选
+`submit_answer`/`finish_task` 有界工具循环，默认关闭；答案由宿主原子发布到 `solution.v`。
 输出通过同目录临时文件 + 原子替换保存；本次运行内保留已选答案，不提供跨运行恢复；未能得到答案时输出空文件。停止与错误原因写入 trace。
 
 可选的修复、独立检查与自适应流程见[仓库设计文档](docs/index.md)与[自适应工作流](docs/adaptive.md)（完整开发用法在开发区手册，不随方案提交）。这些流程需要显式选择，
 未证明完整题集收益之前不作为已确定的最终提交策略。
-可选流程包括 `repair_loop`、`design_verify_loop` 与 `adaptive_verify`；`design_verify_loop` 从公开题面构造独立计划和受限功能检查，`adaptive_verify` 增加路由、一次检查器构造/复核与受限修复，默认入口保持不变。
+可选流程包括 `repair_loop`、`design_verify_loop` 与 `adaptive_verify`；`design_verify_loop` 从公开题面构造独立计划和受限功能检查，`adaptive_verify` 增加路由、一次检查器构造/复核与受限修复。分支默认已切到 `adaptive_verify`，`main` 保持 `single_generate`。
 它们只依据自身生成的检查、Vivado 仿真及综合证据作有限修复；检查不完整或环境失败不算功能通过。
 研究配置的运行预算不同于正式期限，正式题集收益仍待同模型、同环境验证。
 
@@ -39,7 +44,8 @@ nonce 用于重复投递去重，时限覆盖排队和执行；HTTP 服务与 Ag
 待在 [MODEL.md](model/MODEL.md) 与 `manifest.json` 同步填写。当前 Qwen3-8B 是示例配置。
 权重地址须公开可访问；权重提前准备到本地，正式断网运行时不下载。
 
-当前默认模型请求的 temperature 为 0.0、top_p 为 1.0、单次输出上限为 16384 token。
+分支默认模型请求的 temperature 为 0.0、top_p 为 1.0；各阶段输出上限由工作流参数控制。
+`single_generate` 仍沿用 baseline 的单次 16384 token 上限。
 示例服务上下文为 32768，最终值须与基线完全一致。模型与服务尚未最终选型。
 
 `serve/start.sh` 是常驻服务统一入口；推理服务绑定环回地址，默认按 30 GB 预算计算
@@ -54,6 +60,11 @@ nonce 用于重复投递去重，时限覆盖排队和执行；HTTP 服务与 Ag
 技能来源、适用边界与消融实验：待填写。
 
 `baseline.py` 和 `run_baseline.sh` 按本地受保护原文件保留；基线不运行技能、工具或 MCP。
+
+分支实际工具为 `interface_check`、`vivado_lint`、`vivado_synth`、`submit_answer`、
+`finish_task`；技能默认只自动准入 `rtl-sequential-state-update`。模型 profile 按角色映射：
+分析者 `small`，作者/构造/复核/归因 `large`；`small` 占位 `Qwen/Qwen3-0.6B` 默认关闭。
+提交策略当前为 last-write-wins，证据选稿的 `selected_id` 另行记录。
 本地 baseline 已原样同步到上游 `f7a8bd4`，包含 `strip_think()` 和 manifest 思考声明加载；
 输出上限 16384，单次请求上限 840 秒。方案采用同一思考声明，默认单题预算 900 秒。
 
@@ -86,6 +97,18 @@ g = (方案题集得分 − 基线题集得分) / (1 − 基线题集得分)
 
 模型之间的历史筛选数字、mock 流程验证和工具替身检查不填作本报告的正式能力结论。
 
+### 6.1 开发期结构验证（非正式）
+
+2026-10-28 在远端 llama.cpp `Qwen3.8-27B-Q4_K_M` + MTP 上各跑一道公开题：
+
+| 工作流 | 墙钟 | 结果 |
+| --- | ---: | --- |
+| `single_generate` | 9.6 秒 | 417 字节；本次输出 `xvlog` 报非 reg 赋值，未通过编译 |
+| `repair_loop` | 87.4 秒 | 首稿 lint 失败，修复稿 lint/综合通过，354 字节 |
+
+该 27B 不是 manifest 声明的 Qwen3-8B，且未跑 xsim 或官方判定；这些数字只证明
+工作流在真实服务上可运行和一次修复链成立，不能作为正式能力或成绩。
+
 ## 7. 失败分析（待填写）
 
 待补充真实样本、输入版本、失败发生阶段、模型及工具证据、已尝试修复与反例。
@@ -111,7 +134,8 @@ export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8000/v1
 
 ## 9. 辅助模型
 
-当前未部署，manifest.json 中为空列表。未来若使用，名称、基座、参数量、用途、位置、
+当前未部署，manifest.json 中为空列表。分支配置中的 `small` profile 仅占位且默认关闭；
+未来若启用，名称、基座、参数量、用途、位置、
 显存和训练来源待按 MODEL.md 声明；基线不含辅助模型。
 
 ## 10. 演示视频（待完成）

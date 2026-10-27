@@ -1,6 +1,6 @@
 # 自适应工作流与检查
 
-本页描述已实现的 `adaptive_verify`。`refactor/adaptive-orchestration` 分支的 `run.sh` 默认使用 `adaptive_verify`，显式 `AGENT_CONFIG` 仍可覆盖；`main` 在封存前保持 `single_generate`。机制验收、离线重放与真实小样本分别记录；`ready`、`approved`、`completed` 只表示对应阶段的状态，不代表题目功能正确或官方成绩。本版本未包含真实模型或 Vivado 的实测结论，真实模型效果与检查器构造质量仍未验证。
+本页描述已实现的 `adaptive_verify`。`refactor/adaptive-orchestration` 分支的 `run.sh` 默认使用 `adaptive_verify`，显式 `AGENT_CONFIG` 仍可覆盖；`main` 在封存前保持 `single_generate`。机制验收、离线重放与真实小样本分别记录；`ready`、`approved`、`completed` 只表示对应阶段的状态，不代表题目功能正确或官方成绩。本版本已包含远端 llama.cpp 开发服务与 Vivado lint/综合的单题结构冒烟；未运行 xsim 或官方判定，正式 manifest 服务上的模型效果与检查器构造质量仍未验证。
 
 ## 工作流与恢复路径
 
@@ -32,7 +32,7 @@
 
 Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protocol 对应当前配置的时序方法，combinational 对应组合完整性方法，arithmetic 或 width/signed 风险追加宽度方法，最多两个。若 `analysis.clocks` 为空且（kind 为 sequential/protocol 或命中无时钟 latch 门禁），移除时序方法；候选在生成前仍要经过自动准入：只有默认冻结版本可自动准入，其它状态记录拒绝原因并继续无知识生成，实际发送看知识装配的 `skill_selected`/`sent`，不能把 `skill_candidates` 当成已发送。生成的 `sequential_skill` 在构图阶段用 catalog/资产校验自动准入，配置为未经批准的 v3 候选会在任何模型请求前报错停止，不再静默失效。checker 不消费 Skill、诊断卡、候选或实际输出。
 
-本分支直接使用 `./run.sh <input> <output>` 即运行 `adaptive_verify`；需要对照旧流程时显式设置 `AGENT_CONFIG=config/single_generate.yaml`。HIP 服务使用 `config/adaptive_hip.yaml`。新预设默认连接真实服务，服务、模型和思考声明须在实验副本中核对。默认总时限 9600 秒、收尾 120 秒，没有独立研究模式。`params` 使用工作流的 `AdaptiveParameters` 严格校验，可调整阶段限额；阶段额度必须连同后继预留一起放入剩余工作时间。
+本分支直接使用 `./run.sh <input> <output>` 即运行 `adaptive_verify`；需要对照旧流程时显式设置 `AGENT_CONFIG=config/single_generate.yaml`。HIP 服务使用 `config/adaptive_hip.yaml`；900 秒开发冒烟使用 `config/adaptive_dev_900.yaml`（8010 llama.cpp，非正式模型声明）。新预设默认连接真实服务，服务、模型和思考声明须在实验副本中核对。分支默认 `adaptive_verify.yaml` 的总时限为 9600 秒、收尾 120 秒，没有独立研究模式。`params` 使用工作流的 `AdaptiveParameters` 严格校验，可调整阶段限额；阶段额度必须连同后继预留一起放入剩余工作时间。
 
 ## 检查器构造、归一化与预检证据
 
@@ -114,7 +114,7 @@ Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protoc
 
 `SubmissionGateway` 是唯一写 `solution.v` 的入口，使用 `CandidateStore.publish()` 原子替换。默认策略 `submission_policy=last_written`：首稿、修复稿和模型 `submit_answer` 登记的候选都会立即发布，最后一次写入生效；`selected_id` 仍由 `promotion_decision` 记录，收尾事件用 `overrode_selected` 标明是否覆盖了证据选稿。切换为 `selected` 只改该参数。`adaptive_finish` 与 `agent/main.py` 的收尾都会调用 `finalize()`，覆盖正常结束、截止、取消和异常路径。
 
-`tool_steps` 默认 0，作者阶段仍为单次调用。设为大于 0 时，首稿/救援最多经过指定步数的模型-工具循环，白名单只有 `submit_answer` 与 `finish_task`；每一步都独立申请 completion 许可，因此会计入 `max_calls` 与输出 token 额度。实验配置为 `config/adaptive_tools.yaml`（`tool_steps: 2`）。目标服务必须支持工具调用；未验证前不进入正式默认配置。
+`tool_steps` 默认 0，作者阶段仍为单次调用。设为大于 0 时，首稿/救援最多经过指定步数的模型-工具循环，白名单只有 `submit_answer` 与 `finish_task`；每一步都独立申请 completion 许可，因此会计入 `max_calls` 与输出 token 额度。实验配置为 `config/adaptive_tools.yaml`（`tool_steps: 2`），900 秒开发配置为 `config/adaptive_dev_900.yaml`。目标服务必须支持工具调用；llama.cpp 开发服务已验证返回 `tool_calls`，但未在正式 manifest 服务上验证，未验证前不进入正式默认配置。
 
 模型 profile 按角色固定映射：分析者 `small`，作者、构造、复核、归因 `large`。配置在 `services.profiles`，未启用或未知 profile 回落主模型；只切换模型名、可选 base URL 和超时，思考设置仍取 manifest。每次模型调用在事件和 `request_outcomes` 中记录 `profile` 与实际 `model`。小模型占位为 `Qwen/Qwen3-0.6B`，默认关闭。
 
@@ -151,4 +151,4 @@ Vivado 摘要及结构化诊断先保留 ERROR、CRITICAL WARNING、FATAL（含�
 
 离线重放与组件测试只说明“若模型给出契约形状，宿主能按规则判断”；真实模型下 v2 复核/归因首次通过率、重试次数与 token 增量未验证。旧 review 响应在新契约下 invalid 是显式兼容边界；旧批次的通过率、`ready`/`approved` 数量与官方成绩不因规则变化而改写。
 
-本版本未包含真实模型、Vivado 或官方判定请求的实测结论；宽预算实验不能当作符合 900 秒赛事预算的成绩。旧三条工作流的配置保持原样；本分支默认入口已切到 `adaptive_verify`，`main` 在封存前不变。
+本版本已包含远端 Qwen3.8-27B llama.cpp 与 Vivado 2026.1 的单题结构冒烟，但未做功能仿真或官方判定；宽预算实验仍不能当作符合 900 秒赛事预算的成绩。旧三条工作流的配置保持原样；本分支默认入口已切到 `adaptive_verify`，`main` 在封存前不变。

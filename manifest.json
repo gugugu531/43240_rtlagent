@@ -30,8 +30,16 @@
     "workflow": "adaptive_verify",
     "max_rounds": 1,
     "temperature": 0.0,
-    "tools": [],
-    "skills": [],
+    "tools": [
+      "interface_check",
+      "vivado_lint",
+      "vivado_synth",
+      "submit_answer",
+      "finish_task"
+    ],
+    "skills": [
+      "rtl-sequential-state-update"
+    ],
     "available_workflows": [
       "single_generate",
       "repair_loop",

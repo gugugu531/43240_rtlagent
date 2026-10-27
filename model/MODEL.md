@@ -46,11 +46,26 @@
 | 默认 Workflow temperature | 0.0 |
 | RoPE 外推方式      | 无 / YaRN factor=... |
 
-当前默认 Workflow 为 `single_generate`，只调用一次模型，不注入技能或执行工具。
-采样参数由 Workflow 显式指定；切换 Workflow 后，实际参数以运行记录为准，并在正式提交前同步声明。
-模型、量化和推理服务仍未最终确定，本文件其他占位内容尚未完成实测填写。
+分支 `refactor/adaptive-orchestration` 的 `run.sh` 默认 `adaptive_verify`；
+`main` 与封存版本仍默认 `single_generate`。`adaptive_verify` 使用短分析、首稿、
+独立检查器构造/复核、结构检查与一次受限修复；模型、量化和推理服务仍未最终确定，
+本文件其他占位内容尚未完成实测填写。
 
-可选开发预设 `config/design_verify_hip.yaml` 连接已有 HIP + MTP3 服务
+当前分支的实际工具与角色：
+
+- 工具：`interface_check`、`vivado_lint`、`vivado_synth`、`submit_answer`、`finish_task`。
+- 角色 profile：分析者 `small`，作者/构造/复核/归因 `large`；`small` 占位为
+  `Qwen/Qwen3-0.6B`，默认关闭并回落主模型，按下文辅助模型规则声明前不启用。
+- 作者阶段可选有界工具循环（`tool_steps` 默认 0）；`config/adaptive_tools.yaml` 设为 2，
+  每步消耗一次 completion。提交工具只登记候选，`solution.v` 由宿主原子发布。
+
+云端开发验证（2026-10-28，非正式成绩）：远端 llama.cpp `Qwen3.8-27B-Q4_K_M` + MTP，
+`single_generate` 约 9.6 秒但本次输出 `xvlog` 失败；`repair_loop` 约 87.4 秒，
+首稿 lint 失败、修复稿 lint/综合通过。该 27B 不是本文件声明的 Qwen3-8B，
+结果只作开发验证，不用于正式能力或成绩声明。
+
+开发验证使用远端 llama.cpp 服务（请求别名 `qwen38-27b-q4-k-m`，端口 8010），
+该服务不属于正式 manifest 声明。可选开发预设 `config/design_verify_hip.yaml` 连接已有 HIP + MTP3 服务
 （请求别名 `qwen38-27b-q4-k-m`，端口 8010），上下文上限 65536，规划及评审
 输出上限 16384，RTL 与检查器生成/评审上限 32768。该预设显式采用 llama.cpp
 分词协议，关闭服务端 JSON Schema 约束，保留本地严格校验；所有调用仍读取
@@ -106,6 +121,8 @@ token 上限后的真实模型验证已完成；正式采用前须同步填写�
 ## 6. 辅助模型
 
 当前 `manifest.json` 的 `auxiliary_models` 为空，正式方案未部署辅助模型。
+分支配置中的 `small` profile 仅占位且默认关闭；启用前必须补名称、基座、参数量、用途、
+运行位置和显存，并确认与主模型合计不超过 32 GB。
 后续使用判别、打分、检索或嵌入模型时须声明名称、基座、参数量、用途、运行位置和显存；
 主模型、辅助模型与运行开销合计不得超过单卡 32 GB。经训练的辅助模型须声明训练方式和数据，
 权重随封存版本提供给赛事方复现，不要求公开发布。

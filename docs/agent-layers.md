@@ -1,6 +1,8 @@
 # Agent 分层与编排设计
 
-状态：分层、接口方向、入口切换与日志格式已确认；代码开始按本设计改动，逐节点最简输入输出仍待确认。
+状态：目录已按层重排；工具信封、有界循环、提交网关、模型 profile、Stage 描述与
+ContextBundle/PromptAssembly 已实现，并完成远端开发服务的单题结构冒烟。900 秒阶段预算
+与正式 manifest 服务验证仍未完成。
 适用分支：`refactor/adaptive-orchestration`。数据契约见 [Agent 接口契约](agent-interfaces.md)。
 
 ## 0. 已确认决策（2026-10-28）
