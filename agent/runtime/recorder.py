@@ -10,6 +10,7 @@ import time
 import uuid
 
 from agent.runtime.redaction import Redactor
+from agent.runtime.tool_result import truncate_excerpt
 
 _span = ContextVar("record_span", default=None)
 
@@ -48,10 +49,8 @@ class Recorder:
         fields.setdefault("rc", None)
         fields.setdefault("tokens_in", None)
         fields.setdefault("tokens_out", None)
-        excerpt = str(fields.pop("excerpt", ""))
-        fields["excerpt"] = excerpt.encode("utf-8", errors="backslashreplace")[:2048].decode(
-            "utf-8", errors="ignore"
-        )
+        excerpt, _ = truncate_excerpt(fields.pop("excerpt", ""))
+        fields["excerpt"] = excerpt
         active = _span.get()
         # docs/API_CONTRACT.md asks for Unix seconds; keep an ISO copy for
         # human-readable logs and the local viewer.

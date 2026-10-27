@@ -3,9 +3,8 @@
 import dataclasses
 import hashlib
 import inspect
-import json
 from agent.runtime.registry import TOOLS, parameter_model, parameters
-from agent.runtime.recorder import serializable
+from agent.runtime.tool_result import ToolResult
 
 
 def summarize(value):
@@ -64,8 +63,13 @@ class Ctx:
             return result
 
     def dispatch(self, name, arguments):
+        """Model-facing tool entry: always return the fixed ToolResult envelope."""
         result = self.call(name, **arguments)
-        return json.loads(json.dumps(result, default=serializable))
+        if isinstance(result, ToolResult):
+            return result.to_dict()
+        if hasattr(result, "status") and hasattr(result, "summary"):
+            return ToolResult.from_check_result(result, tool=name).to_dict()
+        return ToolResult.from_value(result, tool=name).to_dict()
 
     def tool_schema(self, name):
         selected = self.tools.get(name)
