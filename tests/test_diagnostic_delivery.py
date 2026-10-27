@@ -15,6 +15,12 @@ from agent.rtl.vivado import (
 )
 
 
+def warnings(count, prefix="Tool 1"):
+    return [
+        f"WARNING: [{prefix}-{number}] warning {number}" for number in range(1, count + 1)
+    ]
+
+
 class DiagnosticDeliveryTests(unittest.TestCase):
     def test_warning_survives_errors_and_reaches_repair_with_provenance(self):
         log = (
@@ -55,6 +61,7 @@ class DiagnosticDeliveryTests(unittest.TestCase):
             'WARNING: [Tool 1-2] same message',
         ])
         result = extract_diagnostics(log)
+        # Selection is severity-first but retained output stays in source order.
         self.assertEqual([item['severity'] for item in result['items']],
                          ['warning', 'error', 'critical warning', 'fatal'])
         self.assertIsNone(result['items'][-1]['code'])
@@ -63,13 +70,43 @@ class DiagnosticDeliveryTests(unittest.TestCase):
         for diagnostic in log.splitlines():
             self.assertIn(diagnostic, summarize_log(log))
 
+    def test_warning_flood_cannot_displace_a_later_error(self):
+        log = '\n'.join(warnings(32)) + '\nERROR: [VRFC 10-1280] real source defect [solution.sv:7]'
+        result = extract_diagnostics(log)
+        self.assertEqual([item['code'] for item in result['items'][:31]],
+                         [f'TOOL 1-{number}' for number in range(1, 32)])
+        self.assertEqual(result['items'][-1]['severity'], 'error')
+        self.assertEqual(result['items'][-1]['line_number'], 33)
+        self.assertEqual(result['omitted'], 1)
+        self.assertFalse(result['complete'])
+        # A flood is bounded by severity, not by dropping the only error.
+        small = extract_diagnostics(log, limit=2)
+        self.assertEqual([(item['severity'], item['line_number']) for item in small['items']],
+                         [('warning', 1), ('error', 33)])
+        self.assertEqual(small['omitted'], 31)
+
+    def test_uncoded_and_critical_diagnostics_are_retained_before_warnings(self):
+        log = '\n'.join(warnings(5)) + '\n' + '\n'.join([
+            'CRITICAL WARNING: [Tool 2-1] timing constraint',
+            'FATAL: unexpected simulator termination',
+            'ERROR: unnamed compilation failure',
+        ])
+        retained = extract_diagnostics(log, limit=3)
+        self.assertEqual([item['severity'] for item in retained['items']],
+                         ['critical warning', 'fatal', 'error'])
+        self.assertIsNone(retained['items'][1]['code'])
+        self.assertIsNone(retained['items'][2]['code'])
+        self.assertEqual(retained['omitted'], 5)
+        self.assertFalse(retained['complete'])
+
     def test_limits_do_not_claim_complete_or_hide_severity_counts(self):
         log = '\n'.join(['WARNING: [Tool 1-1] early warning',
                          'ERROR: [Tool 1-2] first error',
                          'ERROR: [Tool 1-3] later error',
                          'ERROR: [Tool 1-3] later error'])
         result = extract_diagnostics(log, limit=2)
-        self.assertEqual([item['code'] for item in result['items']], ['TOOL 1-1', 'TOOL 1-2'])
+        # The two errors take the two slots; the warning is explicitly omitted.
+        self.assertEqual([item['code'] for item in result['items']], ['TOOL 1-2', 'TOOL 1-3'])
         self.assertEqual((result['omitted'], result['duplicates']), (1, 1))
         self.assertFalse(result['complete'])
         zero = extract_diagnostics(log, limit=0)
@@ -98,12 +135,32 @@ class DiagnosticDeliveryTests(unittest.TestCase):
             (('/bin/xelab',), 'ERROR: [Tool 1-2] second\nERROR: [Tool 1-3] third', 'failed', 1),
         ], limit=2)
         diagnostics = result['knowledge_diagnostics']
+        # Global severity priority keeps both later errors; the early warning is omitted.
         self.assertEqual([(item['command_index'], item['line_number'])
-                          for item in diagnostics['items']], [(0, 2), (1, 1)])
-        self.assertEqual(diagnostics['items'][0]['version'], '2026.1')
-        self.assertIsNone(diagnostics['items'][1]['version'])
+                          for item in diagnostics['items']], [(1, 1), (1, 2)])
+        self.assertEqual([item['code'] for item in diagnostics['items']],
+                         ['TOOL 1-2', 'TOOL 1-3'])
+        self.assertIsNone(diagnostics['items'][0]['version'])
         self.assertEqual(diagnostics['omitted'], 1)
         self.assertFalse(diagnostics['complete'])
+
+    def test_command_merge_keeps_later_error_through_earlier_warning_flood(self):
+        log = '\n'.join(warnings(32))
+        result = knowledge_details([
+            (('/bin/xvlog', '--sv', 'solution.sv'), log, 'ok', 0),
+            (('/bin/xelab',), 'ERROR: [Tool 2-1] root cause', 'failed', 1),
+        ])
+        diagnostics = result['knowledge_diagnostics']
+        self.assertEqual(len(diagnostics['items']), 32)
+        self.assertEqual([item['code'] for item in diagnostics['items'][-1:]],
+                         ['TOOL 2-1'])
+        self.assertEqual(diagnostics['items'][-1]['command_index'], 1)
+        self.assertEqual([item['command_index'] for item in diagnostics['items'][:-1]],
+                         [0] * 31)
+        self.assertEqual(diagnostics['omitted'], 1)
+        self.assertFalse(diagnostics['complete'])
+        self.assertEqual([command['tool'] for command in result['knowledge_commands']],
+                         ['xvlog', 'xelab'])
 
     def test_delivery_does_not_promote_warnings_or_unknown_errors_to_code_failure(self):
         warning = "WARNING: [VRFC 10-8497] literal value 'd4 truncated to fit in 2 bits [solution.sv:3]"

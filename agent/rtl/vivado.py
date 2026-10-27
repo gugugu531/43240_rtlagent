@@ -18,17 +18,40 @@ _DIAGNOSTIC = re.compile(
     r"\b(CRITICAL\s+WARNING|ERROR|WARNING|FATAL):\s*(?:\[([^\]]+)\]\s*)?(.*)", re.I
 )
 _DIAGNOSTIC_SCOPE = "ERROR, WARNING, CRITICAL WARNING and FATAL lines; INFO excluded"
+_HIGH_SEVERITIES = frozenset({"error", "critical warning", "fatal"})
+
+
+def _retain_by_severity(candidates, limit):
+    """Keep high-severity diagnostics before warnings, without changing their order.
+
+    Candidates carry a canonical "severity" and are already in source order.
+    Omitted rows must be accounted for by the caller as the amount beyond limit.
+    """
+    if limit >= len(candidates):
+        return list(candidates)
+    high = [index for index, row in enumerate(candidates)
+            if row["severity"] in _HIGH_SEVERITIES]
+    if len(high) >= limit:
+        keep = set(high[:limit])
+    else:
+        low = [index for index, row in enumerate(candidates)
+               if row["severity"] not in _HIGH_SEVERITIES]
+        keep = set(high) | set(low[: limit - len(high)])
+    return [row for index, row in enumerate(candidates) if index in keep]
 
 
 def extract_diagnostics(log: str, limit=32):
-    """Retain all diagnostic severities, in source order, with explicit limits.
+    """Retain diagnostics severity-first, in source order, with explicit limits.
 
-    Completeness covers unique diagnostic lines, not the full tool transcript.
-    Repeated diagnostics are counted separately; messages are never interpreted
-    as source defects here. Attribution remains the classifier's responsibility.
+    ERROR, CRITICAL WARNING and FATAL lines are kept before WARNING lines so a
+    warning flood cannot displace a source error; the returned items always
+    follow the source transcript. Completeness covers unique diagnostic lines,
+    not the full tool transcript. Repeated diagnostics are counted separately;
+    messages are never interpreted as source defects here. Attribution remains
+    the classifier's responsibility.
     """
     limit = max(0, limit)
-    rows, seen, omitted, truncated, duplicates = [], set(), 0, 0, 0
+    candidates, seen, duplicates = [], set(), 0
     for line_number, line in enumerate(log.splitlines(), 1):
         match = _DIAGNOSTIC.search(line)
         if not match:
@@ -41,26 +64,30 @@ def extract_diagnostics(log: str, limit=32):
             duplicates += 1
             continue
         seen.add(key)
-        if len(rows) >= limit:
-            omitted += 1
-            continue
-        truncated += int(len(message) > 700)
+        candidates.append(
+            dict(code=code, severity=severity, message=message, line_number=line_number)
+        )
+    rows, truncated = [], 0
+    for candidate in _retain_by_severity(candidates, limit):
+        message = candidate["message"]
         symbols = re.findall(
             r"(?:variable|signal|net)\s+['\"]([A-Za-z_][A-Za-z0-9_$]*)['\"]",
             message,
             re.I,
         )
+        truncated += int(len(message) > 700)
         rows.append(
             dict(
-                code=code,
-                severity=severity,
+                code=candidate["code"],
+                severity=candidate["severity"],
                 message=message[:700],
-                line_number=line_number,
+                line_number=candidate["line_number"],
                 message_truncated=len(message) > 700,
                 symbols=list(dict.fromkeys(symbols)),
-                cascade=code == "XSIM 43-3322",
+                cascade=candidate["code"] == "XSIM 43-3322",
             )
         )
+    omitted = len(candidates) - len(rows)
     return dict(
         items=rows, omitted=omitted, truncated=truncated, duplicates=duplicates,
         complete=not (omitted or truncated), scope=_DIAGNOSTIC_SCOPE, limit=limit,
@@ -76,10 +103,14 @@ def banner_version(output):
 
 
 def knowledge_details(executions, limit=32, version_probes=None):
-    """Keep diagnostic provenance local to each actual command invocation."""
+    """Keep diagnostic provenance local to each actual command invocation.
+
+    Retention is severity-first across the whole run: every ERROR, CRITICAL
+    WARNING and FATAL line is considered before WARNING lines, while retained
+    output still follows command and source order.
+    """
     limit = max(0, limit)
-    items, commands, probes, omitted, complete = [], [], {}, 0, True
-    truncated, duplicates = 0, 0
+    commands, probes, pending, omitted, duplicates = [], {}, [], 0, 0
     for index, (command, output, status, rc) in enumerate(executions):
         # Tool namespaces are shared by multiple executables. Neither a code's
         # namespace nor a previous command's banner identifies this invocation.
@@ -98,8 +129,7 @@ def knowledge_details(executions, limit=32, version_probes=None):
         )
         commands.append({**provenance, "rc": rc})
         diagnostics = extract_diagnostics(output, limit=limit)
-        remaining = max(0, limit - len(items))
-        items.extend(
+        pending.extend(
             {
                 **item,
                 **provenance,
@@ -108,18 +138,17 @@ def knowledge_details(executions, limit=32, version_probes=None):
                     item["message"], re.I,
                 )),
             }
-            for item in diagnostics["items"][:remaining]
+            for item in diagnostics["items"]
         )
-        omitted += diagnostics["omitted"] + max(
-            0, len(diagnostics["items"]) - remaining
-        )
-        complete = complete and diagnostics["complete"]
-        truncated += diagnostics["truncated"]
+        omitted += diagnostics["omitted"]
         duplicates += diagnostics["duplicates"]
+    items = _retain_by_severity(pending, limit)
+    omitted += len(pending) - len(items)
+    truncated = sum(int(item["message_truncated"]) for item in items)
     return {
         "knowledge_diagnostics": dict(
             items=items, omitted=omitted, truncated=truncated, duplicates=duplicates,
-            complete=complete and not omitted, scope=_DIAGNOSTIC_SCOPE, limit=limit,
+            complete=not (omitted or truncated), scope=_DIAGNOSTIC_SCOPE, limit=limit,
         ),
         "knowledge_commands": commands,
         "knowledge_version_probes": list(probes.values()),
