@@ -9,6 +9,8 @@
 | 恢复条件、检查器补丁、比较覆盖、阶段预算及真实效果的验收边界 | [恢复链路与验证契约](recovery.md) |
 | 固定 Skill、诊断检索、预算与资产边界 | [Skill 与诊断 RAG](knowledge.md) |
 | 首稿优先、一次修复、路由门禁、复核/归因契约 v2、预算与中立采样 | [自适应工作流](adaptive.md) |
+| Agent 分层、角色、工具路径、模型 profile 与提交策略 | [Agent 分层与编排设计](agent-layers.md) |
+| LLM/工具/上下文/阶段/提交的目标字段与兼容边界 | [Agent 接口契约](agent-interfaces.md) |
 | 已实现的四条工作流 | [工作流源码](../agent/workflows/__init__.py) |
 | 配置结构、环境覆盖与默认值 | [配置实现](../agent/config.py)、[默认配置](../config/single_generate.yaml) |
 | 模型声明与服务运行方式 | [模型声明](../model/MODEL.md)、[服务说明](../serve/README.md) |
