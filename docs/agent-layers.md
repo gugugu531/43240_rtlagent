@@ -148,7 +148,17 @@ flowchart TB
 - 现有 `CheckResult` 已具备 `rc`、`status`、`failure_kind`、`summary`、`log_paths`，只需适配为 `ToolResult`。
 - 记录器当前已把 `excerpt` 截断到 2048 字节，和本约定一致。
 
-### 4.3 工具类别
+### 4.3 阶段内工具循环
+
+`agent/runtime/agent_loop.py` 提供有界循环：模型回复带 `tool_calls` 时，宿主按白名单执行并把
+`ToolResult` 回填，直到无工具调用、调用 `finish_task` 或达到 `tool_steps`。每个模型步骤都经
+`CompletionLedger` 单独预留，因此一次循环会消耗多次 completion 名额。
+
+作者阶段（首稿与救援）已接入，白名单只有 `submit_answer` 与 `finish_task`；`tool_steps`
+默认 0，保持原单次调用。实验用 `config/adaptive_tools.yaml` 把 `tool_steps` 设为 2。
+目标服务必须支持工具调用（vLLM 需开启 `ENABLE_TOOL_CALLING`），未验证前不进入正式默认配置。
+
+### 4.4 工具类别
 
 | 类别 | 例子 | 是否写文件 | 是否允许模型自主调用 |
 | --- | --- | --- | --- |
@@ -173,28 +183,33 @@ flowchart TB
 
 `<output>/solution.v` 是唯一最终答案文件，由宿主原子写入（临时文件 + `fsync` + `os.replace`）。
 
-`submit_answer` 工具：
+`submit_answer` 工具（`agent/nodes/submission_tools.py`）：
 
 - 输入：`code`、可选 `top`、可选 `note`。
-- 宿主校验：非空、可提取完整模块、顶层名匹配。
+- 宿主校验：可提取完整模块、顶层名匹配、未截断。
 - 登记：`CandidateStore.create()`，草稿保存在 `records/<run_id>/candidates/<id>.v`。
-- 返回：`candidate_id`、`code_hash`、`accepted`。
+- 返回：`candidate_id`、`code_hash`、`published`、`policy`。
 
 `finish_task` 工具只表达“本阶段结束”，不直接改变图。
+
+宿主从模型正文提取出的首稿与修复稿也通过 `SubmissionGateway.register()` 进入同一路径，
+因此“模型提交”和“宿主提取”共用一次校验与发布实现。
 
 ### 6.2 当前临时策略：last-write-wins
 
 已确认暂时采用 last-write-wins（LWW）：
 
-- `submit_answer` 通过校验后立即原子发布到 `solution.v`；
-- 收尾 `finalize_submission()` 复核最后一次写入的候选与文件哈希，缺失时重发同一候选；
-- 记录 `submission` 事件，包含 `policy=last_written`、`candidate_id`、`code_hash`、是否覆盖了此前的 `selected_id`。
+- `SubmissionGateway` 在策略为 `last_written` 时，对每个登记的候选调用
+  `CandidateStore.publish()` 原子写 `solution.v`；`publish()` 不修改 `selected_id`。
+- 收尾 `finalize()` 重新发布最后一次写入的候选，并记录 `overrode_selected`。
+- 记录 `submission` 事件：`published`、`finalized`，包含 `policy`、`candidate_id`、
+  `code_hash`、`target_id`、`selected_id`、`overrode_selected`。
 
 已知风险（保留记录）：未复检的后续草稿可能覆盖已通过晋升规则验证的答案。现有
 `promotion_decision` 仍会运行并记录 `selected_id`，但 LWW 期间不作为发布依据。
 
-切换计划：配置项 `submission_policy` 取 `last_written` 或 `selected`，默认暂时为 `last_written`；
-后续切到 `selected` 时只改配置，不改工具接口。
+切换计划：`AdaptiveParameters.submission_policy` 取 `last_written` 或 `selected`，默认
+`last_written`；后续切到 `selected` 时只改配置与 `AdaptiveParameters` 调用，不改工具接口。
 
 ### 6.3 触发点
 
@@ -202,7 +217,8 @@ flowchart TB
 - 到达工作截止或 `SIGTERM`；
 - 流程异常收尾。
 
-`finalize_submission()` 幂等；没有候选时保留空文件，并记录 `delivery=empty`。
+`adaptive_finish` 与 `agent/main.py` 的 `finally` 都会调用 `finalize()`；后者覆盖截止、
+取消和异常路径。`finalize()` 幂等；没有候选时保留空文件，并记录 `delivery=empty`。
 
 ## 7. 观测层
 
@@ -214,14 +230,14 @@ flowchart TB
 
 | 层 | 现有实现 | 缺口 |
 | --- | --- | --- |
-| L0 | `agent/main.py`、`agent/config.py`、`runtime/budget.py`、`runtime/process.py` | 统一提交收尾与 `RunContext` |
-| L1 | `runtime/graph.py`、`agent/workflows/*`、`agent/nodes/*` | Stage 描述与有界工具循环 |
-| L2 | `agent/prompts/*`、`knowledge/context.py`、`rtl/adaptive_context.py` | 中央装配器与 `ContextBundle` |
+| L0 | `agent/main.py`、`agent/config.py`、`runtime/budget.py`、`runtime/process.py` | 收尾已接入 `finalize()`；`RunContext` 尚未独立 |
+| L1 | `runtime/graph.py`、`runtime/agent_loop.py`、`agent/workflows/*`、`agent/nodes/*` | 有界工具循环已实现并接入作者阶段；Stage 描述尚未独立 |
+| L2 | `agent/prompts/*`、`knowledge/context.py`、`rtl/adaptive_context.py` | 中央装配器与 `ContextBundle` 仍是目标 |
 | L3 | `agent/llm/client.py`、`llm/types.py`、`runtime/allowance.py` | profile 路由、`Usage`、按角色配额 |
-| L4 | `runtime/registry.py`、`Ctx.call/dispatch/tool_schema`、`rtl/result.py` | `ToolResult` 信封与工具分类 |
+| L4 | `runtime/registry.py`、`runtime/tool_result.py`、`Ctx.call/dispatch/tool_schema` | `ToolResult` 与工具分类已实现；工具白名单仍按阶段硬编码 |
 | L5 | `rtl/*`、`rtl/suite/*`、`knowledge/*` | 保持 |
-| L6 | `runtime/recorder.py`、`dev/log-viewer.html` | 事件 schema 扩展 |
-| L7 | `rtl/candidate.py`、`serve/serve_api.py` | `submit_answer`、提交网关、策略开关 |
+| L6 | `runtime/recorder.py`、`dev/log-viewer.html` | `submission`/`publish` 事件已加入；查看器按新字段兼容 |
+| L7 | `rtl/candidate.py`、`rtl/submission.py`、`nodes/submission_tools.py` | 提交网关与 `submit_answer` 已实现；`selected` 策略已可配置 |
 
 迁移顺序：接口与提交网关 → 工具信封 → 编排 Stage → LLM 路由。每一步先保持现有工作流可运行，
 再切换 `adaptive_verify`；默认入口的切换点见第 9 节第 6 条。

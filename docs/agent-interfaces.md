@@ -1,7 +1,8 @@
 # Agent 接口契约
 
-状态：目标接口草案，未实现。分层背景见 [Agent 分层与编排设计](agent-layers.md)。
-字段名以下文为准；实现时若需偏离，先更新本文件。
+状态：部分实现。`ToolResult`、有界工具循环、提交网关与 `submit_answer`/`finish_task`
+已落地；LLM profile 路由与 `ContextBundle` 仍是目标接口。分层背景见
+[Agent 分层与编排设计](agent-layers.md)。字段名以下文为准；实现时若需偏离，先更新本文件。
 
 ## 1. LLM 接口
 
@@ -94,10 +95,21 @@ class ToolResult:
 
 ```text
 模型路径：LLMReply.tool_calls -> 白名单校验 -> ToolSpec.input_schema -> dispatch -> ToolResult -> 回填消息
-节点路径：node -> ctx.call(name, **args) -> 同一 dispatch -> ToolResult
+节点路径：node -> ctx.call(name, **args) -> 同一工具实现 -> 原生结果
 ```
 
-两路径共用预算、超时、进程组与记录；没有第二套分派实现。
+模型路径由 `agent/runtime/agent_loop.py` 驱动，固定步数上限；每条 `tool_calls` 都经过
+白名单与 JSON 参数校验。`Ctx.dispatch()` 统一返回 `ToolResult` 字典；`Ctx.call()` 仍返回
+领域对象，供节点直接使用。两条路径共用预算、超时、进程组与记录。
+
+当前已注册的模型可调用工具：
+
+| 工具 | 作用 | 返回 |
+| --- | --- | --- |
+| `submit_answer` | 校验完整 RTL、创建候选并按策略登记/发布 | `ToolResult`，`meta.record` 含候选与策略 |
+| `finish_task` | 请求当前阶段结束 | `ToolResult`，`meta.reason` |
+
+`tool_steps` 默认 0；实验配置 `config/adaptive_tools.yaml` 设为 2。每步消耗一次 completion。
 
 ## 3. 上下文与提示词
 
@@ -166,9 +178,13 @@ submit_answer(code: str, top: str | None = None, note: str | None = None)
   -> {candidate_id, code_hash, accepted, published}
 ```
 
-- 校验失败：`accepted=false`，附原因，不写 `solution.v`。
+- 校验失败：`rc=2`，`status=error`，附原因，不写 `solution.v`。
 - 校验成功且策略为 `last_written`：原子发布到 `solution.v`，`published=true`。
 - 策略为 `selected`：只登记候选，由晋升规则决定是否发布。
+
+实现位置：`agent/rtl/submission.py` 的 `SubmissionGateway`，以及
+`agent/nodes/submission_tools.py` 的工具注册。`CandidateStore.publish()` 只做原子发布，
+不修改 `selected_id`；`select()` 仍表示证据选稿。
 
 ### 5.2 收尾
 

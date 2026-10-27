@@ -110,6 +110,12 @@ Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protoc
 
 `adaptive_assessment` 保存结构及共用的身份、绑定和结构错误校验；`CandidateAssessment`/`BehaviorAssessment` 的 `public_dict()` 保持原有日志字段并生成独立快照。带类型的对象本身不代表证据已获准，选稿仍校验完整快照；收尾只汇总当前结果，子稿晋升要求返回码、执行身份、父子关系及证据不退步，不共用一个“通过”判断。
 
+## 答案提交与工具循环
+
+`SubmissionGateway` 是唯一写 `solution.v` 的入口，使用 `CandidateStore.publish()` 原子替换。默认策略 `submission_policy=last_written`：首稿、修复稿和模型 `submit_answer` 登记的候选都会立即发布，最后一次写入生效；`selected_id` 仍由 `promotion_decision` 记录，收尾事件用 `overrode_selected` 标明是否覆盖了证据选稿。切换为 `selected` 只改该参数。`adaptive_finish` 与 `agent/main.py` 的收尾都会调用 `finalize()`，覆盖正常结束、截止、取消和异常路径。
+
+`tool_steps` 默认 0，作者阶段仍为单次调用。设为大于 0 时，首稿/救援最多经过指定步数的模型-工具循环，白名单只有 `submit_answer` 与 `finish_task`；每一步都独立申请 completion 许可，因此会计入 `max_calls` 与输出 token 额度。实验配置为 `config/adaptive_tools.yaml`（`tool_steps: 2`）。目标服务必须支持工具调用；未验证前不进入正式默认配置。
+
 ## 预算、日志与诊断
 
 | 阶段 | 单次秒数 | 输出 token 上限 |
