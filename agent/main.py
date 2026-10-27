@@ -196,6 +196,18 @@ def main(argv=None):
             if llm:
                 llm.close()
             if ctx:
+                # Deadline and cancellation paths also publish the selected or
+                # last-written candidate before the record is closed.
+                gateway = ctx.store.get("submission")
+                if gateway is not None:
+                    try:
+                        gateway.finalize("run_end")
+                    except Exception as error:
+                        record.emit(
+                            "submission", "finalize_failed", rc=1,
+                            error_type=type(error).__name__, error=str(error),
+                            excerpt="submission finalize failed",
+                        )
                 from agent.knowledge.outcome import summarize
                 summary = summarize(args.output / 'trace.jsonl', args.output / 'solution.v')
                 record.write_json('framework-outcome.json', summary)

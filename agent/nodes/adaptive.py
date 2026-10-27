@@ -17,6 +17,12 @@ from agent.rtl.adaptive_repair import repair_request, parse_repair, diagnostic_c
 from agent.rtl.adaptive_assessment import BehaviorAssessment, CandidateAssessment
 from agent.rtl.extract import extract_result
 from agent.rtl.result import CheckResult, bind_result, checker_hash
+from agent.rtl.submission import SubmissionGateway
+from agent.runtime.agent_loop import LoopResult, run_tool_loop
+
+
+class _ToolStepUnavailable(RuntimeError):
+    """A tool-loop completion was refused by the budget ledger."""
 
 
 def _data(ctx):
@@ -34,7 +40,8 @@ def _save(ctx, name, value):
                     status=value.get("status") if isinstance(value, dict) else None)
 
 
-def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True, parent=None, evidence=None):
+def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True,
+             parent=None, evidence=None, tools=None):
     data = _data(ctx)
     if stage in data["attempted"]:
         raise ValueError(f"adaptive stage may only request once: {stage}")
@@ -62,8 +69,11 @@ def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True, 
                     skill_mode=settings['skill_mode'], rag_mode=settings['rag_mode'],
                     retrieval_options=settings['retrieval'], automatic=True,
                 )
-            reply = ctx.llm.chat(messages, purpose=f"adaptive_{stage}",
-                                 temperature=settings["temperature"], top_p=settings["top_p"], **limits)
+            reply = ctx.llm.chat(
+                messages, purpose=f"adaptive_{stage}",
+                temperature=settings["temperature"], top_p=settings["top_p"],
+                tools=tools, **limits,
+            )
         if assembly is not None:
             ctx.record.emit("knowledge", "model_result", assembly_id=assembly["assembly_id"],
                             messages_sha256=assembly["messages_sha256"], call_id=reply.call_id)
@@ -108,6 +118,48 @@ def _generation_messages(ctx, *, failure=None):
     return messages
 
 
+def _generation_reply(ctx, *, stage, messages):
+    """Run the author stage with an optional bounded tool loop.
+
+    Every model step takes its own completion permit; `tool_steps=0` keeps the
+    existing single-call behavior. The loop only exposes answer submission and
+    stage finishing, not compiler or simulator tools.
+    """
+    data = _data(ctx)
+    settings = data["settings"]
+    steps = settings.get("tool_steps", 0)
+    limits = settings["draft"]
+    if steps <= 0:
+        return _request(ctx, stage, messages, limits=limits,
+                        followup_s=settings["first_tools_s"], optional=False)
+    counter = {"n": 0}
+
+    def chat(conversation, tools):
+        counter["n"] += 1
+        label = stage if counter["n"] == 1 else f"{stage}_tool_{counter['n']}"
+        reply = _request(
+            ctx, label, conversation, limits=limits,
+            followup_s=settings["first_tools_s"] if counter["n"] == 1 else 0,
+            optional=False, tools=tools,
+        )
+        if reply is None:
+            raise _ToolStepUnavailable(
+                data["request_outcomes"].get(label, {}).get("reason", "not_sent")
+            )
+        return reply
+
+    try:
+        return run_tool_loop(
+            chat=chat,
+            dispatch=ctx.dispatch,
+            messages=messages,
+            tools=[ctx.tool_schema("submit_answer"), ctx.tool_schema("finish_task")],
+            max_steps=steps,
+        )
+    except _ToolStepUnavailable:
+        return None
+
+
 def _delivery_failure(reply, extraction, top):
     """Describe observed delivery evidence, without guessing why content is absent."""
     return {
@@ -145,6 +197,14 @@ def _candidate(ctx, reply, *, parent=None, stage="draft", extraction=None):
     )
     if parent is None:
         ctx.candidates.select(candidate.id, reason="complete_unverified_fallback")
+    # Hand the candidate to the submission gateway. Under last-write-wins this
+    # publishes it immediately; the evidence-backed selected_id stays recorded.
+    gateway = ctx.store.get("submission")
+    if gateway is not None:
+        gateway.register(
+            candidate,
+            reason=f"adaptive_{stage}:{'child' if parent else 'draft'}",
+        )
     return candidate
 
 
@@ -161,6 +221,10 @@ def initialize(ctx: Ctx, state: State) -> State:
         "rescue_used": False, "repair_used": False, "checker_revision_used": False,
         "review_retry_used": False, "review_contract": {},
     }
+    # The gateway is the only writer of solution.v; policy is recorded per run.
+    ctx.store["submission"] = SubmissionGateway(
+        ctx, policy=settings.get("submission_policy", "last_written")
+    )
     from agent.knowledge.policy import modes
     ctx.store["knowledge_rag_enabled"] = modes(settings['skill_mode'], settings['rag_mode'], rag=settings['rag'])[1] != 'off'
     _save(ctx, "settings", settings)
@@ -186,10 +250,18 @@ def analyze(ctx: Ctx, state: State) -> State:
 @node("adaptive_generate", reads=[], writes=["target_id", "has_candidate", "stop_reason"])
 def generate(ctx: Ctx, state: State) -> State:
     data = _data(ctx)
-    reply = _request(ctx, "draft", _generation_messages(ctx), followup_s=data["settings"]["first_tools_s"], optional=False)
+    before = {candidate.id for candidate in ctx.candidates.values()}
+    outcome = _generation_reply(ctx, stage="draft", messages=_generation_messages(ctx))
+    reply = outcome.reply if isinstance(outcome, LoopResult) else outcome
     # Only a well-formed HTTP reply establishes a usable service for one rescue.
     data["draft_reply"] = reply
-    candidate = _candidate(ctx, reply)
+    # A submit_answer tool call already registered and published a candidate;
+    # do not create a second copy from the same response text.
+    submitted = [
+        candidate for candidate in ctx.candidates.values()
+        if candidate.id not in before
+    ]
+    candidate = submitted[-1] if submitted else _candidate(ctx, reply)
     return state.update(target_id=candidate.id if candidate else None, has_candidate=candidate is not None,
                         stop_reason="" if candidate else "no_complete_first_draft")
 
@@ -202,6 +274,7 @@ def rescue(ctx: Ctx, state: State) -> State:
     data["rescue_used"] = True
     data["routing"] = replace(data["routing"], route="structural", reason="first_draft_rescue")
     reply = None
+    submitted = []
     draft_reply = data.get("draft_reply")
     if draft_reply is not None:
         failure = data.get("draft_failure")
@@ -210,14 +283,21 @@ def rescue(ctx: Ctx, state: State) -> State:
             "failure_present": failure is not None,
             "reason": "draft_failure_present" if failure is not None else "draft_failure_missing",
         })
-        reply = _request(ctx, "rescue", _generation_messages(ctx, failure=failure), limits=data["settings"]["draft"],
-                         followup_s=data["settings"]["first_tools_s"], optional=False)
+        before = {candidate.id for candidate in ctx.candidates.values()}
+        outcome = _generation_reply(
+            ctx, stage="rescue", messages=_generation_messages(ctx, failure=failure)
+        )
+        reply = outcome.reply if isinstance(outcome, LoopResult) else outcome
+        submitted = [
+            candidate for candidate in ctx.candidates.values()
+            if candidate.id not in before
+        ]
     else:
         _save(ctx, "rescue-context", {
             "source_call_id": None, "failure_present": False,
             "reason": "first_draft_request_failed",
         })
-    candidate = _candidate(ctx, reply, stage="rescue")
+    candidate = submitted[-1] if submitted else _candidate(ctx, reply, stage="rescue")
     return state.update(target_id=candidate.id if candidate else None, has_candidate=candidate is not None,
                         route="structural", stop_reason="rescue_structural_only" if candidate else "no_complete_candidate")
 
@@ -566,8 +646,21 @@ def finish(ctx: Ctx, state: State) -> State:
     structural_passed = assessment is not None and assessment.structural_passed
     functional_passed = assessment is not None and assessment.behavior.status == "passed"
     status = "completed" if structural_passed and functional_passed and not data.get("repair_authority_revoked") else "stopped"
+    gateway = ctx.store.get("submission")
+    submission = None
+    if gateway is not None:
+        try:
+            submission = gateway.finalize("workflow_finished")
+        except Exception as error:  # finalize must not hide the workflow result
+            ctx.record.emit("submission", "finalize_failed", rc=1,
+                            error_type=type(error).__name__, error=str(error),
+                            excerpt="submission finalize failed")
+            submission = {"error": f"{type(error).__name__}: {error}"}
+    published = bool(submission and submission.get("final", {}).get("published"))
     _save(ctx, "result", {
-        "status": status, "selected_id": selected, "delivery": "complete_rtl" if selected else "empty",
+        "status": status, "selected_id": selected,
+        "delivery": "complete_rtl" if published else "empty",
+        "submission": submission,
         "stop_reason": state["stop_reason"], "checker_status": state["checker_status"],
         "route": data["routing"].public_dict(), "structural_passed": structural_passed,
         "interface_verified": assessment is not None and assessment.interface_verified,

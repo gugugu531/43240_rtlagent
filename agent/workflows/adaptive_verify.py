@@ -27,6 +27,10 @@ class AdaptiveParameters(BaseModel):
     recheck_tools_s: float = Field(default=600, gt=0)
     max_calls: int = Field(default=7, gt=0, le=7)
     max_output_tokens: int = Field(default=200704, gt=0)
+    # Tool-loop capability is implemented but off until the target service is
+    # verified with ENABLE_TOOL_CALLING; each step consumes one completion.
+    tool_steps: int = Field(default=0, ge=0, le=4)
+    submission_policy: Literal["last_written", "selected"] = "last_written"
     knowledge_max_tokens: int = Field(default=8192, ge=0, le=8192)
     sequential_skill: Literal["rtl-sequential-state-update", "rtl-sequential-state-update-v3"] = "rtl-sequential-state-update"
     rag: bool = False

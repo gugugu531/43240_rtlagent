@@ -1,0 +1,19 @@
+# adaptive_verify 的作者阶段工具循环实验配置。
+# tool_steps=2 表示首稿最多一次模型调用加一次工具返回后的续写；
+# 每一轮都是独立 completion，会计入 max_calls 与阶段预算。
+# 目标服务必须支持工具调用（vLLM 需开启 ENABLE_TOOL_CALLING）；
+# 未验证前不要把它设为正式默认配置。
+workflow: adaptive_verify
+params:
+  tool_steps: 2
+runtime:
+  deadline_s: 9600
+  reserve_s: 120
+  recording: {level: full}
+services:
+  model:
+    backend: openai
+    base_url: http://127.0.0.1:8000/v1
+    timeout_s: 1200
+    max_model_len: 32768
+    structured_outputs: false
