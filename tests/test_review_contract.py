@@ -329,6 +329,14 @@ class ReviewContractTests(unittest.TestCase):
         frozen = _approve(draft, _review(draft))
         self.assertEqual(frozen.status, "approved", frozen.violations)
 
+    def test_accept_with_insufficient_verdict_is_invalid(self):
+        task, payload = _anyedge_fixture()
+        draft = _ready(payload, "model", task)
+        review = _review(draft)
+        review["requirement_reviews"][0]["verdict"] = "insufficient"
+        review["requirement_reviews"][0].pop("witness", None)
+        self.assert_violation(_approve(draft, review), "R-05")
+
     def test_045_witness_claimed_nonzero(self):
         task, payload = _anyedge_fixture()
         draft = _ready(payload, "model", task)

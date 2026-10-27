@@ -1468,6 +1468,8 @@ def _check_review_contract(review, draft, tables):
             else:
                 _witness_properties(witness, identity, payload, tables["trigger_rows"])
     if decision == "accept":
+        _require(contradicted == 0, "R-05",
+                 "accepted review cannot include contradicted or insufficient requirements")
         _require(seen == set(requirements), "R-05",
                  "accepted review must review every requirement as supported")
     if decision == "reject":
