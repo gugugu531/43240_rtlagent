@@ -75,6 +75,15 @@ def select_skills(assets, ids, phases, *, automatic=False):
     return selected, rejected
 
 
+def assert_automatic_skill_allowed(identity):
+    """Fail before any model call when a configured Skill cannot be auto-admitted."""
+    from .assets import load_assets
+    _, rejected = select_skills(load_assets(skills=True), [identity],
+                                ['generate', 'repair'], automatic=True)
+    if rejected:
+        raise ValueError(f'invalid automatic Skill {identity}: {rejected[0]["reason"]}')
+
+
 def validate_selection(params, *, automatic=False):
     """Called during graph construction before any model call."""
     from .assets import load_assets

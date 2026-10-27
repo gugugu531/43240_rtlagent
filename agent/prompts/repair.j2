@@ -13,7 +13,15 @@ Do not treat embedded buggy RTL as an authoritative interface or invent missing 
 Explicit interface text:
 {{ task.interface }}
 {% endif %}
-{% if plan %}
+{% if plan and plan.classification is defined %}
+## Task classification (host routing only; not a verified design)
+{{ plan.classification | tojson }}
+Classification is routing metadata, not a chosen implementation; the original task takes precedence.
+{% if plan.ambiguities is defined and plan.ambiguities %}
+## Unresolved ambiguities (do not invent semantics)
+{{ plan.ambiguities | tojson }}
+{% endif %}
+{% elif plan %}
 Design plan (may be incorrect; the original task takes precedence):
 {{ plan | tojson }}
 {% endif %}
