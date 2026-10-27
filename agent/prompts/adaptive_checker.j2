@@ -10,6 +10,9 @@ reference answers are available. Do not invent initialization, latency, priority
 port widths, signedness, numerical approximation or reset semantics.
 
 Use only the supplied ports, with exactly their public names, directions and widths.
+Every port and expression width must be 1..256. Neither route can represent a wider
+public port; do not truncate it, split it or omit it to fit the checker.
+The request's route selects the schema; route is NOT a field of the returned checker.
 All requirements need unique IDs and an exact original quote or source_id. Use the
 source catalog to identify original evidence; whitespace is the only permitted quote
 normalization. Report only the requirements the checker can actually exercise.
@@ -31,8 +34,10 @@ MODEL ROUTE:
 Use schema_version=1, mode="behavior", state={} for stateless logic, clock=null for
 combinational logic. Observation-only mode="stimulus" cannot check correctness.
 At most 8 model registers, all names prefixed model_, and 128 total expression nodes.
-Named control states, if represented as state encodings, should be at most 8; larger
-complete models should be reported unsupported for this route.
+Encoded control states are values of a register, not separate registers. Their complete
+transition expressions must still fit the node limit. Arrays have no native representation;
+count all expanded registers and expressions, not just the array name. If unknown initial
+state cannot become known from a public reset/warmup, return unsupported promptly.
 Every output requires an expression with exactly its public width. Expressions read
 inputs and model state only, never DUT outputs. No arbitrary Python, RTL, function calls,
 strings as expressions, division, floating-point or square-root operators.
@@ -46,6 +51,8 @@ must explicitly set signed=true where needed. Widen operands before operations w
 the mathematical requirement needs carry/product bits. No silently truncated literals.
 
 For one clock use clock={"port":"clk","edge":"posedge"|"negedge"}; omit state.clock.
+For example, state={"model_q":{"width":1,"next":{"ref":"d"}}} has no clock key
+inside model_q when the top-level legacy clock is used. Do not mix the clock forms.
 Each step drives ALL non-clock inputs; edge defaults true. edge=false drives and samples
 without a clock edge. Inputs settle first, state.next reads the same OLD model state,
 then outputs read NEW state after the effective edge. sample=false still executes the
@@ -68,6 +75,11 @@ requirement must have a case with a predicted comparison.
 PROPERTIES ROUTE:
 Use the PropertySuite schema and its sampling member; cases/extensions above apply
 inside sampling. Only combinational or one explicitly defined clock is supported.
+The checker object has exactly schema_version, sampling, requirements, properties.
+Its outer shape is {"status":"ready","checker":{"schema_version":1,
+"sampling":<SamplingPlan>,"requirements":[...],"properties":[...]}}.
+Keep requirements and properties beside sampling, never inside it. Do not add route,
+mode, ports or cases to this checker object's root; ports and cases belong in sampling.
 Prefer 3..5 useful properties, but never invent extra requirements to reach that count.
 Leaves read only public ports: {"signal":"name","phase":"pre"|"post","past":0..16,
 "anchor":false}. pre is after this event's inputs settle but before its effective edge;

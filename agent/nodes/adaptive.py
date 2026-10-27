@@ -11,7 +11,7 @@ from agent.rtl.adaptive_analysis import analysis_request, parse_analysis, choose
 from agent.rtl.adaptive_check import (
     checker_request, parse_checker, review_request, approve_review,
     revision_request, parse_checker_revision,
-    format_correction_request, parse_format_correction,
+    recover_checker_format,
 )
 from agent.rtl.adaptive_repair import repair_request, parse_repair
 from agent.rtl.adaptive_assessment import BehaviorAssessment, CandidateAssessment
@@ -190,31 +190,24 @@ def build_checker(ctx: Ctx, state: State) -> State:
 
 @node("adaptive_correct_checker_format", reads=[], writes=["checker_status"])
 def correct_checker_format(ctx: Ctx, state: State) -> State:
-    data, settings = _data(ctx), _data(ctx)["settings"]
+    data = _data(ctx)
     if data["checker_revision_used"]:
         raise ValueError("checker recovery is limited to one format correction or semantic revision")
     original, prior_reply = data["checker_draft"], data["checker_syntax_reply"]
-    messages = format_correction_request(ctx.task, original, prior_reply.content,
-                                         finish_reason=prior_reply.finish_reason)
     data["checker_revision_used"] = True
+    draft = recover_checker_format(ctx.task, original, prior_reply.content,
+                                   finish_reason=prior_reply.finish_reason)
+    data["checker_draft"] = draft
+    _save(ctx, "checker-format-corrected-draft", draft.public_dict())
     lineage = {"attempt": 1, "original_call_id": prior_reply.call_id,
                "original_response_sha256": original.preflight["response_sha256"],
-               "original_draft_artifact": "adaptive/checker-draft.json", "status": "started"}
+               "original_draft_artifact": "adaptive/checker-draft.json",
+               "method": "local_punctuation", "model_calls": 0,
+               "status": draft.status, "checker_hash": draft.checker_hash or None,
+               "reason": draft.reason, "binding": draft.preflight.get("format_correction")}
     data["checker_format_correction"] = lineage
     _save(ctx, "checker-format-correction", lineage)
-    reply = _request(ctx, "format_correction", messages, limits=settings["revision"],
-                     followup_s=settings["review"]["timeout_s"] + _rtl_followup(settings))
-    lineage.update(status="unavailable", request=data["request_outcomes"]["format_correction"])
-    if reply is not None:
-        draft = parse_format_correction(reply.content, ctx.task, original, prior_reply.content,
-                                        original_finish_reason=prior_reply.finish_reason,
-                                        finish_reason=reply.finish_reason)
-        data["checker_draft"] = draft
-        _save(ctx, "checker-format-corrected-draft", draft.public_dict())
-        lineage.update(status=draft.status, checker_hash=draft.checker_hash or None,
-                       reason=draft.reason, binding=draft.preflight.get("format_correction"))
-    _save(ctx, "checker-format-correction", lineage)
-    return state.update(checker_status=lineage["status"])
+    return state.update(checker_status=draft.status)
 
 
 def _rtl_followup(settings):

@@ -64,8 +64,12 @@ def analysis_request(task):
             + json.dumps(public_context(task), ensure_ascii=False, separators=(",", ":"))
             + "\n\nChoose model only for a compact combinational or small state model; properties for clearly stated local relationships; structural when neither is supported. "
             "Properties support combinational/single-clock fixed stimuli and at most 16 edges of history/wait; no dynamic transactions or cross-clock history. "
+            "Both checker routes require every public port width in 1..256 bits. "
             "A small behavioral model has <=8 named state variables (registers), <=128 expression nodes, <=8 sequences of <=32 events. "
             "Count named state variables, not their total bits: a 6-bit data register plus a 3-bit counter is 2 variables, not 9, and is within the 8-variable bound. "
+            "Control-state encodings are not separate registers; their complete transition expressions must fit the node bound. "
+            "Dynamic arrays have no native representation: account for all expanded registers and expressions, not just the array name. "
+            "Unknown initial state must become known from publicly specified reset or warmup; do not invent initial values. "
             "Return requirement_ids containing only distinct IDs from the source catalog; the host retrieves their exact original text. "
             "Do not return requirements, quotes, rewritten evidence or invented IDs. Use an empty requirement_ids list when no public evidence supports a check. "
             "Keep this analysis coarse: classify the task and select evidence IDs, without reconstructing state tables or solving the task. Keep rationale concise. List ambiguities separately. "
@@ -137,6 +141,8 @@ def choose_route(task, analysis=None, *, sequential_skill="rtl-sequential-state-
         route, reason = "structural", "public_interface_unresolved"
     elif any(p.direction == "inout" for p in expected.ports):
         route, reason = "structural", "inout_not_supported"
+    elif any(not 1 <= p.width <= 256 for p in expected.ports):
+        route, reason = "structural", "public_port_width_outside_checker_limits"
     elif len(analysis.clocks) > 1:
         route, reason = "structural", "multiple_clock_domains_not_supported"
     elif not analysis.requirements or analysis.kind == "unknown":
