@@ -206,7 +206,7 @@ flowchart TB
 | L7 | `rtl/candidate.py`、`serve/serve_api.py` | `submit_answer`、提交网关、策略开关 |
 
 迁移顺序：接口与提交网关 → 工具信封 → 编排 Stage → LLM 路由。每一步先保持现有工作流可运行，
-再切换 `adaptive_verify`。
+再切换 `adaptive_verify`；默认入口的切换点见第 9 节第 6 条。
 
 ## 9. 赛事文档约束对照
 
@@ -224,9 +224,24 @@ flowchart TB
    将其计入工程质量与作弊复核。新事件不得移除这些字段。
 5. **900 秒单题上限。** `SCORING.md` 与 `API_CONTRACT.md` 均以赛事方时钟为准；投题服务已在
    `deadline_s - 10` 秒发送 `SIGTERM`，agent 必须更早自行收尾。
+6. **默认入口当前不会运行 `adaptive_verify`。** `agent/config.py` 在未指定 `AGENT_CONFIG` 时
+   加载 `config/single_generate.yaml`；`manifest.json` 的 `agent.workflow` 仍是
+   `single_generate`；`serve/start.sh` 不设置 `AGENT_CONFIG`。改造完成后若不做切换，正式投题
+   仍走旧流程。可选切换点：
+
+   | 切换点 | 覆盖范围 | 代价 |
+   | --- | --- | --- |
+   | `run.sh` 默认导出 `AGENT_CONFIG=config/adaptive_verify.yaml` | HTTP 投题与容器重建两条路径都覆盖，因为每题都经过 `run.sh`；`run_baseline.sh` 不受影响 | 需要在入口保留显式覆盖能力 |
+   | `agent/config.py` 改默认路径 | 所有未指定配置的调用 | 同时改变开发与其它工作流对照的默认 |
+   | `serve/start.sh` 设置环境变量 | 只影响该脚本拉起的常驻进程 | 容器重建方式下赛事方随后单独调用 `run.sh`，不会继承该导出 |
+
+   切换后须同步 `manifest.json` 的 `agent.workflow`，并核对 `model/MODEL.md` 的模型、上下文
+   和显存声明。
 
 ## 10. 待确认
 
+- 默认工作流切换点（`run.sh` / `agent/config.py` / `serve/start.sh`）以及是否在封存前切换。
+- 切换时 `manifest.json` 的 `agent.workflow` 与 `model/MODEL.md` 的同步内容。
 - 逐节点的最简输入输出与工具白名单。
 - `run.sh` 当前无论成功失败都退出 0；`API_CONTRACT.md` 第八节写的是非 0 表示放弃本题。
   是否调整属于生命周期行为变更，待确认。
