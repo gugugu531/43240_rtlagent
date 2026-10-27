@@ -58,6 +58,10 @@
   `Qwen/Qwen3-0.6B`，默认关闭并回落主模型，按下文辅助模型规则声明前不启用。
 - 作者阶段可选有界工具循环（`tool_steps` 默认 0）；`config/adaptive_tools.yaml` 设为 2，
   每步消耗一次 completion。提交工具只登记候选，`solution.v` 由宿主原子发布。
+- `manifest.json` 的 `agent.skills` 只列自动准入的 `rtl-sequential-state-update`。
+  路由还可能提出 `rtl-fsm-state-output`、`rtl-combinational-completeness`、
+  `rtl-width-signed-arithmetic`，但它们在 catalog 中为 `frozen_rejected_fixed_ab`，
+  会被自动准入拒绝，不会发送；`rtl-sequential-state-update-v3` 是 candidate，同样不列。
 
 云端开发验证（2026-10-28，非正式成绩）：远端 llama.cpp `Qwen3.8-27B-Q4_K_M` + MTP，
 `single_generate` 约 9.6 秒但本次输出 `xvlog` 失败；`repair_loop` 约 87.4 秒，
