@@ -18,7 +18,9 @@
 
 旧配置兼容：未设置模式时，非空 `skill_ids` 表示 Skill on；`rag: true` 表示 RAG on。显式模式与旧 `rag: true` 冲突时报配置错误。自适应 Skill 默认 on，保留原主机映射，经同一个准入层过滤。
 
-时序 v2 可自动准入；v3 仅供固定注入实验，自动选择不启用非默认候选。位宽、组合逻辑、FSM 仍处于 fixed A/B 拒绝状态。显式选择拒绝／未知／冲突 Skill 在构图阶段报错，模型请求之前停止；自动选择记录拒绝原因并继续无知识生成。自动路由入口是主线 `choose_route`，离线旧路由器不被视为第二个运行时权威。路由收益尚未验收。
+自动准入只放行 catalog 中 `review_status=frozen_default_fixed` 的 Skill：时序 v2 可自动准入；v3 候选仅供固定注入实验，位宽、组合逻辑、FSM 仍处于 fixed A/B 拒绝状态。自动选择被拒绝时记录原因并继续无知识生成；显式选择拒绝／未知／冲突 Skill 仍在构图阶段报错，模型请求之前停止。`adaptive_verify` 的 `sequential_skill` 在构图阶段用 catalog/资产做同一自动准入校验，配置为未经批准的 v3 候选会在任何模型请求前报错，不再静默失效。
+
+自适应路由只产生 Skill 候选，不直接授权发送：`route.json` 记录 `skill_candidates`（`skill_ids` 仅为进程内只读别名，不落盘），实际发送看知识装配的 `skill_selected`/`sent` 与预算。若路由分析显示无时钟（`analysis.clocks` 为空）且任务为 sequential/protocol 或命中无时钟 latch 门禁，候选会移除时序方法，避免向无时钟状态题注入要求时钟状态更新的方法。checker 不消费 Skill。自动路由入口是主线 `choose_route`，离线旧路由器不被视为第二个运行时权威。路由收益尚未验收。
 
 ## 统一检索接口
 
@@ -55,7 +57,7 @@ embedding 只接收限长、路径脱敏后的首个有效工具诊断及工具�
 
 ## 发布与记录
 
-`python -m agent.knowledge.publish <实验仓库>` 从声明源文件生成 `knowledge/runtime-v1.json` 与摘要。发布验证 corpus/index 配对和 F24 投影哈希；运行加载再检查文件摘要、唯一 ID、文档投影哈希和向量。Skill 仍使用 catalog 的版本／正文哈希／状态校验。源文件变更需重新发布和验收，禁止直接手改向量。
+`python -m agent.knowledge.publish <实验仓库>` 从声明源文件生成 `knowledge/runtime-v1.json` 与摘要；参数是包含 `dev/rag` 冻结源文件（corpus、index、准入策略、F24 投影）的开发仓库路径。发布验证 corpus/index 配对和 F24 投影哈希；运行加载再检查文件摘要、唯一 ID、文档投影哈希和向量。Skill 仍使用 catalog 的版本／正文哈希／状态校验。源文件变更需重新发布和验收，禁止直接手改向量。
 
 英文发布采用 schema 2，并生成 `runtime-lock.json`。每条准入规则、检查点规则和文档向量元数据都绑定实际英文卡的 `card_version` 与规范 JSON 的 `card_sha256`。旧策略版本仅保留在 `source_card_version` 作来源记录，不能参与当前卡版本匹配。F24 的卡哈希与确定性谓词 ID 单独绑定；发布锁同时固定准入策略、索引和六卡快照的摘要。历史六卡版本更新为 `1.0.1-burr.en.1`，其原 `source` 仍表示上游来源，不冒充译文哈希。
 

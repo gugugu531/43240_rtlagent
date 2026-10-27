@@ -1,6 +1,6 @@
 # MODEL.md
 
-> 模板。所填内容须与 `manifest.json`、`REPORT.md` 第 2 节一致。
+> 模板。所填内容须与 `manifest.json`、`REPORT.md` 第 3 节一致。
 >
 > **本文件未如实填写时，增益项 40 分不得分**（评分细则 2.4）。
 
@@ -57,6 +57,9 @@
 manifest 的同一 generation。输出上限包含思考，且受剩余上下文和 900 秒时限限制。
 此开发预设未替换 manifest 中的正式提交模板，也不代表启动脚本已部署 HIP 或扩大
 token 上限后的真实模型验证已完成；正式采用前须同步填写模型、预测头和服务声明。
+另有自适应工作流的可选预设 `config/adaptive_verify.yaml` 与 `config/adaptive_hip.yaml`，
+使用 9600 秒宽预算/120 秒收尾和 8 个阶段额度；路由、检查器与预算边界见
+[自适应工作流](../docs/adaptive.md)。该预算属于研究验证口径，不能当作 900 秒赛事预算成绩。
 
 **本项不受统一约束，但必须如实声明。**
 
@@ -81,7 +84,7 @@ token 上限后的真实模型验证已完成；正式采用前须同步填写�
 `serve/` 基于上游 `f7a8bd4` 的官方示例：显存比例保留两位小数，服务模型名取本地权重目录名。
 `MODEL_NAME` 与 `LLM_MODEL` 只用于请求侧，应与该名称一致；启动脚本不读取 `VLLM_EXTRA_ARGS`，
 固定使用 `--no-enable-log-requests`。Burr 分支增加可选 `ENABLE_TOOL_CALLING=1`，
-启用 `--enable-auto-tool-choice --tool-call-parser hermes`（解析器可显式覆盖）；内置三条流程不要求启用。
+启用 `--enable-auto-tool-choice --tool-call-parser hermes`（解析器可显式覆盖）；内置四条流程不要求启用。
 辅助结构化请求与 RTL 生成共用 manifest 的 generation 设置，默认使用 JSON Schema 约束解码和严格校验。
 非 baseline 等价请求通过服务 `/tokenize` 计算输出余量，不再加载本地 tokenizer。`manifest.json` 中的 vLLM 后端、启动入口与端口仍适用。启动参数仍是待测示例，
 实际显存峰值和 vLLM 版本尚未验证，不能把默认预算写成实测值。

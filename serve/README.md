@@ -12,9 +12,9 @@
 ## 开发期：不需要 GPU
 
 使用 `LLM_BACKEND=mock ./run.sh <输入目录> <输出目录>` 检查入口和日志。mock 仅给占位 RTL，
-不代表功能正确。三条 Burr 流程的配置位于 `config/`，默认 `single_generate.yaml`。
-模型传输统一经过 `agent/llm/client.py`；`repair_loop` 和 `design_verify_loop` 使用本地 vLLM
-`/tokenize` 计算上下文余量。结构化请求默认使用 `response_format: json_schema`，
+不代表功能正确。四条内置工作流的配置位于 `config/`，默认 `single_generate.yaml`；另有 Skill/RAG 与自适应工作流预设。
+模型传输统一经过 `agent/llm/client.py`；`repair_loop`、`design_verify_loop` 与 `adaptive_verify` 等
+非 baseline 生成流程使用服务端 `/tokenize` 计算上下文余量（`single_generate` 走 baseline 请求，不做该计算）。结构化请求默认使用 `response_format: json_schema`，
 不支持时可在 YAML 显式设置 `services.model.structured_outputs: false`，保留严格校验和有限重问。
 
 ## 正式提交：必须是本地权重
@@ -89,19 +89,19 @@ Vivado 综合产生的大量小文件写在上面极慢。这不是优化建议�
 平台入口会切断 60 秒内没有响应的请求，所以自己改写投题服务时，不能让请求挂着等解题完成。
 
 **自己先超时，别让赛事方超时。** `serve_api.py` 在 `deadline_s - 10` 秒时对 `run.sh`
-整个进程组发 SIGTERM，5 秒后 SIGKILL，然后返回已有的最好结果。赛事方侧超时一定是 L0，
+整个进程组发 SIGTERM，5 秒后 SIGKILL，然后返回已保存的答案。赛事方侧超时一定是 L0，
 自己先停至少还有 L1/L2 的可能。要按进程组结束，是因为只杀 `run.sh` 一个进程时，它启动的
-智能体与 Vivado 会继续运行，和下一题争抢 GPU 与 CPU。
+智能体与 Vivado 会继续运行，和下一题争抢 GPU 与 CPU。超时后返回的是已保存的答案（没有候选时为空文件），不保证是“最好”结果。
 
 **常驻进程只从 `start.sh` 起。** 推理服务与队伍自己的常驻引擎都写进 `start.sh`，用
 `setsid` 拉起。容器重建这条退路下，赛事方只运行 `start.sh` 再逐题调用 `run.sh`，不启动
 `serve_api.py`；超时信号发给 `run.sh` 的进程组，由 `run.sh` 在后台带起的常驻进程会随之
-被结束。详见 `docs/API_CONTRACT.md` 第八节。
+被结束。因此常驻进程必须由 `start.sh` 用 `setsid` 启动，不能与单题进程组共享会话。
 
 **进程要自己回收。** 平台实例的 1 号进程是 JupyterLab，它不回收孤儿进程，被结束的子进程
 会作为僵尸一直占着进程号，攒多了新进程就起不来。`serve_api.py` 启动时把自己设为回收者
 （`PR_SET_CHILD_SUBREAPER`），每题结束后回收该题的全部进程。换成自己的服务时这一段
-要保留。详见 `docs/API_CONTRACT.md` 第十节。
+要保留。
 
 ---
 
@@ -121,7 +121,7 @@ Vivado 综合产生的大量小文件写在上面极慢。这不是优化建议�
 
 ## 可选模型工具调用
 
-三条内置流程由 Burr 图直接调用工具。自定义节点可用 `ctx.tool_schema(name)` 取得工具定义，
+四条内置流程由 Burr 图直接调用工具。自定义节点可用 `ctx.tool_schema(name)` 取得工具定义，
 再调用 `ctx.llm.run_tools(messages, tools=[...], max_steps=4)`。对应服务启动需显式设置
 `ENABLE_TOOL_CALLING=1`，默认解析器为 `hermes`，可用 `TOOL_CALL_PARSER` 覆盖。
 这项开关不改变 `manifest.json` 的共享 generation 声明；实际支持情况需在目标服务验证。

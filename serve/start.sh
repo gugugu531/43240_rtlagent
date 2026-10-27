@@ -26,7 +26,7 @@
 #
 # Logs go to $SERVE_LOG_DIR (default $AGENT_TMP/serve-logs).
 #
-# Do not use `set -u` here, see docs/API_CONTRACT.md section 10.
+# Do not use `set -u` here; see serve/README.md for the offline-script constraints.
 
 set -eo pipefail
 
@@ -64,7 +64,7 @@ wait_ready() {
 # never have started. Start it here as well; flock keeps re-runs of this
 # script from stacking copies, and running alongside the entrypoint's copy is
 # harmless. Only directories whose whole subtree has been idle for two hours
-# are removed, see docs/API_CONTRACT.md section 9.
+# are removed; see serve/README.md for the process-group cleanup contract.
 
 EDA_TMP="${EDA_TMP:-/tmp/eda}"
 mkdir -p "$EDA_TMP"

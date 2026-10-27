@@ -2,7 +2,7 @@
 
 本目录保存可复用的 RTL 方法。运行时能力及配置见 [Skill 与诊断 RAG](../docs/knowledge.md)。方案根 README 按约定保持为空。
 
-当前 `repair_loop` 与 `design_verify_loop` 的 `rtl_generate` 可通过 `skill_ids` 固定选择完整方法，默认不加载。`single_generate` 继续使用 baseline 消息。技能只供 RTL 生成／修复参考，不进入独立检查器；知识不能覆盖公开题面、接口或实际工具证据。
+当前 `repair_loop` 与 `design_verify_loop` 的 `rtl_generate` 可通过 `skill_ids` 固定选择完整方法，默认不加载；`adaptive_verify` 默认按路由候选自动准入，只放行默认冻结版本，候选记录在 `route.json` 的 `skill_candidates`，实际发送看知识装配的 `skill_selected`/`sent`。配置为未经批准的 v3 时序候选会在构图阶段报错，不再静默失效。`single_generate` 继续使用 baseline 消息。技能只供 RTL 生成／修复参考，不进入独立检查器；知识不能覆盖公开题面、接口或实际工具证据。
 
 | 技能 ID | 用途 |
 | --- | --- |
