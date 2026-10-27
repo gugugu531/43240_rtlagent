@@ -174,8 +174,9 @@ class StageSpec:
     stage_budget: str          # 对应工作流参数中的阶段限额名
 ```
 
-默认值：分析、构造、复核、归因 `max_steps=1`；作者与修复 `max_steps=3`；纯宿主阶段
-`max_steps=0` 且不调用模型。实现表为 `agent/runtime/stages.py` 的 `ADAPTIVE_STAGES`；
+默认值：分析、构造、复核、归因 `max_steps=1`；作者 `max_steps=3`；修复当前为
+`max_steps=1` 且没有模型可调用工具；纯宿主阶段 `max_steps=0` 且不调用模型。
+实现表为 `agent/runtime/stages.py` 的 `ADAPTIVE_STAGES`，角色统一来自 `agent/roles.py`；
 `stage_spec()` 同时接受节点名和请求标签（`draft_tool_2`）。当前只有作者阶段声明了
 `submit_answer` 与 `finish_task`。
 

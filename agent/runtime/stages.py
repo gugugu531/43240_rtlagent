@@ -7,6 +7,8 @@ one node may do and which profile the LLM gateway should use.
 
 from dataclasses import dataclass
 
+from agent.roles import role_for_stage
+
 
 @dataclass(frozen=True)
 class StageSpec:
@@ -18,22 +20,27 @@ class StageSpec:
         return {"role": self.role, "tools": list(self.tools), "max_steps": self.max_steps}
 
 
+# Roles come from `agent.roles`; this table only declares tools and step caps.
 ADAPTIVE_STAGES = {
-    "initialize": StageSpec("host", max_steps=0),
-    "analyze": StageSpec("analyst"),
-    "generate": StageSpec("author", ("submit_answer", "finish_task"), max_steps=3),
-    "rescue": StageSpec("author", ("submit_answer", "finish_task"), max_steps=3),
-    "build_checker": StageSpec("builder"),
-    "correct_checker_format": StageSpec("host", max_steps=0),
-    "review_checker": StageSpec("reviewer"),
-    "revise_checker": StageSpec("builder"),
-    "rereview_checker": StageSpec("reviewer"),
-    "check": StageSpec("executor", max_steps=0),
-    "decide": StageSpec("host", max_steps=0),
-    "repair": StageSpec("attributor"),
-    "recheck": StageSpec("executor", max_steps=0),
-    "select": StageSpec("host", max_steps=0),
-    "finish": StageSpec("host", max_steps=0),
+    "initialize": StageSpec(role_for_stage("initialize"), max_steps=0),
+    "analyze": StageSpec(role_for_stage("analyze")),
+    "generate": StageSpec(
+        role_for_stage("generate"), ("submit_answer", "finish_task"), max_steps=3
+    ),
+    "rescue": StageSpec(
+        role_for_stage("rescue"), ("submit_answer", "finish_task"), max_steps=3
+    ),
+    "build_checker": StageSpec(role_for_stage("build_checker")),
+    "correct_checker_format": StageSpec(role_for_stage("correct_checker_format"), max_steps=0),
+    "review_checker": StageSpec(role_for_stage("review_checker")),
+    "revise_checker": StageSpec(role_for_stage("revise_checker")),
+    "rereview_checker": StageSpec(role_for_stage("rereview_checker")),
+    "check": StageSpec(role_for_stage("check"), max_steps=0),
+    "decide": StageSpec(role_for_stage("decide"), max_steps=0),
+    "repair": StageSpec(role_for_stage("repair")),
+    "recheck": StageSpec(role_for_stage("recheck"), max_steps=0),
+    "select": StageSpec(role_for_stage("select"), max_steps=0),
+    "finish": StageSpec(role_for_stage("finish"), max_steps=0),
 }
 
 # Labels used by request helpers that differ from node aliases.

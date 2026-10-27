@@ -28,6 +28,11 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(profile_for_stage("repair"), "large")
         self.assertEqual(profile_for_stage("unknown_stage"), "")
 
+    def test_stage_roles_come_from_the_single_map(self):
+        for node, spec in ADAPTIVE_STAGES.items():
+            self.assertEqual(spec.role, role_for_stage(node), node)
+        self.assertEqual(ADAPTIVE_STAGES["repair"].role, "attributor")
+
     def test_author_stage_declares_tools_and_step_bound(self):
         spec = stage_spec("generate")
         self.assertEqual(spec.role, "author")

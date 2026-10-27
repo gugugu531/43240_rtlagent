@@ -121,7 +121,8 @@ flowchart TB
 约束：
 
 - profile 到具体模型的映射写在配置中；未配置或未启用时回落到主模型。
-- 角色映射在 `agent/llm/router.py`，配置在 `services.profiles`：
+- 角色映射统一在 `agent/roles.py`；`llm/router.py` 只做兼容重导出，Stage 表也从同一处
+  取角色。配置在 `services.profiles`：
 
   ```yaml
   services:

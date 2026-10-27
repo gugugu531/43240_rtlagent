@@ -76,7 +76,6 @@ def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True,
         _save(ctx, "completion-ledger", ledger.snapshot())
         _save(ctx, "request-outcomes", data["request_outcomes"])
         return None
-    assembly = None
     try:
         with ctx.llm.permitted(permit):
             if stage in ("draft", "rescue", "repair") and not prepared:

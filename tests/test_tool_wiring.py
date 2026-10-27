@@ -47,6 +47,52 @@ class ToolWiringTests(unittest.TestCase):
         self.assertEqual(seen["tools"], tools)
         self.assertEqual(seen["purpose"], "adaptive_review")
 
+    def test_prepared_request_keeps_assembly_evidence(self):
+        class Ledger:
+            last_denial = None
+
+            def reserve(self, *args, **kwargs):
+                return object()
+
+            def snapshot(self):
+                return {}
+
+        events = []
+
+        def emit(tool, event, **fields):
+            events.append((tool, event, fields))
+
+        data = {
+            "settings": {"temperature": 0.0, "top_p": 1.0},
+            "ledger": Ledger(),
+            "attempted": set(),
+            "request_outcomes": {},
+            "routing": SimpleNamespace(skill_ids=()),
+        }
+        ctx = SimpleNamespace(
+            store={"adaptive": data},
+            llm=SimpleNamespace(
+                permitted=lambda permit: nullcontext(),
+                chat=lambda messages, **kwargs: SimpleNamespace(
+                    call_id="m1", finish_reason="stop", model="tiny-model"
+                ),
+            ),
+            record=SimpleNamespace(write_json=lambda *a, **k: None, emit=emit),
+        )
+        assembly = {"assembly_id": "a1", "messages_sha256": "m1"}
+        _request(
+            ctx, "draft", [{"role": "user", "content": "x"}],
+            limits={"timeout_s": 10, "max_tokens": 100},
+            prepared=True, assembly=assembly,
+        )
+        linked = [
+            fields for tool, event, fields in events
+            if tool == "knowledge" and event == "model_result"
+        ]
+        self.assertEqual(len(linked), 1)
+        self.assertEqual(linked[0]["assembly_id"], "a1")
+        self.assertEqual(linked[0]["call_id"], "m1")
+
     def test_generation_loop_passes_submit_tool_and_dispatches_it(self):
         settings = AdaptiveParameters(tool_steps=2).model_dump(mode="json")
         data = {"settings": settings, "request_outcomes": {}, "analysis": None}
