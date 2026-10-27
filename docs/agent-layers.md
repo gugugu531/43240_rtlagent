@@ -8,8 +8,9 @@
 1. **工具双路径。** 模型可自主调用工具；节点也可指定调用。两条路径共用注册、校验、预算和记录。
 2. **提交暂用 last-write-wins。** 工具写候选并发布；`selected_id` 仍记录，切换开关保留。
 3. **模型 profile 固定映射。** 角色决定 profile，不让模型自己选模型。
-4. **默认入口切换点为 `run.sh`。** 未设置 `AGENT_CONFIG` 时使用 `config/adaptive_verify.yaml`，
-   显式环境变量仍然优先。本分支按此实现；`main` 在封存前保持 `single_generate`。
+4. **默认入口切换点为 `run.sh`。** 未设置 `AGENT_CONFIG` 时使用
+   `$HERE/config/adaptive_verify.yaml`，显式环境变量仍然优先；用户给出的相对路径仍按调用者
+   cwd 解析。本分支按此实现；`main` 在封存前保持 `single_generate`。
 5. **封存前不切默认流程。** 本次改造只在分支验证，封存版本不包含该改造。
 6. **辅助模型占位。** 选用 `Qwen/Qwen3-0.6B` 作为 `small` profile 占位，默认不启用、
    回落到主模型。启用前必须补 `manifest.json` 的 `auxiliary_models` 与 `model/MODEL.md`
@@ -230,45 +231,46 @@ flowchart TB
 以下依据来自工作区根目录的只读文档，实施时必须保持：
 
 1. **默认分支才参与封存。** `docs/SUBMISSION.md` 第三节写明赛事方拉取默认分支，`README.md`
-   “提交要求”第 4 节同义。当前工作在 `refactor/adaptive-orchestration`，必须在 10 月 31 日
-   10:00 前合回默认分支，否则封存版本不包含改动。
+   “提交要求”第 4 节同义。当前工作在 `refactor/adaptive-orchestration`。按已确认决策 5，
+   本次改造不在 2026-10-31 10:00 前合回默认分支，封存版本仍是 `main` 的
+   `single_generate`；后续合并只影响之后的拉取，不改变已封存版本。
 2. **辅助模型必须声明。** `docs/FAQ.md` Q26 与 `SCORING.md` 2.12 要求 `MODEL.md` 与
    `manifest.json` 声明辅助模型的名称、基座、参数量、用途、运行位置和显存；32 GB 为总上限。
 3. **`solution.v` 是判定输入。** `docs/API_CONTRACT.md` 第八节与 `SCORING.md` 提交检查清单
-   都以该文件为准；失败时写空文件，不报错。
+   都以该文件为准。做不出来时保留空文件；`run.sh` 按同一节返回非 0 表示放弃本题。
+   空文件与退出码分别表达“无答案”和“本题结束”，服务端仍以文件内容为准。
 4. **`trace.jsonl` 是必需项。** `docs/API_CONTRACT.md` 第五节要求每次工具与模型调用可追溯，
    建议字段为 `ts`、`tool`、`rc`、`excerpt`、`tokens_in`、`tokens_out`；`SCORING.md`
    将其计入工程质量与作弊复核。新事件不得移除这些字段。
 5. **900 秒单题上限。** `SCORING.md` 与 `API_CONTRACT.md` 均以赛事方时钟为准；投题服务已在
    `deadline_s - 10` 秒发送 `SIGTERM`，agent 必须更早自行收尾。
-6. **默认入口原本不会运行 `adaptive_verify`。** `agent/config.py` 在未指定 `AGENT_CONFIG` 时
-   加载 `config/single_generate.yaml`；`manifest.json` 的 `agent.workflow` 原本是
-   `single_generate`；`serve/start.sh` 不设置 `AGENT_CONFIG`。本分支已按方案 A 在 `run.sh`
-   设默认值，显式环境变量仍可覆盖；`main` 在封存前保持 `single_generate`。可选切换点：
+6. **默认入口切换点已定为 `run.sh`（方案 A，本分支已实现）。** 原默认路径是
+   `agent/config.py` 加载 `config/single_generate.yaml`，`manifest.json` 的
+   `agent.workflow` 也是 `single_generate`，`serve/start.sh` 不设置 `AGENT_CONFIG`。
+   本分支在 `run.sh` 未设置 `AGENT_CONFIG` 时使用 `$HERE/config/adaptive_verify.yaml`，
+   显式环境变量仍可覆盖；`main` 在封存前保持 `single_generate`。
 
-   | 切换点 | 覆盖范围 | 代价 |
-   | --- | --- | --- |
-   | `run.sh` 默认导出 `AGENT_CONFIG=config/adaptive_verify.yaml` | HTTP 投题与容器重建两条路径都覆盖，因为每题都经过 `run.sh`；`run_baseline.sh` 不受影响 | 需要在入口保留显式覆盖能力 |
-   | `agent/config.py` 改默认路径 | 所有未指定配置的调用 | 同时改变开发与其它工作流对照的默认 |
-   | `serve/start.sh` 设置环境变量 | 只影响该脚本拉起的常驻进程 | 容器重建方式下赛事方随后单独调用 `run.sh`，不会继承该导出 |
+   | 备选切换点 | 未采用的原因 |
+   | --- | --- |
+   | `agent/config.py` 改默认路径 | 会同时改变开发与其它工作流对照的默认 |
+   | `serve/start.sh` 设置环境变量 | 只覆盖该脚本拉起的常驻进程；容器重建方式下赛事方随后单独调用 `run.sh`，不会继承该导出 |
 
-   切换后须同步 `manifest.json` 的 `agent.workflow`，并核对 `model/MODEL.md` 的模型、上下文
-   和显存声明。
+   本分支的 `manifest.json` 已同步为 `adaptive_verify`；合并回 `main` 时一并更新
+   `model/MODEL.md` 的模型、上下文和显存声明。
 7. **900 秒预算与 `adaptive_verify` 默认阶段限额不匹配。** `config/adaptive_verify.yaml`
    使用 `AdaptiveParameters` 默认值：`draft` 1200 秒、`profile` 180 秒，并且
-   `CompletionLedger.reserve()` 会连同后继预留一起检查剩余时间。投题服务把
-   `AGENT_DEADLINE_S` 设为剩余时间（约 890 秒）后，`profile` 请求需要
-   `draft.timeout_s + first_tools_s = 1500` 秒的后继空间，会被判为
-   `insufficient_followup_time`，导致分析、首稿都不发送。当前分支冒烟已复现该拒绝。
+   `CompletionLedger.reserve()` 的准入条件是
+   `timeout_s + followup_s <= budget.remaining()`。投题服务把 `AGENT_DEADLINE_S`
+   设为剩余时间（约 890 秒）后，`profile` 请求需要
+   `180 + (1200 + 300) = 1680` 秒，会被判为 `insufficient_followup_time`，
+   导致分析、首稿都不发送。120 秒冒烟同样复现该拒绝；不能用更长的实验时限代替
+   900 秒可运行性验证。
    在正式切到 `adaptive_verify` 前，必须为 900 秒预算重设阶段限额与后继预留，并单独验证。
 
 ## 10. 待确认
 
-- 默认工作流切换点（`run.sh` / `agent/config.py` / `serve/start.sh`）以及是否在封存前切换。
+已确认事项见第 0 节，不再重复。仍待处理：
+
 - 900 秒预算下的阶段限额与后继预留重设；重设前不得把 `adaptive_verify` 用于正式投题。
-- 切换时 `manifest.json` 的 `agent.workflow` 与 `model/MODEL.md` 的同步内容。
 - 逐节点的最简输入输出与工具白名单。
-- `run.sh` 当前无论成功失败都退出 0；`API_CONTRACT.md` 第八节写的是非 0 表示放弃本题。
-  是否调整属于生命周期行为变更，待确认。
-- 仓库文档位置：`AGENTS.md` 建议新笔记放 `dev/docs/`；本轮按用户要求把设计与接口文档放在
-  仓库 `docs/`，并在 `dev/docs/notes/index.md` 登记入口。
+- 合并回 `main` 时 `manifest.json`、`model/MODEL.md` 与 `dev/docs` 当前指南的同步内容。

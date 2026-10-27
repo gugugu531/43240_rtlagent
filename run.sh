@@ -32,8 +32,13 @@ esac
 # This development branch defaults to adaptive_verify. An explicit
 # AGENT_CONFIG still wins, and the sealed main branch keeps single_generate
 # until this refactor is merged.
-: "${AGENT_CONFIG:=config/adaptive_verify.yaml}"
-case "$AGENT_CONFIG" in /*) ;; *) AGENT_CONFIG="$PWD/$AGENT_CONFIG" ;; esac
+if [ -z "${AGENT_CONFIG:-}" ]; then
+    # The default belongs to this checkout, not to the caller's directory.
+    AGENT_CONFIG="$HERE/config/adaptive_verify.yaml"
+else
+    # A user-supplied relative path keeps the caller's meaning.
+    case "$AGENT_CONFIG" in /*) ;; *) AGENT_CONFIG="$PWD/$AGENT_CONFIG" ;; esac
+fi
 export AGENT_CONFIG
 export AGENT_CALLER_CWD="$PWD"
 mkdir -p "$OUT"
