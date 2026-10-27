@@ -40,8 +40,25 @@ def _save(ctx, name, value):
                     status=value.get("status") if isinstance(value, dict) else None)
 
 
+def _prepare_generation(ctx, messages, *, parent=None, evidence=None, max_tokens):
+    """Pack Skill/RAG material once; tool-loop steps must reuse this result."""
+    data = _data(ctx)
+    settings = data["settings"]
+    from agent.knowledge.context import prepare
+
+    return prepare(
+        ctx, messages, parent, evidence,
+        skill_ids=list(data["routing"].skill_ids), skill_phases=["generate", "repair"],
+        rag=settings["rag"] and parent is not None,
+        max_tokens=max_tokens, max_extra_tokens=settings["knowledge_max_tokens"],
+        diagnostic_first=parent is not None,
+        skill_mode=settings['skill_mode'], rag_mode=settings['rag_mode'],
+        retrieval_options=settings['retrieval'], automatic=True,
+    )
+
+
 def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True,
-             parent=None, evidence=None, tools=None):
+             parent=None, evidence=None, tools=None, prepared=False, assembly=None):
     data = _data(ctx)
     if stage in data["attempted"]:
         raise ValueError(f"adaptive stage may only request once: {stage}")
@@ -57,17 +74,10 @@ def _request(ctx, stage, messages, *, limits=None, followup_s=0, optional=True,
     assembly = None
     try:
         with ctx.llm.permitted(permit):
-            if stage in ("draft", "rescue", "repair"):
-                from agent.knowledge.context import prepare
-
-                messages, assembly = prepare(
-                    ctx, messages, parent, evidence,
-                    skill_ids=list(data["routing"].skill_ids), skill_phases=["generate", "repair"],
-                    rag=settings["rag"] and parent is not None,
-                    max_tokens=limits["max_tokens"], max_extra_tokens=settings["knowledge_max_tokens"],
-                    diagnostic_first=parent is not None,
-                    skill_mode=settings['skill_mode'], rag_mode=settings['rag_mode'],
-                    retrieval_options=settings['retrieval'], automatic=True,
+            if stage in ("draft", "rescue", "repair") and not prepared:
+                messages, assembly = _prepare_generation(
+                    ctx, messages, parent=parent, evidence=evidence,
+                    max_tokens=limits["max_tokens"],
                 )
             reply = ctx.llm.chat(
                 messages, purpose=f"adaptive_{stage}",
@@ -132,6 +142,10 @@ def _generation_reply(ctx, *, stage, messages):
     if steps <= 0:
         return _request(ctx, stage, messages, limits=limits,
                         followup_s=settings["first_tools_s"], optional=False)
+    # Pack knowledge once so every tool step sees the same assembled prompt.
+    prepared_messages, assembly = _prepare_generation(
+        ctx, messages, max_tokens=limits["max_tokens"]
+    )
     counter = {"n": 0}
 
     def chat(conversation, tools):
@@ -140,7 +154,7 @@ def _generation_reply(ctx, *, stage, messages):
         reply = _request(
             ctx, label, conversation, limits=limits,
             followup_s=settings["first_tools_s"] if counter["n"] == 1 else 0,
-            optional=False, tools=tools,
+            optional=False, tools=tools, prepared=True, assembly=assembly,
         )
         if reply is None:
             raise _ToolStepUnavailable(
@@ -152,7 +166,7 @@ def _generation_reply(ctx, *, stage, messages):
         return run_tool_loop(
             chat=chat,
             dispatch=ctx.dispatch,
-            messages=messages,
+            messages=prepared_messages,
             tools=[ctx.tool_schema("submit_answer"), ctx.tool_schema("finish_task")],
             max_steps=steps,
         )

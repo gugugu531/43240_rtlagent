@@ -156,6 +156,9 @@ flowchart TB
 
 作者阶段（首稿与救援）已接入，白名单只有 `submit_answer` 与 `finish_task`；`tool_steps`
 默认 0，保持原单次调用。实验用 `config/adaptive_tools.yaml` 把 `tool_steps` 设为 2。
+Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的消息；`_request(prepared=True)`
+不会重复装配。`Ctx.dispatch()` 只返回模型可见字段，`meta.details` 等宿主载荷不下发，并在
+返回前做一次 JSON 归一化。
 目标服务必须支持工具调用（vLLM 需开启 `ENABLE_TOOL_CALLING`），未验证前不进入正式默认配置。
 
 ### 4.4 工具类别

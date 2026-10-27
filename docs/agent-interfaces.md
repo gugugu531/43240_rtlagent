@@ -86,6 +86,9 @@ class ToolResult:
 规则：
 
 - 模型只读取 `rc`、`status`、`excerpt` 与 `artifacts` 路径；完整内容按需读取。
+- `excerpt` 连同 `\n[truncated]` 标记不超过 2048 字节；记录器二次截断不会吃掉标记。
+- `to_dict()` 保留完整宿主字段；`to_model_dict()` 去掉 `meta.details`、命令等载荷。
+  `Ctx.dispatch()` 返回后者并做 JSON 归一化，避免 Path/dataclass 进入 tool 消息。
 - 参数校验失败返回 `rc=2`，不抛异常给模型自由文本。
 - 进程类工具超时先结束整个进程组，再返回 `rc=3`。
 - 现有 `CheckResult` 通过 `ToolResult.from_check_result()` 适配；`summary` 映射为 `excerpt`，

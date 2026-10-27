@@ -55,10 +55,31 @@ class ToolResultTests(unittest.TestCase):
         text = "中" * (EXCERPT_LIMIT // 3 + 10)
         excerpt, truncated = truncate_excerpt(text)
         self.assertTrue(truncated)
-        self.assertIn("[truncated:", excerpt)
-        # The kept prefix must still be valid UTF-8 text.
+        self.assertIn("[truncated]", excerpt)
+        # Marker counts toward the limit; the result must still parse as UTF-8.
         excerpt.encode("utf-8")
-        self.assertLess(len(excerpt.encode("utf-8")), len(text.encode("utf-8")))
+        self.assertLessEqual(len(excerpt.encode("utf-8")), EXCERPT_LIMIT)
+
+    def test_marker_never_exceeds_a_small_limit(self):
+        excerpt, truncated = truncate_excerpt("abc" * 100, limit=8)
+        self.assertTrue(truncated)
+        self.assertLessEqual(len(excerpt.encode("utf-8")), 8)
+
+    def test_model_view_drops_host_only_meta(self):
+        from pathlib import Path
+
+        result = ToolResult(
+            tool="lint", call_id="c1", rc=1, status="failed", excerpt="e",
+            meta={"details": {"path": Path("/tmp/a")}, "blocking": True,
+                  "candidate_id": "c001"},
+        )
+        model = result.to_model_dict()
+        self.assertNotIn("details", model["meta"])
+        self.assertTrue(model["meta"]["blocking"])
+        self.assertEqual(model["meta"]["candidate_id"], "c001")
+        # The model view must be JSON-serializable without custom encoders.
+        import json
+        json.dumps(model)
 
     def test_from_value_serializes_dicts(self):
         result = ToolResult.from_value({"accepted": True}, tool="submit")
@@ -68,7 +89,8 @@ class ToolResultTests(unittest.TestCase):
     def test_failure_helper_truncates(self):
         result = ToolResult.failure(tool="x", excerpt="e" * 5000, failure_kind="code")
         self.assertTrue(result.truncated)
-        self.assertIn("[truncated:", result.excerpt)
+        self.assertIn("[truncated]", result.excerpt)
+        self.assertLessEqual(len(result.excerpt.encode("utf-8")), EXCERPT_LIMIT)
 
 
 if __name__ == "__main__":

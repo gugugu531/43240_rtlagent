@@ -27,13 +27,20 @@ _STATUS_RC = {
 }
 
 
+TRUNCATION_MARKER = "\n[truncated]"
+
+
 def truncate_excerpt(text, limit=EXCERPT_LIMIT):
-    """Cut to a UTF-8 boundary and mark the removed byte count."""
-    raw = str(text or "").encode("utf-8", errors="backslashreplace")
+    """Cut to a UTF-8 boundary; the marker counts toward the byte limit."""
+    text = str(text or "")
+    raw = text.encode("utf-8", errors="backslashreplace")
     if len(raw) <= limit:
-        return str(text or ""), False
-    kept = raw[:limit].decode("utf-8", errors="ignore")
-    return kept + f"\n[truncated: {len(raw) - limit} bytes]", True
+        return text, False
+    marker = TRUNCATION_MARKER.encode("ascii")
+    if limit <= len(marker):
+        return marker[:limit].decode("ascii"), True
+    kept = raw[: limit - len(marker)].decode("utf-8", errors="ignore")
+    return kept + TRUNCATION_MARKER, True
 
 
 @dataclass(frozen=True)
@@ -61,6 +68,21 @@ class ToolResult:
             "truncated": self.truncated,
             "failure_kind": self.failure_kind,
             "meta": self.meta,
+        }
+
+    def to_model_dict(self):
+        """Model-visible view: no full details, commands, or host-only payloads."""
+        visible = ("blocking", "candidate_id", "check_id")
+        return {
+            "tool": self.tool,
+            "call_id": self.call_id,
+            "rc": self.rc,
+            "status": self.status,
+            "excerpt": self.excerpt,
+            "artifacts": list(self.artifacts),
+            "truncated": self.truncated,
+            "failure_kind": self.failure_kind,
+            "meta": {key: self.meta[key] for key in visible if key in self.meta},
         }
 
     @classmethod

@@ -58,9 +58,10 @@ class ToolWiringTests(unittest.TestCase):
             },
         )
         calls, dispatched = [], []
+        assembled = ([{"role": "user", "content": "prepared"}], {"assembly_id": "a1"})
 
         def fake_request(ctx_arg, stage, messages, **kwargs):
-            calls.append((stage, kwargs.get("tools")))
+            calls.append((stage, messages, kwargs))
             if stage == "draft":
                 return Reply(
                     "m1", "", "tool_calls", 1, 1,
@@ -80,15 +81,22 @@ class ToolWiringTests(unittest.TestCase):
             return {"tool": name, "rc": 0}
 
         ctx.dispatch = dispatch
-        with patch("agent.nodes.adaptive._request", side_effect=fake_request):
+        with patch("agent.nodes.adaptive._prepare_generation",
+                   return_value=assembled) as prepare, \
+             patch("agent.nodes.adaptive._request", side_effect=fake_request):
             outcome = _generation_reply(
                 ctx, stage="draft", messages=[{"role": "user", "content": "x"}]
             )
 
         self.assertEqual(outcome.stopped_reason, "replied")
-        self.assertEqual([stage for stage, _ in calls], ["draft", "draft_tool_2"])
-        for _, tools in calls:
-            names = {tool["function"]["name"] for tool in tools}
+        self.assertEqual([stage for stage, _, _ in calls], ["draft", "draft_tool_2"])
+        # Assembly runs once; every step reuses it and still carries tools.
+        self.assertEqual(prepare.call_count, 1)
+        for _, messages, kwargs in calls:
+            self.assertEqual(messages[0]["content"], "prepared")
+            self.assertTrue(kwargs["prepared"])
+            self.assertEqual(kwargs["assembly"], assembled[1])
+            names = {tool["function"]["name"] for tool in kwargs["tools"]}
             self.assertEqual(names, {"submit_answer", "finish_task"})
         self.assertEqual(dispatched[0][0], "submit_answer")
         self.assertIn("module TopModule", dispatched[0][1]["code"])

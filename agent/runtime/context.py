@@ -3,7 +3,9 @@
 import dataclasses
 import hashlib
 import inspect
+import json
 from agent.runtime.registry import TOOLS, parameter_model, parameters
+from agent.runtime.recorder import serializable
 from agent.runtime.tool_result import ToolResult
 
 
@@ -63,13 +65,17 @@ class Ctx:
             return result
 
     def dispatch(self, name, arguments):
-        """Model-facing tool entry: always return the fixed ToolResult envelope."""
+        """Model-facing tool entry: bounded envelope, JSON-normalized for transport."""
         result = self.call(name, **arguments)
         if isinstance(result, ToolResult):
-            return result.to_dict()
-        if hasattr(result, "status") and hasattr(result, "summary"):
-            return ToolResult.from_check_result(result, tool=name).to_dict()
-        return ToolResult.from_value(result, tool=name).to_dict()
+            envelope = result
+        elif hasattr(result, "status") and hasattr(result, "summary"):
+            envelope = ToolResult.from_check_result(result, tool=name)
+        else:
+            envelope = ToolResult.from_value(result, tool=name)
+        # Host-only meta can contain Path/dataclass/tuple, so normalize here
+        # before the model loop serializes the result into a tool message.
+        return json.loads(json.dumps(envelope.to_model_dict(), default=serializable))
 
     def tool_schema(self, name):
         selected = self.tools.get(name)
