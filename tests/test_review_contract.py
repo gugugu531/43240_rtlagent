@@ -4,13 +4,13 @@ import hashlib
 import json
 import unittest
 
-from agent.rtl.adaptive_check import (
+from agent.domain.rtl.adaptive_check import (
     CheckerError, FrozenChecker, _drop_redundant_register_clock, _drop_request_echo,
     analyze_model_expectation_shape, analyze_property_trigger_census,
     approve_review, build_review_evidence, parse_checker, parse_checker_revision,
     review_request, revision_request,
 )
-from agent.rtl.task import TaskSpec
+from agent.domain.rtl.task import TaskSpec
 
 
 def _canonical(value):

@@ -5,14 +5,14 @@ import json
 import unittest
 from types import SimpleNamespace
 
-from agent.rtl.adaptive_analysis import choose_route
-from agent.rtl.adaptive_check import (
+from agent.domain.rtl.adaptive_analysis import choose_route
+from agent.domain.rtl.adaptive_check import (
     CheckerError, _recover_json_punctuation, approve_review, build_review_evidence,
     checker_request, parse_checker, parse_format_correction, recover_checker_format,
 )
-from agent.rtl.suite.evaluate import expected_traces
-from agent.rtl.suite.testbench import compare_trace_rows
-from agent.rtl.task import TaskSpec
+from agent.domain.rtl.suite.evaluate import expected_traces
+from agent.domain.rtl.suite.testbench import compare_trace_rows
+from agent.domain.rtl.task import TaskSpec
 
 
 def _honest_review(draft):

@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 import unittest
 
-from agent.runtime.tool_result import (
+from agent.tools.result import (
     EXCERPT_LIMIT,
     RC_FAILED,
     RC_OK,

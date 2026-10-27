@@ -4,9 +4,9 @@ import dataclasses
 import hashlib
 import inspect
 import json
-from agent.runtime.registry import TOOLS, parameter_model, parameters
-from agent.runtime.recorder import serializable
-from agent.runtime.tool_result import ToolResult
+from agent.tools.registry import TOOLS, parameter_model, parameters
+from agent.observability.recorder import serializable
+from agent.tools.result import ToolResult
 
 
 def summarize(value):

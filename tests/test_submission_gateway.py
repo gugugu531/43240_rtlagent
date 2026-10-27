@@ -6,9 +6,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent.rtl.candidate import CandidateStore
-from agent.rtl.submission import SubmissionError, SubmissionGateway
-from agent.runtime.recorder import Recorder
+from agent.domain.rtl.candidate import CandidateStore
+from agent.submission.gateway import SubmissionError, SubmissionGateway
+from agent.observability.recorder import Recorder
 
 CODE_A = "module TopModule();\nendmodule\n"
 CODE_B = "module TopModule();\n  // second\nendmodule\n"
@@ -89,7 +89,7 @@ class SubmissionGatewayTests(unittest.TestCase):
     def test_dispatch_runs_submit_answer_tool_end_to_end(self):
         from types import SimpleNamespace as NS
 
-        from agent.prompts import TemplateRenderer
+        from agent.context.prompts import TemplateRenderer
         from agent.runtime.budget import Budget
         from agent.runtime.context import Ctx
 

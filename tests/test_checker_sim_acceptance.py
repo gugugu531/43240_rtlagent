@@ -23,11 +23,11 @@ import unittest
 from agent.config import ROOT, load_config
 from agent.runtime.budget import Budget
 from agent.runtime.process import ProcessManager
-from agent.runtime.recorder import Recorder
-from agent.rtl.candidate import CandidateFactory
-from agent.rtl.suite.schema import validate_suite
-from agent.rtl.suite.testbench import simulate
-from agent.rtl.task import TaskSpec
+from agent.observability.recorder import Recorder
+from agent.domain.rtl.candidate import CandidateFactory
+from agent.domain.rtl.suite.schema import validate_suite
+from agent.domain.rtl.suite.testbench import simulate
+from agent.domain.rtl.task import TaskSpec
 
 SIM_READY = bool(shutil.which("xvlog")) and os.environ.get("RTLA_CHECKER_SIM") == "1"
 SIM_GUARD = (

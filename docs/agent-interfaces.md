@@ -104,7 +104,7 @@ class ToolResult:
 节点路径：node -> ctx.call(name, **args) -> 同一工具实现 -> 原生结果
 ```
 
-模型路径由 `agent/runtime/agent_loop.py` 驱动，固定步数上限；每条 `tool_calls` 都经过
+模型路径由 `agent/orchestration/agent_loop.py` 驱动，固定步数上限；每条 `tool_calls` 都经过
 白名单与 JSON 参数校验。`Ctx.dispatch()` 统一返回 `ToolResult` 字典；`Ctx.call()` 仍返回
 领域对象，供节点直接使用。两条路径共用预算、超时、进程组与记录。
 
@@ -138,7 +138,7 @@ class ToolResult:
 }
 ```
 
-- 实现位置：`agent/runtime/prompt.py` 的 `ContextBundle`；`adaptive_analyze` 保存
+- 实现位置：`agent/context/prompt.py` 的 `ContextBundle`；`adaptive_analyze` 保存
   `adaptive/context-bundle.json`。任务段只存题面哈希与字节数，不复制正文。
 - 大段正文只存引用；`content` 仅用于短结构。
 - `trust` 取值：`host`、`frozen`、`observed`、`model`。模型生成的建议不能标成 `host`。
@@ -176,7 +176,7 @@ class StageSpec:
 
 默认值：分析、构造、复核、归因 `max_steps=1`；作者 `max_steps=3`；修复当前为
 `max_steps=1` 且没有模型可调用工具；纯宿主阶段 `max_steps=0` 且不调用模型。
-实现表为 `agent/runtime/stages.py` 的 `ADAPTIVE_STAGES`，角色统一来自 `agent/roles.py`；
+实现表为 `agent/orchestration/stages.py` 的 `ADAPTIVE_STAGES`，角色统一来自 `agent/roles.py`；
 `stage_spec()` 同时接受节点名和请求标签（`draft_tool_2`）。当前只有作者阶段声明了
 `submit_answer` 与 `finish_task`。
 
@@ -193,8 +193,8 @@ submit_answer(code: str, top: str | None = None, note: str | None = None)
 - 校验成功且策略为 `last_written`：原子发布到 `solution.v`，`published=true`。
 - 策略为 `selected`：只登记候选，由晋升规则决定是否发布。
 
-实现位置：`agent/rtl/submission.py` 的 `SubmissionGateway`，以及
-`agent/nodes/submission_tools.py` 的工具注册。`CandidateStore.publish()` 只做原子发布，
+实现位置：`agent/submission/gateway.py` 的 `SubmissionGateway`，以及
+`agent/orchestration/nodes/submission_tools.py` 的工具注册。`CandidateStore.publish()` 只做原子发布，
 不修改 `selected_id`；`select()` 仍表示证据选稿。
 
 ### 5.2 收尾

@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 
-from agent.runtime.recorder import Recorder
+from agent.observability.recorder import Recorder
 
 
 def strict_loads(text):

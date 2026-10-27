@@ -7,15 +7,15 @@ from pathlib import Path
 
 from agent.llm.client import Client
 from agent.llm.router import profile_for_stage, role_for_stage
-from agent.rtl.task import TaskSpec
+from agent.domain.rtl.task import TaskSpec
 from agent.runtime.budget import Budget
-from agent.runtime.prompt import (
+from agent.context.prompt import (
     ContextBundle,
     assembly_from_report,
     record_assembly,
 )
-from agent.runtime.recorder import Recorder
-from agent.runtime.stages import ADAPTIVE_STAGES, stage_spec
+from agent.observability.recorder import Recorder
+from agent.orchestration.stages import ADAPTIVE_STAGES, stage_spec
 
 
 class RouterTests(unittest.TestCase):

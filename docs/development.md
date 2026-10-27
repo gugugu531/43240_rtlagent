@@ -8,14 +8,14 @@
 
 | 变化 | 应修改的位置 | 最少需要说明的契约 |
 | --- | --- | --- |
-| 多一个求解阶段或阶段实现 | `agent/nodes/` | 输入状态、输出状态、节点参数、副作用、失败语义 |
+| 多一个求解阶段或阶段实现 | `agent/orchestration/nodes/` | 输入状态、输出状态、节点参数、副作用、失败语义 |
 | 一项可复用工具能力 | 工具注册适配层与相应领域模块 | 参数类型、返回结构、预算、错误与调用证据 |
-| 调整阶段顺序、条件或重试策略 | `agent/workflows/` | 初始状态、节点别名、分支优先级、终止条件与上限 |
+| 调整阶段顺序、条件或重试策略 | `agent/orchestration/workflows/` | 初始状态、节点别名、分支优先级、终止条件与上限 |
 | 改默认预算或替换已有节点 | `config/` | 有效覆盖值、兼容范围；不以 YAML 实现新流程逻辑 |
 | 新模型协议或后端 | `agent/llm/` 与 `agent/config.py` | 请求、分词、生成声明、错误、用量、重放与真实服务验证 |
-| 新 RTL 检查语义或仿真能力 | `agent/rtl/` 与检查工具适配层 | 输入范围、未知值、采样、比较、候选／检查器身份 |
-| 固定方法或诊断卡 | `skill/`、`knowledge/`、`agent/knowledge/` | 版本和哈希、适用边界、完整片段、当前检查绑定；见 [知识契约](knowledge.md) |
-| 新提示模板 | `agent/prompts/` 与使用它的节点 | 模板变量、公开信息边界、响应 schema、语义校验 |
+| 新 RTL 检查语义或仿真能力 | `agent/domain/rtl/` 与检查工具适配层 | 输入范围、未知值、采样、比较、候选／检查器身份 |
+| 固定方法或诊断卡 | `skill/`、`knowledge/`、`agent/domain/knowledge/` | 版本和哈希、适用边界、完整片段、当前检查绑定；见 [知识契约](knowledge.md) |
+| 新提示模板 | `agent/context/prompts/` 与使用它的节点 | 模板变量、公开信息边界、响应 schema、语义校验 |
 | 预算、进程或记录机制 | `agent/runtime/` | 跨工作流兼容、取消、资源回收、日志字段与迁移行为 |
 
 先复用已有能力，再新增接口。相同检查逻辑不应分别复制到节点、工具调用和新工作流中。仅更换参数不必新建实现；改变输入／输出或失败语义时，不能假装只是一个预设。
@@ -30,7 +30,7 @@
 - **节点别名**：某个工作流里的位置，例如 `advance`。连线、入口、日志节点名和 YAML 的 `nodes` 键引用它。
 - **工具别名**：工作流或配置中的调用名称，例如 `increment`。`ctx.call("increment", ...)` 经配置选择具体注册实现。
 
-`use` 引用注册名。node、tool、workflow 使用三个独立注册表，同一注册表重名会报错。装饰器注册发生在模块导入时：新增内置模块必须加入 `agent/nodes/__init__.py` 或 `agent/workflows/__init__.py`；也可通过显式插件导入。仅创建一个文件不会自动启用。
+`use` 引用注册名。node、tool、workflow 使用三个独立注册表，同一注册表重名会报错。装饰器注册发生在模块导入时：新增内置模块必须加入 `agent/orchestration/nodes/__init__.py` 或 `agent/orchestration/workflows/__init__.py`；也可通过显式插件导入。仅创建一个文件不会自动启用。
 
 ## 3. 节点契约
 
@@ -70,7 +70,7 @@ def stage(ctx: Ctx, state: State, *, limit: int = 2) -> State:
 
 运行器把别名 **`finish`** 视为终止动作；不要用它命名中途阶段。仅设置 `state.status="completed"` 不会自动停止其他连线。图无下一步也可结束，超过 `runtime.max_steps` 则停止并记录 `max_steps`。
 
-配置规则以 [config.py](../agent/config.py) 和 [graph.py](../agent/runtime/graph.py) 为准：
+配置规则以 [config.py](../agent/config.py) 和 [graph.py](../agent/orchestration/graph.py) 为准：
 
 | 配置项 | 当前行为 |
 | --- | --- |

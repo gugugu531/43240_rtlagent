@@ -11,14 +11,14 @@ from unittest.mock import patch
 import httpx
 
 from agent.kit import State
-from agent.knowledge.context import prepare
-from agent.knowledge.outcome import summarize
-from agent.knowledge.runtime import bundle
-from agent.rtl.candidate import CandidateStore
-from agent.rtl.result import CheckResult, bind_result, checker_hash
-from agent.rtl.task import TaskSpec
+from agent.domain.knowledge.context import prepare
+from agent.domain.knowledge.outcome import summarize
+from agent.domain.knowledge.runtime import bundle
+from agent.domain.rtl.candidate import CandidateStore
+from agent.domain.rtl.result import CheckResult, bind_result, checker_hash
+from agent.domain.rtl.task import TaskSpec
 from agent.runtime.budget import Budget
-from agent.runtime.recorder import Recorder
+from agent.observability.recorder import Recorder
 
 
 class KnowledgeRegressions(unittest.TestCase):
@@ -56,8 +56,8 @@ class KnowledgeRegressions(unittest.TestCase):
         def client(**kwargs):
             return original_client(transport=httpx.MockTransport(
                 lambda request: httpx.Response(200, content=json.dumps(payload))), **kwargs)
-        with patch('agent.knowledge.runtime.httpx.Client', side_effect=client), patch(
-                'agent.knowledge.runtime.subprocess.run', return_value=NS(stdout=json.dumps(payload))):
+        with patch('agent.domain.knowledge.runtime.httpx.Client', side_effect=client), patch(
+                'agent.domain.knowledge.runtime.subprocess.run', return_value=NS(stdout=json.dumps(payload))):
             packed, report = self.prepare(messages, parent, check, mode, strategy=strategy,
                 fallback=fallback, embedding_url='http://127.0.0.1:8765',
                 embedding_transport=transport, embedding_ssh_host='synthetic-host')
@@ -104,12 +104,12 @@ class KnowledgeRegressions(unittest.TestCase):
         self.assertEqual(report['retrieval']['embedding_error'], 'ValueError')
 
     def adaptive_messages(self, mode, *, banner=False, probe_version='2026.1'):
-        from agent.nodes.adaptive import initialize
-        from agent.rtl.adaptive_assessment import CandidateAssessment
-        from agent.rtl.adaptive_repair import repair_request
-        from agent.rtl.adaptive_selection import repair_opportunity
-        from agent.rtl.vivado import lint
-        from agent.workflows.adaptive_verify import AdaptiveParameters
+        from agent.orchestration.nodes.adaptive import initialize
+        from agent.domain.rtl.adaptive_assessment import CandidateAssessment
+        from agent.domain.rtl.adaptive_repair import repair_request
+        from agent.domain.rtl.adaptive_selection import repair_opportunity
+        from agent.domain.rtl.vivado import lint
+        from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters
 
         self.ctx.store = {}
         initialize(self.ctx, State({'settings': AdaptiveParameters(
@@ -127,7 +127,7 @@ class KnowledgeRegressions(unittest.TestCase):
                           stdout=f'xvlog v{probe_version}' if probe_version else 'probe failed')
             return NS(rc=1, stdout=log)
         self.ctx.processes = NS(run=run)
-        with patch('agent.rtl.vivado.executable', side_effect=lambda name: '/synthetic/' + name):
+        with patch('agent.domain.rtl.vivado.executable', side_effect=lambda name: '/synthetic/' + name):
             check = bind_result(lint(self.ctx, parent, timeout_s=30), parent, 'lint')
         check.details['execution_id'] = 'lint-execution'
         assessment = CandidateAssessment(parent.id, parent.code_hash, None, None,
@@ -175,7 +175,7 @@ class KnowledgeRegressions(unittest.TestCase):
         return summarize(self.root / 'trace.jsonl', self.root / 'solution.v')
 
     def test_baseline_creation_without_completeness_evidence_stays_unknown(self):
-        from agent.nodes.baseline import extract
+        from agent.orchestration.nodes.baseline import extract
         import baseline
         for index, content in enumerate(('', 'Cannot provide RTL.', 'module TopModule;',
                                          'module TopModule; endmodule')):
@@ -192,7 +192,7 @@ class KnowledgeRegressions(unittest.TestCase):
                 self.assertIsNone(outcome['selected_latest_complete'])
 
     def test_unvalidated_later_candidate_does_not_replace_confirmed_complete(self):
-        from agent.nodes.extract import extract
+        from agent.orchestration.nodes.extract import extract
         self.ctx.store['draft-call'] = NS(content='module TopModule; endmodule',
                                          call_id='draft-call', finish_reason='stop')
         state = extract(self.ctx, State({'reply_id': 'draft-call', 'round': 1}))
@@ -207,7 +207,7 @@ class KnowledgeRegressions(unittest.TestCase):
         self.assertTrue(self.outcome()['selected_latest_complete'])
 
     def test_adaptive_delivery_joins_by_unique_model_call_and_retains_old_draft(self):
-        from agent.nodes.adaptive import _candidate
+        from agent.orchestration.nodes.adaptive import _candidate
         old = _candidate(self.ctx, NS(content='module TopModule; endmodule',
                                      call_id='draft-call', finish_reason='stop'))
         self.assertTrue(self.outcome()['selected_latest_complete'])

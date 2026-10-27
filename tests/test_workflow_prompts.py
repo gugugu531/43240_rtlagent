@@ -2,7 +2,7 @@
 
 The three shipped workflows reach generation through two paths:
 single_generate keeps the baseline-compatible prompt (raw public task only), while
-repair_loop and design_verify_loop render agent/prompts/repair.j2 with the public
+repair_loop and design_verify_loop render agent/context/prompts/repair.j2 with the public
 task, parsed interface and (for design_verify_loop) the host design plan. Neither
 initial generation path may receive candidate RTL or a reference answer.
 """
@@ -14,9 +14,9 @@ from burr.core import State
 
 import baseline as official
 from agent.config import ROOT, load_config
-from agent.nodes.baseline import generate as baseline_generate
-from agent.prompts import TemplateRenderer
-from agent.rtl.task import TaskSpec
+from agent.orchestration.nodes.baseline import generate as baseline_generate
+from agent.context.prompts import TemplateRenderer
+from agent.domain.rtl.task import TaskSpec
 
 PROMPT = """Implement a module named TopModule.
 

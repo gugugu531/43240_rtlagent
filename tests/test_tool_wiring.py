@@ -6,8 +6,8 @@ import unittest
 from unittest.mock import patch
 
 from agent.llm.types import Reply
-from agent.nodes.adaptive import _generation_reply, _request
-from agent.workflows.adaptive_verify import AdaptiveParameters
+from agent.orchestration.nodes.adaptive import _generation_reply, _request
+from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters
 
 
 class ToolWiringTests(unittest.TestCase):
@@ -127,9 +127,9 @@ class ToolWiringTests(unittest.TestCase):
             return {"tool": name, "rc": 0}
 
         ctx.dispatch = dispatch
-        with patch("agent.nodes.adaptive._prepare_generation",
+        with patch("agent.orchestration.nodes.adaptive._prepare_generation",
                    return_value=assembled) as prepare, \
-             patch("agent.nodes.adaptive._request", side_effect=fake_request):
+             patch("agent.orchestration.nodes.adaptive._request", side_effect=fake_request):
             outcome = _generation_reply(
                 ctx, stage="draft", messages=[{"role": "user", "content": "x"}]
             )

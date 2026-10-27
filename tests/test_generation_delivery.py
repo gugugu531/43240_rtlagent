@@ -5,14 +5,14 @@ import unittest
 from unittest.mock import patch
 from burr.core import State
 
-from agent.nodes.adaptive import (
+from agent.orchestration.nodes.adaptive import (
     _generation_messages, _delivery_failure, _candidate, _review_checker,
     finish, initialize, repair, rescue, review_checker, revise_checker,
 )
-from agent.prompts import TemplateRenderer
-from agent.rtl.candidate import CandidateStore
-from agent.rtl.extract import extract_result
-from agent.rtl.task import TaskSpec
+from agent.context.prompts import TemplateRenderer
+from agent.domain.rtl.candidate import CandidateStore
+from agent.domain.rtl.extract import extract_result
+from agent.domain.rtl.task import TaskSpec
 
 
 class DeliveryTests(unittest.TestCase):
@@ -72,15 +72,15 @@ class DeliveryTests(unittest.TestCase):
         self.assertNotIn('draft_failure', ctx.store['adaptive'])
 
     def test_format_recovery_node_makes_no_model_request(self):
-        from agent.nodes.adaptive import correct_checker_format
-        from agent.rtl.adaptive_check import parse_checker
+        from agent.orchestration.nodes.adaptive import correct_checker_format
+        from agent.domain.rtl.adaptive_check import parse_checker
         ctx = self.context('Implement a module named TopModule.\n- input x\n- output z')
         text = '{"status":"unsupported","reason":"No grounded behavioral check"'
         data = ctx.store['adaptive']
         data.update(checker_revision_used=False,
                     checker_draft=parse_checker(text, ctx.task, 'model', finish_reason='stop'),
                     checker_syntax_reply=SimpleNamespace(content=text, finish_reason='stop', call_id='m4'))
-        with patch('agent.nodes.adaptive._request', side_effect=AssertionError('model call')):
+        with patch('agent.orchestration.nodes.adaptive._request', side_effect=AssertionError('model call')):
             state = correct_checker_format(ctx, State())
         self.assertEqual(state['checker_status'], 'unsupported')
         self.assertEqual(data['checker_format_correction']['model_calls'], 0)
@@ -106,8 +106,8 @@ class DeliveryTests(unittest.TestCase):
 
     # -- rescue: a missing failure record must not raise ---------------------
     def test_rescue_without_failure_record_sends_plain_request(self):
-        from agent.rtl.adaptive_analysis import RouteDecision
-        from agent.workflows.adaptive_verify import AdaptiveParameters
+        from agent.domain.rtl.adaptive_analysis import RouteDecision
+        from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters
         ctx = self.context('Implement a module named TopModule.\n- input x\n- output z')
         data = ctx.store['adaptive']
         data['settings'] = AdaptiveParameters().model_dump(mode='json')
@@ -119,7 +119,7 @@ class DeliveryTests(unittest.TestCase):
             sent['stage'], sent['messages'] = stage, messages
             return SimpleNamespace(call_id='m10', content='', finish_reason='stop')
 
-        with patch('agent.nodes.adaptive._request', side_effect=fake_request):
+        with patch('agent.orchestration.nodes.adaptive._request', side_effect=fake_request):
             state = rescue(ctx, State())
         self.assertEqual(sent['stage'], 'rescue')
         self.assertFalse(any('Previous delivery failure' in item['content']
@@ -132,8 +132,8 @@ class DeliveryTests(unittest.TestCase):
     # -- repair node: evidence indexes reach the request and the v2 parser ---
     def test_repair_node_delivers_diagnostic_codes_to_request_and_parser(self):
         import json
-        from agent.rtl.adaptive_analysis import RouteDecision
-        from agent.workflows.adaptive_verify import AdaptiveParameters
+        from agent.domain.rtl.adaptive_analysis import RouteDecision
+        from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters
         ctx = self.context('Implement a module named TopModule.\n- input x\n- input y\n- output z')
         data = ctx.store['adaptive']
         parent = ctx.candidates.create(
@@ -169,7 +169,7 @@ class DeliveryTests(unittest.TestCase):
             sent['stage'], sent['messages'] = stage, messages
             return SimpleNamespace(call_id='m20', content=content, finish_reason='stop')
 
-        with patch('agent.nodes.adaptive._request', side_effect=fake_request):
+        with patch('agent.orchestration.nodes.adaptive._request', side_effect=fake_request):
             state = repair(ctx, State({'target_id': parent.id}))
         self.assertEqual(sent['stage'], 'repair')
         user = json.loads(sent['messages'][1]['content'])
@@ -185,7 +185,7 @@ class DeliveryTests(unittest.TestCase):
 
     # -- review contract retry and exhausted-revision semantics --------------
     def review_context(self):
-        from agent.workflows.adaptive_verify import AdaptiveParameters
+        from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters
         self.artifacts = {}
         record = SimpleNamespace(
             write_json=lambda name, value: self.artifacts.update({name: value}),
@@ -218,11 +218,11 @@ class DeliveryTests(unittest.TestCase):
         ctx, data = self.review_context()
         first = self.frozen_review('invalid', True, ['R-01 missing fields'])
         second = self.frozen_review('approved', False)
-        with patch('agent.nodes.adaptive._request',
+        with patch('agent.orchestration.nodes.adaptive._request',
                    side_effect=[self.review_reply('m1'), self.review_reply('m2')]) as request, \
-             patch('agent.nodes.adaptive.review_request',
+             patch('agent.orchestration.nodes.adaptive.review_request',
                    return_value=[{'role': 'user', 'content': 'review'}]) as review_req, \
-             patch('agent.nodes.adaptive.approve_review',
+             patch('agent.orchestration.nodes.adaptive.approve_review',
                    side_effect=[first, second]):
             frozen = _review_checker(ctx, object(), 'review')
         self.assertEqual(frozen.status, 'approved')
@@ -240,7 +240,7 @@ class DeliveryTests(unittest.TestCase):
 
     def valid_review_text(self, task, draft):
         import json
-        from agent.rtl.adaptive_check import review_request
+        from agent.domain.rtl.adaptive_check import review_request
         user = json.loads(review_request(task, draft)[1]['content'])
         value = {
             'review_contract_version': 2,
@@ -261,7 +261,7 @@ class DeliveryTests(unittest.TestCase):
 
     def test_review_retry_uses_the_real_v2_contract_validator(self):
         import json
-        from agent.rtl.adaptive_check import parse_checker
+        from agent.domain.rtl.adaptive_check import parse_checker
         ctx, data = self.review_context()
         legacy = json.dumps({'checker_hash': 'ignored', 'decision': 'accept',
                              'reason': 'legacy response', 'checked_requirements': ['identity']})
@@ -289,7 +289,7 @@ class DeliveryTests(unittest.TestCase):
                                    content=legacy if len(sent) == 1 else valid,
                                    finish_reason='stop')
 
-        with patch('agent.nodes.adaptive._request', side_effect=fake_request):
+        with patch('agent.orchestration.nodes.adaptive._request', side_effect=fake_request):
             frozen = _review_checker(ctx, draft, 'review')
         self.assertEqual(frozen.status, 'approved')
         self.assertEqual([stage for stage, _ in sent], ['review', 'review_retry'])
@@ -304,11 +304,11 @@ class DeliveryTests(unittest.TestCase):
         ctx, data = self.review_context()
         first = self.frozen_review('invalid', True, ['R-02 reason'])
         second = self.frozen_review('rejected', False)
-        with patch('agent.nodes.adaptive._request',
+        with patch('agent.orchestration.nodes.adaptive._request',
                    side_effect=[self.review_reply('m1'), self.review_reply('m2')]), \
-             patch('agent.nodes.adaptive.review_request',
+             patch('agent.orchestration.nodes.adaptive.review_request',
                    return_value=[{'role': 'user', 'content': 'review'}]), \
-             patch('agent.nodes.adaptive.approve_review', side_effect=[first, second]):
+             patch('agent.orchestration.nodes.adaptive.approve_review', side_effect=[first, second]):
             state = review_checker(ctx, State())
         # A distinct status keeps the graph on the default (finish) edge.
         self.assertEqual(state['checker_status'], 'rejected_after_review_retry')
@@ -319,11 +319,11 @@ class DeliveryTests(unittest.TestCase):
     def test_non_retryable_review_contract_is_not_retried(self):
         ctx, data = self.review_context()
         invalid = self.frozen_review('invalid', False, ['R-02 reason'])
-        with patch('agent.nodes.adaptive._request',
+        with patch('agent.orchestration.nodes.adaptive._request',
                    side_effect=[self.review_reply('m1')]) as request, \
-             patch('agent.nodes.adaptive.review_request',
+             patch('agent.orchestration.nodes.adaptive.review_request',
                    return_value=[{'role': 'user', 'content': 'review'}]), \
-             patch('agent.nodes.adaptive.approve_review', side_effect=[invalid]):
+             patch('agent.orchestration.nodes.adaptive.approve_review', side_effect=[invalid]):
             state = review_checker(ctx, State())
         self.assertEqual(state['checker_status'], 'invalid')
         self.assertEqual(len(request.call_args_list), 1)
@@ -335,11 +335,11 @@ class DeliveryTests(unittest.TestCase):
     def test_rereview_never_retries_the_contract(self):
         ctx, data = self.review_context()
         invalid = self.frozen_review('invalid', True, ['R-02 reason'])
-        with patch('agent.nodes.adaptive._request',
+        with patch('agent.orchestration.nodes.adaptive._request',
                    side_effect=[self.review_reply('m1')]) as request, \
-             patch('agent.nodes.adaptive.review_request',
+             patch('agent.orchestration.nodes.adaptive.review_request',
                    return_value=[{'role': 'user', 'content': 'review'}]), \
-             patch('agent.nodes.adaptive.approve_review', side_effect=[invalid]):
+             patch('agent.orchestration.nodes.adaptive.approve_review', side_effect=[invalid]):
             frozen = _review_checker(ctx, object(), 'rereview')
         self.assertEqual(frozen.status, 'invalid')
         self.assertEqual(len(request.call_args_list), 1)
@@ -348,11 +348,11 @@ class DeliveryTests(unittest.TestCase):
     def test_denied_review_retry_records_not_sent(self):
         ctx, data = self.review_context()
         invalid = self.frozen_review('invalid', True, ['R-01 missing fields'])
-        with patch('agent.nodes.adaptive._request',
+        with patch('agent.orchestration.nodes.adaptive._request',
                    side_effect=[self.review_reply('m1'), None]), \
-             patch('agent.nodes.adaptive.review_request',
+             patch('agent.orchestration.nodes.adaptive.review_request',
                    return_value=[{'role': 'user', 'content': 'review'}]), \
-             patch('agent.nodes.adaptive.approve_review', side_effect=[invalid]):
+             patch('agent.orchestration.nodes.adaptive.approve_review', side_effect=[invalid]):
             state = review_checker(ctx, State())
         self.assertEqual(state['checker_status'], 'invalid')
         self.assertTrue(data['review_retry_used'])
@@ -361,7 +361,7 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(contract['model_calls'], 1)
 
     def test_initialize_and_finish_record_review_contract(self):
-        from agent.workflows.adaptive_verify import AdaptiveParameters
+        from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters
         self.artifacts = {}
         record = SimpleNamespace(
             write_json=lambda name, value: self.artifacts.update({name: value}),
@@ -394,7 +394,7 @@ class DeliveryTests(unittest.TestCase):
     # -- workflow parameters and Skill admission at graph construction -------
     def test_adaptive_parameters_review_retry_and_skill_gate(self):
         from burr.core import ApplicationBuilder
-        from agent.workflows.adaptive_verify import AdaptiveParameters, build
+        from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters, build
         parameters = AdaptiveParameters()
         self.assertEqual((parameters.review_retry.timeout_s,
                           parameters.review_retry.max_tokens), (1200.0, 32768))

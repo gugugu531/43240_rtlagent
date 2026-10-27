@@ -92,7 +92,7 @@ Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protoc
 
 ## 采样与解释
 
-`agent/rtl/observation.py` 接收只含公开端口、静态输入和时钟事件的 SamplingPlan。每个 case 使用独立 DUT，`pre` 在输入驱动稳定后、有效沿前采样，`post` 在有效沿及非阻塞赋值稳定后采样。两相位都保存实际输入和输出，包括未知位掩码、候选哈希、采样计划哈希和独立 execution_id。缺行、重复、错宽度、错相位或驱动值不符都不能记为完成。`TraceRun.complete` 仅表示得到完整轨迹，不代表功能通过；Vivado 退出 0 也须检查实际采样及完成标记。
+`agent/domain/rtl/observation.py` 接收只含公开端口、静态输入和时钟事件的 SamplingPlan。每个 case 使用独立 DUT，`pre` 在输入驱动稳定后、有效沿前采样，`post` 在有效沿及非阻塞赋值稳定后采样。两相位都保存实际输入和输出，包括未知位掩码、候选哈希、采样计划哈希和独立 execution_id。缺行、重复、错宽度、错相位或驱动值不符都不能记为完成。`TraceRun.complete` 仅表示得到完整轨迹，不代表功能通过；Vivado 退出 0 也须检查实际采样及完成标记。
 
 `observation.validate_trace()` 是两条解释路线共用的结构化记录校验入口，核对身份、每个 case 的顺序、时钟计数、采样标记、端口位宽和实际驱动值；不同 case 可以交错输出。`adaptive_execute.evaluate_model()` 将同一中立轨迹的 post 输出交给既有行为比较器；`compare_trace_rows()` 也供旧日志解析器使用，比较计数、掩码和未知值规则只有一份实现。期望值只从独立模型、输入和模型状态计算，不能读取 DUT 输出。`properties.evaluate_properties()` 使用公开端口、有限历史与触发快照计算局部性质；两条路线都使用同一采样器。
 

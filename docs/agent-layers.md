@@ -96,6 +96,41 @@ flowchart TB
 | L6 观测 | 事件、产物、回看 | 各层事件 | `trace.jsonl`、`records/` | 不改变执行结果 |
 | L7 提交 | 答案发布与投题协议 | 候选选择结果 | `solution.v`、HTTP 响应 | 不评判检查通过 |
 
+### 2.1 实际目录布局
+
+2026-10-28 已按层重排，不再是纯逻辑映射：
+
+```text
+agent/
+├── main.py / config.py / kit.py / roles.py    # 入口、配置、扩展 API、共享角色表
+├── orchestration/
+│   ├── graph.py / stages.py / agent_loop.py
+│   ├── nodes/                                 # 阶段适配
+│   └── workflows/                             # 图与条件边
+├── context/
+│   ├── prompt.py                              # ContextBundle / PromptAssembly
+│   └── prompts/                               # Jinja2 模板
+├── llm/                                       # 客户端、类型、profile 路由
+├── tools/
+│   ├── registry.py                            # 节点/工具/工作流注册
+│   └── result.py                              # ToolResult 信封
+├── domain/
+│   ├── rtl/                                   # 题面、接口、候选、检查器、仿真
+│   └── knowledge/                             # Skill、检索、资产
+├── observability/
+│   ├── recorder.py
+│   └── redaction.py
+├── submission/
+│   └── gateway.py                             # solution.v 发布
+└── runtime/                                   # 共享执行服务
+    ├── allowance.py / budget.py
+    ├── context.py                             # Ctx
+    └── process.py
+```
+
+`runtime/` 不是新增业务层，只放预算、许可、任务上下文和进程管理；它们被 L0/L3/L4 共用。
+`kit.py` 与 `roles.py` 留在根目录，因为扩展 API 和角色表跨层使用。`agent/llm/` 位置不变。
+
 ## 3. LLM 层
 
 ### 3.1 输入与输出
@@ -163,7 +198,7 @@ flowchart TB
 
 ### 4.3 阶段内工具循环
 
-`agent/runtime/agent_loop.py` 提供有界循环：模型回复带 `tool_calls` 时，宿主按白名单执行并把
+`agent/orchestration/agent_loop.py` 提供有界循环：模型回复带 `tool_calls` 时，宿主按白名单执行并把
 `ToolResult` 回填，直到无工具调用、调用 `finish_task` 或达到 `tool_steps`。每个模型步骤都经
 `CompletionLedger` 单独预留，因此一次循环会消耗多次 completion 名额。
 
@@ -189,7 +224,7 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 
 - 工作流仍由显式节点和条件边组成；节点返回状态，图决定下一步。
 - 每个节点对应一个 Stage 描述：`role`、`tools`、`max_steps`。当前实现在
-  `agent/runtime/stages.py` 的 `ADAPTIVE_STAGES`，请求辅助标签（如 `draft_tool_2`）
+  `agent/orchestration/stages.py` 的 `ADAPTIVE_STAGES`，请求辅助标签（如 `draft_tool_2`）
   通过 `stage_spec()` 回落到同一描述。
 - Stage 内的工具循环是有界的；作者阶段声明 `submit_answer`/`finish_task`，其余阶段没有
   模型可调用工具。达到上限后返回最后一次回复，并记录 `step_limit`，不自动追加请求。
@@ -202,7 +237,7 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 
 `<output>/solution.v` 是唯一最终答案文件，由宿主原子写入（临时文件 + `fsync` + `os.replace`）。
 
-`submit_answer` 工具（`agent/nodes/submission_tools.py`）：
+`submit_answer` 工具（`agent/orchestration/nodes/submission_tools.py`）：
 
 - 输入：`code`、可选 `top`、可选 `note`。
 - 宿主校验：可提取完整模块、顶层名匹配、未截断。
@@ -250,8 +285,8 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 | 层 | 现有实现 | 缺口 |
 | --- | --- | --- |
 | L0 | `agent/main.py`、`agent/config.py`、`runtime/budget.py`、`runtime/process.py` | 收尾已接入 `finalize()`；`RunContext` 尚未独立 |
-| L1 | `runtime/graph.py`、`runtime/agent_loop.py`、`runtime/stages.py`、`agent/workflows/*`、`agent/nodes/*` | Stage 描述与工具循环已实现；阶段预算仍来自工作流参数 |
-| L2 | `runtime/prompt.py`、`agent/prompts/*`、`knowledge/context.py`、`rtl/adaptive_context.py` | `ContextBundle` 与 `PromptAssembly` 已实现并记录；打包仍由 knowledge 层执行 |
+| L1 | `runtime/graph.py`、`runtime/agent_loop.py`、`runtime/stages.py`、`agent/orchestration/workflows/*`、`agent/orchestration/nodes/*` | Stage 描述与工具循环已实现；阶段预算仍来自工作流参数 |
+| L2 | `runtime/prompt.py`、`agent/context/prompts/*`、`knowledge/context.py`、`rtl/adaptive_context.py` | `ContextBundle` 与 `PromptAssembly` 已实现并记录；打包仍由 knowledge 层执行 |
 | L3 | `agent/llm/client.py`、`llm/router.py`、`llm/types.py`、`runtime/allowance.py` | profile 路由已实现；`Usage` 对象与按角色配额仍待细化 |
 | L4 | `runtime/registry.py`、`runtime/tool_result.py`、`Ctx.call/dispatch/tool_schema` | `ToolResult` 与工具分类已实现；工具白名单仍按阶段硬编码 |
 | L5 | `rtl/*`、`rtl/suite/*`、`knowledge/*` | 保持 |

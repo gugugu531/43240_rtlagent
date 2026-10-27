@@ -5,15 +5,15 @@ from pathlib import Path
 import re
 import unittest
 from agent.config import ROOT
-from agent.knowledge.assets import load_assets, card_text, sha256
-from agent.knowledge.context import NOTICE
-from agent.knowledge.policy import RetrievalOptions, validate_selection
-from agent.knowledge.release import read_lock, validate_release, fingerprint, policy_content
-from agent.knowledge.runtime import bundle
-from agent.prompts import TemplateRenderer
-from agent.rtl.task import TaskSpec
-from agent.rtl.adaptive_repair import repair_request
-from agent.rtl.candidate import CandidateFactory
+from agent.domain.knowledge.assets import load_assets, card_text, sha256
+from agent.domain.knowledge.context import NOTICE
+from agent.domain.knowledge.policy import RetrievalOptions, validate_selection
+from agent.domain.knowledge.release import read_lock, validate_release, fingerprint, policy_content
+from agent.domain.knowledge.runtime import bundle
+from agent.context.prompts import TemplateRenderer
+from agent.domain.rtl.task import TaskSpec
+from agent.domain.rtl.adaptive_repair import repair_request
+from agent.domain.rtl.candidate import CandidateFactory
 
 HAN = re.compile(r'[\u3400-\u9fff]')
 
@@ -27,10 +27,10 @@ class EnglishRelease(unittest.TestCase):
         return json.loads(raw),read_lock(),raw,(ROOT/'knowledge/cards.json').read_bytes()
 
     def test_all_prompt_templates_and_wrappers_english(self):
-        for path in (ROOT/'agent/prompts').glob('*.j2'):
+        for path in (ROOT/'agent/context/prompts').glob('*.j2'):
             self.assert_english(path.read_text())
         self.assert_english(NOTICE)
-        self.assert_english((ROOT/'agent/rtl/adaptive_repair.py').read_text())
+        self.assert_english((ROOT/'agent/domain/rtl/adaptive_repair.py').read_text())
 
     def test_rendered_generate_repair_and_adaptive_prompts_english(self):
         task=TaskSpec.from_text('synthetic','Implement a combinational identity function.',

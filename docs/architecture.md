@@ -27,7 +27,7 @@ flowchart TD
     Nodes --> Model[llm：请求、响应、结构化校验]
     Nodes --> Context[Ctx：任务级服务]
     Domain --> Context
-    Context --> Runtime[runtime：预算、进程、记录]
+    Context --> Runtime[runtime / observability / tools]
     Model --> Runtime
     Runtime --> Evidence[trace.jsonl / records]
     Domain --> Answer[solution.v]
@@ -38,15 +38,18 @@ flowchart TD
 | 层 | 位置 | 负责什么 | 新增代码应避免什么 |
 | --- | --- | --- | --- |
 | 入口与配置 | `run.sh`、`agent/main.py`、`agent/config.py` | 目录协议、配置覆盖、任务服务装配、退出收尾 | 在入口堆放题目策略或重复工作流分支 |
-| 图与运行时 | `agent/runtime/` | 注册、Burr 绑定、截止、进程组、日志、工具调用 | 引入具体题目语义、参考答案或检查器表达式 |
-| 模型服务 | `agent/llm/` | HTTP 协议、分词、统一生成参数、响应类型、结构校验、离线重放 | 在节点中复制网络请求、隐式切换思考策略 |
-| RTL 领域 | `agent/rtl/` | 公开题面、接口、候选身份、检查结果、检查器语义与仿真 | 决定整条工作流应重试几轮或读取官方判定 |
-| 求解知识 | `agent/knowledge/`、`knowledge/`、`skill/` | 固定方法、当前诊断检索、整段上下文装配 | 读取实验标签、官方反馈，或给独立检查器注入候选相关知识 |
-| 阶段节点 | `agent/nodes/` | 调用领域能力、组织提示、根据证据更新流程状态 | 用长串隐式调用代替可解释的跨阶段流程 |
-| 工作流 | `agent/workflows/` | 节点别名、默认参数、初始状态、条件连线与入口 | 执行模型、进程或工具副作用 |
-| 提示与预设 | `agent/prompts/`、`config/` | 模板与可选择的参数组合 | 把 Python 逻辑藏进 YAML，或将凭据写进预设 |
+| 编排 | `agent/orchestration/` | Burr 绑定、Stage 描述、工具循环、节点与工作流 | 执行模型、进程或工具副作用 |
+| 提示与上下文 | `agent/context/` | `ContextBundle`、`PromptAssembly`、Jinja2 模板 | 调用模型或工具 |
+| 模型服务 | `agent/llm/` | HTTP 协议、分词、模型 profile、响应类型、结构校验、离线重放 | 在节点中复制网络请求、隐式切换思考策略 |
+| 工具 | `agent/tools/` | 注册、参数校验、`ToolResult` 信封 | 决定流程分支或题目语义 |
+| RTL 领域 | `agent/domain/rtl/` | 公开题面、接口、候选身份、检查结果、检查器语义与仿真 | 决定整条工作流应重试几轮或读取官方判定 |
+| 求解知识 | `agent/domain/knowledge/`、`knowledge/`、`skill/` | 固定方法、当前诊断检索、整段上下文装配 | 读取实验标签、官方反馈，或给独立检查器注入候选相关知识 |
+| 观测 | `agent/observability/` | 事件、脱敏、完整产物 | 改变执行结果 |
+| 提交 | `agent/submission/` | 原子发布 `solution.v` | 评判检查通过 |
+| 共享运行时 | `agent/runtime/` | 预算、许可、`Ctx`、进程组 | 引入具体题目语义 |
+| 预设 | `config/` | 可选择的参数组合 | 把 Python 逻辑藏进 YAML，或将凭据写进预设 |
 
-运行时装配见 [graph.py](../agent/runtime/graph.py)，公共扩展符号见 [kit.py](../agent/kit.py)。工具虽然可在 `nodes/` 适配层注册，具体检查语义仍应放到 `rtl/`，避免同一检查在不同工作流各实现一份。
+运行时装配见 [graph.py](../agent/orchestration/graph.py)，公共扩展符号见 [kit.py](../agent/kit.py)。工具虽然可在 `agent/orchestration/nodes/` 适配层注册，具体检查语义仍应放到 `agent/domain/rtl/`，避免同一检查在不同工作流各实现一份。
 
 ## 3. 一次运行怎样完成
 
@@ -57,7 +60,7 @@ flowchart TD
 5. `run_graph()` 每步检查剩余预算，再调用 `app.step()`。没有下一步、执行了别名为 `finish` 的动作，或达到 `runtime.max_steps` 时结束；步数耗尽会写入停止原因。
 6. 收尾关闭受管进程与模型客户端，写入 `run/end`，保留本次已经原子保存的答案。
 
-当前是单次任务内的单进程、逐步执行；没有独立监督进程、分布式节点调度或自动断点恢复。可选 Burr tracker 用于记录，不意味着入口提供恢复执行能力。`run.sh` 的退出码为 0 不是验收标准，必须查看结束状态、已保存答案和对应检查证据。
+当前是单次任务内的单进程、逐步执行；没有独立监督进程、分布式节点调度或自动断点恢复。可选 Burr tracker 用于记录，不意味着入口提供恢复执行能力。`run.sh` 按赛事契约在有答案时返回 0、无答案时返回非 0；退出码仍不是功能验收标准，必须查看结束状态、已保存答案和对应检查证据。
 
 入口会在新一次运行开始时初始化 `solution.v`，因此每次实验应使用独立输出目录。所谓保留答案，是指本次运行中已经选定的答案在后续失败或取消时仍保留，并不是自动续接上一次输出目录。
 
@@ -80,7 +83,7 @@ Burr 提供动作、不可变状态更新和条件连线；工作流选择了哪
 | `design_verify_loop` | 规划 → 构造检查器 → 生成 → 去重／结构／功能检查 → 归因与受限修订 → 独立验收／最终综合 | 多类证据共同决定下一步；检查器失效、证据不足和真正代码失败分开处理 |
 | `adaptive_verify` | 一次短分析 → 保存首稿 → 一次构造／复核（复核契约无效且可重试时一次受控重试）→ 检查 → 一次归因与RTL修复 → 同计划复检选稿 | 明确反例或代码错误才修复；路由门禁、复核/归因契约 v2 与预算边界见[自适应工作流](adaptive.md)；宽预算与原流程分开验收 |
 
-详细连线以对应 [工作流源码](../agent/workflows/__init__.py) 为准。`design_verify_loop` 并不是每次都执行所有分支，也不保证构造出可用检查器；检查器修订、原样重试和 RTL 轮数分别有上限。实际采用了哪条路径，由状态及日志决定。
+详细连线以对应 [工作流源码](../agent/orchestration/workflows/__init__.py) 为准。`design_verify_loop` 并不是每次都执行所有分支，也不保证构造出可用检查器；检查器修订、原样重试和 RTL 轮数分别有上限。实际采用了哪条路径，由状态及日志决定。
 
 ## 6. 统一服务与预算
 
@@ -96,7 +99,7 @@ Burr 提供动作、不可变状态更新和条件连线；工作流选择了哪
 
 检查器构造依据公开题面与明确的语义约束，不能读取候选 RTL 或实测输出作为期望值来源。诊断可以使用检查证据来判断需要改 RTL、规划还是检查器，但后续独立构造仍要保持这一输入边界。新模块不得读取参考答案、官方测试台或官方判定反馈来辅助求解。
 
-检查器语义、值宽、未知值和状态采样由 `agent/rtl/suite/` 处理。未知、未执行、无效检查器和环境不可用都不等于通过；“预期可比较”不代替实际 `compared_samples`、`compared_bits`。检查模块验收必须含自编正确例与错误反例，确认既能执行也能检出错误。
+检查器语义、值宽、未知值和状态采样由 `agent/domain/rtl/suite/` 处理。未知、未执行、无效检查器和环境不可用都不等于通过；“预期可比较”不代替实际 `compared_samples`、`compared_bits`。检查模块验收必须含自编正确例与错误反例，确认既能执行也能检出错误。
 
 候选通过 `CandidateStore` 分配 ID，记录父候选、代码哈希和来源调用。检查结果通过 `bind_result()` 绑定候选哈希、检查器代码哈希和套件哈希。修订候选或检查器后应重新检查，不能拿旧结果替新稿背书。
 
@@ -106,7 +109,7 @@ Burr 提供动作、不可变状态更新和条件连线；工作流选择了哪
 
 ## 8. 可观测性也是接口
 
-[Recorder](../agent/runtime/recorder.py) 使用 `run_id`、事件 `seq` 和 `span_id`／`parent_span_id` 关联运行、节点、工具和内部调用。通过 `NodeRecorder` 自动记录节点开始、结束、耗时、异常以及输入／输出状态；通过工具和模型封装记录内部动作，而不是让每个节点复制日志协议。
+[Recorder](../agent/observability/recorder.py) 使用 `run_id`、事件 `seq` 和 `span_id`／`parent_span_id` 关联运行、节点、工具和内部调用。通过 `NodeRecorder` 自动记录节点开始、结束、耗时、异常以及输入／输出状态；通过工具和模型封装记录内部动作，而不是让每个节点复制日志协议。
 
 - `trace.jsonl`：始终保留的事件流；`basic` 也会包含节点状态，所以状态必须克制。
 - `records/<run_id>/`：`full` 级别保存请求、响应、候选、工具输出、配置与源码信息；`basic` 不生成这些正文文件。

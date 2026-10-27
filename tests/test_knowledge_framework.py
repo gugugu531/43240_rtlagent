@@ -4,12 +4,12 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace as NS
 from unittest.mock import patch
-from agent.knowledge.context import prepare
-from agent.knowledge.policy import modes, validate_selection
-from agent.knowledge.runtime import bundle, retrieve_runtime, f24_matches, vector
-from agent.rtl.candidate import CandidateFactory, CandidateStore
-from agent.rtl.result import CheckResult, bind_result
-from agent.runtime.recorder import Recorder
+from agent.domain.knowledge.context import prepare
+from agent.domain.knowledge.policy import modes, validate_selection
+from agent.domain.knowledge.runtime import bundle, retrieve_runtime, f24_matches, vector
+from agent.domain.rtl.candidate import CandidateFactory, CandidateStore
+from agent.domain.rtl.result import CheckResult, bind_result
+from agent.observability.recorder import Recorder
 from agent.kit import State
 
 
@@ -118,7 +118,7 @@ class Framework(unittest.TestCase):
 
     def test_all_backends_uniform(self):
         data,_ = bundle()
-        with patch('agent.knowledge.runtime.embed',return_value=data['documents'][0]['vector']):
+        with patch('agent.domain.knowledge.runtime.embed',return_value=data['documents'][0]['vector']):
             for strategy in ('exact','bm25','dense','hybrid'):
                 with self.subTest(strategy=strategy):
                     cards, trace = retrieve_runtime(self.evidence(),self.parent,{'strategy':strategy},self.messages)
@@ -140,7 +140,7 @@ class Framework(unittest.TestCase):
                 vector(value,1024)
 
     def test_no_delivery_retains_old_candidate(self):
-        from agent.nodes.extract import extract
+        from agent.orchestration.nodes.extract import extract
         store = CandidateStore(self.record,self.tmp.name)
         old = store.create('module TopModule; endmodule')
         store.select(old.id,'baseline')
@@ -152,7 +152,7 @@ class Framework(unittest.TestCase):
         self.assertEqual(state['target_id'],old.id)
 
     def test_defaults_and_conflicts(self):
-        from agent.workflows.adaptive_verify import AdaptiveParameters
+        from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters
         self.assertFalse(AdaptiveParameters().rag)
         self.assertEqual(modes(),('off','off'))
         with self.assertRaises(ValueError):
@@ -165,7 +165,7 @@ class Framework(unittest.TestCase):
         self.assertNotIn('oracle_family_id',json.dumps(data))
 
     def test_optional_asset_failure_does_not_block(self):
-        with patch('agent.knowledge.context.load_assets',side_effect=ValueError('bad hash')):
+        with patch('agent.domain.knowledge.context.load_assets',side_effect=ValueError('bad hash')):
             packed, trace = self.prepare(skill_ids=['rtl-sequential-state-update'])
         self.assertEqual(packed,self.messages)
         self.assertEqual(trace['reason'],'optional_knowledge_failure')
@@ -176,24 +176,24 @@ class Framework(unittest.TestCase):
                  'card_version':next(r for r in data['rules'] if r['card_id']=='repair-local-syntax')['card_version'],
                  'card_sha256':next(r for r in data['rules'] if r['card_id']=='repair-local-syntax')['card_sha256'],
                  'candidate_sha256':self.parent.code_hash,'feedback_sha256':__import__('hashlib').sha256(b'feedback').hexdigest()}])
-        with patch('agent.knowledge.runtime.bundle',return_value=(data,digest)), patch(
-                'agent.knowledge.runtime.embed',return_value=data['documents'][0]['vector']):
+        with patch('agent.domain.knowledge.runtime.bundle',return_value=(data,digest)), patch(
+                'agent.domain.knowledge.runtime.embed',return_value=data['documents'][0]['vector']):
             _, trace = retrieve_runtime(self.evidence(),self.parent,{'strategy':'dense','retrieve_k':32},self.messages,'feedback')
         self.assertIn('checkpoint_correct_empty',[x['reason'] for x in trace['rejected']])
 
     def test_all_packaged_configs_build(self):
-        import agent.nodes
-        import agent.workflows
+        import agent.orchestration.nodes
+        import agent.orchestration.workflows
         from agent.config import load_config
-        from agent.runtime.graph import build_graph
+        from agent.orchestration.graph import build_graph
         for path in Path('config').glob('*.yaml'):
             with self.subTest(config=path.name):
                 config,_ = load_config(path,{})
                 build_graph(NS(config=config,record=self.record))
 
     def test_adaptive_rejected_skills_still_deliver(self):
-        from agent.nodes.adaptive import _request
-        from agent.workflows.adaptive_verify import AdaptiveParameters
+        from agent.orchestration.nodes.adaptive import _request
+        from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters
         from agent.runtime.allowance import CompletionLedger
         from agent.runtime.budget import Budget
         from agent.llm.client import Client
@@ -213,16 +213,16 @@ class Framework(unittest.TestCase):
 
 class GraphAcceptance(unittest.TestCase):
     def run_case(self, mode, *, no_delivery=False, skill_ids=None, workflow='repair_loop'):
-        import agent.nodes
-        import agent.workflows
+        import agent.orchestration.nodes
+        import agent.orchestration.workflows
         from agent.config import load_config
         from agent.runtime.context import Ctx
         from agent.runtime.budget import Budget
-        from agent.runtime.graph import run_graph, build_graph
-        from agent.rtl.task import TaskSpec
+        from agent.orchestration.graph import run_graph, build_graph
+        from agent.domain.rtl.task import TaskSpec
         from agent.llm.client import Client
         from agent.llm.mock import make_transport
-        from agent.prompts import TemplateRenderer
+        from agent.context.prompts import TemplateRenderer
         from baseline import load_generation
         with tempfile.TemporaryDirectory() as directory:
             record = Recorder(directory)
@@ -256,7 +256,7 @@ class GraphAcceptance(unittest.TestCase):
                     self.assertFalse(llm.requests)
                     return
                 state = run_graph(ctx)
-                from agent.knowledge.outcome import summarize
+                from agent.domain.knowledge.outcome import summarize
                 outcome = summarize(Path(directory)/'trace.jsonl',Path(directory)/'solution.v')
                 requests = [r['messages'] for r in llm.requests]
                 self.assertEqual(len(requests),2)

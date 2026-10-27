@@ -5,8 +5,8 @@ import json
 from types import SimpleNamespace
 import unittest
 
-from agent.rtl.adaptive_repair import repair_request
-from agent.rtl.vivado import (
+from agent.domain.rtl.adaptive_repair import repair_request
+from agent.domain.rtl.vivado import (
     classify_functional_failure,
     classify_tool_failure,
     extract_diagnostics,

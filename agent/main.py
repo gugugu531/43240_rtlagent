@@ -33,7 +33,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "solution.v").write_text("", encoding="utf-8")
-    from agent.runtime.recorder import Recorder
+    from agent.observability.recorder import Recorder
     from agent.runtime.budget import Budget, BudgetExhausted, Deadline
 
     record = Recorder(args.output, level="basic")
@@ -137,18 +137,18 @@ def main(argv=None):
                 plugins=plugins,
             ),
         )
-        from agent.runtime.registry import load_plugins
-        from agent.runtime.graph import run_graph
+        from agent.tools.registry import load_plugins
+        from agent.orchestration.graph import run_graph
         from agent.runtime.context import Ctx
-        from agent.rtl.task import TaskSpec
-        from agent.rtl.candidate import CandidateStore
+        from agent.domain.rtl.task import TaskSpec
+        from agent.domain.rtl.candidate import CandidateStore
         from agent.llm.client import Client, ModelError
 
         model_error_type = ModelError
-        from agent.prompts import TemplateRenderer
+        from agent.context.prompts import TemplateRenderer
         from baseline import load_generation
-        import agent.nodes  # noqa: F401 - register built-in nodes
-        import agent.workflows  # noqa: F401 - register built-in workflows
+        import agent.orchestration.nodes  # noqa: F401 - register built-in nodes
+        import agent.orchestration.workflows  # noqa: F401 - register built-in workflows
 
         load_plugins(config.plugins)
         task = TaskSpec.from_directory(
@@ -211,7 +211,7 @@ def main(argv=None):
                             error_type=type(error).__name__, error=str(error),
                             excerpt="submission finalize failed",
                         )
-                from agent.knowledge.outcome import summarize
+                from agent.domain.knowledge.outcome import summarize
                 summary = summarize(args.output / 'trace.jsonl', args.output / 'solution.v')
                 record.write_json('framework-outcome.json', summary)
                 record.emit('knowledge', 'outcome', **summary)

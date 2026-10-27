@@ -10,8 +10,8 @@ expectation consistency, fabricated diagnostic code, properties holds).
 import json
 import unittest
 
-from agent.rtl.adaptive_repair import diagnostic_codes, parse_repair, repair_request
-from agent.rtl.task import TaskSpec
+from agent.domain.rtl.adaptive_repair import diagnostic_codes, parse_repair, repair_request
+from agent.domain.rtl.task import TaskSpec
 
 TOP = "TopModule"
 MODULE = ("module TopModule(input reset, input s, output dfr);"
@@ -370,7 +370,7 @@ class AttributionFixtures(unittest.TestCase):
 
 
 def make_checker(payload, task, route="model"):
-    from agent.rtl.adaptive_check import FrozenChecker, parse_checker
+    from agent.domain.rtl.adaptive_check import FrozenChecker, parse_checker
     text = json.dumps({"status": "ready", "checker": payload})
     draft = parse_checker(text, task, route, finish_reason="stop")
     if draft.status != "ready":
@@ -381,9 +381,9 @@ def make_checker(payload, task, route="model"):
 
 def identity_assessment(checker, *, width, row_count, flip_bits=0):
     """Build a completed model assessment whose actual trace flips known bits."""
-    from agent.rtl.adaptive_selection import check_plan_hash
-    from agent.rtl.identity import suite_hash
-    from agent.rtl.suite.evaluate import expected_traces
+    from agent.domain.rtl.adaptive_selection import check_plan_hash
+    from agent.domain.rtl.identity import suite_hash
+    from agent.domain.rtl.suite.evaluate import expected_traces
     suite = checker.payload
     plan_hash = check_plan_hash(checker)
     implementation = "b" * 64
@@ -432,7 +432,7 @@ class EvidenceIndex(unittest.TestCase):
             "module TopModule(input [7:0] a, output [7:0] y); endmodule")
 
     def test_model_failed_mismatches_are_bound_and_traceable(self):
-        from agent.rtl.adaptive_selection import repair_opportunity
+        from agent.domain.rtl.adaptive_selection import repair_opportunity
         task = self.task()
         checker = make_checker(identity_payload(task), task)
         assessment = identity_assessment(checker, width=8, row_count=2, flip_bits=8)
@@ -448,7 +448,7 @@ class EvidenceIndex(unittest.TestCase):
         self.assertEqual(opportunity["passed"], 8)
 
     def test_model_failed_mismatches_are_capped_at_32(self):
-        from agent.rtl.adaptive_selection import repair_opportunity
+        from agent.domain.rtl.adaptive_selection import repair_opportunity
         task = TaskSpec.from_text(
             "synthetic", "Output y equals input a.",
             "module TopModule(input [63:0] a, output [63:0] y); endmodule")
@@ -459,7 +459,7 @@ class EvidenceIndex(unittest.TestCase):
         self.assertEqual(opportunity["failed"], 64)
 
     def test_property_failed_mismatches_use_boolean_holds(self):
-        from agent.rtl.adaptive_selection import _property_mismatches
+        from agent.domain.rtl.adaptive_selection import _property_mismatches
         failed = {("p1", "c1", 0, 0)}
         context = {("p1", "c1", 0, 0): {
             "observations": [{"step": 0, "age": 0, "value": False, "abort": False}]}}
@@ -471,10 +471,10 @@ class EvidenceIndex(unittest.TestCase):
         self.assertEqual(len(_property_mismatches(set(many), many)), 32)
 
     def properties_assessment(self):
-        from agent.rtl.adaptive_selection import check_plan_hash
-        from agent.rtl.identity import suite_hash
-        from agent.rtl.observation import sampling_hash
-        from agent.rtl.properties import property_hash
+        from agent.domain.rtl.adaptive_selection import check_plan_hash
+        from agent.domain.rtl.identity import suite_hash
+        from agent.domain.rtl.observation import sampling_hash
+        from agent.domain.rtl.properties import property_hash
         task = TaskSpec.from_text(
             "synthetic", "The output y equals the one-bit input a.",
             "module TopModule(input a, output y); endmodule")
@@ -529,7 +529,7 @@ class EvidenceIndex(unittest.TestCase):
         return task, checker, assessment
 
     def test_properties_failed_mismatches_use_validated_obligations(self):
-        from agent.rtl.adaptive_selection import repair_opportunity
+        from agent.domain.rtl.adaptive_selection import repair_opportunity
         _, checker, assessment = self.properties_assessment()
         opportunity = repair_opportunity(assessment, checker)
         self.assertEqual(opportunity["kind"], "behavior")

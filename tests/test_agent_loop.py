@@ -4,7 +4,7 @@ import json
 import unittest
 
 from agent.llm.types import ModelError, Reply
-from agent.runtime.agent_loop import run_tool_loop
+from agent.orchestration.agent_loop import run_tool_loop
 
 
 def reply(*calls, content=""):

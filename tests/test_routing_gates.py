@@ -8,10 +8,10 @@ import json
 import unittest
 from types import SimpleNamespace
 
-from agent.knowledge.policy import assert_automatic_skill_allowed, route_skill_ids
-from agent.prompts import TemplateRenderer
-from agent.rtl.adaptive_analysis import RouteDecision, choose_route
-from agent.rtl.task import TaskSpec
+from agent.domain.knowledge.policy import assert_automatic_skill_allowed, route_skill_ids
+from agent.context.prompts import TemplateRenderer
+from agent.domain.rtl.adaptive_analysis import RouteDecision, choose_route
+from agent.domain.rtl.task import TaskSpec
 
 NL = "\n"
 

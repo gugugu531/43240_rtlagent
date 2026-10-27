@@ -15,22 +15,22 @@ evaluation is ever implemented.
 
 import unittest
 
-from agent.rtl.adaptive_check import (
+from agent.domain.rtl.adaptive_check import (
     analyze_model_expectation_shape,
     analyze_property_trigger_census,
 )
-from agent.rtl.adaptive_execute import evaluate_model
-from agent.rtl.observation import (
+from agent.domain.rtl.adaptive_execute import evaluate_model
+from agent.domain.rtl.observation import (
     TraceRun,
     _expected_events,
     sampling_hash,
     sampling_plan_from_suite,
     validate_trace,
 )
-from agent.rtl.properties import evaluate_properties, validate_properties
-from agent.rtl.suite.evaluate import expected_traces
-from agent.rtl.suite.schema import validate_suite
-from agent.rtl.suite.testbench import compare_trace_rows
+from agent.domain.rtl.properties import evaluate_properties, validate_properties
+from agent.domain.rtl.suite.evaluate import expected_traces
+from agent.domain.rtl.suite.schema import validate_suite
+from agent.domain.rtl.suite.testbench import compare_trace_rows
 
 
 def requirement(identity, quote):
