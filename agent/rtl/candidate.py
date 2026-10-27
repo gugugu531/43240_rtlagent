@@ -152,13 +152,11 @@ class CandidateStore:
     def values(self):
         return tuple(self._items.values())
 
-    def select(self, candidate_id, reason):
+    def _write_solution(self, candidate):
+        """Atomically replace solution.v; never leave a partial answer."""
         import os
         import tempfile
 
-        candidate = self.get(candidate_id)
-        if candidate is None:
-            raise ValueError("selection requires a candidate")
         fd, path = tempfile.mkstemp(
             prefix=".solution-", suffix=".tmp", dir=self.output_dir
         )
@@ -171,6 +169,27 @@ class CandidateStore:
         finally:
             if os.path.exists(path):
                 os.unlink(path)
+
+    def publish(self, candidate_id, reason):
+        """Publish an answer without claiming it is the evidence-backed pick."""
+        candidate = self.get(candidate_id)
+        if candidate is None:
+            raise ValueError("publication requires a candidate")
+        self._write_solution(candidate)
+        self.record.emit(
+            "publish",
+            "result",
+            candidate_id=candidate_id,
+            reason=reason,
+            code_hash=candidate.code_hash,
+        )
+        return candidate
+
+    def select(self, candidate_id, reason):
+        candidate = self.get(candidate_id)
+        if candidate is None:
+            raise ValueError("selection requires a candidate")
+        self._write_solution(candidate)
         self.selected_id = candidate_id
         self.record.emit(
             "select",
