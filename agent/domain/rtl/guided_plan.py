@@ -132,18 +132,26 @@ def parse_plan(text, *, skill_ids, card_ids, max_skills=2, max_cards=3,
     def split(key):
         value = values.get(key, "")
         return tuple(item.strip() for item in value.split(",") if item.strip())
-    skills = split("skills")
-    knowledge = split("knowledge")
-    if len(skills) > max_skills or len(set(skills)) != len(skills):
-        raise PlanError("invalid skill list")
-    if len(knowledge) > max_cards or len(set(knowledge)) != len(knowledge):
-        raise PlanError("invalid knowledge list")
     allowed_skills = set(skill_ids)
     allowed_cards = set(card_ids)
-    # A small model may invent ids; drop unknown ids but keep the valid plan.
-    skills = tuple(item for item in skills if item in allowed_skills)
-    knowledge = tuple(item for item in knowledge if item in allowed_cards)
-    focus = tuple(item.strip() for item in values.get("focus", "").split("|") if item.strip())
+    # Drop unknown or duplicate ids before applying the configured limits. A
+    # small model may confuse skill ids with knowledge ids; that must not
+    # invalidate an otherwise usable method decision.
+    skills = tuple(dict.fromkeys(
+        item for item in split("skills") if item in allowed_skills
+    ))
+    knowledge = tuple(dict.fromkeys(
+        item for item in split("knowledge") if item in allowed_cards
+    ))
+    if len(skills) > max_skills:
+        raise PlanError("invalid skill list")
+    if len(knowledge) > max_cards:
+        raise PlanError("invalid knowledge list")
+    focus = tuple(
+        item.strip()
+        for item in re.split(r"[|,]", values.get("focus", ""))
+        if item.strip()
+    )
     if len(focus) > max_focus or any(len(item) > 80 for item in focus):
         raise PlanError("invalid focus list")
     reason = values.get("reason", "")
