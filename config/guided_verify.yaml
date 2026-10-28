@@ -4,7 +4,7 @@ workflow: guided_verify
 params:
   planner: {timeout_s: 60, max_tokens: 512}
   solve: {timeout_s: 240, max_tokens: 4096}
-  checker: {timeout_s: 180, max_tokens: 2048}
+  checker: {timeout_s: 240, max_tokens: 4096}
   adjudicate: {timeout_s: 120, max_tokens: 1024}
   structure_repair_limit: 1
   behavior_repair_limit: 1
