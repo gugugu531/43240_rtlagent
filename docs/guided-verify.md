@@ -1,7 +1,7 @@
 # guided_verify 工作流设计
 
-状态：设计已确认，尚未实现。与现有 `adaptive_verify` 并存，便于同题对照。
-本文只描述目标行为；代码实现前不把计划写成已实现。
+状态：初版已实现，单元测试通过；真实模型与 Vivado 检查仍待验证。与现有 `adaptive_verify` 并存，便于同题对照。
+实现位于 `agent/orchestration/nodes/guided.py`、`agent/orchestration/workflows/guided_verify.py`，配置为 `config/guided_verify.yaml`。
 
 ## 1. 设计目标
 

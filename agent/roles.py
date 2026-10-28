@@ -39,6 +39,20 @@ _STAGE_ROLES = {
     "review_retry": "reviewer",
     "revision": "builder",
     "rereview": "reviewer",
+    # guided_verify request labels
+    "plan": "analyst",
+    "solve": "author",
+    "checker": "builder",
+    "adjudicate": "attributor",
+    "repair_structure": "author",
+    "repair_behavior": "author",
+    "guided_plan": "analyst",
+    "guided_solve": "author",
+    "guided_build_checker": "builder",
+    "guided_adjudicate": "attributor",
+    "guided_repair_structure": "author",
+    "guided_repair_behavior": "author",
+    "checker_rebuild": "builder",
 }
 
 
@@ -47,7 +61,10 @@ def role_for_stage(stage):
     if not isinstance(stage, str) or not stage:
         return ""
     base = stage.split("_tool_", 1)[0]
-    return _STAGE_ROLES.get(base, "")
+    role = _STAGE_ROLES.get(base, "")
+    if not role and "_" in base:
+        role = _STAGE_ROLES.get(base.rsplit("_", 1)[0], "")
+    return role
 
 
 def profile_for_stage(stage):

@@ -44,7 +44,8 @@
       "single_generate",
       "repair_loop",
       "design_verify_loop",
-      "adaptive_verify"
+      "adaptive_verify",
+      "guided_verify"
     ]
   },
   "generation": {},
