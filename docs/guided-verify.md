@@ -148,7 +148,6 @@ params:
    - 只让 plan 选 skill，诊断卡留给 lint 失败后的修复；
    - 新增“解题知识”语料和检索；
    - plan 阶段不选 RAG。
-2. **小模型正式启用**：候选模型 HF license 为空，flat plan 格式尚未实测。
-   当前保持 `enabled: false`、不写 `auxiliary_models`；若要“正式启用”，须先解决
-   许可证和 manifest/MODEL 声明。
+2. **小模型正式启用**：候选模型已在分支配置中 `enabled: true`，但 HF license 为空、
+   flat plan 格式尚未实测、`auxiliary_models` 未声明。正式提交前须解决许可证与 manifest 声明。
 3. `init_cycles` 的默认值、`max_repairs` 默认值仍需真实题集校准。

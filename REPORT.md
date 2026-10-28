@@ -63,7 +63,7 @@ nonce 用于重复投递去重，时限覆盖排队和执行；HTTP 服务与 Ag
 
 分支实际工具为 `interface_check`、`vivado_lint`、`vivado_synth`、`submit_answer`、
 `finish_task`；技能默认只自动准入 `rtl-sequential-state-update`。模型 profile 按角色映射：
-分析者 `small`，作者/构造/复核/归因 `large`；`small` 候选 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb` 默认关闭；许可证与 flat plan 格式尚未确认。
+分析者 `small`，作者/构造/复核/归因 `large`；`small` 已启用 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`；manifest 未声明，许可证与 flat plan 格式待确认。
 提交策略当前为 last-write-wins，证据选稿的 `selected_id` 另行记录。
 本地 baseline 已原样同步到上游 `f7a8bd4`，包含 `strip_think()` 和 manifest 思考声明加载；
 输出上限 16384，单次请求上限 840 秒。方案采用同一思考声明，默认单题预算 900 秒。
@@ -134,9 +134,9 @@ export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8000/v1
 
 ## 9. 辅助模型
 
-当前未部署，manifest.json 中为空列表。分支配置中的 `small` profile 仅占位且默认关闭；
-未来若启用，名称、基座、参数量、用途、位置、
-显存和训练来源待按 MODEL.md 声明；基线不含辅助模型。
+manifest.json 中为空列表。分支配置中的 `small` profile 已启用；
+名称、基座、参数量、用途、位置、显存和训练来源见 MODEL.md 6.1，
+正式提交前须补 `auxiliary_models` 与许可证；基线不含辅助模型。
 
 ## 10. 演示视频（待完成）
 

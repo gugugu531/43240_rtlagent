@@ -54,10 +54,10 @@
 当前分支的实际工具与角色：
 
 - 工具：`interface_check`、`vivado_lint`、`vivado_synth`、`submit_answer`、`finish_task`。
-- 角色 profile：分析者 `small`，作者/构造/复核/归因 `large`；`small` 占位为
-  `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`，默认关闭并回落主模型。HF API 复核 revision `a171280d7f001fef819e90218e008a887f1292c7`，`license` 为空，
-两个 safetensors 合计约 6.2 GB（F32）；flat plan 输出格式未实测。在确认许可并验证格式之前
-不写入 `auxiliary_models`，也不进入正式运行路径。
+- 角色 profile：分析者 `small`，作者/构造/复核/归因 `large`；`small` 已启用为
+  `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`，配置中 `enabled: true`。HF API 复核 revision `a171280d7f001fef819e90218e008a887f1292c7`，`license` 为空，
+两个 safetensors 合计约 6.2 GB（F32）；flat plan 输出格式未实测。当前未写入 `auxiliary_models`；正式提交前必须补齐许可证、
+manifest 声明并验证 flat plan 格式。
 - 作者阶段可选有界工具循环（`tool_steps` 默认 0）；`config/adaptive_tools.yaml` 设为 2，
   每步消耗一次 completion。提交工具只登记候选，`solution.v` 由宿主原子发布。
 - `manifest.json` 的 `agent.skills` 只列自动准入的 `rtl-sequential-state-update`。
@@ -141,11 +141,11 @@ token 上限后的真实模型验证已完成；正式采用前须同步填写�
 | 显存 | 公开 safetensors 合计约 6.2 GB（F32）；运行时开销待实测 |
 | 许可证 | HF 模型卡未声明（`license: null`） |
 
-该候选目前只存在于配置注释与本节，`manifest.json` 的 `auxiliary_models` 仍为空。
+该候选已在分支配置中启用，`manifest.json` 的 `auxiliary_models` 仍为空。
 配置中已按用户要求启用该 profile；但 HF 许可证仍为空、flat plan 格式未实测、manifest 未声明。
 许可证与 manifest 补齐前不得作为正式提交版本，启用状态记录在配置注释中。
-分支配置中的 `small` profile 仅占位且默认关闭；启用前必须补名称、基座、参数量、用途、
-运行位置和显存，并确认与主模型合计不超过 32 GB。
+分支配置中的 `small` profile 已启用，但 `auxiliary_models` 未声明；正式提交前必须补名称、
+基座、参数量、用途、运行位置和显存，并确认与主模型合计不超过 32 GB。
 后续使用判别、打分、检索或嵌入模型时须声明名称、基座、参数量、用途、运行位置和显存；
 主模型、辅助模型与运行开销合计不得超过单卡 32 GB。经训练的辅助模型须声明训练方式和数据，
 权重随封存版本提供给赛事方复现，不要求公开发布。
