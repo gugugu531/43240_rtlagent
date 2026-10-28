@@ -17,7 +17,7 @@ services:
     timeout_s: 1200
     max_model_len: 32768
     structured_outputs: false
-  # 小模型候选，license 未声明，仅配置不启用；启用前按 MODEL.md 声明。
+  # 小模型候选，revision a171280d7f001fef819e90218e008a887f1292c7，license 未声明，仅配置不启用；启用前按 MODEL.md 声明。
   profiles:
     small: {enabled: false, model: Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb}
     large: {enabled: false}

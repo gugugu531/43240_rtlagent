@@ -11,7 +11,7 @@ services:
     timeout_s: 1200
     max_model_len: 32768
     structured_outputs: false
-  # 小模型候选，默认关闭并回落到主模型。HF license 为空，权重约 6.2 GB F32；
+  # 小模型候选，默认关闭并回落到主模型。HF revision a171280d7f001fef819e90218e008a887f1292c7，license 为空，权重约 6.2 GB F32；
   # 启用前须确认许可证、验证 flat plan 格式，并在 manifest.json 的
   # auxiliary_models 与 model/MODEL.md 中声明，同时确认 32 GB 总预算。
   profiles:

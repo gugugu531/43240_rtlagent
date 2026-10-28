@@ -127,6 +127,22 @@ token 上限后的真实模型验证已完成；正式采用前须同步填写�
 ## 6. 辅助模型
 
 当前 `manifest.json` 的 `auxiliary_models` 为空，正式方案未部署辅助模型。
+
+### 6.1 Guided Verify 小模型候选（provisional）
+
+| 项 | 内容 |
+| --- | --- |
+| 名称 | `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb` |
+| 基座 | Qwen/Qwen2.5-Coder-1.5B-Instruct |
+| Revision | `a171280d7f001fef819e90218e008a887f1292c7` |
+| 参数量 | 约 1.54B |
+| 用途 | Guided Verify 的 plan 阶段：选择 skill/知识和方法 |
+| 运行位置 | 与主模型同一实例，独立 profile |
+| 显存 | 公开 safetensors 合计约 6.2 GB（F32）；运行时开销待实测 |
+| 许可证 | HF 模型卡未声明（`license: null`） |
+
+该候选目前只存在于配置注释与本节，`manifest.json` 的 `auxiliary_models` 仍为空。
+在许可证确认、flat plan 输出格式实测通过、manifest 声明补齐之前，不进入正式提交路径。
 分支配置中的 `small` profile 仅占位且默认关闭；启用前必须补名称、基座、参数量、用途、
 运行位置和显存，并确认与主模型合计不超过 32 GB。
 后续使用判别、打分、检索或嵌入模型时须声明名称、基座、参数量、用途、运行位置和显存；
