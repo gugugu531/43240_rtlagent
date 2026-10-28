@@ -83,7 +83,11 @@ class SubmissionGateway:
         """Validate model-provided text, then create and register a candidate."""
         if self.state.finalized:
             raise SubmissionError("submission already finalized")
-        expected = top or self.ctx.task.top
+        expected = self.ctx.task.top
+        if top and top != expected:
+            raise SubmissionError(
+                f"submitted top {top!r} does not match task top {expected!r}"
+            )
         extraction = extract_result(code, expected)
         if (
             extraction.status != "ok"

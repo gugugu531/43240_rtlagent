@@ -198,6 +198,16 @@ def _delivery_failure(reply, extraction, top):
     }
 
 
+def _adopt_submitted(ctx, candidates):
+    """Use a tool-created draft as the fallback when no evidence choice exists."""
+    if not candidates:
+        return None
+    candidate = candidates[-1]
+    if ctx.candidates.selected_id is None:
+        ctx.candidates.select(candidate.id, reason="complete_unverified_fallback")
+    return candidate
+
+
 def _candidate(ctx, reply, *, parent=None, stage="draft", extraction=None):
     if reply is None:
         return None
@@ -290,7 +300,7 @@ def generate(ctx: Ctx, state: State) -> State:
         candidate for candidate in ctx.candidates.values()
         if candidate.id not in before
     ]
-    candidate = submitted[-1] if submitted else _candidate(ctx, reply)
+    candidate = _adopt_submitted(ctx, submitted) if submitted else _candidate(ctx, reply)
     return state.update(target_id=candidate.id if candidate else None, has_candidate=candidate is not None,
                         stop_reason="" if candidate else "no_complete_first_draft")
 
@@ -326,7 +336,7 @@ def rescue(ctx: Ctx, state: State) -> State:
             "source_call_id": None, "failure_present": False,
             "reason": "first_draft_request_failed",
         })
-    candidate = submitted[-1] if submitted else _candidate(ctx, reply, stage="rescue")
+    candidate = _adopt_submitted(ctx, submitted) if submitted else _candidate(ctx, reply, stage="rescue")
     return state.update(target_id=candidate.id if candidate else None, has_candidate=candidate is not None,
                         route="structural", stop_reason="rescue_structural_only" if candidate else "no_complete_candidate")
 

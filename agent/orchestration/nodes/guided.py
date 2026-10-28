@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 
@@ -40,6 +41,26 @@ def _save(ctx, name, value):
         "guided", "artifact", name=name, path=path,
         status=value.get("status") if isinstance(value, dict) else None,
     )
+
+
+def _checker_fingerprint(checker):
+    """Stable identity for the plan and expected values, not just the plan hash."""
+    payload = json.dumps(
+        checker.public_dict(), sort_keys=True, separators=(",", ":")
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _attempt_stage(base, attempt):
+    return base if attempt == 1 else f"{base}_{attempt}"
+
+
+def _behavior_for(data, candidate_id):
+    """Return behavior only when it was produced by the current checker."""
+    record = data.get("behaviors", {}).get(candidate_id)
+    if not record or record.get("checker_hash") != data.get("checker_hash"):
+        return {}
+    return record.get("behavior") or {}
 
 
 def _request(ctx, stage, messages, limits, *, followup_s=0):
@@ -172,6 +193,8 @@ def initialize(ctx: Ctx, state: State) -> State:
         "checker_rebuild_context": None,
         "assessments": {},
         "observations": {},
+        "behaviors": {},
+        "checker_hash": None,
         "behavior": None,
         "selection": None,
         "structure_repairs": 0,
@@ -323,8 +346,9 @@ def repair_structure(ctx: Ctx, state: State) -> State:
         "repair.j2", task=ctx.task, parent=parent, feedback=feedback, plan=None
     )
     data["structure_repairs"] += 1
+    stage = _attempt_stage("repair_structure", data["structure_repairs"])
     reply = _request(
-        ctx, "repair_structure", messages, settings["solve"],
+        ctx, stage, messages, settings["solve"],
         followup_s=settings["first_tools_s"],
     )
     child = _candidate(ctx, reply, parent=parent, stage="repair_structure")
@@ -353,13 +377,17 @@ def build_checker(ctx: Ctx, state: State) -> State:
             + "\nDecision category: checker_error"
             + "\nNo candidate RTL or measured outputs are provided."
         )
-    stage = "checker_rebuild" if context else "checker"
+    stage = (
+        _attempt_stage("checker_rebuild", data["checker_rebuilds"])
+        if context else "checker"
+    )
     reply = _request(
         ctx, stage, messages, settings["checker"],
         followup_s=settings["first_tools_s"],
     )
     if reply is None:
         data["checker_status"] = "invalid"
+        data["checker_hash"] = None
         return state.update(checker_status="invalid")
     try:
         checker = parse_checker(
@@ -370,9 +398,11 @@ def build_checker(ctx: Ctx, state: State) -> State:
         )
     except CheckerError as error:
         data["checker_status"] = "invalid"
+        data["checker_hash"] = None
         _save(ctx, "checker-error", {"status": "invalid", "reason": str(error)})
         return state.update(checker_status="invalid")
     data["checker"] = checker
+    data["checker_hash"] = _checker_fingerprint(checker)
     data["checker_text"] = reply.content
     data["checker_status"] = "valid"
     data["checker_rebuild_context"] = None
@@ -403,7 +433,14 @@ def run_checker(ctx: Ctx, state: State) -> State:
             "failed": [], "unknown": [], "compared_bits": 0,
         }
     data["behavior"] = behavior
-    _save(ctx, f"assessments/{candidate.id}/behavior", behavior)
+    data["behaviors"][candidate.id] = {
+        "checker_hash": data.get("checker_hash"),
+        "behavior": behavior,
+    }
+    _save(
+        ctx, f"assessments/{candidate.id}/behavior",
+        {"checker_hash": data.get("checker_hash"), **behavior},
+    )
     if (
         behavior["status"] in ("failed", "unknown")
         and data["adjudications"] < settings["adjudicate_limit"]
@@ -482,8 +519,9 @@ def repair_behavior(ctx: Ctx, state: State) -> State:
         "repair.j2", task=ctx.task, parent=parent, feedback=feedback, plan=None
     )
     data["behavior_repairs"] += 1
+    stage = _attempt_stage("repair_behavior", data["behavior_repairs"])
     reply = _request(
-        ctx, "repair_behavior", messages, settings["solve"],
+        ctx, stage, messages, settings["solve"],
         followup_s=settings["first_tools_s"],
     )
     child = _candidate(ctx, reply, parent=parent, stage="repair_behavior")
@@ -496,9 +534,10 @@ def finish(ctx: Ctx, state: State) -> State:
     selected = ctx.candidates.selected_id
     target = state.get("target_id")
     target_assessment = data["assessments"].get(target)
-    target_behavior = data.get("behavior") or {}
+    target_behavior = _behavior_for(data, target)
     # Promote the current child only when its structural and behavior checks
-    # are at least as strong as the fallback. Unchecked/partial stays partial.
+    # from this checker support it. A child checked against an older checker
+    # cannot inherit the current evidence.
     if (
         target and target != selected and target_assessment is not None
         and target_assessment.get("structural_passed")
@@ -509,21 +548,32 @@ def finish(ctx: Ctx, state: State) -> State:
     ):
         ctx.candidates.select(target, reason="guided_checked")
         selected = target
-    assessment = data["assessments"].get(selected)
-    behavior = data.get("behavior") or {}
     gateway = ctx.store.get("submission")
     submission = gateway.finalize("workflow_finished") if gateway else None
-    published = bool(submission and submission.get("final", {}).get("published"))
+    final = (submission or {}).get("final") or {}
+    published = bool(final.get("published"))
+    # Under last-write-wins the published answer can differ from the
+    # evidence-backed selection. Report the candidate actually delivered, and
+    # keep selected_id as the promotion audit.
+    evidence_id = final.get("target_id") if published else selected
+    assessment = data["assessments"].get(evidence_id)
+    # The evidence candidate uses only behavior recorded under the current
+    # checker; a child's result cannot stand in for the parent.
+    behavior = _behavior_for(data, evidence_id)
     structural = bool(assessment and assessment.get("structural_passed"))
     functional = behavior.get("status") == "passed"
     status = "completed" if structural and (data["method"] == "structural" or functional) else "stopped"
     result = {
         "status": status,
         "selected_id": selected,
+        "evidence_candidate_id": evidence_id,
+        "published_id": final.get("target_id") if published else None,
         "delivery": "complete_rtl" if published else "empty",
         "method": data["method"],
         "plan": data.get("plan"),
         "checker_status": data["checker_status"],
+        "checker_hash": data.get("checker_hash"),
+        "behavior_candidate_id": evidence_id if behavior else None,
         "behavior": behavior,
         "structural_passed": structural,
         "functional_passed": functional,

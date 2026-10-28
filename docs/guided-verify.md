@@ -89,7 +89,8 @@ step reset=0 load=0 data=00 q=01
 - `case <id>` 开始一组；每行以 `init` 或 `step` 开头。
 - 每个非时钟公开输入在每行必须出现一次；时钟由宿主生成。
 - 首行的输出名定义该 case 的检查集合；后续行必须使用同一组输出名。
-- 未列出的公开输出记入 `unchecked_outputs`，不计为通过。
+- 未列出的公开输出记入该 case 的 `unchecked_outputs`，不计为通过。任一 case 漏查公开
+  输出都会使整个 checker 成为 `partial_passed`，不能被其他 case 的覆盖抹掉。
 - 顺序 case 首行必须是 `init`。宿主用该行输入执行 `init_cycles` 个有效沿，在最后一个
   init 沿并稳定后采样并比较 `init` 行声明的输出；随后才逐行执行 `step` 并在每行沿后比较。
   组合 case 可以 `step` 开始。
@@ -101,6 +102,9 @@ step reset=0 load=0 data=00 q=01
 
 - 行为比较结果记录 `checked_outputs`、`unchecked_outputs`、`unknown_outputs`。
 - 只要存在 unchecked 公开输出，结论为 `partial_behavior`；`functional_passed` 保持 false/unknown。
+- 行为证据按 `candidate_id` 与 checker 指纹保存；收尾只使用当前 checker 下实际选中候选的
+  证据。不能把子稿的行为通过和父稿的结构通过拼成一次完整通过。
+- 时序 case 没有任何行、或 case 在读取首行前为空，均按 `checker invalid` 处理，不抛出未捕获异常。
 - `adjudicate` 输出扁平文本：
 
   ```text
@@ -140,7 +144,9 @@ step reset=0 load=0 data=00 q=01
 | `max_calls` | 8 | 总 completion 上限 |
 | `max_output_tokens` | 65536 | 总输出 token 上限 |
 
-`checker_rebuild_limit=0` 时，第一次 `checker_error` 就停止行为分支。
+`checker_rebuild_limit=0` 时，第一次 `checker_error` 就停止行为分支。修复和重建次数
+大于 1 时，每次请求使用独立 stage（如 `repair_behavior_2`、`checker_rebuild_2`），避免
+同一 stage 只能请求一次的约束把合法配置变成异常。
 
 ## 8. 小模型与 Skill
 

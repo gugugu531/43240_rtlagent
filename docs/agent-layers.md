@@ -239,7 +239,8 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 `submit_answer` 工具（`agent/orchestration/nodes/submission_tools.py`）：
 
 - 输入：`code`、可选 `top`、可选 `note`。
-- 宿主校验：可提取完整模块、顶层名匹配、未截断。
+- 宿主校验：可提取完整模块、顶层名匹配、未截断；`top` 只能回显题目要求，
+  与 `ctx.task.top` 不一致时拒绝，不能用模型自报的名字绕过题目顶层。
 - 登记：`CandidateStore.create()`，草稿保存在 `records/<run_id>/candidates/<id>.v`。
 - 返回：`candidate_id`、`code_hash`、`published`、`policy`。
 
@@ -326,15 +327,16 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 
    本分支的 `manifest.json` 已同步为 `adaptive_verify`；合并回 `main` 时一并更新
    `model/MODEL.md` 的模型、上下文和显存声明。
-7. **900 秒预算与 `adaptive_verify` 默认阶段限额不匹配。** `config/adaptive_verify.yaml`
-   使用 `AdaptiveParameters` 默认值：`draft` 1200 秒、`profile` 180 秒，并且
+7. **900 秒预算入口已校准。** 默认 `config/adaptive_verify.yaml` 显式覆盖
+   `AdaptiveParameters` 的宽预算默认值：`profile` 30 秒、`draft` 240 秒、
+   `first_tools_s` 120 秒，其余阶段同步缩短；宽预算研究预设仍可显式设置更长时间。
    `CompletionLedger.reserve()` 的准入条件是
    `timeout_s + followup_s <= budget.remaining()`。投题服务把 `AGENT_DEADLINE_S`
-   设为剩余时间（约 890 秒）后，`profile` 请求需要
-   `180 + (1200 + 300) = 1680` 秒，会被判为 `insufficient_followup_time`，
-   导致分析、首稿都不发送。120 秒冒烟同样复现该拒绝；不能用更长的实验时限代替
-   900 秒可运行性验证。
-   在正式切到 `adaptive_verify` 前，必须为 900 秒预算重设阶段限额与后继预留，并单独验证。
+   设为剩余时间（约 890 秒）后，`profile` 需要 `30 + (240 + 120) = 390` 秒，
+   首稿需要 `240 + 120 = 360` 秒，均可发送。默认配置的后继阶段仍按各自预留申请，
+   预算不足时记录 `not_sent`，不应把“首稿已发送”理解为所有阶段都会执行。
+   回归测试覆盖 `Budget(900, 60)` 下的 profile/draft 准入；`run.sh` 的 900 秒
+   mock 冒烟退出 0 并产生答案。
 
 ## 10. 待确认
 

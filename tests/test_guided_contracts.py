@@ -1,6 +1,8 @@
 """guided_verify flat plan, checker table, and adjudication contracts."""
 
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from agent.domain.rtl.guided_adjudicate import AdjudicationError, parse_adjudication
 from agent.domain.rtl.guided_checker import (
@@ -11,6 +13,8 @@ from agent.domain.rtl.guided_checker import (
 from agent.domain.rtl.guided_plan import PlanError, parse_plan
 from agent.domain.rtl.observation import TraceRun, sampling_hash
 from agent.domain.rtl.task import TaskSpec
+from agent.kit import State
+from agent.orchestration.nodes import guided
 
 
 PROMPT = """Implement a module named TopModule with the following interface.
@@ -21,6 +25,17 @@ PROMPT = """Implement a module named TopModule with the following interface.
  - output q (8 bits)
 On each positive clock edge, reset sets q to 1; load sets q to data;
 otherwise q keeps its value."""
+
+
+TWO_OUTPUT_PROMPT = """Implement a module named TopModule with the following interface.
+ - input clk
+ - input reset
+ - input load
+ - input data (8 bits)
+ - output q (8 bits)
+ - output z (8 bits)
+On each positive clock edge, reset sets q and z to 1; load sets q and z to data;
+otherwise both keep their values."""
 
 
 def task():
@@ -91,6 +106,10 @@ class GuidedContractTests(unittest.TestCase):
         with self.assertRaises(CheckerError):
             parse_checker("case c\ninit reset=1 load=0 q=01\n", task())
         with self.assertRaises(CheckerError):
+            parse_checker("case empty\n", task())
+        with self.assertRaises(CheckerError):
+            parse_checker("case empty\ncase reset\ninit reset=1 load=0 data=00 q=01\n", task())
+        with self.assertRaises(CheckerError):
             parse_checker(
                 "case c\ninit reset=1 load=0 data=00 q=01\n"
                 "step reset=0 load=0 data=00 q=01 z=02\n",
@@ -131,6 +150,197 @@ class GuidedContractTests(unittest.TestCase):
         result = evaluate_checker(checker, trace)
         self.assertEqual(result["status"], "partial_passed")
         self.assertEqual(result["unchecked_outputs"], ["z"])
+
+    def test_empty_case_is_reported_as_invalid_checker(self):
+        data = {
+            "settings": {
+                "checker": {"timeout_s": 1, "max_tokens": 1},
+                "first_tools_s": 1,
+                "max_cases": 4,
+                "max_steps_per_case": 8,
+                "init_cycles": 2,
+            },
+            "plan": {"focus": []},
+            "checker_rebuild_context": None,
+            "checker_rebuilds": 0,
+        }
+        artifacts = {}
+        ctx = SimpleNamespace(
+            task=task(),
+            store={"guided": data},
+            record=SimpleNamespace(
+                write_json=lambda name, value: artifacts.update({name: value}),
+                emit=lambda *args, **kwargs: None,
+            ),
+        )
+        reply = SimpleNamespace(
+            content="case empty\n", finish_reason="stop", call_id="m1"
+        )
+        with patch.object(guided, "_request", return_value=reply):
+            state = guided.build_checker(ctx, State())
+        self.assertEqual(state["checker_status"], "invalid")
+        self.assertEqual(
+            artifacts["guided/checker-error.json"]["status"], "invalid"
+        )
+
+    def test_partial_outputs_in_any_case_are_not_a_full_pass(self):
+        checker = parse_checker(
+            "case q_only\ninit reset=1 load=0 data=00 q=01\n"
+            "case z_only\ninit reset=1 load=0 data=00 z=01\n",
+            TaskSpec.from_text("two", TWO_OUTPUT_PROMPT),
+        )
+        trace = TraceRun(
+            "complete", sampling_hash(checker.plan), "d" * 64, "exec4",
+            rows_for(checker), "ok",
+        )
+        result = evaluate_checker(checker, trace)
+        self.assertEqual(result["status"], "partial_passed")
+        self.assertEqual(result["unchecked_outputs"], ["q", "z"])
+
+    def test_repeated_repairs_use_distinct_stage_names(self):
+        self.assertEqual(guided._attempt_stage("repair", 1), "repair")
+        self.assertEqual(guided._attempt_stage("repair", 2), "repair_2")
+
+        parent = SimpleNamespace(id="c1", code_hash="h")
+        child = SimpleNamespace(id="c2", code_hash="h2")
+        data = {
+            "settings": {
+                "solve": {"timeout_s": 1, "max_tokens": 1},
+                "first_tools_s": 1,
+            },
+            "assessments": {"c1": {"checks": {}}},
+            "structure_repairs": 0,
+            "behavior_repairs": 0,
+            "behavior": {"failed": [], "unknown": []},
+            "checker_text": "",
+        }
+        ctx = SimpleNamespace(
+            store={"guided": data},
+            candidates=SimpleNamespace(get=lambda candidate_id: parent),
+            prompts=SimpleNamespace(
+                render=lambda *args, **kwargs: [{"role": "user", "content": "x"}]
+            ),
+            task=object(),
+        )
+        stages = []
+
+        def fake_request(ctx_arg, stage, *args, **kwargs):
+            stages.append(stage)
+            return SimpleNamespace(
+                call_id=stage, content="", finish_reason="stop"
+            )
+
+        with patch.object(guided, "_request", side_effect=fake_request), \
+             patch.object(guided, "_candidate", return_value=child):
+            guided.repair_structure(ctx, State({"target_id": "c1"}))
+            guided.repair_structure(ctx, State({"target_id": "c1"}))
+            guided.repair_behavior(ctx, State({"target_id": "c1"}))
+            guided.repair_behavior(ctx, State({"target_id": "c1"}))
+        self.assertEqual(
+            stages,
+            [
+                "repair_structure",
+                "repair_structure_2",
+                "repair_behavior",
+                "repair_behavior_2",
+            ],
+        )
+
+    def test_finish_does_not_mix_child_behavior_with_parent_structure(self):
+        data = {
+            "method": "table",
+            "assessments": {
+                "parent": {"structural_passed": True},
+                "child": {"structural_passed": False},
+            },
+            "behaviors": {
+                "parent": {
+                    "checker_hash": "checker",
+                    "behavior": {"status": "failed"},
+                },
+                "child": {
+                    "checker_hash": "checker",
+                    "behavior": {"status": "passed", "compared_bits": 2},
+                },
+            },
+            "checker_hash": "checker",
+            "checker_status": "valid",
+            "structure_repairs": 1,
+            "behavior_repairs": 1,
+            "checker_rebuilds": 0,
+            "adjudications": 1,
+            "request_outcomes": {},
+            "ledger": SimpleNamespace(snapshot=lambda: {}),
+        }
+        artifacts = {}
+        ctx = SimpleNamespace(
+            store={
+                "guided": data,
+                "submission": SimpleNamespace(
+                    finalize=lambda reason: {
+                        "final": {"published": True, "target_id": "parent"}
+                    }
+                ),
+            },
+            candidates=SimpleNamespace(
+                selected_id="parent",
+                select=lambda candidate_id, reason: setattr(
+                    ctx.candidates, "selected_id", candidate_id
+                ),
+            ),
+            record=SimpleNamespace(
+                write_json=lambda name, value: artifacts.update({name: value}),
+                emit=lambda *args, **kwargs: None,
+            ),
+        )
+        state = guided.finish(ctx, State({"target_id": "child"}))
+        result = artifacts["guided/result.json"]
+        self.assertEqual(state["status"], "stopped")
+        self.assertEqual(result["selected_id"], "parent")
+        self.assertEqual(result["evidence_candidate_id"], "parent")
+        self.assertFalse(result["functional_passed"])
+        self.assertEqual(result["behavior"]["status"], "failed")
+
+    def test_finish_reports_the_published_child_not_the_selected_parent(self):
+        data = {
+            "method": "structural",
+            "assessments": {
+                "parent": {"structural_passed": True},
+                "child": {"structural_passed": False},
+            },
+            "behaviors": {},
+            "checker_hash": None,
+            "checker_status": "not_requested",
+            "structure_repairs": 1,
+            "behavior_repairs": 0,
+            "checker_rebuilds": 0,
+            "adjudications": 0,
+            "request_outcomes": {},
+            "ledger": SimpleNamespace(snapshot=lambda: {}),
+        }
+        artifacts = {}
+        ctx = SimpleNamespace(
+            store={
+                "guided": data,
+                "submission": SimpleNamespace(
+                    finalize=lambda reason: {
+                        "final": {"published": True, "target_id": "child"}
+                    }
+                ),
+            },
+            candidates=SimpleNamespace(selected_id="parent"),
+            record=SimpleNamespace(
+                write_json=lambda name, value: artifacts.update({name: value}),
+                emit=lambda *args, **kwargs: None,
+            ),
+        )
+        state = guided.finish(ctx, State({"target_id": "child"}))
+        result = artifacts["guided/result.json"]
+        self.assertEqual(state["status"], "stopped")
+        self.assertEqual(result["selected_id"], "parent")
+        self.assertEqual(result["evidence_candidate_id"], "child")
+        self.assertEqual(result["published_id"], "child")
+        self.assertFalse(result["structural_passed"])
 
     def test_mismatch_is_failed(self):
         checker = parse_checker(

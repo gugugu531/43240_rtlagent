@@ -72,6 +72,14 @@ class SubmissionGatewayTests(unittest.TestCase):
             gateway.submit_text("module TopModule();", top="TopModule")
         self.assertFalse(self.solution.exists())
 
+    def test_submit_text_rejects_a_different_top(self):
+        gateway = SubmissionGateway(self.ctx, policy="last_written")
+        with self.assertRaises(SubmissionError):
+            gateway.submit_text(
+                "module WrongModule; endmodule", top="WrongModule"
+            )
+        self.assertFalse(self.solution.exists())
+
     def test_submit_text_registers_and_publishes_complete_draft(self):
         gateway = SubmissionGateway(self.ctx, policy="last_written")
         record = gateway.submit_text(CODE_A, top="TopModule", source_stage="tool")

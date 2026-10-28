@@ -1,5 +1,20 @@
 # 普通可配置预算；没有独立研究模式。参数覆盖见工作流的 AdaptiveParameters。
 workflow: adaptive_verify
+# 900 秒入口的阶段额度。AdaptiveParameters 的宽预算默认值不再直接用于
+# 默认入口；profile 与首稿必须连同 first_tools_s 的后继预留一起通过。
+params:
+  profile: {timeout_s: 30, max_tokens: 1024}
+  draft: {timeout_s: 240, max_tokens: 4096}
+  construction: {timeout_s: 150, max_tokens: 4096}
+  review: {timeout_s: 90, max_tokens: 2048}
+  review_retry: {timeout_s: 90, max_tokens: 2048}
+  revision: {timeout_s: 90, max_tokens: 4096}
+  rereview: {timeout_s: 90, max_tokens: 2048}
+  repair: {timeout_s: 150, max_tokens: 4096}
+  first_tools_s: 120
+  recheck_tools_s: 120
+  max_calls: 7
+  max_output_tokens: 65536
 runtime:
   deadline_s: 9600
   reserve_s: 120

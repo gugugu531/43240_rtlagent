@@ -32,7 +32,7 @@
 
 Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protocol 对应当前配置的时序方法，combinational 对应组合完整性方法，arithmetic 或 width/signed 风险追加宽度方法，最多两个。若 `analysis.clocks` 为空且（kind 为 sequential/protocol 或命中无时钟 latch 门禁），移除时序方法；候选在生成前仍要经过自动准入：只有默认冻结版本可自动准入，其它状态记录拒绝原因并继续无知识生成，实际发送看知识装配的 `skill_selected`/`sent`，不能把 `skill_candidates` 当成已发送。生成的 `sequential_skill` 在构图阶段用 catalog/资产校验自动准入，配置为未经批准的 v3 候选会在任何模型请求前报错停止，不再静默失效。checker 不消费 Skill、诊断卡、候选或实际输出。
 
-本分支直接使用 `./run.sh <input> <output>` 即运行 `adaptive_verify`；需要对照旧流程时显式设置 `AGENT_CONFIG=config/single_generate.yaml`。HIP 服务使用 `config/adaptive_hip.yaml`；900 秒开发冒烟使用 `config/adaptive_dev_900.yaml`（8010 llama.cpp，非正式模型声明）。新预设默认连接真实服务，服务、模型和思考声明须在实验副本中核对。分支默认 `adaptive_verify.yaml` 的总时限为 9600 秒、收尾 120 秒，没有独立研究模式。`params` 使用工作流的 `AdaptiveParameters` 严格校验，可调整阶段限额；阶段额度必须连同后继预留一起放入剩余工作时间。
+本分支直接使用 `./run.sh <input> <output>` 即运行 `adaptive_verify`；需要对照旧流程时显式设置 `AGENT_CONFIG=config/single_generate.yaml`。HIP 服务使用 `config/adaptive_hip.yaml`；900 秒开发冒烟使用 `config/adaptive_dev_900.yaml`（8010 llama.cpp，非正式模型声明）。新预设默认连接真实服务，服务、模型和思考声明须在实验副本中核对。分支默认 `adaptive_verify.yaml` 的总时限为 9600 秒、收尾 120 秒，没有独立研究模式；默认预设 `adaptive_verify.yaml` 的阶段额度按 900 秒入口校准，外部更短时限仍按 `AGENT_DEADLINE_S` 生效。`params` 使用工作流的 `AdaptiveParameters` 严格校验，可调整阶段限额；阶段额度必须连同后继预留一起放入剩余工作时间。
 
 ## 检查器构造、归一化与预检证据
 
@@ -114,7 +114,7 @@ Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protoc
 
 `SubmissionGateway` 是唯一写 `solution.v` 的入口，使用 `CandidateStore.publish()` 原子替换。默认策略 `submission_policy=last_written`：首稿、修复稿和模型 `submit_answer` 登记的候选都会立即发布，最后一次写入生效；`selected_id` 仍由 `promotion_decision` 记录，收尾事件用 `overrode_selected` 标明是否覆盖了证据选稿。切换为 `selected` 只改该参数。`adaptive_finish` 与 `agent/main.py` 的收尾都会调用 `finalize()`，覆盖正常结束、截止、取消和异常路径。
 
-`tool_steps` 默认 0，作者阶段仍为单次调用。设为大于 0 时，首稿/救援最多经过指定步数的模型-工具循环，白名单只有 `submit_answer` 与 `finish_task`；每一步都独立申请 completion 许可，因此会计入 `max_calls` 与输出 token 额度。实验配置为 `config/adaptive_tools.yaml`（`tool_steps: 2`），900 秒开发配置为 `config/adaptive_dev_900.yaml`。目标服务必须支持工具调用；llama.cpp 开发服务已验证返回 `tool_calls`，但未在正式 manifest 服务上验证，未验证前不进入正式默认配置。
+`tool_steps` 默认 0，作者阶段仍为单次调用。设为大于 0 时，首稿/救援最多经过指定步数的模型-工具循环，白名单只有 `submit_answer` 与 `finish_task`；每一步都独立申请 completion 许可，因此会计入 `max_calls` 与输出 token 额度。工具创建的候选若还没有 `selected_id`，节点会按首稿兜底建立选择；否则 `selected` 策略会在收尾时找不到证据候选。实验配置为 `config/adaptive_tools.yaml`（`tool_steps: 2`），900 秒开发配置为 `config/adaptive_dev_900.yaml`。目标服务必须支持工具调用；llama.cpp 开发服务已验证返回 `tool_calls`，但未在正式 manifest 服务上验证，未验证前不进入正式默认配置。
 
 模型 profile 按角色固定映射：分析者 `small`，作者、构造、复核、归因 `large`。配置在 `services.profiles`，未启用或未知 profile 回落主模型；只切换模型名、可选 base URL 和超时，思考设置仍取 manifest。每次模型调用在事件和 `request_outcomes` 中记录 `profile` 与实际 `model`。小模型候选为 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`；HF 模型卡未声明许可证，flat plan 输出格式尚未实测，仅 `guided_verify` 的抽象特征 planner 启用；`adaptive_verify` 的完整题面分析保持 `small.enabled: false`，否则 VeriReason 倾向直接输出 Verilog。服务在 8011，flat plan 已验证；许可证与 manifest 声明仍待补齐。
 
@@ -122,20 +122,23 @@ Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protoc
 
 ## 预算、日志与诊断
 
+以下为默认预设 `config/adaptive_verify.yaml` 的实际阶段参数；`AdaptiveParameters`
+的宽预算默认值只在未显式覆盖时生效。
+
 | 阶段 | 单次秒数 | 输出 token 上限 |
 | --- | ---: | ---: |
-| profile | 180 | 4096 |
-| draft | 1200 | 32768 |
-| construction | 1200 | 32768 |
-| review | 1200 | 32768 |
-| review_retry | 1200 | 32768 |
-| revision | 1200 | 32768 |
-| rereview | 1200 | 32768 |
-| repair | 1200 | 32768 |
+| profile | 30 | 1024 |
+| draft | 240 | 4096 |
+| construction | 150 | 4096 |
+| review | 90 | 2048 |
+| review_retry | 90 | 2048 |
+| revision | 90 | 4096 |
+| rereview | 90 | 2048 |
+| repair | 150 | 4096 |
 
-最多 7 次 completion、200704 输出 tokens（含思考）；单次请求还受剩余上下文约束。首次工具组 300 秒，修稿工具组 600 秒，收尾预留 120 秒。八阶段时间上限合计 8580 秒，加两组工具 900 秒与收尾 120 秒正好等于 9600 秒预设，没有额外的准备裕量。
+最多 7 次 completion、65536 输出 tokens（含思考）；单次请求还受剩余上下文约束。首次工具组 120 秒，修稿工具组 120 秒，默认配置收尾预留 120 秒。默认预设的阶段额度按 900 秒入口校准：profile 的准入条件是 `30 + (240 + 120) = 390` 秒，首稿是 `240 + 120 = 360` 秒；两者在 900 秒扣除收尾预留后仍可通过。后续构造、复核、修订和修复仍按各自后继预留申请，预算不足时记录 `not_sent`，不保证八阶段全部发送。
 
-completion 额度按路径计：首次复核直接批准的正常路径最多 5 次（含一次可能的 RTL 修复）；发生一次复核契约重试的路径最多 6 次；语义修订路径（复核→修订→重新复核→修复）最多 7 次。复核重试与检查器语义修订互斥：重试已用后，正式拒绝不再进入修订。`format_correction` 是本地计算，记录 `model_calls=0`，不消耗 completion 额度。首次构造/复核、修订、重新复核分别预留 5700/4500/3300/2100 秒后继；RTL 修复预留 600 秒复检。额度充足不代表应继续生成，阶段仍只执行一次。
+completion 额度按路径计：首次复核直接批准的正常路径最多 5 次（含一次可能的 RTL 修复）；发生一次复核契约重试的路径最多 6 次；语义修订路径（复核→修订→重新复核→修复）最多 7 次。复核重试与检查器语义修订互斥：重试已用后，正式拒绝不再进入修订。`format_correction` 是本地计算，记录 `model_calls=0`，不消耗 completion 额度。后继预留由 `_rtl_followup` 和当前复核/修订限额动态计算；额度充足不代表应继续生成，阶段仍只执行一次。
 
 `adaptive/` 保存分析/路由、请求额度与阶段结果、构造及复核、逐候选 assessment、修复证据、选稿理由和最终结果。关键产物：`checker-draft`/`checker-initial-review` 保留初版，`checker-revised-draft`/`checker-revised-review` 保留修订版，`checker-revision` 记录父哈希、修订绑定与请求状态；`review-contract` 按阶段记录复核的 attempts/status/violations/model_calls（发生重试时另有 retry_used/first_status/retry_status）；`rescue-context` 记录 rescue 是否带交付失败事实及原因；`repair-evidence`/`repair-decision` 保存修复输入证据与归因结论；`checker-format-correction` 记录原响应哈希、调用编号、本地编辑位置与新旧字符、结果哈希和零模型调用。`frozen-checker` 是最近一次实际完成的复核，重新复核未得到响应时仍可能是原拒绝结果，不能把文件存在当作批准；最新阶段状态看 `result.checker_status`。
 

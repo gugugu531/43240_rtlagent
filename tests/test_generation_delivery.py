@@ -71,6 +71,26 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(ctx.candidates.selected_id, candidate.id)
         self.assertNotIn('draft_failure', ctx.store['adaptive'])
 
+    def test_tool_submitted_first_draft_becomes_selected_fallback(self):
+        from agent.orchestration.nodes import adaptive
+
+        ctx = self.context('Implement a module named TopModule.\n- input x\n- output z')
+        created = {}
+
+        def fake_generation(ctx_arg, *, stage, messages):
+            created['candidate'] = ctx_arg.candidates.create(
+                'module TopModule(input x, output z); assign z=x; endmodule',
+                source_stage='submit:submit_answer',
+            )
+            return SimpleNamespace(call_id='m-tool', content='', finish_reason='stop')
+
+        with patch.object(adaptive, '_generation_messages', return_value=[]), \
+             patch.object(adaptive, '_generation_reply', side_effect=fake_generation):
+            state = adaptive.generate(ctx, State())
+        self.assertEqual(state['target_id'], created['candidate'].id)
+        self.assertTrue(state['has_candidate'])
+        self.assertEqual(ctx.candidates.selected_id, created['candidate'].id)
+
     def test_format_recovery_node_makes_no_model_request(self):
         from agent.orchestration.nodes.adaptive import correct_checker_format
         from agent.domain.rtl.adaptive_check import parse_checker
@@ -404,6 +424,35 @@ class DeliveryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build(ApplicationBuilder(),
                   AdaptiveParameters(sequential_skill='rtl-sequential-state-update-v3'))
+
+    def test_default_adaptive_config_sends_profile_and_draft_within_900_seconds(self):
+        import yaml
+        from pathlib import Path
+        from types import SimpleNamespace as NS
+        from agent.runtime.allowance import CompletionLedger
+        from agent.runtime.budget import Budget
+        from agent.orchestration.workflows.adaptive_verify import AdaptiveParameters
+
+        path = Path(__file__).resolve().parents[1] / "config/adaptive_verify.yaml"
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        parameters = AdaptiveParameters(**raw["params"])
+        record = NS(emit=lambda *args, **kwargs: None)
+        budget = Budget(900, 60, record=record)
+        ledger = CompletionLedger(
+            budget, record, max_calls=parameters.max_calls,
+            max_output_tokens=parameters.max_output_tokens,
+        )
+        profile = ledger.reserve(
+            "profile", parameters.profile.max_tokens, parameters.profile.timeout_s,
+            followup_s=parameters.draft.timeout_s + parameters.first_tools_s,
+        )
+        self.assertIsNotNone(profile)
+        profile.release()
+        draft = ledger.reserve(
+            "draft", parameters.draft.max_tokens, parameters.draft.timeout_s,
+            followup_s=parameters.first_tools_s,
+        )
+        self.assertIsNotNone(draft)
 
 
 if __name__ == '__main__':

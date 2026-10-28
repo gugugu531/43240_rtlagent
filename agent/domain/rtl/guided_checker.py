@@ -174,6 +174,8 @@ def parse_checker(text, task, *, max_cases=4, max_steps=8, init_cycles=2):
         raise CheckerError("case count outside configured limit")
     result_cases = []
     for raw, plan_case in zip(cases, plan_cases):
+        if not raw["lines"]:
+            raise CheckerError("case has no lines: " + raw["id"])
         kinds = [kind for kind, _ in raw["lines"]]
         if clock and kinds[0] != "init":
             raise CheckerError("sequential case must start with init")
@@ -209,7 +211,12 @@ def parse_checker(text, task, *, max_cases=4, max_steps=8, init_cycles=2):
             expected=expected,
         ))
     checked_union = tuple(sorted({name for case in result_cases for name in case.checked_outputs}))
-    unchecked_union = tuple(name for name in outputs if name not in checked_union)
+    # A single case that omits a public output is enough to make the checker
+    # partial; do not let another case's coverage erase that fact.
+    unchecked_union = tuple(
+        name for name in outputs
+        if any(name in case.unchecked_outputs for case in result_cases)
+    )
     plan = {
         "schema_version": 1,
         "ports": ports,
