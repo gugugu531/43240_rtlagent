@@ -114,7 +114,7 @@ Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protoc
 
 `SubmissionGateway` 是唯一写 `solution.v` 的入口，使用 `CandidateStore.publish()` 原子替换。默认策略 `submission_policy=last_written`：首稿、修复稿和模型 `submit_answer` 登记的候选都会立即发布，最后一次写入生效；`selected_id` 仍由 `promotion_decision` 记录，收尾事件用 `overrode_selected` 标明是否覆盖了证据选稿。切换为 `selected` 只改该参数。`adaptive_finish` 与 `agent/main.py` 的收尾都会调用 `finalize()`，覆盖正常结束、截止、取消和异常路径。
 
-`tool_steps` 默认 0，作者阶段仍为单次调用。设为大于 0 时，首稿/救援最多经过指定步数的模型-工具循环，白名单只有 `submit_answer` 与 `finish_task`；每一步都独立申请 completion 许可，因此会计入 `max_calls` 与输出 token 额度。工具创建的候选若还没有 `selected_id`，节点会按首稿兜底建立选择；否则 `selected` 策略会在收尾时找不到证据候选。实验配置为 `config/adaptive_tools.yaml`（`tool_steps: 2`），900 秒开发配置为 `config/adaptive_dev_900.yaml`。目标服务必须支持工具调用；llama.cpp 开发服务已验证返回 `tool_calls`，但未在正式 manifest 服务上验证，未验证前不进入正式默认配置。
+`tool_steps` 默认 0，作者阶段仍为单次调用。设为大于 0 时，首稿/救援最多经过指定步数的模型-工具循环，白名单只有 `submit_answer` 与 `finish_task`；每一步都独立申请 completion 许可，因此会计入 `max_calls` 与输出 token 额度。工具成功接收完整候选时，若还没有 `selected_id`，立即按首稿兜底建立选择并写入答案；这样后续工具错误或下一轮请求遇到截止时，`selected` 策略收尾仍有候选。节点正常返回时再做一次 adoption，已有证据选择不会被覆盖。实验配置为 `config/adaptive_tools.yaml`（`tool_steps: 2`），900 秒开发配置为 `config/adaptive_dev_900.yaml`。目标服务必须支持工具调用；llama.cpp 开发服务已验证返回 `tool_calls`，但未在正式 manifest 服务上验证，未验证前不进入正式默认配置。
 
 模型 profile 按角色固定映射：分析者 `small`，作者、构造、复核、归因 `large`。配置在 `services.profiles`，未启用或未知 profile 回落主模型；只切换模型名、可选 base URL 和超时，思考设置仍取 manifest。每次模型调用在事件和 `request_outcomes` 中记录 `profile` 与实际 `model`。小模型候选为 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`；HF 模型卡未声明许可证，flat plan 输出格式尚未实测，仅 `guided_verify` 的抽象特征 planner 启用；`adaptive_verify` 的完整题面分析保持 `small.enabled: false`，否则 VeriReason 倾向直接输出 Verilog。服务在 8011，flat plan 已验证；许可证与 manifest 声明仍待补齐。
 

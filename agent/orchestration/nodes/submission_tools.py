@@ -39,6 +39,14 @@ def submit_answer(ctx: Ctx, code: str, top: str = "", note: str = ""):
             excerpt=str(error),
             failure_kind="code",
         )
+    candidate_id = record.get("candidate_id")
+    # A complete tool submission is usable even if the next tool call or the
+    # next model request fails. Establish the fallback now, never overriding an
+    # existing evidence-backed selection.
+    if candidate_id and ctx.candidates.selected_id is None:
+        ctx.candidates.select(
+            candidate_id, reason="complete_unverified_fallback"
+        )
     return ToolResult(
         tool="submit_answer",
         call_id="",

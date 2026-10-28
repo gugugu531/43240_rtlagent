@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import agent.orchestration.nodes  # noqa: F401 - register built-in tools
 from agent.domain.rtl.candidate import CandidateStore
 from agent.submission.gateway import SubmissionError, SubmissionGateway
 from agent.observability.recorder import Recorder
@@ -117,6 +118,106 @@ class SubmissionGatewayTests(unittest.TestCase):
         )
         self.assertEqual(result["rc"], 0)
         self.assertEqual(result["status"], "passed")
+        self.assertEqual(self.solution.read_text(encoding="utf-8"), CODE_A)
+
+    def test_submit_answer_selects_before_a_later_tool_error(self):
+        from types import SimpleNamespace as NS
+
+        from agent.context.prompts import TemplateRenderer
+        from agent.llm.types import ModelError, Reply
+        from agent.orchestration.agent_loop import run_tool_loop
+        from agent.runtime.budget import Budget
+        from agent.runtime.context import Ctx
+
+        ctx = Ctx(
+            task=NS(top="TopModule"),
+            budget=Budget(60, 5, record=self.record),
+            llm=None,
+            record=self.record,
+            processes=None,
+            candidates=self.ctx.candidates,
+            prompts=TemplateRenderer(),
+            config=NS(tools={}),
+        )
+        gateway = SubmissionGateway(ctx, policy="selected")
+        ctx.store["submission"] = gateway
+        reply = Reply(
+            "m1", "", "tool_calls", 1, 1,
+            tool_calls=[
+                {"id": "call-1", "function": {
+                    "name": "submit_answer",
+                    "arguments": json.dumps(
+                        {"code": CODE_A, "top": "TopModule"}
+                    ),
+                }},
+                {"id": "call-2", "function": {
+                    "name": "not_allowed", "arguments": "{}",
+                }},
+            ],
+        )
+        with self.assertRaises(ModelError):
+            run_tool_loop(
+                chat=lambda *args, **kwargs: reply,
+                dispatch=ctx.dispatch,
+                messages=[],
+                tools=[
+                    {"function": {"name": "submit_answer"}},
+                    {"function": {"name": "finish_task"}},
+                ],
+                max_steps=2,
+            )
+        self.assertEqual(ctx.candidates.selected_id, "c001")
+        record = gateway.finalize("run_end")
+        self.assertTrue(record["final"]["published"])
+        self.assertEqual(self.solution.read_text(encoding="utf-8"), CODE_A)
+
+    def test_submit_answer_survives_deadline_before_next_round(self):
+        from types import SimpleNamespace as NS
+
+        from agent.context.prompts import TemplateRenderer
+        from agent.llm.types import Reply
+        from agent.orchestration.agent_loop import run_tool_loop
+        from agent.runtime.budget import Budget, Deadline
+        from agent.runtime.context import Ctx
+
+        ctx = Ctx(
+            task=NS(top="TopModule"),
+            budget=Budget(60, 5, record=self.record),
+            llm=None,
+            record=self.record,
+            processes=None,
+            candidates=self.ctx.candidates,
+            prompts=TemplateRenderer(),
+            config=NS(tools={}),
+        )
+        gateway = SubmissionGateway(ctx, policy="selected")
+        ctx.store["submission"] = gateway
+        reply = Reply(
+            "m1", "", "tool_calls", 1, 1,
+            tool_calls=[{"id": "call-1", "function": {
+                "name": "submit_answer",
+                "arguments": json.dumps({"code": CODE_A, "top": "TopModule"}),
+            }}],
+        )
+        calls = []
+
+        def chat(*args, **kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                return reply
+            raise Deadline("test deadline")
+
+        with self.assertRaises(Deadline):
+            run_tool_loop(
+                chat=chat,
+                dispatch=ctx.dispatch,
+                messages=[],
+                tools=[{"function": {"name": "submit_answer"}}],
+                max_steps=2,
+            )
+        self.assertEqual(ctx.candidates.selected_id, "c001")
+        record = gateway.finalize("run_end")
+        self.assertTrue(record["final"]["published"])
         self.assertEqual(self.solution.read_text(encoding="utf-8"), CODE_A)
 
     def test_events_are_jsonl_traceable(self):

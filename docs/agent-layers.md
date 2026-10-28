@@ -242,6 +242,8 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 - 宿主校验：可提取完整模块、顶层名匹配、未截断；`top` 只能回显题目要求，
   与 `ctx.task.top` 不一致时拒绝，不能用模型自报的名字绕过题目顶层。
 - 登记：`CandidateStore.create()`，草稿保存在 `records/<run_id>/candidates/<id>.v`。
+- 首次完整提交：若尚无 `selected_id`，立即建立 `complete_unverified_fallback` 选择并写入答案；
+  后续工具错误或截止不会让该候选丢失。
 - 返回：`candidate_id`、`code_hash`、`published`、`policy`。
 
 `finish_task` 工具只表达“本阶段结束”，不直接改变图。
