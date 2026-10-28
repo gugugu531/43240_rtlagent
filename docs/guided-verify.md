@@ -1,6 +1,8 @@
 # guided_verify 工作流设计
 
-状态：初版已实现，单元测试通过；真实模型与 Vivado 检查仍待验证。与现有 `adaptive_verify` 并存，便于同题对照。
+状态：初版已实现，单元测试通过；真实模型与 Vivado 单题验证完成，完整题集仍未验证。
+它是非默认开发流程，需要 8011 小模型服务；官方默认 `serve/start.sh` 不启动 8011。
+与现有 `adaptive_verify` 并存，便于同题对照。
 实现位于 `agent/orchestration/nodes/guided.py`、`agent/orchestration/workflows/guided_verify.py`，配置为 `config/guided_verify.yaml`；8011 小模型由可选的 `serve/start_verireason.sh` 启动，默认 `serve/start.sh` 不包含它。
 
 ## 1. 设计目标
