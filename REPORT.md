@@ -63,7 +63,7 @@ nonce 用于重复投递去重，时限覆盖排队和执行；HTTP 服务与 Ag
 
 分支实际工具为 `interface_check`、`vivado_lint`、`vivado_synth`、`submit_answer`、
 `finish_task`；技能默认只自动准入 `rtl-sequential-state-update`。模型 profile 按角色映射：
-分析者 `small`，作者/构造/复核/归因 `large`；`small` 占位 `Qwen/Qwen3-0.6B` 默认关闭。
+分析者 `small`，作者/构造/复核/归因 `large`；`small` 候选 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb` 默认关闭；许可证与 flat plan 格式尚未确认。
 提交策略当前为 last-write-wins，证据选稿的 `selected_id` 另行记录。
 本地 baseline 已原样同步到上游 `f7a8bd4`，包含 `strip_think()` 和 manifest 思考声明加载；
 输出上限 16384，单次请求上限 840 秒。方案采用同一思考声明，默认单题预算 900 秒。

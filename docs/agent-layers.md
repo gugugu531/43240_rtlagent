@@ -14,7 +14,7 @@ ContextBundle/PromptAssembly 已实现，并完成远端开发服务的单题结
    `$HERE/config/adaptive_verify.yaml`，显式环境变量仍然优先；用户给出的相对路径仍按调用者
    cwd 解析。本分支按此实现；`main` 在封存前保持 `single_generate`。
 5. **封存前不切默认流程。** 本次改造只在分支验证，封存版本不包含该改造。
-6. **辅助模型占位。** 选用 `Qwen/Qwen3-0.6B` 作为 `small` profile 占位，默认不启用、
+6. **辅助模型占位。** 选用 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb` 作为 `small` profile 候选，默认不启用、
    回落到主模型。启用前必须补 `manifest.json` 的 `auxiliary_models` 与 `model/MODEL.md`
    的名称、基座、参数量、用途、运行位置和显存，并确认与主模型合计不超过 32 GB。
 7. **退出码对齐赛事契约。** `run.sh` 在 `solution.v` 有非空白内容时返回 0，否则返回非 0。
@@ -165,13 +165,13 @@ agent/
   services:
     model: {backend: openai, base_url: http://127.0.0.1:8000/v1}
     profiles:
-      small: {enabled: false, model: Qwen/Qwen3-0.6B}
+      small: {enabled: false, model: Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb}
       large: {enabled: false}
   ```
 
   `Client.chat(profile=...)` 只切换模型名、可选 base URL 和超时；思考设置仍取 manifest。
   实际 `model` 与 `profile` 写入每次 `llm/finished` 事件和 `request_outcomes`。
-- `small` profile 的占位模型为 `Qwen/Qwen3-0.6B`，仅用于接口联调，默认不启用。
+- `small` profile 的候选模型为 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`；HF 模型卡未声明许可证，flat plan 格式未实测。默认不启用，也不写入 `auxiliary_models`。
   启用前必须补 `manifest.json` 的 `auxiliary_models` 与 `model/MODEL.md` 的声明。
 - 所有模型必须在 `manifest.json` 中声明；辅助模型同时写入 `model/MODEL.md`（名称、基座、参数量、用途、运行位置、显存）。
 - 单卡 32 GB 上限包含主模型、辅助模型和运行时开销。
