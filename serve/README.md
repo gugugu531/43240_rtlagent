@@ -122,6 +122,20 @@ Vivado 综合产生的大量小文件写在上面极慢。这不是优化建议�
 4. **在 gfx1100 上做 FP8 量化只省显存、不获加速**，该架构无 FP8 矩阵指令。验证阶段
    测到的量化收益不能直接外推到决赛。
 
+## 可选小模型（8011）
+
+`guided_verify` 的 small planner 使用 8011 的 llama.cpp 小模型。官方默认 `serve/start.sh`
+不启动它；需要时显式运行：
+
+```bash
+VERI_GGUF=/models/verireason-1.5b-f16.gguf ./serve/start_verireason.sh
+# 或让 start.sh 一并启动：
+VERI_GGUF=/models/verireason-1.5b-f16.gguf ./serve/start.sh
+```
+
+脚本是幂等的，缺 `llama-server` 或 GGUF 时明确失败。`adaptive_verify` 等使用完整题面的
+分析请求仍应保持 `small.enabled: false`，因为 VeriReason 对完整题面倾向输出 Verilog。
+
 ## 可选模型工具调用
 
 内置流程默认由 Burr 图直接调用工具。分支的 `adaptive_verify` 在作者阶段还支持有界的

@@ -56,7 +56,8 @@
 - 工具：`interface_check`、`vivado_lint`、`vivado_synth`、`submit_answer`、`finish_task`。
 - 角色 profile：分析者 `small`，作者/构造/复核/归因 `large`；`small` 仅在 `guided_verify` 的抽象特征 planner 中启用，目标为
   `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`，由远端
-  llama.cpp 在 `127.0.0.1:8011` 提供（GGUF F16，约 3.1 GB）。`adaptive_verify` 等
+  llama.cpp 在 `127.0.0.1:8011` 提供（GGUF F16，约 3.1 GB）。
+  可用 `VERI_GGUF=... ./serve/start_verireason.sh` 启动；官方默认 `serve/start.sh` 不启动 8011。`adaptive_verify` 等
   使用完整题面的分析请求会触发该模型的代码倾向，因此这些配置保持 `small.enabled: false`。许可证仍为空，
   `manifest.json` 的 `auxiliary_models` 尚未声明。HF API 复核 revision `a171280d7f001fef819e90218e008a887f1292c7`，`license` 为空，
 两个 safetensors 合计约 6.2 GB（F32）；flat plan 输出格式未实测。当前未写入 `auxiliary_models`。小模型服务已在 8011 运行，flat plan 已用真实请求验证；

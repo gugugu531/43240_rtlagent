@@ -29,7 +29,7 @@ COPY knowledge/ knowledge/
 COPY serve/  serve/
 COPY model/  model/
 COPY run.sh run_baseline.sh baseline.py manifest.json REPORT.md LICENSE ./
-RUN chmod +x run.sh run_baseline.sh serve/vllm.sh serve/start.sh
+RUN chmod +x run.sh run_baseline.sh serve/vllm.sh serve/start.sh serve/start_verireason.sh
 
 # Model weights. Copy them in, or bind-mount at run time -- but they must be on
 # local disk before the network goes away. `huggingface-cli download` at startup

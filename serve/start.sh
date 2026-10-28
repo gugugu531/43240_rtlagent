@@ -88,6 +88,13 @@ else
     wait_ready vllm "$LLM_URL" "$!"
 fi
 
+# --- optional small model for guided_verify --------------------------------
+#
+# The official default does not start 8011. Export VERI_GGUF to opt in.
+if [ -n "${VERI_GGUF:-}" ]; then
+    "$HERE/start_verireason.sh"
+fi
+
 # --- your own resident processes -------------------------------------------
 #
 # If run.sh hands tasks to a resident engine instead of solving them itself,

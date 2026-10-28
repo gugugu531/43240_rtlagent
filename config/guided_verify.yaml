@@ -1,4 +1,5 @@
 # guided_verify 开发配置：小模型在 8011，主模型在 8010。
+# 8011 不是官方默认常驻服务；可用 VERI_GGUF=... ./serve/start_verireason.sh 启动。
 # 小模型权重、许可证和 flat plan 行为须先验证；未就绪时不要把该配置用于正式投题。
 workflow: guided_verify
 params:
