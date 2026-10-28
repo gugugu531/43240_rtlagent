@@ -17,7 +17,7 @@ services:
     timeout_s: 1200
     max_model_len: 32768
     structured_outputs: false
-  # 按用户要求纳入正式启用计划；权重/服务/manifest 就绪前保持关闭。revision a171280d7f001fef819e90218e008a887f1292c7，license 未声明，flat plan 未实测，manifest 暂未声明；未部署权重前请求会失败。
+  # 按用户要求启用；小模型服务在 8011。revision a171280d7f001fef819e90218e008a887f1292c7，license 未声明，flat plan 已验证，manifest 暂未声明。
   profiles:
-    small: {enabled: false, model: Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb}
+    small: {enabled: true, model: verireason-1.5b, base_url: http://127.0.0.1:8011/v1}
     large: {enabled: false}

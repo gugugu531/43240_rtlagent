@@ -32,5 +32,5 @@ services:
     timeout_s: 300
     structured_outputs: false
   profiles:
-    small: {enabled: false}
+    small: {enabled: true, model: verireason-1.5b, base_url: http://127.0.0.1:8011/v1}
     large: {enabled: false}
