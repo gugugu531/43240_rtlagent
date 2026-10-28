@@ -19,5 +19,5 @@ services:
     structured_outputs: false
   # 按用户要求启用；小模型服务在 8011。revision a171280d7f001fef819e90218e008a887f1292c7，license 未声明，flat plan 已验证，manifest 暂未声明。
   profiles:
-    small: {enabled: true, model: verireason-1.5b, base_url: http://127.0.0.1:8011/v1}
+    small: {enabled: false, model: verireason-1.5b, base_url: http://127.0.0.1:8011/v1}
     large: {enabled: false}

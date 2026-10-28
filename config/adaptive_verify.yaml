@@ -15,5 +15,5 @@ services:
   # license 为空，flat plan 格式未实测，manifest 暂未声明，权重约 6.2 GB F32。
   # 许可证仍为空、flat plan 已验证、manifest 尚未声明；正式封存前必须补齐 manifest auxiliary_models。
   profiles:
-    small: {enabled: true, model: verireason-1.5b, base_url: http://127.0.0.1:8011/v1}
+    small: {enabled: false, model: verireason-1.5b, base_url: http://127.0.0.1:8011/v1}
     large: {enabled: false}
