@@ -143,10 +143,9 @@ def parse_plan(text, *, skill_ids, card_ids, max_skills=2, max_cards=3,
     knowledge = tuple(dict.fromkeys(
         item for item in split("knowledge") if item in allowed_cards
     ))
-    if len(skills) > max_skills:
-        raise PlanError("invalid skill list")
-    if len(knowledge) > max_cards:
-        raise PlanError("invalid knowledge list")
+    # Cap rather than reject: a small model may select one item too many.
+    skills = skills[:max_skills]
+    knowledge = knowledge[:max_cards]
     focus = tuple(
         item.strip()
         for item in re.split(r"[|,]", values.get("focus", ""))

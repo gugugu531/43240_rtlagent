@@ -125,8 +125,8 @@ step reset=0 load=0 data=00 q=01
 | 参数 | 建议默认 | 说明 |
 |---|---:|---|
 | `planner` | 60s / 512 | 小模型路由 |
-| `solve` | 240s / 4096 | 首稿 |
-| `checker` | 180s / 2048 | 构造向量表 |
+| `solve` | 300s / 8192 | 首稿 |
+| `checker` | 300s / 8192 | 构造向量表 |
 | `adjudicate` | 120s / 1024 | 归因 |
 | `structure_repair_limit` | 1 | 结构修复次数 |
 | `behavior_repair_limit` | 1 | 行为修复次数 |
