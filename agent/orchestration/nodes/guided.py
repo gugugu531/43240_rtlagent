@@ -315,7 +315,7 @@ def repair_structure(ctx: Ctx, state: State) -> State:
     parent = ctx.candidates.get(state["target_id"])
     assessment = data["assessments"].get(parent.id, {})
     feedback = "\n".join(
-        f"{name}: {check.summary}"
+        f"{name}: {check.get('excerpt', '')}"
         for name, check in assessment.get("checks", {}).items()
         if check.get("status") in ("failed", "timeout")
     )
