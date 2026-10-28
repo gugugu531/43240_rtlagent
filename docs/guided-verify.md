@@ -88,7 +88,9 @@ step reset=0 load=0 data=00 q=01
 - 每个非时钟公开输入在每行必须出现一次；时钟由宿主生成。
 - 首行的输出名定义该 case 的检查集合；后续行必须使用同一组输出名。
 - 未列出的公开输出记入 `unchecked_outputs`，不计为通过。
-- 顺序 case 首行必须是 `init`，宿主执行 `init_cycles` 个沿后开始比较；组合 case 可以 `step` 开始。
+- 顺序 case 首行必须是 `init`。宿主用该行输入执行 `init_cycles` 个有效沿，在最后一个
+  init 沿并稳定后采样并比较 `init` 行声明的输出；随后才逐行执行 `step` 并在每行沿后比较。
+  组合 case 可以 `step` 开始。
 - 期望值为十六进制，宿主按端口宽度校验；未知、越界或缺少输入直接判无效。
 - 最多 `max_cases` 个 case、每个 `max_steps_per_case` 行。
 - 不写 Verilog、task、delay、循环、层次引用或注释。
@@ -105,7 +107,10 @@ step reset=0 load=0 data=00 q=01
   failed_cases=reset
   ```
 
-- `checker_error`：若 `checker_rebuilds_used < checker_rebuild_limit`，重建 checker；重建只读公开题面、旧 checker 和归因原因，不读候选或实测。
+- `checker_error`：若 `checker_rebuilds_used < checker_rebuild_limit`，重建 checker。重建输入只允许
+  公开题面、旧 checker、失败 case ID 和决策类别（`checker_error`）；不得传入归因 reason 正文、
+  候选 RTL、期望/实测值或任何采样记录，并在重建记录中明确 `candidate_input=false`、
+  `observed_outputs_input=false`。
 - 重建后再次运行 checker；仍不一致则再次归因，受 `adjudicate_limit` 限制。
 - 重建次数达到限制后仍为 `checker_error`：停止行为分支，不再重建、不再做行为检查，保留结构检查结论并标记 `behavior_unverified`。
 - `solution_error`：允许一次行为修复；用同一 checker 复检。复检仍不一致则停止并记录失败，不再追加归因。

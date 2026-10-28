@@ -169,7 +169,7 @@
       "conflict_group": "behavior-check-keycases",
       "resource": {
         "path": "skill/rtl-behavior-check-keycases/skill.md",
-        "sha256": "071bf9b82cafb8f2008aaab5bc2a2e96e203c1962a3399f5cf167cb46c81f5cd"
+        "sha256": "cb8f9faec5a4999c6046b8b323ab89578d997d899bf0478315068a4acb92d5a7"
       },
       "source": {
         "path": "skill/rtl-behavior-check-keycases/PROVENANCE.md",

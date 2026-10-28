@@ -54,9 +54,11 @@
 当前分支的实际工具与角色：
 
 - 工具：`interface_check`、`vivado_lint`、`vivado_synth`、`submit_answer`、`finish_task`。
-- 角色 profile：分析者 `small`，作者/构造/复核/归因 `large`；`small` 已启用为
-  `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`，配置中 `enabled: true`。HF API 复核 revision `a171280d7f001fef819e90218e008a887f1292c7`，`license` 为空，
-两个 safetensors 合计约 6.2 GB（F32）；flat plan 输出格式未实测。当前未写入 `auxiliary_models`；8010 开发服务也不包含该权重，因此配置启用不等于可运行。
+- 角色 profile：分析者 `small`，作者/构造/复核/归因 `large`；`small` 已纳入正式启用计划，目标为
+  `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`；在小模型权重、服务和
+  manifest 声明就绪前，配置保持 `enabled: false`，分析请求回落主模型。HF API 复核 revision `a171280d7f001fef819e90218e008a887f1292c7`，`license` 为空，
+两个 safetensors 合计约 6.2 GB（F32）；flat plan 输出格式未实测。当前未写入 `auxiliary_models`；8010 开发服务也不包含该权重。配置启用计划不等于可运行；
+开关保持关闭，直到权重部署与声明完成。
 正式提交前必须补齐许可证、manifest 声明、权重部署并验证 flat plan 格式。
 - 作者阶段可选有界工具循环（`tool_steps` 默认 0）；`config/adaptive_tools.yaml` 设为 2，
   每步消耗一次 completion。提交工具只登记候选，`solution.v` 由宿主原子发布。

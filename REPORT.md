@@ -134,7 +134,7 @@ export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8000/v1
 
 ## 9. 辅助模型
 
-manifest.json 中为空列表。分支配置中的 `small` profile 已启用；
+manifest.json 中为空列表。分支配置中的 `small` profile 已纳入正式启用计划，但在服务与 manifest 就绪前保持关闭；
 名称、基座、参数量、用途、位置、显存和训练来源见 `model/MODEL.md` 第 3、6 节。
 该模型许可证为空、flat plan 未验证，正式提交前须补 `auxiliary_models`、许可证与权重验证；
 否则不得作为正式组件。基线不含辅助模型。

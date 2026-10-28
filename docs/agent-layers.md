@@ -14,7 +14,7 @@ ContextBundle/PromptAssembly 已实现，并完成远端开发服务的单题结
    `$HERE/config/adaptive_verify.yaml`，显式环境变量仍然优先；用户给出的相对路径仍按调用者
    cwd 解析。本分支按此实现；`main` 在封存前保持 `single_generate`。
 5. **封存前不切默认流程。** 本次改造只在分支验证，封存版本不包含该改造。
-6. **辅助模型。** 选用 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb` 作为 `small` profile，按用户要求配置为启用；只有未配置或未知 profile 才回落主模型。其许可证为空、flat plan 未验证、`manifest.json` 的 `auxiliary_models` 未声明；正式封存前必须补齐名称、基座、参数量、用途、运行位置、显存和许可证，并确认与主模型合计不超过 32 GB。
+6. **辅助模型。** 选用 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb` 作为 `small` profile，按用户要求纳入正式启用计划；在小模型服务、权重和 manifest 就绪前配置保持关闭，分析请求回落主模型。其许可证为空、flat plan 未验证、`manifest.json` 的 `auxiliary_models` 未声明；正式封存前必须补齐名称、基座、参数量、用途、运行位置、显存和许可证，并确认与主模型合计不超过 32 GB。
 7. **退出码对齐赛事契约。** `run.sh` 在 `solution.v` 有非空白内容时返回 0，否则返回非 0。
 8. **`trace.jsonl` 时间格式对齐赛事契约。** `ts` 为 Unix 秒（浮点），另存 `ts_iso` 供人阅读；
    日志查看器优先使用 `ts_iso`。
@@ -169,7 +169,7 @@ agent/
 
   `Client.chat(profile=...)` 只切换模型名、可选 base URL 和超时；思考设置仍取 manifest。
   实际 `model` 与 `profile` 写入每次 `llm/finished` 事件和 `request_outcomes`。
-- `small` profile 为 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`，配置为启用；未配置或未知 profile 才回落主模型。HF 模型卡未声明许可证，flat plan 未实测，且未写入 `auxiliary_models`，因此当前不能视为可运行或合规。正式封存前必须补齐 manifest 与许可证。
+- `small` profile 目标为 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`；当前配置关闭，回落到主模型。HF 模型卡未声明许可证，flat plan 未实测，且未写入 `auxiliary_models`，因此当前不能视为可运行或合规。正式封存前必须补齐 manifest 与许可证。
 - 所有模型必须在 `manifest.json` 中声明；辅助模型同时写入 `model/MODEL.md`（名称、基座、参数量、用途、运行位置、显存）。
 - 单卡 32 GB 上限包含主模型、辅助模型和运行时开销。
 - 思考开关和生成参数统一取 `manifest.json` 的声明，不按调用切换。

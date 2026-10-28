@@ -75,7 +75,9 @@ that cannot state a public expected value.
 For a sequential case, the first line MUST be an `init` line. Drive the public reset
 or initialization inputs exactly as the task specifies, including polarity and
 synchronous versus asynchronous behavior. The host applies this initialization phase
-for its configured number of clock edges and then begins comparison.
+for its configured number of clock edges. After the final init edge and settling, it
+samples and compares the `init` line's checked outputs; only then does it execute the
+`step` lines.
 
 Never assume that an uninitialized register is zero. If the public task does not
 establish a known state, omit the sequential case and leave that behavior unchecked.
@@ -125,6 +127,8 @@ Rules:
 - At most four cases and eight lines per case, unless the workflow configures lower
   limits.
 - A sequential case without an `init` first line is invalid.
+- The `init` line's expected outputs are compared after the final init edge; they are
+  not ignored.
 - A combinational case may use `step` first; `init` is then treated as a settle step.
 - No prose, Markdown, comments, or trailing explanation is allowed in the table.
 

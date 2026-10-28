@@ -116,7 +116,7 @@ Skill 候选来自 `route_skill_ids`：fsm 对应 FSM 方法，sequential/protoc
 
 `tool_steps` 默认 0，作者阶段仍为单次调用。设为大于 0 时，首稿/救援最多经过指定步数的模型-工具循环，白名单只有 `submit_answer` 与 `finish_task`；每一步都独立申请 completion 许可，因此会计入 `max_calls` 与输出 token 额度。实验配置为 `config/adaptive_tools.yaml`（`tool_steps: 2`），900 秒开发配置为 `config/adaptive_dev_900.yaml`。目标服务必须支持工具调用；llama.cpp 开发服务已验证返回 `tool_calls`，但未在正式 manifest 服务上验证，未验证前不进入正式默认配置。
 
-模型 profile 按角色固定映射：分析者 `small`，作者、构造、复核、归因 `large`。配置在 `services.profiles`，未启用或未知 profile 回落主模型；只切换模型名、可选 base URL 和超时，思考设置仍取 manifest。每次模型调用在事件和 `request_outcomes` 中记录 `profile` 与实际 `model`。小模型候选为 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`；HF 模型卡未声明许可证，flat plan 输出格式尚未实测，按用户要求配置为启用；但许可证仍为空、flat plan 格式未实测、`auxiliary_models` 未声明，正式提交前必须补齐。
+模型 profile 按角色固定映射：分析者 `small`，作者、构造、复核、归因 `large`。配置在 `services.profiles`，未启用或未知 profile 回落主模型；只切换模型名、可选 base URL 和超时，思考设置仍取 manifest。每次模型调用在事件和 `request_outcomes` 中记录 `profile` 与实际 `model`。小模型候选为 `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`；HF 模型卡未声明许可证，flat plan 输出格式尚未实测，已纳入正式启用计划；但许可证仍为空、flat plan 格式未实测、`auxiliary_models` 未声明，且当前服务无该权重，因此配置保持关闭并回落主模型。正式提交前必须补齐。
 
 上下文装配在 `adaptive_analyze` 保存 `context-bundle.json`；生成前记录一次 `prompt/assembly`，包含保留/丢弃的知识条目、消息哈希和 token 估算。装配失败仍按知识层原有规则失败关闭，不改变原题文本。
 
