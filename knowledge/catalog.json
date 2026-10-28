@@ -148,6 +148,34 @@
         "sha256": "cf8d2e0ff95ebaba250f16fcfab320b4c7c962462facd0395f50a662d591c1fc"
       },
       "review_status": "frozen_rejected_fixed_ab"
+    },
+    {
+      "id": "rtl-behavior-check-keycases",
+      "description": "Select a few high-value public test cases and express them as a flat input and expected-output table for a host-generated self-checking testbench.",
+      "task_types": [
+        "combinational",
+        "sequential",
+        "mixed"
+      ],
+      "subtypes": [
+        "verification",
+        "testbench"
+      ],
+      "version": "0.1.0-candidate.1+burr.1",
+      "phases": [
+        "generate",
+        "repair"
+      ],
+      "conflict_group": "behavior-check-keycases",
+      "resource": {
+        "path": "skill/rtl-behavior-check-keycases/skill.md",
+        "sha256": "071bf9b82cafb8f2008aaab5bc2a2e96e203c1962a3399f5cf167cb46c81f5cd"
+      },
+      "source": {
+        "path": "skill/rtl-behavior-check-keycases/PROVENANCE.md",
+        "sha256": "64f5b5759b7a5462d42a5d8ba2448b416211487e3c40123f0dd7721bfacbc1b7"
+      },
+      "review_status": "frozen_candidate_not_default"
     }
   ]
 }

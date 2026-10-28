@@ -11,8 +11,19 @@
 | `rtl-width-signed-arithmetic` | 位宽、signedness、扩展和截断 |
 | `rtl-combinational-completeness` | 组合赋值完整性、优先级与非预期存储 |
 | `rtl-fsm-state-output` | 状态转移与 Moore／Mealy 输出时序 |
+| `rtl-behavior-check-keycases` | 关键 case 的扁平输入/期望输出表，供宿主生成自检 testbench；团队原创 candidate，不自动准入 |
 
-这些资产来自 [上游分支](https://github.com/wyc888-crypto/amd-rtlagent-prompt-engineering/tree/fb1c2803e5db0f32b59b9ba9100877f2a0d26412)，按 MIT 许可迁移。完整正文用英文，目录清单保存来源版本、原文哈希与移植后哈希；已修正与本方案冲突的单模块限制，保留原版权说明。它们尚未通过本方案的真实模型效果实验。
+来源分为两类：
+
+- **迁移技能**（`rtl-sequential-state-update`、`rtl-sequential-state-update-v3`、
+  `rtl-width-signed-arithmetic`、`rtl-combinational-completeness`、`rtl-fsm-state-output`）：
+  来自 [上游分支](https://github.com/wyc888-crypto/amd-rtlagent-prompt-engineering/tree/fb1c2803e5db0f32b59b9ba9100877f2a0d26412)，
+  按 MIT 许可迁移；保留原版权说明，目录条目记录来源版本、原文哈希与移植后哈希。
+- **本地技能**（`rtl-behavior-check-keycases`）：团队原创 candidate，来源与参考边界见
+  `skill/rtl-behavior-check-keycases/PROVENANCE.md`；其 catalog 条目的 `source` 指向该说明。
+
+`knowledge/catalog.json` 顶层的 `source` 只描述上述迁移技能，不代表本地技能的作者或来源。
+全部技能尚未通过本方案的真实模型效果实验。
 
 新方法文件使用 `skill/<id>/skill.md`，frontmatter 只有 `name` 和 `description`，必须与 [目录清单](../knowledge/catalog.json) 一致。正文保留适用／不适用条件、输入、步骤、验证、输出和行为边界。变更正文后必须同步清单哈希与版本，不能将完整方法截成无边界的片段。
 
