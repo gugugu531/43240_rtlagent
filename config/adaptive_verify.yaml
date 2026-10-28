@@ -11,9 +11,10 @@ services:
     timeout_s: 1200
     max_model_len: 32768
     structured_outputs: false
-  # 按用户要求启用小模型；HF 模型卡未声明许可证，flat plan 格式未实测，manifest 暂未声明。HF revision a171280d7f001fef819e90218e008a887f1292c7，license 为空，权重约 6.2 GB F32；
-  # 启用前须确认许可证、验证 flat plan 格式，并在 manifest.json 的
-  # auxiliary_models 与 model/MODEL.md 中声明，同时确认 32 GB 总预算。
+  # 按用户要求纳入启用配置。HF revision a171280d7f001fef819e90218e008a887f1292c7，
+  # license 为空，flat plan 格式未实测，manifest 暂未声明，权重约 6.2 GB F32。
+  # 当前 8010 服务没有该权重；权重、许可证、manifest 声明和格式验证完成前，
+  # 小模型请求会失败，不能视为可用。正式封存前必须补齐 manifest auxiliary_models。
   profiles:
     small: {enabled: true, model: Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb}
     large: {enabled: false}

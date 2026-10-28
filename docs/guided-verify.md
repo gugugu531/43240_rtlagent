@@ -1,153 +1,155 @@
-# Guided Verify 工作流设计
+# guided_verify 工作流设计
 
-状态：设计已确认主要结构，尚未实现。与现有 `adaptive_verify` 并存，不替换它。
-本文只描述目标行为；当前可用行为仍以 [自适应工作流](adaptive.md) 和
-[架构](architecture.md) 为准。
+状态：设计已确认，尚未实现。与现有 `adaptive_verify` 并存，便于同题对照。
+本文只描述目标行为；代码实现前不把计划写成已实现。
 
-## 1. 目标
+## 1. 设计目标
 
-用一个小模型做有限决策，让大模型解题；结构检查后只对关键行为做少量表格化检查；
-不一致时由解题模型判断是 checker 还是 RTL 的问题；所有循环次数、预算和模型角色可配置。
-
-不追求全行为覆盖，不生成复杂检查器，不让模型维护 Verilog testbench 语法。
+- 小模型只做轻量路由和知识选择，输出扁平文本，不写长计划。
+- 大模型负责解题、构造少量关键行为 case、归因和修复。
+- 检查器不写 Verilog；宿主根据模型给出的行式向量表生成自检 testbench。
+- 行为检查只覆盖关键输出和关键场景；未覆盖项明确记录，不报完整通过。
+- 次数、超时和 token 预算全部来自工作流参数，不散落 magic number。
 
 ## 2. 流程
 
 ```mermaid
 flowchart TD
-    P[plan: 小模型] --> S[solve: 大模型]
+    P[plan: small] --> S[solve: large]
     S --> C[structure: interface/lint/synth]
-    C -->|代码错误且 repair_used < max_repairs| R1[repair: 大模型]
+    C -->|代码错误且未超限| R1[repair_structure]
     R1 --> C
-    C -->|通过且 method=table| B[build_checker: 大模型<br/>独立上下文]
+    C -->|通过且 method=table| B[build_checker: large<br/>独立上下文]
     C -->|通过且 method=structural| F[finish]
-    B -->|无效| F
-    B --> X[run_checker: 宿主生成 TB]
+    B -->|checker 无效| F
+    B --> X[run_checker: host]
     X -->|通过| F
-    X -->|不一致| A[adjudicate: 大模型]
-    A -->|solution_error 且 repair_used < max_repairs| R2[repair: 大模型]
+    X -->|不一致| A[adjudicate: large]
+    A -->|solution_error 且未超限| R2[repair_behavior]
     R2 --> C
-    A -->|checker_error / spec_unclear / 达上限| F
+    A -->|checker_error 且可重建| B
+    A -->|checker_error 且重建已满| F
+    A -->|spec_unclear| F
 ```
-
-- 新建 `guided_verify`，保留 `adaptive_verify` 做对照。
-- 修复使用**一个**总计数器 `repair_used`，不再区分结构修复和行为修复；
-  达到 `max_repairs` 后停止。
-- checker 只构造一次；`checker_error` 不触发重建，直接结束并保留结构结论。
 
 ## 3. 节点与最小 I/O
 
-| 节点 | 角色 | 最小输入 | 最小输出 | 工具 |
-|---|---|---|---|---|
-| `plan` | small | 公开题面、skill 短名单、可选知识卡 ID/标题 | 扁平行式计划 | 无 |
-| `solve` | large | 题面、system prompt、选中的 skill/知识 | 候选 RTL | 无 |
-| `structure` | host | 候选 | interface/lint/synth 结果 | `interface_check`、`vivado_lint`、`vivado_synth` |
-| `repair` | large | 题面、当前候选、最近诊断或 checker 失败 | 子候选 | 无 |
-| `build_checker` | large | 题面、行为检查 skill、`focus`；不读候选/实测 | 行式向量表 | 无 |
-| `run_checker` | host | 候选 + 合法表 | 逐 case/line 的检查结果 | 仿真 |
-| `adjudicate` | large | 题面、checker、失败明细、当前候选 | `checker_error` / `solution_error` / `spec_unclear` | 无 |
-| `finish` | host | 选稿结果 | `solution.v`、状态 | 无 |
+| 节点 | 模型/工具 | 最小输入 | 最小输出 |
+|---|---|---|---|
+| `plan` | small | 公开题面、host 的 skill/RAG 候选短名单 | 扁平 `key=value` 文本 |
+| `solve` | large | 题面、system prompt、选中的 skill/RAG | 完整 RTL |
+| `structure` | interface/lint/synth | 候选 | 结构检查结果 |
+| `repair_structure` | large | 题面、当前候选、处理后诊断 | 新候选 |
+| `build_checker` | large | 题面、行为检查 skill、`focus`；不读候选/实测 | 行式向量表 |
+| `run_checker` | host | 候选 + 合法向量表 | 逐 case/step/output 结果 |
+| `adjudicate` | large | 题面、checker、失败明细、当前候选 | 扁平归因文本 |
+| `repair_behavior` | large | 题面、当前候选、checker、失败明细 | 新候选 |
+| `finish` | host | 选稿与状态 | `solution.v`、结果 |
 
-State 最小字段：`method`、`target_id`、`parent_id`、`phase`、`action`、
-`repair_used`、`checker_status`、`stop_reason`、`status`。计划、checker、trace
-和失败明细保存在 `ctx.store` 与 `records/`。
+State 最小字段：`method`、`target_id`、`parent_id`、`phase`、`action`、`checker_status`、`repair_used`、`stop_reason`、`status`。
 
-## 4. 小模型计划格式
+## 4. 小模型输出
 
-只输出行式 `key=value`，不使用嵌套 JSON：
+只允许逐行 `key=value`，不使用嵌套 JSON：
 
 ```text
 method=table
 skills=rtl-sequential-state-update
-knowledge=
+knowledge=diag-vrfc-10-1280
 focus=reset priority|load vs shift
 reason=single clock, reset and load are public
 ```
 
-- `method`：`structural` 或 `table`。
-- `skills`：逗号分隔，最多 2 个，必须来自 host 短名单。
-- `knowledge`：逗号分隔的卡片 ID，最多 3 个；可以为空。
-- `focus`：最多 4 条，`|` 分隔，仅作为检查器提示，不作为题目要求。
-- `reason`：单行短文本。
-- 任何未知字段、未知 ID、重复项、超限或格式错误都回退到 `structural`，
-  并记录回退原因；不追加一次模型请求。
+规则：
+
+- `method` 只能是 `structural` 或 `table`。
+- `skills` 来自 host 短名单，最多 2 个；未自动准入的 Skill 不发送。
+- `knowledge` 来自 host 检索候选，最多 3 个；host 还原卡片原文。
+- `focus` 最多 4 段，用 `|` 分隔，只用于 checker 提示，不作为题面要求。
+- 格式错误、未知 ID、超限或不支持的方法：回退 `structural`，记录原因，仍继续解题。
 
 ## 5. 检查器格式
 
-模型只输出行式向量表；宿主生成时钟、reset 时序、采样和比较逻辑。
+模型只输出行式向量表，宿主生成 Verilog testbench、时钟、reset 阶段、采样和比较。
 
 ```text
 case reset
 init reset=1 load=0 data=00 q=01
 step reset=0 load=1 data=a5 q=a5
 step reset=0 load=0 data=00 q=4a
-case boundary
+case shift_boundary
 init reset=0 load=1 data=80 q=80
 step reset=0 load=0 data=00 q=01
 ```
 
-- `case <id>` 开始一组；每行 `init` 或 `step`。
-- 每个非时钟公开输入在每行必须完整出现；时钟由宿主生成。
-- 同一 case 的输出集合由首行确定；后续行必须使用相同输出集合。
-- 允许只检查关键输出；host 记录 `checked_outputs` 与 `unchecked_outputs`。
-  存在未检查公开输出时，结论为 `partial_outputs`，`functional_passed` 保持
-  false/unknown，不能报完整功能通过。
-- 顺序 case 第一行必须是 `init`；组合 case 可以 `step` 开始。
-- `init` 行执行 `init_cycles` 个有效沿后再比较；默认由参数配置，不在代码写死。
-- 期望值用十六进制；host 校验端口宽度、未知值和范围。
+规则：
+
+- `case <id>` 开始一组；每行以 `init` 或 `step` 开头。
+- 每个非时钟公开输入在每行必须出现一次；时钟由宿主生成。
+- 首行的输出名定义该 case 的检查集合；后续行必须使用同一组输出名。
+- 未列出的公开输出记入 `unchecked_outputs`，不计为通过。
+- 顺序 case 首行必须是 `init`，宿主执行 `init_cycles` 个沿后开始比较；组合 case 可以 `step` 开始。
+- 期望值为十六进制，宿主按端口宽度校验；未知、越界或缺少输入直接判无效。
 - 最多 `max_cases` 个 case、每个 `max_steps_per_case` 行。
-- 不写 Verilog、always、initial、延时、任务、循环、类或层次引用。
+- 不写 Verilog、task、delay、循环、层次引用或注释。
 
-## 6. 归因
+## 6. 判定与重建
 
-输出扁平行式：
+- 行为比较结果记录 `checked_outputs`、`unchecked_outputs`、`unknown_outputs`。
+- 只要存在 unchecked 公开输出，结论为 `partial_behavior`；`functional_passed` 保持 false/unknown。
+- `adjudicate` 输出扁平文本：
 
-```text
-decision=solution_error
-reason=reset case expects q=01 but observed 00
-failed_cases=reset
-```
+  ```text
+  decision=solution_error
+  reason=reset state differs at case reset
+  failed_cases=reset
+  ```
 
-- `solution_error`：允许一次 `repair`，然后重新结构检查，并用同一 checker 复检。
-- `checker_error`：不修 checker，停止为“结构通过、行为未确认”。
+- `checker_error`：若 `checker_rebuilds_used < checker_rebuild_limit`，重建 checker；重建只读公开题面、旧 checker 和归因原因，不读候选或实测。
+- 重建后再次运行 checker；仍不一致则再次归因，受 `adjudicate_limit` 限制。
+- 重建次数达到限制后仍为 `checker_error`：停止行为分支，不再重建、不再做行为检查，保留结构检查结论并标记 `behavior_unverified`。
+- `solution_error`：允许一次行为修复；用同一 checker 复检。复检仍不一致则停止并记录失败，不再追加归因。
 - `spec_unclear`：停止，不猜语义。
-- 所有决定共用一个 `repair_used` 计数；达到 `max_repairs` 后不再生成。
-- 修复后仍不一致：记录失败并结束，不第二次归因。
 
 ## 7. 可配置参数
 
-不把次数、token 和超时写死在代码里：
+全部由工作流参数模型校验，代码不写死：
 
-```yaml
-params:
-  planner: {timeout_s: 60, max_tokens: 512}
-  solve: {timeout_s: 240, max_tokens: 4096}
-  repair: {timeout_s: 240, max_tokens: 4096}
-  checker: {timeout_s: 180, max_tokens: 2048}
-  adjudicate: {timeout_s: 120, max_tokens: 1024}
-  max_repairs: 2
-  max_checker_builds: 1
-  max_cases: 4
-  max_steps_per_case: 8
-  init_cycles: 2
-  knowledge_candidates: 5
-  knowledge_select: 3
-  first_tools_s: 120
-  recheck_tools_s: 120
-  max_calls: 7
-  max_output_tokens: 65536
-```
+| 参数 | 建议默认 | 说明 |
+|---|---:|---|
+| `planner` | 60s / 512 | 小模型路由 |
+| `solve` | 240s / 4096 | 首稿 |
+| `checker` | 180s / 2048 | 构造向量表 |
+| `adjudicate` | 120s / 1024 | 归因 |
+| `structure_repair_limit` | 1 | 结构修复次数 |
+| `behavior_repair_limit` | 1 | 行为修复次数 |
+| `checker_rebuild_limit` | 1 | checker 重建次数（0 表示不重建） |
+| `adjudicate_limit` | 2 | 归因次数上限 |
+| `max_cases` | 4 | 关键 case 上限 |
+| `max_steps_per_case` | 8 | 每 case 行数上限 |
+| `init_cycles` | 2 | 顺序 case 初始化沿数 |
+| `knowledge_candidates` | 5 | host RAG 候选数 |
+| `knowledge_select` | 3 | 小模型最多选卡数 |
+| `max_calls` | 8 | 总 completion 上限 |
+| `max_output_tokens` | 65536 | 总输出 token 上限 |
 
-`max_repairs` 是结构修复和行为修复共用的总上限；`max_checker_builds` 当前固定为 1，
-不提供 checker 重建路径。
+`checker_rebuild_limit=0` 时，第一次 `checker_error` 就停止行为分支。
 
-## 8. 未决问题
+## 8. 小模型与 Skill
 
-1. **RAG 语义**：现有 `knowledge/cards.json` 是 lint 诊断修复卡，不是解题知识。
-   plan 阶段没有失败证据，无法使用现有 `retrieve()`。可选项：
-   - 只让 plan 选 skill，诊断卡留给 lint 失败后的修复；
-   - 新增“解题知识”语料和检索；
-   - plan 阶段不选 RAG。
-2. **小模型正式启用**：候选模型已在分支配置中 `enabled: true`，但 HF license 为空、
-   flat plan 格式尚未实测、`auxiliary_models` 未声明。正式提交前须解决许可证与 manifest 声明。
-3. `init_cycles` 的默认值、`max_repairs` 默认值仍需真实题集校准。
+- 小模型候选：`Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`。
+- HF API 复核 revision `a171280d7f001fef819e90218e008a887f1292c7`，`license` 为空，
+  两个 safetensors 合计约 6.2 GB（F32）。
+- 按用户要求先写入 `model/MODEL.md` 并纳入正式启用配置；`manifest.json` 的
+  `auxiliary_models` 暂时保持为空。**正式封存前必须补齐 manifest 声明，否则不满足
+  FAQ Q26 / SCORING 2.12。**
+- 独立 flat plan 输出格式尚未实测；当前服务是 8010 的 Qwen3.8-27B，不含该小模型权重。
+  启用后 `adaptive_verify`/`guided_verify` 的小模型请求需要单独部署和验证，否则会失败。
+- 行为检查 skill：`rtl-behavior-check-keycases`，团队原创 candidate，不在自动准入集合。
+
+## 9. 验证边界
+
+- 关键 case 通过只证明被检查输出在本次采样上一致，不是完整功能证明。
+- 未覆盖输出、未知值、未触发 case、checker 无效和环境失败分别记录。
+- 归因 `solution_error` 不是 RTL 错误的证明；`checker_error` 也不证明候选正确。
+- 正式成绩仍需官方判定；真实模型与 Vivado 小样本只作机制验证。
