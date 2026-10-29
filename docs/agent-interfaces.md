@@ -96,8 +96,8 @@ retrieval_mode: off | legacy | rag | all
 retrieval_strategy: bm25 | dense
 ```
 
-- `legacy`：只取 `activation_state=legacy_policy` 的卡片。
-- `rag`：取 `legacy_policy` 和 `restricted` 卡片。
+- `legacy`：只取 `activation_state=legacy_policy` 的卡片；仍须通过阶段和 `injection_eligible` 检查。
+- `rag`：取 `legacy_policy` 和 `restricted` 卡片，并要求 `pre_generation` 阶段和 `injection_eligible=true`。
 - `all`：包含 shadow 和 mechanical_only，仅用于开发检查。
 
 检索接口：
@@ -105,7 +105,7 @@ retrieval_strategy: bm25 | dense
 ```python
 from agent.domain.knowledge import guided
 
-cards, report = guided.retrieve(query, mode="legacy", limit=5)
+cards, report = guided.retrieve(query, mode="rag", limit=5)
 text = guided.card_text(cards[0])
 ```
 

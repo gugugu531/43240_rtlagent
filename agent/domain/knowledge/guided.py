@@ -117,6 +117,17 @@ def dense_rank(cards, query, *, embedding_url, timeout_s=2.0, trace=None):
     return sorted(ranked, key=lambda item: (-item[1], item[0]))
 
 
+def card_allowed(card, stage="pre_generation"):
+    """A card must authorize this stage and allow injection on its own terms."""
+    if card.get("injection_eligible") is not True:
+        return False
+    phases = card.get("phases") or []
+    if stage not in phases:
+        return False
+    stages = card.get("injection_stages")
+    return stages is None or stage in stages
+
+
 def retrieve(
     query,
     *,
@@ -125,9 +136,13 @@ def retrieve(
     strategy="bm25",
     embedding_url="",
     embedding_timeout_s=2.0,
+    stage="pre_generation",
     trace=None,
 ):
-    report = {"mode": mode, "strategy": strategy, "retrieved": [], "selected": []}
+    report = {
+        "mode": mode, "stage": stage, "strategy": strategy,
+        "retrieved": [], "selected": [],
+    }
     if mode == "off":
         report["reason"] = "disabled"
         if trace is not None:
@@ -140,6 +155,7 @@ def retrieve(
         card
         for card in load_cards()
         if card.get("activation_state") in statuses
+        and card_allowed(card, stage)
     ]
     try:
         if strategy == "dense":

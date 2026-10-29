@@ -141,7 +141,7 @@ step reset=0 load=0 data=00 q=01
 | `init_cycles` | 2 | 顺序 case 初始化沿数 |
 | `knowledge_candidates` | 5 | host 知识候选数 |
 | `knowledge_select` | 3 | 小模型最多选卡数 |
-| `retrieval_mode` | legacy | `off` / `legacy` / `rag` / `all` |
+| `retrieval_mode` | off | `off` / `legacy` / `rag` / `all` |
 | `retrieval_strategy` | bm25 | `bm25` / `dense` |
 | `embedding_url` | 空 | dense 服务地址 |
 | `max_calls` | 8 | 总 completion 上限 |
@@ -165,8 +165,8 @@ step reset=0 load=0 data=00 q=01
 
 ## 9. 知识检索路线
 
-`guided_verify` 默认 `retrieval_mode=legacy`，只从 `knowledge/cards.json` 的
-`legacy_policy` 卡片中选取候选。显式启用 RAG 时使用：
+`guided_verify` 默认 `retrieval_mode=off`，不注入知识。`legacy` 卡片属于
+`post_diagnostic`，不能在首稿阶段注入；需要知识时显式使用 RAG 配置。显式启用 RAG 时使用：
 
 ```bash
 AGENT_CONFIG=config/guided_verify_rag_bm25.yaml ./run.sh <input> <output>

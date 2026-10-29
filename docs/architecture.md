@@ -127,7 +127,7 @@ Burr 提供动作、不可变状态更新和条件连线；工作流选择了哪
 
 每个扩展尽量只改变一层的职责，通过已有契约组合其他层；必要的跨层改动必须说明触发条件、旧行为、新行为和兼容范围。具体步骤见[开发规范](development.md)。
 
-知识检索由 `agent/domain/knowledge/guided.py` 提供；`single_generate` 的显式 RAG 配置使用 `rtl_generate`，guided 默认只使用 legacy 卡片。卡片和向量不保存版本、sha256、路径或 release lock。使用方法见 [Skill 与知识检索](knowledge.md)。
+知识检索由 `agent/domain/knowledge/guided.py` 提供；`single_generate` 的显式 RAG 配置使用 `rtl_generate`，guided 默认关闭知识注入。卡片和向量不保存版本、sha256、路径或 release lock。使用方法见 [Skill 与知识检索](knowledge.md)。
 
 ## 10. 可选的模型请求额度
 

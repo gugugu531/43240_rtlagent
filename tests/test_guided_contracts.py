@@ -408,7 +408,7 @@ class GuidedContractTests(unittest.TestCase):
                 "first_tools_s": 1,
                 "knowledge_candidates": 5,
                 "knowledge_select": 3,
-                "retrieval_mode": "legacy",
+                "retrieval_mode": "rag",
                 "retrieval_strategy": "bm25",
             },
             "plan": None,
@@ -454,6 +454,29 @@ class GuidedContractTests(unittest.TestCase):
             guided.solve(ctx, State({}))
         self.assertEqual(data["plan"]["knowledge"], [card["card_id"]])
         self.assertIn(knowledge.card_text(card), sent["messages"][-1]["content"])
+
+    def test_forbidden_diagnostic_card_is_not_injected_into_first_draft(self):
+        forbidden = next(
+            card for card in knowledge.load_cards()
+            if card["card_id"] == "diag-vrfc-10-1280"
+        )
+        self.assertFalse(knowledge.card_allowed(forbidden, "pre_generation"))
+        data = {
+            "plan": {"skills": [], "knowledge": [forbidden["card_id"]]},
+            "settings": {"knowledge_select": 3},
+        }
+        ctx = SimpleNamespace(
+            task=task(),
+            store={"guided": data},
+            prompts=TemplateRenderer(),
+        )
+        material, selection = guided._skill_and_card_material(ctx)
+        self.assertNotIn(knowledge.card_text(forbidden), material)
+        self.assertEqual(selection["cards_sent"], [])
+        self.assertIn(
+            "card_not_injectable_at_pre_generation",
+            [row["reason"] for row in selection["rejected"]],
+        )
 
     def test_mismatch_is_failed(self):
         checker = parse_checker(

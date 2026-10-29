@@ -42,13 +42,60 @@ class KnowledgeGuidedTests(unittest.TestCase):
         for value in vectors.values():
             self.assertEqual(len(value), data["dimensions"])
 
-    def test_legacy_retrieval_uses_only_legacy_cards(self):
+    def test_legacy_diagnostic_cards_are_not_pre_generation_candidates(self):
         cards, report = guided.retrieve(
             "synchronous reset counter register shift", mode="legacy", limit=3
         )
-        self.assertTrue(cards)
-        self.assertTrue(all(card["activation_state"] == "legacy_policy" for card in cards))
-        self.assertEqual(report["mode"], "legacy")
+        self.assertEqual(cards, [])
+        self.assertEqual(report["stage"], "pre_generation")
+        self.assertNotIn("diag-vrfc-10-1280", report["selected"])
+
+    def test_forbidden_card_is_filtered_before_dense_ranking(self):
+        from agent.domain.knowledge.embedding import settings
+
+        class Response:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self.payload
+
+        class Client:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def get(self, url):
+                return Response({"data": [{"id": settings()["model_alias"]}]})
+
+            def post(self, url, json):
+                return Response({
+                    "model": settings()["model_alias"],
+                    "data": [{
+                        "index": 0,
+                        "embedding": [1.0] + [0.0] * (settings()["dimensions"] - 1),
+                    }],
+                })
+
+        with patch("agent.domain.knowledge.embedding.httpx.Client", Client):
+            cards, report = guided.retrieve(
+                "VRFC 10-1280 procedural assignment non-register",
+                mode="rag", limit=5, strategy="dense",
+                embedding_url="http://127.0.0.1:8020",
+            )
+        # The query would rank the diagnostic card highly, but its phase and
+        # injection_eligible flag forbid first-draft injection.
+        self.assertNotIn("diag-vrfc-10-1280", report["selected"])
+        self.assertNotIn("diag-vrfc-10-1280", {row["card_id"] for row in report["retrieved"]})
+        self.assertTrue(all(guided.card_allowed(card, "pre_generation") for card in cards))
 
     def test_dense_route_uses_the_configured_http_embedding_service(self):
         from agent.domain.knowledge.embedding import settings

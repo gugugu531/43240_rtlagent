@@ -16,7 +16,7 @@
 | 模型声明与服务运行方式 | [模型声明](../model/MODEL.md)、[服务说明](../serve/README.md) |
 
 默认入口为 `single_generate`。`guided_verify` 和 RAG 路线通过显式 `AGENT_CONFIG` 选择。
-RAG 不是默认行为；guided 默认保留 legacy 卡片检索。
+RAG 不是默认行为；guided 默认不注入知识，RAG 通过显式配置启用。
 
 本仓库不依赖 `dev/` 目录运行。Dockerfile 只复制运行所需的源码、配置、知识资产、服务和
 声明文件；开发归档不进入镜像。模型权重、推理服务和 EDA 工具需要另行准备。

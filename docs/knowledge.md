@@ -36,12 +36,13 @@ card_text(card)
 
 模式：
 
-- `legacy`：只取 `legacy_policy` 卡片，保持 guided 原有行为；
-- `rag`：取 `legacy_policy` 和 `restricted` 卡片；
+- `legacy`：只取 `legacy_policy` 卡片；这些卡片是 `post_diagnostic` 且不可注入首稿，因此首稿阶段通常为空；
+- `rag`：取 `legacy_policy` 和 `restricted` 卡片，并再次要求卡片阶段包含 `pre_generation`、`injection_eligible=true`；
 - `all`：包含 shadow 和 mechanical_only，仅用于开发检查；
 - `off`：不检索。
 
-`guided_verify` 默认 `retrieval_mode=legacy`、`retrieval_strategy=bm25`。RAG 路线通过
+`guided_verify` 默认 `retrieval_mode=off`、`retrieval_strategy=bm25`，不注入知识。`legacy` 卡片属于
+`post_diagnostic` 且不可作为首稿注入，因此 guided 首稿阶段不会选中它们。RAG 路线通过
 显式配置选择；dense 失败时返回空候选并在 `knowledge/retrieval` 记录
 `embedding_unavailable`，不会静默回退到 BM25：
 
@@ -92,4 +93,4 @@ generate -> extract -> select -> finish
 - 卡片只包含公开方法文本，不包含参考实现、官方测试台或判定反馈。
 - 检索失败、空结果或 embedding 不可用时，请求继续使用原题面和接口，不把失败算作知识收益。
 - 当前没有 release lock、卡片版本比较或文件哈希校验；修改卡片或向量后应重新验证检索结果。
-- `guided_verify` 的 RAG 模式仍是可选项，默认使用 legacy 检索。
+- `guided_verify` 的 RAG 模式仍是可选项，默认关闭知识注入。

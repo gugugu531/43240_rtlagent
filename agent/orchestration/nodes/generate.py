@@ -61,6 +61,11 @@ def generate(
             pieces = []
             used = 0
             for card in cards[: retrieval.get("inject_k", 1)]:
+                if not knowledge.card_allowed(card, "pre_generation"):
+                    report.setdefault("rejected", []).append(
+                        {"id": card["card_id"], "reason": "card_not_injectable_at_pre_generation"}
+                    )
+                    continue
                 text = knowledge.card_text(card)
                 if used + len(text) > knowledge_max_tokens:
                     break

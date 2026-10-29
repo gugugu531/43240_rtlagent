@@ -60,7 +60,7 @@ repair_behavior -> structure
 - `guided_verify` 默认：
   - `small`：planner；
   - `large`：solve、checker、adjudicate、repair；未启用时回落到主模型。
-- `config/guided_verify.yaml` 默认使用 legacy 知识检索；RAG 可选配置单独启用。
+- `config/guided_verify.yaml` 默认关闭知识注入；RAG 可选配置单独启用。
 - 模型思考开关沿用 `manifest.json` 的 `generation` 声明，不按请求类型另设一套。
 
 ## 4. 工具与提交
@@ -87,7 +87,7 @@ vivado_synth
   `config/rag_embedding.yaml`。
 - `agent/domain/knowledge/guided.py` 提供 BM25/dense 检索和卡片文本读取。
 - `single_generate` 的 RAG 配置使用 `rtl_generate`/`rtl_extract`；
-  `guided_verify` 通过 `retrieval_mode` 选择不检索、legacy 或 RAG 候选。
+  `guided_verify` 通过 `retrieval_mode` 选择不检索、legacy 或 RAG 候选；候选和最终装配都检查卡片的阶段与 `injection_eligible`。
 
 ## 6. 预算与记录
 

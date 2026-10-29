@@ -151,10 +151,19 @@ def _skill_and_card_material(ctx):
     for skill_id in selected:
         parts.append(f"[Skill {skill_id}]\n{assets['skills'][skill_id][1]}")
     cards = knowledge.card_map()
+    card_sent = []
     for card_id in data["plan"]["knowledge"]:
-        if card_id in cards:
-            parts.append(knowledge.card_text(cards[card_id]))
-    return "\n\n".join(parts), {"sent": selected, "rejected": rejected}
+        card = cards.get(card_id)
+        if card is None:
+            rejected.append({"id": card_id, "reason": "unknown_card"})
+        elif not knowledge.card_allowed(card, "pre_generation"):
+            rejected.append({"id": card_id, "reason": "card_not_injectable_at_pre_generation"})
+        else:
+            parts.append(knowledge.card_text(card))
+            card_sent.append(card_id)
+    return "\n\n".join(parts), {
+        "sent": selected, "cards_sent": card_sent, "rejected": rejected
+    }
 
 
 def _shortlist(ctx, limit):
@@ -166,26 +175,14 @@ def _shortlist(ctx, limit):
         for identity, (skill, _) in assets["skills"].items()
     ]
     mode = settings.get("retrieval_mode", "legacy")
-    statuses = {"legacy": {"legacy_policy"}, "rag": {"legacy_policy", "restricted"},
-                "all": {"legacy_policy", "restricted", "shadow", "mechanical_only"}}.get(mode, set())
-    cards = [card for card in knowledge.load_cards() if card.get("activation_state") in statuses]
     query = ctx.task.prompt + "\n" + ctx.task.interface
-    report = {"mode": mode, "strategy": settings.get("retrieval_strategy", "bm25")}
-    if mode == "off":
-        report.update(reason="disabled", selected=[])
-        picked = []
-    elif settings.get("retrieval_strategy") == "dense":
-        picked, report = knowledge.retrieve(
-            query, mode=mode, limit=limit, strategy="dense",
-            embedding_url=settings.get("embedding_url", ""),
-            embedding_timeout_s=settings.get("embedding_timeout_s", 2.0),
-        )
-    else:
-        ranked = [card_id for card_id, _ in knowledge.bm25_rank(cards, query)]
-        by_id = {card["card_id"]: card for card in cards}
-        ordered = ranked + [c["card_id"] for c in cards if c["card_id"] not in ranked]
-        picked = [by_id[identity] for identity in ordered[:limit]]
-        report.update(selected=[card["card_id"] for card in picked], reason="retrieved" if picked else "empty")
+    picked, report = knowledge.retrieve(
+        query, mode=mode, limit=limit,
+        strategy=settings.get("retrieval_strategy", "bm25"),
+        embedding_url=settings.get("embedding_url", ""),
+        embedding_timeout_s=settings.get("embedding_timeout_s", 2.0),
+        stage="pre_generation",
+    )
     data["retrieval"] = report
     return skills, picked
 
