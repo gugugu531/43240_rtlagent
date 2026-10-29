@@ -1,0 +1,44 @@
+{
+  "cards": [
+    {
+      "card_id": "v9-public-cellular-snapshot-update",
+      "route_case_id": "b51-039"
+    },
+    {
+      "card_id": "v9-public-triangle-endpoint-dwell",
+      "route_case_id": "b51-069"
+    },
+    {
+      "card_id": "v9-public-grid-row-column-wrap",
+      "route_case_id": "b51-049"
+    },
+    {
+      "card_id": "v9-lang-comparison-result-sign",
+      "route_case_id": "b51-015"
+    },
+    {
+      "card_id": "v9-lang-unsigned-negative-check",
+      "route_case_id": "b51-033"
+    },
+    {
+      "card_id": "v9-public-sampled-edge-history",
+      "route_case_id": "b51-060"
+    },
+    {
+      "card_id": "v9-public-framing-search-phase",
+      "route_case_id": "b51-048"
+    },
+    {
+      "card_id": "v9-public-instruction-bank-isolation",
+      "route_case_id": "b51-052"
+    },
+    {
+      "card_id": "v9-public-pause-preserves-subtick",
+      "route_case_id": "b51-057"
+    },
+    {
+      "card_id": "v9-lang-boolean-versus-bitwise",
+      "route_case_id": "b51-012"
+    }
+  ]
+}

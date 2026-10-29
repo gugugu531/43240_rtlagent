@@ -1,9 +1,0 @@
-# Local repair and complete delivery — domain-neutral control
-
-Use only the public task, current candidate and supplied feedback. Work on the
-implicated region; preserve already correct declarations, interfaces, dependencies,
-reset behavior and timing. Make the smallest justified change. Check one concrete
-example that distinguishes the proposed correction from the defect, then deliver
-one complete RTL file in the surrounding output format. Do not repeatedly reconsider
-settled interpretations, enumerate equivalent implementations, or speculate about
-hidden tests. A derivation without a complete final file is not a delivered repair.

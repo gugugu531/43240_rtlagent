@@ -1,0 +1,44 @@
+{
+  "cards": [
+    {
+      "card_id": "v9-public-toggle-divider-period",
+      "route_case_id": "b51-068"
+    },
+    {
+      "card_id": "v9-public-fractional-period-duty",
+      "route_case_id": "b51-047"
+    },
+    {
+      "card_id": "v9-public-hdlc-run-classification",
+      "route_case_id": "b51-051"
+    },
+    {
+      "card_id": "v9-public-speculation-rollback-priority",
+      "route_case_id": "b51-066"
+    },
+    {
+      "card_id": "v9-public-johnson-orbit",
+      "route_case_id": "b51-054"
+    },
+    {
+      "card_id": "v9-public-mixed-radix-time-rollover",
+      "route_case_id": "b51-055"
+    },
+    {
+      "card_id": "v9-public-odd-divider-duty-limit",
+      "route_case_id": "b51-056"
+    },
+    {
+      "card_id": "v9-public-ring-onehot-invariant",
+      "route_case_id": "b51-059"
+    },
+    {
+      "card_id": "v9-public-serial-error-rearm",
+      "route_case_id": "b51-063"
+    },
+    {
+      "card_id": "v9-public-signed-subtract-overflow",
+      "route_case_id": "b51-065"
+    }
+  ]
+}

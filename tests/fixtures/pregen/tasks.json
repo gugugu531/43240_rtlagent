@@ -1,0 +1,154 @@
+{
+  "tasks": [
+    {
+      "case_id": "b51-001",
+      "prompt": "At rising clk reset sets state to 0001. When enabled, shift the low three old bits toward the high positions and append old state[3] XOR state[2] as the new least significant bit. Disabled edges hold state. Zero is not the specified reset seed. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,input enable,output reg [3:0] state); endmodule"
+    },
+    {
+      "case_id": "b51-003",
+      "prompt": "At rising clk reset clears all state and outputs. An item is accepted only when in_valid and ready are both high. Pack four two-bit accepted items into word from the low lane upward; the fourth occupies bits 7:6 and produces a one-cycle out_valid pulse. Bubbles do not advance packing. Completed word holds otherwise. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,input in_valid,input ready,input [1:0] data_in,output reg [7:0] word,output reg out_valid); endmodule"
+    },
+    {
+      "case_id": "b51-005",
+      "prompt": "On rising clk, synchronous reset clears result and out_valid. stall holds both. Without stall, out_valid becomes in_valid; when in_valid is high result becomes data_in plus one modulo 256, otherwise result holds. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,input stall,input in_valid,input [7:0] data_in,output reg out_valid,output reg [7:0] result); endmodule"
+    },
+    {
+      "case_id": "b51-006",
+      "prompt": "Implement a synchronous 512-by-eight-bit single-port memory. On every rising clk, dout captures the pre-edge contents at addr. With we high the same edge writes din, so a same-address read/write returns the old value (read-first). There is no reset; unwritten memory and initial dout are unspecified. This experiment checks RTL behavior, not physical BRAM mapping. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,we,input[8:0]addr,input[7:0]din,output reg[7:0]dout); endmodule"
+    },
+    {
+      "case_id": "b51-007",
+      "prompt": "On rising clk reset clears valid and value_out. When valid is high and ready low, retain valid and value_out regardless of produce. Otherwise a high produce captures value_in and sets valid; without produce clear valid and retain payload. Reset has highest priority. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,input produce,input ready,input [7:0] value_in,output reg valid,output reg [7:0] value_out); endmodule"
+    },
+    {
+      "case_id": "b51-008",
+      "prompt": "At rising clk reset clears valid and bit_out. A start while idle accepts data_in, immediately emits bit zero, and sets valid. On the next seven edges emit bits one through seven of that accepted word; later live data_in changes do not affect it. Clear valid on the following edge. Ignore start while active. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,input start,input [7:0] data_in,output reg bit_out,output reg valid); endmodule"
+    },
+    {
+      "case_id": "b51-009",
+      "prompt": "A synchronous two-entry byte stack resets count and both entries to zero. full means count two, empty means zero, top is zero when empty. A push is accepted only below full and has priority over pop; accepted pushes store at the next entry and increment count. Otherwise a nonempty pop decrements count. Rejected operations hold all state. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,input push,input pop,input [7:0] data_in,output full,output empty,output [7:0] top,output reg [1:0] count); endmodule"
+    },
+    {
+      "case_id": "b51-012",
+      "prompt": "Combinationally return a per-bit mask: each masked bit is one exactly when the corresponding bits of both four-bit inputs are one. Inputs are binary and all combinations are in scope.",
+      "interface": "module TopModule(input[3:0]a,b,output[3:0]masked); endmodule"
+    },
+    {
+      "case_id": "b51-015",
+      "prompt": "Compare two unsigned four-bit inputs. The signed six-bit result is positive one when a is smaller than b and zero otherwise; it is combinational.",
+      "interface": "module PublicRepair01(input [3:0] a,input [3:0] b,output signed [5:0] y); endmodule"
+    },
+    {
+      "case_id": "b51-033",
+      "prompt": "Return unsigned max(a minus b, zero), with no wraparound on underflow. The four-bit output is combinational.",
+      "interface": "module PublicRepair10(input [3:0] a,input [3:0] b,output [3:0] y); endmodule"
+    },
+    {
+      "case_id": "b51-034",
+      "prompt": "At rising clk reset sets hour to eleven and pm to zero. Each tick_hour advances a twelve-hour display: eleven advances to twelve and flips pm, twelve advances to one without flipping pm, other hours increment. Disabled edges hold both outputs. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,input tick_hour,output reg[3:0]hour,output reg pm); endmodule"
+    },
+    {
+      "case_id": "b51-038",
+      "prompt": "Combinationally compose two carry groups in low-to-high order. Group zero receives cin, has generate g0 and propagate p0; group one receives group zero carry and has g1 and p1. Output c2 is carry leaving the higher group for every binary input combination.",
+      "interface": "module TopModule(input g0,p0,g1,p1,cin,output c2); endmodule"
+    },
+    {
+      "case_id": "b51-039",
+      "prompt": "At rising clk reset loads seed into a four-cell periodic state. Otherwise each new state bit is the XOR of its two neighboring old bits: neighbors wrap around the four-cell ring. All cells update from one previous-state snapshot. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,reset,input[3:0]seed,output reg[3:0]state); endmodule"
+    },
+    {
+      "case_id": "b51-042",
+      "prompt": "For unsigned dividend and nonzero divisor return the exact integer quotient and remainder combinationally. The quotient is truncated downward for these nonnegative inputs; dividend equals quotient times divisor plus remainder, and remainder is less than divisor.",
+      "interface": "module TopModule(input[5:0]dividend,input[2:0]divisor,output[5:0]quotient,output[2:0]remainder); endmodule"
+    },
+    {
+      "case_id": "b51-047",
+      "prompt": "At rising clk reset sets wave high and phase zero. At later edges the required repeated wave samples are 1,0,0,0,1 starting on the first post-reset edge. Preserve this exact five-cycle alignment, not just the two-fifths duty ratio. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,reset,output reg wave); endmodule"
+    },
+    {
+      "case_id": "b51-048",
+      "prompt": "Synchronous reset clears payload_valid and payload and enters search mode. Only accepted valid bytes affect framing. In search, 0x7e starts a frame and is not emitted; the next two accepted bytes are payload including any 0x7e value. Emit each at its acceptance edge with payload_valid high, then resume search. payload_valid clears on nonpayload edges and payload holds. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,reset,valid,input[7:0]data,output reg payload_valid,output reg[7:0]payload); endmodule"
+    },
+    {
+      "case_id": "b51-049",
+      "prompt": "Return combinationally the number of the four orthogonal live neighbors of cell idx in a row-major three-row, four-column toroidal binary grid cells[11:0]. Rows and columns wrap independently. idx is restricted to 0 through 11; count uses three bits. No state update is requested.",
+      "interface": "module TopModule(output reg [2:0] count,input [11:0] cells,input [3:0] idx); endmodule"
+    },
+    {
+      "case_id": "b51-051",
+      "prompt": "ones is the number of consecutive preceding ones. Combinationally, for a current zero, stuffed is one for five preceding ones, flag for six, and abort for seven or more; other counts and a current one produce all zeros. Counts zero through fifteen are in scope.",
+      "interface": "module TopModule(input[3:0]ones,input bit_in,output stuffed,flag,abort); endmodule"
+    },
+    {
+      "case_id": "b51-052",
+      "prompt": "At rising clk reset clears both banks of four bytes. With we high, update only the selected bank and addr with wdata; idle and writes to other locations preserve contents. rdata is an asynchronous read of the selected bank and address. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,reset,we,input bank,input[1:0]addr,input[7:0]wdata,output[7:0]rdata); endmodule"
+    },
+    {
+      "case_id": "b51-054",
+      "prompt": "On rising clk reset sets four-bit state to 0000. Thereafter shift right one position and place the complement of the old least significant bit into the most significant position. Follow the resulting eight-state Johnson orbit without binary increment. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,output reg[3:0]state); endmodule"
+    },
+    {
+      "case_id": "b51-055",
+      "prompt": "At rising clk reset clears seconds and minutes. load has priority over tick and loads legal input values zero through 59. Each tick advances seconds; 59 seconds wraps to zero and advances minutes, with 59 minutes wrapping to zero. Other edges hold both fields. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,input load,input tick,input[5:0]sec_in,min_in,output reg[5:0]sec,min); endmodule"
+    },
+    {
+      "case_id": "b51-056",
+      "prompt": "At rising clk reset sets divided low and phase zero. After reset, repeat the registered output samples 1,0,0 starting on the first edge. This is a divide-by-three waveform with one high source cycle and two low cycles, not an equal-duty square wave. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,output reg divided); endmodule"
+    },
+    {
+      "case_id": "b51-057",
+      "prompt": "At rising clk reset clears tick and a four-step divider phase. Each enable advances phase; tick pulses on every fourth enabled edge and is zero otherwise. A disabled edge preserves fractional progress and suppresses tick; resumption continues the partial count. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,reset,enable,output reg tick); endmodule"
+    },
+    {
+      "case_id": "b51-059",
+      "prompt": "On rising clk reset sets the four-bit state to 0001. Every subsequent edge rotates it left by one position, wrapping the old most significant bit to bit zero. No additional illegal-state recovery is required. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,output reg[3:0]state); endmodule"
+    },
+    {
+      "case_id": "b51-060",
+      "prompt": "At rising clk, reset initializes the previous sample and rise to zero. After reset, rise is one exactly for a sampled low-to-high transition of signal_in, and zero for a sustained high or low. Outputs are registered at that edge. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,input signal_in,output reg rise); endmodule"
+    },
+    {
+      "case_id": "b51-063",
+      "prompt": "At rising clk reset clears accept and error and enters idle. In idle a start_event pulses accept and enters busy. In busy, frame_done returns to idle if stop_ok; otherwise pulse error and enter recovery. Recovery ignores starts until an edge observing idle high, then allows a start only on a later edge. accept and error otherwise clear each edge. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,reset,start_event,frame_done,stop_ok,idle,output reg accept,error); endmodule"
+    },
+    {
+      "case_id": "b51-065",
+      "prompt": "Return the low four bits of signed a minus b and assert overflow exactly when the mathematical result lies outside minus eight through seven. Outputs are combinational.",
+      "interface": "module PublicRepair12(input signed [3:0] a,input signed [3:0] b,output signed [3:0] difference,output [0:0] overflow); endmodule"
+    },
+    {
+      "case_id": "b51-066",
+      "prompt": "At rising clk reset clears history. Otherwise mispredict replaces history with recovery_history and has priority over a same-edge predict. With predict alone, shift history left and append taken; with neither, hold. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,reset,predict,taken,mispredict,input[3:0]recovery_history,output reg[3:0]history); endmodule"
+    },
+    {
+      "case_id": "b51-068",
+      "prompt": "On rising clk reset sets divided and divider phase to zero. Produce a divide-by-four square wave: divided first rises on the second post-reset edge, then changes every two edges. Hold no extra latency. All inputs are binary unless explicitly stated. Observe sequential outputs immediately after the active rising edge. The named reset is synchronous, active high and has priority, unless the contract explicitly says otherwise. Unspecified illegal states are outside scope.",
+      "interface": "module TopModule(input clk,input reset,output reg divided); endmodule"
+    },
+    {
+      "case_id": "b51-069",
+      "prompt": "At each rising clock emit the next sample of the repeating sequence 0,0,1,2,2,1. Synchronous active-high reset establishes phase zero with value zero; the first post-reset edge emits phase one, also zero. Endpoints dwell for two samples. Reset has priority; all inputs binary.",
+      "interface": "module TopModule(output reg [1:0] value,input [0:0] clk,input [0:0] reset); endmodule"
+    }
+  ]
+}

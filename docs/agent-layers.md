@@ -280,7 +280,7 @@ Skill/RAG 装配在进入循环前执行一次，所有步骤复用装配后的�
 
 - 事件：`run/*`、`node/*`、`llm/request`、`llm/reply`、`tool/call`、`tool/result`、`prompt/assembly`、`artifact`、`submission`。
 - `trace.jsonl` 保存摘要与不超过 2 KB 的 `excerpt`；`records/<run_id>/` 保存完整请求、回复、工具输出、候选和证据。
-- 日志查看器不进入 agent 运行路径，也不进入参赛包；现有 `dev/log-viewer.html` 读取相同记录，按新事件扩展。
+- 日志查看器不进入 agent 运行路径，也不进入参赛包；现有工作区 `dev/log-viewer.html` 读取相同记录，按新事件扩展。
 
 ## 8. 与现有代码的映射
 

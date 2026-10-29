@@ -15,8 +15,8 @@ class PregenMethodsV55(unittest.TestCase):
         data = load_bundle()
         self.cards = {card['card_id']: card for card in data['cards']}
         self.tasks = {row['case_id']: row for row in json.loads(
-            (ROOT / 'dev/optimization-v51/tasks.json').read_text())['tasks']}
-        self.batch = json.loads((ROOT / 'dev/optimization-v55/batch.json').read_text())['cards']
+            (ROOT / 'tests/fixtures/pregen/tasks.json').read_text())['tasks']}
+        self.batch = json.loads((ROOT / 'tests/fixtures/pregen/batch-v55.json').read_text())['cards']
 
     def test_all_ten_are_restricted_and_admit_current_public_fixture(self):
         self.assertEqual({row['card_id'] for row in self.batch}, set(PREGEN_METHODS_V55))

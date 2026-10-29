@@ -33,13 +33,3 @@ models/
 *.safetensors
 *.gguf
 *.bin
-
-# Local experiment payloads. Keep compact manifests, audits, receipts, and
-# reproducible scripts in Git; retain raw generations and release archives off-repo.
-dev/optimization-v*/returned*/
-dev/optimization-v*/frozen*/
-dev/optimization-v*/portable/
-dev/optimization-v*/wheelhouse/
-dev/optimization-v*/prior-*.json
-dev/optimization-v*/pre-repair-bundle.json
-dev/optimization-v*/*.tar.gz
