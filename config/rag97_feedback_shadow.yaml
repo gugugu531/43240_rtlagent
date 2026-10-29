@@ -1,0 +1,28 @@
+# Opt-in research observation only. Default application configuration is unchanged.
+workflow: repair_loop
+params: {max_rounds: 2}
+nodes:
+  generate:
+    use: rtl_generate
+    params:
+      max_tokens: 4096
+      skill_mode: 'off'
+      rag_mode: shadow
+      retrieval:
+        research_feedback: true
+        strategy: bm25
+        fallback: empty
+        retrieve_k: 5
+        inject_k: 1
+      knowledge_max_tokens: 1024
+  check: {use: rtl_checks, params: {stages: [interface, lint, synth]}}
+tools:
+  interface: {use: interface_check}
+  lint: {use: vivado_lint, params: {timeout_s: 300}}
+  synth: {use: vivado_synth, params: {timeout_s: 300}}
+services:
+  model: {backend: mock}
+runtime:
+  deadline_s: 900
+  reserve_s: 20
+  recording: {level: full}

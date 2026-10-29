@@ -1,0 +1,25 @@
+{
+  "archive_sha256": "afda7a89d54b883ec6441edc2e706cb889926763315576d69b5e398b6cfc3e5d",
+  "files": {
+    "bin/libggml-base.so": "72ce814d917651f88883857906f2e3f3dc701c71b2e77486521faca756cacf9d",
+    "bin/libggml-base.so.0": "72ce814d917651f88883857906f2e3f3dc701c71b2e77486521faca756cacf9d",
+    "bin/libggml-base.so.0.23.0": "72ce814d917651f88883857906f2e3f3dc701c71b2e77486521faca756cacf9d",
+    "bin/libggml-cpu.so": "5ecc784ba61bbabea309949ed0b8531fe8507b36ae1b2b4ecc8212aa0c542a8b",
+    "bin/libggml-cpu.so.0": "5ecc784ba61bbabea309949ed0b8531fe8507b36ae1b2b4ecc8212aa0c542a8b",
+    "bin/libggml-cpu.so.0.23.0": "5ecc784ba61bbabea309949ed0b8531fe8507b36ae1b2b4ecc8212aa0c542a8b",
+    "bin/libggml.so": "08a23ca36d4a4b1ac6b7bd284e19efbc970eeff59cba5221ce5fcda198e1e90b",
+    "bin/libggml.so.0": "08a23ca36d4a4b1ac6b7bd284e19efbc970eeff59cba5221ce5fcda198e1e90b",
+    "bin/libggml.so.0.23.0": "08a23ca36d4a4b1ac6b7bd284e19efbc970eeff59cba5221ce5fcda198e1e90b",
+    "bin/libllama-common.so": "76598a4c710fc7b75e2b69d33a35ff835acfb79a3adaf78a1816ee5904bcea84",
+    "bin/libllama-common.so.0": "76598a4c710fc7b75e2b69d33a35ff835acfb79a3adaf78a1816ee5904bcea84",
+    "bin/libllama-common.so.0.4.0": "76598a4c710fc7b75e2b69d33a35ff835acfb79a3adaf78a1816ee5904bcea84",
+    "bin/libllama-server-impl.so": "35b92c675cfd7eecc682aca6f65e60c6e43e04bce2edd0e16f96063c5f723319",
+    "bin/libllama.so": "d1682e9f145d012991f011eb864a228617cbbdfc9ce98bc5c0a85c3fe25fd7be",
+    "bin/libllama.so.0": "d1682e9f145d012991f011eb864a228617cbbdfc9ce98bc5c0a85c3fe25fd7be",
+    "bin/libllama.so.0.4.0": "d1682e9f145d012991f011eb864a228617cbbdfc9ce98bc5c0a85c3fe25fd7be",
+    "bin/libmtmd.so": "e5a895e34a23ead927c8783451aef5de2fbe42d17245f2d39c3fc888b47cf06f",
+    "bin/libmtmd.so.0": "e5a895e34a23ead927c8783451aef5de2fbe42d17245f2d39c3fc888b47cf06f",
+    "bin/libmtmd.so.0.4.0": "e5a895e34a23ead927c8783451aef5de2fbe42d17245f2d39c3fc888b47cf06f",
+    "bin/llama-server": "6fe3a0a7194eebb68423dd7f502659285f792a3a780308b9d88e1486fc59d638"
+  }
+}

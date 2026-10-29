@@ -1,0 +1,220 @@
+{
+  "cards": [
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v8-lfsr-feedback-seed",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v8-packer-valid-count",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v8-pipeline-operand-cohort",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v8-pipeline-valid-alignment",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v8-result-backpressure-retention",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v8-serializer-snapshot",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v8-stack-boundary-guards",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-public-sampled-edge-history",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-public-sequence-prefix-fallback",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-public-toggle-divider-period",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    }
+  ],
+  "counts": {
+    "cards": 10,
+    "model_calls": 0,
+    "restricted_exact": 0,
+    "runtime_enabled": 0,
+    "shadow": 10
+  },
+  "inputs": {
+    "candidate_pool_sha256": "fff2a63d29570d481b6d5d91f4484e5346a75b689133a8ae2100c59d1234ce02",
+    "cards_sha256": "4069a48348a13be8f777ffd63aefe26b78e14718291aff2949c6d7d3a2b5578d",
+    "mechanical_results_archive_sha256": "8baaf04189ee59aa0cbfb90d945a5d8e39feaeaf41e65cc18b4c02310f35eef3",
+    "mechanical_results_sha256": "e60f02f646b74e16546a3b703389f12aef546b3da1a2719d78251a3e02a6cc36"
+  },
+  "schema_version": 1,
+  "scope": "Mechanically validated internal cards. Shadow decisions are recorded but never appended to model messages.",
+  "status": "ten_observation_only_shadow_cards_frozen"
+}

@@ -3,7 +3,7 @@
 import hashlib
 import json
 from agent.kit import Ctx, State, node
-from agent.orchestration.nodes.checks import check_stages, remember_repair_check, repair_feedback
+from agent.orchestration.nodes.checks import check_stages, remember_repair_check, remember_functional_check, repair_feedback
 from agent.orchestration.nodes.suite import build_suite
 from agent.orchestration.nodes.plan import _quoted
 from agent.orchestration.nodes.recovery import rtl_repair_blocker, stop
@@ -336,6 +336,7 @@ def diagnose(ctx: Ctx, state: State, *, max_tokens: int = 8192) -> State:
             feedback=str(diagnosis.data.get("repair_feedback", "")),
         )
     if cause == "rtl":
+        remember_functional_check(ctx, failing, suite)
         return state.update(action="generate", feedback=feedback)
     return stop(state, "diagnosis_" + cause)
 

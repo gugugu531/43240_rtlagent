@@ -48,6 +48,10 @@
       "guided_verify"
     ]
   },
-  "generation": {},
+  "generation": {
+    "chat_template_kwargs": {
+      "enable_thinking": true
+    }
+  },
   "auxiliary_models": []
 }

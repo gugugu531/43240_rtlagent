@@ -47,7 +47,10 @@ _SYSTEM = (
     "Only for rtl_error, follow the json block with one fenced verilog block containing the complete synthesizable file. "
     "Do not output other prose, testbenches, patches, or omitted code. Do not introduce unspecified reset behavior or interfaces. "
     "Use nonblocking assignments for sequential logic and defaults for combinational logic. "
-    "Strictly preserve clocks, resets, priorities, widths, signedness, and cycle behavior. "
+    "Preserve the authoritative public clocks, resets, priorities, widths, signedness, and cycle behavior. "
+    "A previous candidate or an explicitly buggy example is not an authoritative interface. "
+    "If the public task explicitly requires repairing a declaration, correct it to that requirement; "
+    "do not invent interface changes when the public contract is ambiguous. "
     "For compilation or synthesis errors, inspect every independent root cause and writer; do not merely suppress log messages."
 )
 
@@ -120,6 +123,9 @@ def _failure_context(failure):
         result["command"] = [[PurePosixPath(command[0]).name, *command[1:]]
                              for command in result["command"]]
     details.pop("knowledge_version_probes", None)
+    # Physical source identity is admission provenance, not solver knowledge.
+    # Keep random scratch paths out of off/shadow prompt comparisons.
+    details.pop("source_binding", None)
     return result
 
 

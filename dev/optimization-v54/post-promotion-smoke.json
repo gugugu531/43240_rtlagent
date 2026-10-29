@@ -1,0 +1,290 @@
+{
+  "release_id": "rag-catalog-v3-rc4.4",
+  "status": "passed",
+  "restricted_count": 18,
+  "promoted_count": 10,
+  "rows": [
+    {
+      "card_id": "v8-lfsr-feedback-seed",
+      "case_id": "b51-001",
+      "host": 33589,
+      "routes": {
+        "bm25": {
+          "rank": 1,
+          "admitted": [
+            "v8-lfsr-feedback-seed"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 104.303,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v8-lfsr-feedback-seed"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 2008.694,
+          "embedding_ms": 1862.038
+        }
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-packer-valid-count",
+      "case_id": "b51-003",
+      "host": 33589,
+      "routes": {
+        "bm25": {
+          "rank": 2,
+          "admitted": [
+            "v8-packer-valid-count"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 98.773,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v8-packer-valid-count"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 2125.072,
+          "embedding_ms": 1989.866
+        }
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-pipeline-valid-alignment",
+      "case_id": "b51-005",
+      "host": 33589,
+      "routes": {
+        "bm25": {
+          "rank": 5,
+          "admitted": [
+            "v8-pipeline-valid-alignment"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 97.538,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v8-pipeline-valid-alignment"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1958.887,
+          "embedding_ms": 1823.925
+        }
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-ram-port-write-mode",
+      "case_id": "b51-006",
+      "host": 33376,
+      "routes": {
+        "bm25": {
+          "rank": 1,
+          "admitted": [
+            "v8-ram-port-write-mode"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 98.215,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v8-ram-port-write-mode"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 2210.147,
+          "embedding_ms": 2075.419
+        }
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-result-backpressure-retention",
+      "case_id": "b51-007",
+      "host": 33589,
+      "routes": {
+        "bm25": {
+          "rank": 2,
+          "admitted": [
+            "v8-result-backpressure-retention"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 95.257,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v8-result-backpressure-retention"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1994.204,
+          "embedding_ms": 1853.087
+        }
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-serializer-snapshot",
+      "case_id": "b51-008",
+      "host": 33376,
+      "routes": {
+        "bm25": {
+          "rank": 1,
+          "admitted": [
+            "v8-serializer-snapshot"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 97.724,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v8-serializer-snapshot"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1823.114,
+          "embedding_ms": 1685.629
+        }
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-stack-boundary-guards",
+      "case_id": "b51-009",
+      "host": 33589,
+      "routes": {
+        "bm25": {
+          "rank": 1,
+          "admitted": [
+            "v8-stack-boundary-guards"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 102.157,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v8-stack-boundary-guards"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1959.474,
+          "embedding_ms": 1812.061
+        }
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-am-pm-phase",
+      "case_id": "b51-034",
+      "host": 33376,
+      "routes": {
+        "bm25": {
+          "rank": 1,
+          "admitted": [
+            "v9-public-am-pm-phase"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 93.3,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v9-public-am-pm-phase"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1691.303,
+          "embedding_ms": 1556.11
+        }
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-carry-lookahead-composition",
+      "case_id": "b51-038",
+      "host": 33376,
+      "routes": {
+        "bm25": {
+          "rank": 1,
+          "admitted": [
+            "v9-public-carry-lookahead-composition"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 99.447,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v9-public-carry-lookahead-composition"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1997.043,
+          "embedding_ms": 1858.261
+        }
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-division-remainder-invariant",
+      "case_id": "b51-042",
+      "host": 33376,
+      "routes": {
+        "bm25": {
+          "rank": 1,
+          "admitted": [
+            "v9-public-division-remainder-invariant"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 95.82,
+          "embedding_ms": null
+        },
+        "dense": {
+          "rank": 1,
+          "admitted": [
+            "v9-public-division-remainder-invariant"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 2012.452,
+          "embedding_ms": 1871.471
+        }
+      },
+      "passed": true
+    }
+  ],
+  "model_calls": 0,
+  "assembly_boundary": "retrieve_spec admits cards; model generation is not called in this smoke test"
+}

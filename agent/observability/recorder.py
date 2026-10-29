@@ -106,6 +106,18 @@ class Recorder:
             _span.reset(token)
 
     def write_text(self, relative, text):
+        text = str(text)
+        # HTTP JSON is redacted as structured data before serialization. Running
+        # credential patterns over serialized escapes can corrupt the JSON.
+        try:
+            value = json.loads(text)
+        except (ValueError, RecursionError):
+            return self._write(relative, text)
+        if isinstance(value, (dict, list)):
+            return self.write_json(relative, value)
+        return self._write(relative, text)
+
+    def _write(self, relative, text):
         if self.level != "full":
             return None
         return self._write_record(relative, self.redactor.copy(str(text)))

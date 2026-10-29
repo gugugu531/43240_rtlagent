@@ -13,6 +13,7 @@ from .assets import read_resource, sha256, _unique
 from .policy import RetrievalOptions
 from .retrieval import retrieve as bound_check
 from .release import read_lock, validate_release, validate_options
+from .admission import decide, classify, implementation_hash
 
 
 def document_text(card):
@@ -42,8 +43,9 @@ def bundle():
     cards = {c['card_id']: c for c in data['cards']}
     docs = {d['card_id']: d for d in data['documents']}
     rules = {r['card_id']: r for r in data['rules']}
-    if (len(cards) != 32 or len(data['cards']) != 32 or len(docs) != 32
-            or len(data['documents']) != 32 or len(data['rules']) != 32
+    count = read_lock().get('card_count', len(data['cards']))
+    if (not 0 < count <= 512 or len(cards) != count or len(data['cards']) != count or len(docs) != count
+            or len(data['documents']) != count or len(data['rules']) != count
             or set(cards) != set(docs) or set(cards) != set(rules)):
         raise ValueError('runtime_release_identity_mismatch')
     for key, doc in docs.items():
@@ -94,11 +96,24 @@ def embed(data, query, options, trace=None):
         raise ValueError('embedding_endpoint_unconfigured')
     request = {'model': data['model']['runtime_alias'], 'input': [query], 'encoding_format': 'float'}
     url = options.embedding_url.rstrip('/') + '/v1/embeddings'
+    models_url = options.embedding_url.rstrip('/') + '/v1/models'
+    def check_identity(payload):
+        rows = payload.get('data') if isinstance(payload, dict) else None
+        if not isinstance(rows, list) or not any(isinstance(r, dict) and r.get('id') == data['model']['runtime_alias'] for r in rows):
+            raise ValueError('embedding_advertised_model_mismatch')
+        if trace is not None:
+            trace['embedding_advertised_models'] = [r.get('id') for r in rows if isinstance(r, dict)]
     if options.embedding_transport == 'ssh':
         parsed = urlsplit(url)
         if (not options.embedding_ssh_host or parsed.scheme != 'http'
                 or parsed.hostname not in ('127.0.0.1', 'localhost') or parsed.username or parsed.query or parsed.fragment):
             raise ValueError('ssh_embedding_requires_explicit_host_and_loopback_service')
+        identity_command = shlex.join(['curl', '--fail', '--silent', '--show-error', '--max-time',
+            str(options.embedding_timeout_s), models_url])
+        identity_process = subprocess.run(['ssh', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
+            '-o', 'ConnectTimeout=3', '-p', str(options.embedding_ssh_port), options.embedding_ssh_host, identity_command],
+            capture_output=True, text=True, timeout=options.embedding_timeout_s, check=True)
+        check_identity(json.loads(identity_process.stdout))
         remote = shlex.join(['curl', '--fail', '--silent', '--show-error', '--max-time',
             str(options.embedding_timeout_s), '-H', 'Content-Type: application/json', '--data-binary', '@-', url])
         process = subprocess.run(['ssh', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
@@ -109,6 +124,9 @@ def embed(data, query, options, trace=None):
     else:
         with httpx.Client(timeout=options.embedding_timeout_s, trust_env=False,
                           follow_redirects=False) as client:
+            identity_response = client.get(models_url)
+            identity_response.raise_for_status()
+            check_identity(identity_response.json())
             response = client.post(url, json=request)
             response.raise_for_status()
             payload = response.json()
@@ -118,7 +136,8 @@ def embed(data, query, options, trace=None):
         raise ValueError('embedding_model_mismatch')
     rows = payload.get('data')
     if (not isinstance(rows, list) or len(rows) != 1
-            or not isinstance(rows[0], dict) or 'embedding' not in rows[0]):
+            or not isinstance(rows[0], dict) or rows[0].get('index') != 0
+            or 'embedding' not in rows[0]):
         raise ValueError('invalid_embedding_response')
     result = vector(rows[0]['embedding'], data['model']['dimensions'])
     if trace is not None:
@@ -147,8 +166,11 @@ def retrieve_runtime(evidence, parent, options, messages, raw_feedback=None):
     except (KeyError, AttributeError, TypeError, ValueError):
         trace = {'reason': 'invalid_check_evidence'}
     trace.update(requested_strategy=options.strategy, effective_strategy=options.strategy,
-                 retrieved=[], admitted=[], rejected=[], fallback=options.fallback)
+                 retrieved=[], admitted=[], rejected=[], fallback=options.fallback,
+                 admission_policy=options.admission_policy)
     def done(cards):
+        trace['empty_kind'] = ('not_empty' if cards else 'not_needed' if trace['reason']=='correct_empty'
+                               else classify(trace['reason']))
         trace['elapsed_ms'] = round((time.monotonic()-started)*1000, 3)
         return cards, trace
     if trace['reason'] != 'no_match':
@@ -166,10 +188,12 @@ def retrieve_runtime(evidence, parent, options, messages, raw_feedback=None):
         return done([])
     try:
         data, digest = bundle()
+        trace['admission_implementation_sha256'] = implementation_hash()
         validate_options(options)
         trace['release_sha256'] = digest
         trace.update(release_id=data['release_id'], policy_sha256=data['policy_sha256'], index_sha256=data['index_sha256'])
-        cards = [c for c in data['cards'] if
+        from .research import scope_guard
+        cards = [c for c in data['cards'] if scope_guard(c['card_id']) and
                  (not c['stages'] or check.kind in c['stages']) and
                  (not c['tools'] or item['tool'] in c['tools']) and
                  (not c['tool_versions'] or item['version'] in c['tool_versions'])]
@@ -207,35 +231,23 @@ def retrieve_runtime(evidence, parent, options, messages, raw_feedback=None):
         trace['retrieved'] = [{'id': key, 'score': score,
                                'lane': 'restricted_exact' if key == data['f24']['card_id'] else strategy}
                               for key,score in ranking[:options.retrieve_k]]
-        rules = {r['card_id']: r for r in data['rules']}
-        feedback = '\n'.join(m['content'] for m in messages)
         admitted = []
         for key, score in ranking[:options.retrieve_k]:
-            if key == data['f24']['card_id']:
-                card, reason = data['f24'], None
-                if card['projection_text'] in feedback or '{{N{expr}}, slice}' in feedback:
-                    reason = 'knowledge_already_present'
-            else:
-                rule = rules[key]
-                reason = rule['decision']
-                if any(c['card_id'] == key and c['card_version'] == rule['card_version']
-                       and c['card_sha256'] == rule['card_sha256'] and c['candidate_sha256'] == parent.code_hash
-                       and raw_feedback is not None and c['feedback_sha256'] == sha256(raw_feedback)
-                       for c in data.get('checkpoints', [])):
-                    reason = 'checkpoint_correct_empty'
-                elif any(s.casefold() in feedback.casefold() for s in rule['skip_if_feedback_contains']):
-                    reason = 'knowledge_already_present'
-                elif reason == 'eligible_when_missing_fact':
-                    reason = 'missing_fact_not_mechanically_established'
-            if reason:
-                trace['rejected'].append({'id': key, 'reason': reason})
+            decision = decide(key, evidence, parent, raw_feedback or '',
+                              supplied_messages=messages, policy=options.admission_policy)
+            if not decision['admit']:
+                trace['rejected'].append({'id': key, **decision})
             elif len(admitted) >= options.inject_k:
-                trace['rejected'].append({'id': key, 'reason': 'injection_limit'})
+                trace['rejected'].append({'id': key, 'reason': 'injection_limit', 'decision_class': 'unknown'})
             else:
+                card = data['f24'] if key == data['f24']['card_id'] else next(c for c in cards if c['card_id']==key)
                 admitted.append(card)
                 trace['admitted'].append(key)
+                trace.setdefault('admission_decisions', []).append(decision)
         trace['reason'] = ('retrieval_unavailable' if strategy == 'empty' and 'embedding_error' in trace
-                           else 'admitted' if admitted else 'correct_empty')
+                           else 'admitted' if admitted else 'correct_empty' if trace['rejected'] and
+                           all(r['decision_class']=='not_needed' for r in trace['rejected']) and
+                           'embedding_error' not in trace else 'empty_unproven')
         return done(admitted)
     except (OSError, ValueError, KeyError, TypeError) as error:
         trace.update(reason='optional_retrieval_failure', error=type(error).__name__)

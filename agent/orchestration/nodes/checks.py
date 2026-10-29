@@ -80,6 +80,23 @@ def remember_repair_check(ctx, check):
         )
 
 
+def remember_functional_check(ctx, check, suite):
+    """Preserve actual public simulation evidence, never a diagnosis alone."""
+    from agent.domain.knowledge.assets import sha256
+    ctx.store.pop('repair_check', None)
+    evidence = {'check': check, 'suite': suite, 'execution_id': uuid.uuid4().hex,
+                'public_task_sha256': sha256(ctx.task.prompt+'\n'+ctx.task.interface)}
+    from agent.domain.knowledge.feedback import bound_feedback
+    try:
+        bound_feedback(evidence, ctx.candidates.get(check.candidate_id), ctx.task)
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return
+    ctx.store['repair_check'] = evidence
+    ctx.record.emit('knowledge', 'functional_check_evidence',
+                    execution_id=evidence['execution_id'], check_id=check.id,
+                    candidate_id=check.candidate_id, suite_hash=check.details.get('suite_hash'))
+
+
 def check_stages(ctx, candidate, stages):
     ctx.store.pop("repair_check", None)
     for stage in stages:

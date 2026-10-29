@@ -42,7 +42,7 @@
 | `max_model_len`    | 32768 |
 | 默认 Workflow 单次输出上限 | 16384 |
 | 单题时限 / baseline 请求上限 | 900 / 840 秒 |
-| 共享思考设置 | manifest.json 的 generation 当前为空，沿用服务端默认 |
+| 共享思考设置 | manifest.json 显式设置 enable_thinking=true，baseline 与方案共享 |
 | 默认 Workflow temperature | 0.0 |
 | RoPE 外推方式      | 无 / YaRN factor=... |
 

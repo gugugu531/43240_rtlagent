@@ -1,0 +1,22 @@
+{
+  "batch_id": "rag-restricted-promotion-v53-r1",
+  "service": "qwen38-27b-q4-k-m@127.0.0.1:8010/tokenize",
+  "projection": "NOTICE plus active rc4.2 card projection",
+  "limit_tokens": 1024,
+  "passed": 10,
+  "count": 10,
+  "rows": [
+    {"card_id": "v9-lang-arithmetic-right-sign", "host": 33376, "tokens": 205, "passed": true},
+    {"card_id": "v9-lang-boolean-versus-bitwise", "host": 33376, "tokens": 194, "passed": true},
+    {"card_id": "v9-lang-comparison-result-sign", "host": 33589, "tokens": 215, "passed": true},
+    {"card_id": "v9-lang-context-before-operation", "host": 33589, "tokens": 213, "passed": true},
+    {"card_id": "v9-lang-unsigned-negative-check", "host": 33589, "tokens": 208, "passed": true},
+    {"card_id": "v9-public-batch-final-sample", "host": 33589, "tokens": 292, "passed": true},
+    {"card_id": "v9-public-block-carry-chain", "host": 33376, "tokens": 257, "passed": true},
+    {"card_id": "v9-public-bounded-modulus", "host": 33589, "tokens": 253, "passed": true},
+    {"card_id": "v9-public-sampled-edge-history", "host": 33376, "tokens": 243, "passed": true},
+    {"card_id": "v9-public-saturation-not-wrap", "host": 33589, "tokens": 280, "passed": true}
+  ],
+  "model_calls": 0,
+  "activation_changed": false
+}

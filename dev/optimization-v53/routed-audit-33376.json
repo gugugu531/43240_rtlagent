@@ -1,0 +1,38 @@
+{
+  "actual_arm_calls": 2,
+  "archive_sha256": "292b9173140c5951cf4e820415d8c30d002f8564030b3d4cd823a22f01ebdaa4",
+  "automatic_retries": false,
+  "card_id": "v9-public-block-carry-chain",
+  "card_sha256": "492d357f14a4ab2f225b521407a6d74775fc9cecf832ed751827466e75370eaf",
+  "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+  "case_id": "b51-route-carry",
+  "errors": [],
+  "exact_card_append": true,
+  "host": 33376,
+  "request_parameters_frozen": true,
+  "rows": [
+    {
+      "arm": "control",
+      "comparisons": 1024,
+      "delivered": true,
+      "extra_tokens": null,
+      "mismatches": 0,
+      "solution_sha256": "d6d6791df7319fc874fa1c258845cda241dd79993925b8693fe39c6eb2e6e4f5",
+      "success": true,
+      "tokens_in": 924,
+      "tokens_out": 5862
+    },
+    {
+      "arm": "card",
+      "comparisons": 1024,
+      "delivered": true,
+      "extra_tokens": 257,
+      "mismatches": 0,
+      "solution_sha256": "36bbbc2b03d595f514224e1d37e90b51b2291063e75e844026a158195e9cc279",
+      "success": true,
+      "tokens_in": 1181,
+      "tokens_out": 1932
+    }
+  ],
+  "status": "passed"
+}

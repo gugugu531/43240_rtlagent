@@ -1,0 +1,218 @@
+{
+  "actual_generation_calls": 20,
+  "boundary": "Six revised method cards have new fixed-first-generation screening results. No automatic production permission promotion; historical first failures and latest revisions remain separately bound.",
+  "cards": [
+    {
+      "card_failure_kind": null,
+      "card_id": "v9-lang-boolean-versus-bitwise",
+      "card_success": true,
+      "card_tokens": 1295,
+      "case_id": "b42-mask",
+      "control_success": true,
+      "control_tokens": 1106,
+      "disposition": "shadow_no_clear_benefit_stop_extra_calls",
+      "outcome": "both_pass",
+      "production_permission_promoted": false,
+      "token_change_fraction": 0.1708860759493671,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_failure_kind": null,
+      "card_id": "v9-lang-unsigned-negative-check",
+      "card_success": true,
+      "card_tokens": 1327,
+      "case_id": "b42-subtract",
+      "control_success": true,
+      "control_tokens": 1132,
+      "disposition": "shadow_no_clear_benefit_stop_extra_calls",
+      "outcome": "both_pass",
+      "production_permission_promoted": false,
+      "token_change_fraction": 0.17226148409893982,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_failure_kind": null,
+      "card_id": "v9-public-sampled-edge-history",
+      "card_success": true,
+      "card_tokens": 1869,
+      "case_id": "b42-edge",
+      "control_success": true,
+      "control_tokens": 1566,
+      "disposition": "shadow_no_clear_benefit_stop_extra_calls",
+      "outcome": "both_pass",
+      "production_permission_promoted": false,
+      "token_change_fraction": 0.19348659003831425,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_failure_kind": "compile",
+      "card_id": "v9-lang-mixed-sign-arithmetic",
+      "card_success": false,
+      "card_tokens": 4862,
+      "case_id": "b42-mixed",
+      "control_success": true,
+      "control_tokens": 5498,
+      "disposition": "hold_regression_or_failed_screen",
+      "outcome": "regression",
+      "production_permission_promoted": false,
+      "token_change_fraction": -0.11567842851946164,
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1.v39.1"
+    },
+    {
+      "card_failure_kind": null,
+      "card_id": "v9-public-serial-sampling-vs-latch",
+      "card_success": true,
+      "card_tokens": 5944,
+      "case_id": "b42-serial",
+      "control_success": false,
+      "control_tokens": 18432,
+      "disposition": "hold_independent_confirmation_only",
+      "outcome": "rescue",
+      "production_permission_promoted": false,
+      "token_change_fraction": -0.6775173611111112,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1"
+    },
+    {
+      "card_failure_kind": null,
+      "card_id": "v9-public-bounded-modulus",
+      "card_success": true,
+      "card_tokens": 1715,
+      "case_id": "b42-modulus",
+      "control_success": true,
+      "control_tokens": 1793,
+      "disposition": "shadow_no_clear_benefit_stop_extra_calls",
+      "outcome": "both_pass",
+      "production_permission_promoted": false,
+      "token_change_fraction": -0.04350250976017844,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_failure_kind": null,
+      "card_id": "v9-public-saturation-not-wrap",
+      "card_success": true,
+      "card_tokens": 2142,
+      "case_id": "b42-saturation",
+      "control_success": true,
+      "control_tokens": 1695,
+      "disposition": "shadow_no_clear_benefit_stop_extra_calls",
+      "outcome": "both_pass",
+      "production_permission_promoted": false,
+      "token_change_fraction": 0.26371681415929205,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_failure_kind": null,
+      "card_id": "v8-packer-temporal-order",
+      "card_success": true,
+      "card_tokens": 2968,
+      "case_id": "b42-packer",
+      "control_success": true,
+      "control_tokens": 4034,
+      "disposition": "shadow_efficiency_signal_needs_actual_routing_confirmation",
+      "outcome": "both_pass",
+      "production_permission_promoted": false,
+      "token_change_fraction": -0.26425384234010907,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1.syntax1"
+    },
+    {
+      "card_failure_kind": null,
+      "card_id": "v9-public-triangle-endpoint-dwell",
+      "card_success": true,
+      "card_tokens": 6250,
+      "case_id": "b42-triangle",
+      "control_success": true,
+      "control_tokens": 7197,
+      "disposition": "hold_independent_confirmation_only",
+      "outcome": "both_pass",
+      "production_permission_promoted": false,
+      "token_change_fraction": -0.13158260386272058,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1"
+    },
+    {
+      "card_failure_kind": null,
+      "card_id": "v9-public-grid-row-column-wrap",
+      "card_success": true,
+      "card_tokens": 6473,
+      "case_id": "b42-grid",
+      "control_success": true,
+      "control_tokens": 10354,
+      "disposition": "hold_independent_confirmation_only",
+      "outcome": "both_pass",
+      "production_permission_promoted": false,
+      "token_change_fraction": -0.3748309831949005,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1"
+    }
+  ],
+  "frozen_cards": 39,
+  "groups": {
+    "repair": {
+      "card": {
+        "attempts": 4,
+        "delivered": 4,
+        "execution_errors": 0,
+        "successes": 3,
+        "tokens_including_failures": 23529,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 325.5544618200511
+      },
+      "control": {
+        "attempts": 4,
+        "delivered": 3,
+        "execution_errors": 0,
+        "successes": 3,
+        "tokens_including_failures": 41481,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 723.5022697374225
+      }
+    },
+    "screen_first": {
+      "card": {
+        "attempts": 6,
+        "delivered": 6,
+        "execution_errors": 0,
+        "successes": 6,
+        "tokens_including_failures": 11316,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 132.41162638552487
+      },
+      "control": {
+        "attempts": 6,
+        "delivered": 6,
+        "execution_errors": 0,
+        "successes": 6,
+        "tokens_including_failures": 11326,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 160.51564393937588
+      }
+    }
+  },
+  "held_revision_confirmations": 4,
+  "implemented_specification_methods": 12,
+  "max_calls": 20,
+  "new_fact_screens": 6,
+  "query_evaluation": {
+    "actual_predicate_checks_passed": 96,
+    "boundary": "Retrieval pool has twelve methods; only existing four restricted methods may send. A shadow refusal does not prove knowledge was unnecessary. Queries are authored development evidence.",
+    "count": 96,
+    "generation_calls": 0,
+    "metrics": {
+      "bm25": {
+        "negative_queries_with_any_admission": 0,
+        "service_failure_queries": 0,
+        "target_recall5_on_positive_method_queries": 0.9285714285714286
+      },
+      "dense": {
+        "negative_queries_with_any_admission": 0,
+        "service_failure_queries": 0,
+        "target_recall5_on_positive_method_queries": 1.0
+      }
+    },
+    "negative_count": 54,
+    "positive_count": 42,
+    "release_id": "rag-catalog-v3-rc3.1",
+    "status": "completed"
+  },
+  "runtime_restricted_methods": 4,
+  "skill_work": "paused",
+  "status": "completed_and_audited"
+}

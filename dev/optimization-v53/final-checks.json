@@ -1,0 +1,25 @@
+{
+  "release_id": "rag-catalog-v3-rc4.3",
+  "status": "passed",
+  "unit_tests": {
+    "passed": 137,
+    "failed": 0,
+    "returncode": 0,
+    "log_sha256": "aba3f56d3b90b495c7aca30a68c46efecdcaca647bc158efd9eaff945d4630f3"
+  },
+  "git_diff_check_returncode": 0,
+  "model_audit_sha256": "db62c0aaf6bba6188d45567beb6a1ec46cecb6ebaa86ac80167c552169120a45",
+  "post_promotion_smoke_sha256": "617132f14556cc0b60b136cc7d9df0376b93f9a5bc282133cf15526246bced6e",
+  "release_note_sha256": "9eeae4ea0ae90179d912f0e94673035faad2df3673b01b6bc2a3ba7800620c33",
+  "bundle_sha256": "104a432f497bc3e16cef4ec4f140264d40f08a1cfc96936a2ac37850ef1788f9",
+  "lock_sha256": "2ed14f578dd1de60e67966b1e99ac31068160960452bf62db3bdc597b7b52d57",
+  "catalog_sha256": "10b7f9d297ac8f00ad8df077fccec4a13b85b58ad9b245d1dde5913ea5ea4f05",
+  "restricted_count": 8,
+  "new_restricted_count": 3,
+  "new_restricted_pre_generation_only": true,
+  "deferred_shadow_count": 7,
+  "defaults_changed": false,
+  "generation_service_changed": false,
+  "embedding_service_ports": [8020],
+  "embedding_service_loopback_only": true
+}

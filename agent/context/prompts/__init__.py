@@ -17,7 +17,9 @@ class TemplateRenderer:
         return [
             {
                 "role": "system",
-                "content": self.env.get_template("system.j2").render(**values).strip(),
+                "content": self.env.get_template(
+                    "repair_analysis_system.j2" if name == "repair_analysis.j2" else "system.j2"
+                ).render(**values).strip(),
             },
             {
                 "role": "user",

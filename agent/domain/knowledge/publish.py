@@ -71,6 +71,7 @@ def publish(source, target=ROOT / 'knowledge'):
     raw = (json.dumps(release, ensure_ascii=False, sort_keys=True, indent=2) + '\n').encode()
     lock = {key:release[key] for key in ('release_id', 'policy_sha256', 'index_sha256', 'legacy_cards_sha256')}
     lock['release_sha256'] = sha256(raw)
+    lock['card_count'] = len(cards)
     validate_release(release, lock, raw, legacy_bytes)
     (target / 'runtime-v1.json').write_bytes(raw)
     (target / 'runtime-v1.sha256').write_text(sha256(raw) + '\n')

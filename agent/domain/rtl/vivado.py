@@ -247,6 +247,13 @@ def classify_tool_failure(output: str) -> str:
     # Match primary source diagnostics, not generic follow-on errors such as
     # "module ignored". Environment errors above always take precedence.
     if re.search(
+        r"^\s*ERROR:\s*\[VRFC 10-3365\]\s+generate loop index ['\"][^'\"\r\n]+['\"] "
+        r"is not defined as a genvar(?:\s*\[[^\r\n]+\])?\s*$",
+        output,
+        re.IGNORECASE | re.MULTILINE,
+    ):
+        return "code"
+    if re.search(
         r"ERROR:\s*\[VRFC 10-3818\][^\n]*driven by invalid combination of procedural drivers",
         output,
         re.IGNORECASE,
@@ -533,6 +540,8 @@ def _check(ctx, candidate, kind, timeout_s):
             "repair_diagnostics": extract_diagnostics(output),
             **knowledge_details(executions, version_probes=probes),
             "candidate_hash": candidate.code_hash,
+            "source_binding": {"candidate_sha256": candidate.code_hash,
+                               "paths": ["solution.sv", str(Path(work, "solution.sv").resolve())]},
             "tool_version": version.group(1) if version else None,
         },
     )
