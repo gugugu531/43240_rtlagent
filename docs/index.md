@@ -22,8 +22,9 @@
 本仓库不依赖 `dev/` 目录运行。Dockerfile 只复制运行所需的源码、配置、知识资产、服务和
 声明文件；开发归档不进入镜像。模型权重、推理服务和 EDA 工具需要另行准备。
 
-RAG 是可显式启用的研究路线，默认关闭；它尚未接入 `guided_verify` 的规划、求解或检查
-流程。启用方式、资产锁和失败关闭边界见 [Skill 与 RAG](knowledge.md)。
+RAG 的 rc4.6 研究路线是可显式启用的，`adaptive_verify` 默认关闭；`guided_verify`
+仍使用既有 legacy `runtime-v1` bundle 的 BM25 与 planner knowledge 注入，新 rc4.6
+路线尚未接入。启用方式、资产锁和失败关闭边界见 [Skill 与 RAG](knowledge.md)。
 
 阅读示例前先准备好 [requirements.txt](../requirements.txt) 的依赖。mock 只验证流程，
 不代表真实 RTL 功能、模型效果或官方成绩。
