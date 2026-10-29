@@ -1,121 +1,94 @@
-# Skill 与 RAG
+# Skill 与知识检索
 
-[文档入口](index.md) · [架构](architecture.md) · [扩展规范](development.md)
+[文档入口](index.md) · [架构](architecture.md) · [Guided Verify](guided-verify.md)
 
-本页描述当前仓库中 Skill、RAG 研究目录和检索接口的使用边界。详细的批次审计、
-运行手册和实验记录已移到工作区 `dev/archives/20261029-rag-rc46/`，不随参赛包分发。
+知识库现在只保存卡片正文和可检索文本。卡片版本、sha256、文件路径、release lock 和向量
+文件哈希不再维护。Skill 文件和 prompt 模板保持现状。
 
-新合并的 rc4.6 研究路线（`catalog-v3`、pregen/feedback、dense embedding）尚未接入
-`guided_verify`。`guided_verify` 目前仍使用既有的 legacy `runtime-v1` bundle：
-`_shortlist` 对 legacy cards 做 BM25，planner 选中的 knowledge 再由
-`_skill_and_card_material` 注入 solve。不能把 rc4.6 的新状态说成 guided 的默认行为。
+## 1. 文件
 
-## 默认行为
-
-- `single_generate`、`repair_loop`、`design_verify_loop` 和 `adaptive_verify`
-  的默认配置都不启用 rc4.6 RAG。
-- `guided_verify` 不读取 `rag_mode`，但保留既有 legacy 检索：对 `runtime-v1`
-  bundle 的 cards 做 BM25 候选，planner 选中的 knowledge 注入 solve。这是当前
-  已实现行为，不等同于 rc4.6 研究路线接入。
-- `skill_mode`、`rag_mode` 的取值为 `off`、`shadow`、`on`。
-  - `off`：不检索、不装配。
-  - `shadow`：执行检索和准入并记录结果，但不改变模型消息。
-  - `on`：只有通过准入和预算的完整知识段才进入请求。
-- `adaptive_verify` 默认自动 Skill on、RAG off；只有经过自动准入的 Skill 才会进入
-  生成装配。
-- rc4.6 RAG 开启需要显式配置文件或参数，不会因知识资产存在而自动生效。
-
-## 目录与资产
-
-| 路径 | 用途 |
-|---|---|
-| `agent/domain/knowledge/` | 检索、准入、预生成、反馈、发布和目录验证实现 |
-| `knowledge/catalog.json`、`cards.json`、`runtime-v1.json`、`runtime-lock.json` | 默认诊断库及发布锁 |
-| `knowledge/catalog-v3.json` | 统一研究目录，绑定卡片状态与受限准入 |
-| `knowledge/research-v*.json`、`research-*-vectors.json`、`*-lock.json` | 研究目录、向量和哈希锁 |
-| `knowledge/embedding-runtime-lock.json` | dense embedding 运行身份 |
-| `serve/embedding_service.py` | 可选的本机 embedding 服务；不是默认启动路径 |
-| `config/rag_catalog_v3_shadow.yaml` | 统一目录 shadow 观察配置 |
-| `config/rag97_pregen_bm25.yaml` | 首轮生成 BM25 显式配置 |
-| `config/rag97_pregen_dense.yaml` | 首轮生成 dense shadow 配置 |
-| `config/rag97_feedback_shadow.yaml` | 功能反馈 shadow 配置 |
-
-研究资产属于当前 RAG 路线的代码产物，保留在仓库中；其中的卡片和测试夹具只使用
-公开题面或公开方法事实，不包含题库参考答案、官方测试台或判定反馈。
-
-## 卡片状态与准入
-
-研究目录中的卡片状态包括：
-
-- `legacy_policy`：原诊断策略路径；
-- `restricted`：满足显式谓词和装配条件时可注入；
-- `shadow`：只观察，不改变模型消息；
-- `hold`、`mechanical_only`：不进入当前注入路径。
-
-检索先验证卡片身份、版本、发布锁、状态、工具诊断和阶段权限。`shadow` 记录检索与
-准入结果，但不授权注入。`restricted` 还必须在实际装配阶段重新检查，不能仅凭检索排名
-或 `admitted` 字段判断已发送。未知、冲突、资产或服务错误按失败关闭处理，不能算作
-`correct_empty`。
-
-## 使用方式
-
-```bash
-# 只做 shadow 观察；不改变生成消息
-AGENT_CONFIG=config/rag_catalog_v3_shadow.yaml ./run.sh <input> <output>
-
-# BM25 首轮生成；只在显式配置下运行
-AGENT_CONFIG=config/rag97_pregen_bm25.yaml ./run.sh <input> <output>
+```text
+knowledge/cards.json     129 张卡片正文
+knowledge/vectors.json   129 个 card_id + 向量
+knowledge/catalog.json   Skill 目录
+config/rag_embedding.yaml embedding 运行参数
+config/rag97_pregen_bm25.yaml
+config/rag97_pregen_dense.yaml
+config/rag_catalog_v3_shadow.yaml
+config/guided_verify_rag_bm25.yaml
+config/guided_verify_rag_dense.yaml
 ```
 
-dense 配置需要匹配的 embedding 服务：
+`knowledge/cards.json` 的卡片来自合并分支的 129 张唯一卡片：32 张 legacy、38 张
+restricted、33 张 shadow、26 张 mechanical_only。每张卡片保留标题、适用/拒绝条件、
+方法正文、验证/停止条件和必要的 activation state。
+
+## 2. 检索模式
+
+`agent/domain/knowledge/guided.py` 提供：
+
+```python
+load_cards()
+load_vectors()
+retrieve(query, mode="legacy", limit=5, strategy="bm25")
+card_text(card)
+```
+
+模式：
+
+- `legacy`：只取 `legacy_policy` 卡片，保持 guided 原有行为；
+- `rag`：取 `legacy_policy` 和 `restricted` 卡片；
+- `all`：包含 shadow 和 mechanical_only，仅用于开发检查；
+- `off`：不检索。
+
+`guided_verify` 默认 `retrieval_mode=legacy`、`retrieval_strategy=bm25`。RAG 路线通过
+显式配置选择：
+
+```bash
+AGENT_CONFIG=config/guided_verify_rag_bm25.yaml ./run.sh <input> <output>
+```
+
+## 3. dense embedding
+
+dense 需要 `serve/embedding_service.py`，参数为：
 
 ```bash
 .venv/bin/python serve/embedding_service.py \
   --binary /path/to/llama-server \
-  --model /path/to/embedding-model.gguf
+  --model /path/to/Qwen3-Embedding-0.6B-Q8_0.gguf
 ```
 
-`--binary` 是 llama.cpp 服务端可执行文件，`--model` 是 embedding 权重文件；两者都是
-必填项。启动前会用锁文件校验程序、动态库和权重哈希。可用 `--check-only` 只做身份和
-命令检查。HTTP 不跟随代理或跳转；超时、结构不合法、模型身份不一致或向量非法时安全
-返回空，并记录 `embedding_error` 或 `retrieval_unavailable`，不能把服务失败算成知识收益。
+模型与查询投影参数在 `config/rag_embedding.yaml`：
 
-## 发布与验证
-
-知识资产变更必须通过发布脚本重新生成锁文件和摘要，不能手改向量：
-
-```bash
-python -m agent.domain.knowledge.publish <实验仓库>
+```yaml
+model_alias: qwen3-embedding-0.6b-q8-0
+dimensions: 1024
+pooling: last
+normalization: l2
+similarity: exact_cosine_dot_product
+max_length: 4096
+query_instruction: ...
+query_template: ...
 ```
 
-运行加载会校验文件摘要、发布锁、卡片哈希和向量身份。当前仓库的默认测试：
+建库和查询都必须使用同一模型、同一维度、同一 pooling/归一化和同一 query 投影。
+`knowledge/vectors.json` 只保存向量，不重复保存模型元数据。
 
-```bash
-pytest
+## 4. 单路线 RAG
+
+`config/rag97_pregen_bm25.yaml`、`config/rag97_pregen_dense.yaml` 和
+`config/rag_catalog_v3_shadow.yaml` 仍使用 `single_generate` 的
+`rtl_generate`/`rtl_extract` 节点：
+
+```text
+generate -> extract -> select -> finish
 ```
 
-测试只使用公开题面和合成检查输入；真实模型、Vivado 和官方判定需要另行执行，
-mock 通过不等于知识收益或官方成绩。
+它们作为显式 RAG 路线保留，不等于默认求解流程。
 
-## 与 guided_verify 的关系
+## 5. 边界
 
-`guided_verify` 当前保留既有 legacy 检索行为，但不接入新合并的 rc4.6 研究目录。
-具体来说：
-
-- `_shortlist` 使用 legacy `runtime-v1` bundle 的 cards 做 BM25，最多返回配置数量的
-  候选；
-- planner 从候选中选择 knowledge，`_skill_and_card_material` 把选中卡片的公开文本
-  注入 solve；
-- 这条路径不读取 `rag_mode`，也不使用 `catalog-v3` 的 activation state、pregen/
-  feedback 或 dense embedding。
-
-未来把 rc4.6 接入 `guided_verify` 时需要明确：
-
-1. rc4.6 检索发生在 planner、solve 还是检查阶段；
-2. shadow 结果是否只进入记录，不进入模型请求；
-3. 知识段预算与 guided 的 completion、token 预算如何共同限制；
-4. 检索失败、资产失败和空返回如何与 guided 的 checker invalid 区分；
-5. 新路径与现有 legacy BM25 注入如何避免重复或冲突；
-6. 任何注入都不能把参考实现、官方测试台或判定反馈带入模型提示。
-
-在这些条件落实前，现有 legacy 行为不变，rc4.6 不自动启用。
+- 卡片只包含公开方法文本，不包含参考实现、官方测试台或判定反馈。
+- 检索失败、空结果或 embedding 不可用时，请求继续使用原题面和接口，不把失败算作知识收益。
+- 当前没有 release lock、卡片版本比较或文件哈希校验；修改卡片或向量后应重新验证检索结果。
+- `guided_verify` 的 RAG 模式仍是可选项，默认使用 legacy 检索。

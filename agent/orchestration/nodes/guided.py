@@ -27,7 +27,7 @@ from agent.domain.rtl.result import CheckResult, bind_result
 from agent.submission.gateway import SubmissionGateway
 from agent.llm.router import profile_for_stage
 from agent.domain.knowledge.assets import load_assets
-from agent.domain.knowledge.runtime import bm25, bundle, document_text
+from agent.domain.knowledge import guided as knowledge
 from agent.domain.knowledge.policy import select_skills
 
 
@@ -150,24 +150,40 @@ def _skill_and_card_material(ctx):
     parts = []
     for skill_id in selected:
         parts.append(f"[Skill {skill_id}]\n{assets['skills'][skill_id][1]}")
-    cards = {c["card_id"]: c for c in bundle()[0]["cards"]}
+    cards = knowledge.card_map()
     for card_id in data["plan"]["knowledge"]:
         if card_id in cards:
-            parts.append(document_text(cards[card_id]))
+            parts.append(knowledge.card_text(cards[card_id]))
     return "\n\n".join(parts), {"sent": selected, "rejected": rejected}
 
 
 def _shortlist(ctx, limit):
+    data = _g(ctx)
+    settings = data["settings"]
     assets = load_assets(skills=True)
     skills = [
         (identity, skill.description)
         for identity, (skill, _) in assets["skills"].items()
     ]
-    cards = bundle()[0]["cards"]
-    ranked = [card_id for card_id, _ in bm25(cards, ctx.task.prompt)]
-    by_id = {card["card_id"]: card for card in cards}
-    ordered = ranked + [c["card_id"] for c in cards if c["card_id"] not in ranked]
-    picked = [by_id[identity] for identity in ordered[:limit]]
+    mode = settings.get("retrieval_mode", "legacy")
+    statuses = {"legacy": {"legacy_policy"}, "rag": {"legacy_policy", "restricted"},
+                "all": {"legacy_policy", "restricted", "shadow", "mechanical_only"}}.get(mode, set())
+    cards = [card for card in knowledge.load_cards() if card.get("activation_state") in statuses]
+    query = ctx.task.prompt + "\n" + ctx.task.interface
+    if settings.get("retrieval_strategy") == "dense" and mode != "off":
+        try:
+            picked, _ = knowledge.retrieve(
+                query, mode=mode, limit=limit, strategy="dense",
+                embedding_url=settings.get("embedding_url", ""),
+                embedding_timeout_s=settings.get("embedding_timeout_s", 2.0),
+            )
+        except (OSError, ValueError, RuntimeError):
+            picked = []
+    else:
+        ranked = [card_id for card_id, _ in knowledge.bm25_rank(cards, query)]
+        by_id = {card["card_id"]: card for card in cards}
+        ordered = ranked + [c["card_id"] for c in cards if c["card_id"] not in ranked]
+        picked = [by_id[identity] for identity in ordered[:limit]]
     return skills, picked
 
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 import json
 import re
 
-from .adaptive_context import public_context
+from .guided_context import public_context
 from .observation import SamplingPlan, validate_trace
 from .suite.semantics import SuiteError
 

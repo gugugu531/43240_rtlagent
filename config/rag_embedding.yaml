@@ -1,0 +1,17 @@
+# Runtime identity for the optional dense knowledge route.
+# Knowledge cards and vectors carry content only; these settings define how
+# both the index and queries were produced.
+model_alias: qwen3-embedding-0.6b-q8-0
+dimensions: 1024
+pooling: last
+normalization: l2
+similarity: exact_cosine_dot_product
+max_length: 4096
+query_instruction: >-
+  Given an RTL compiler or functional diagnostic, retrieve repair guidance
+  that directly applies to the failure and excludes conflicting or
+  inapplicable advice.
+query_template: >-
+  Instruct: {instruction}
+  Query: {query}
+  stage: {stage}

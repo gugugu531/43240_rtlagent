@@ -1,232 +1,141 @@
 # Agent 接口契约
 
-状态：已实现。`ToolResult`、有界工具循环、提交网关、`submit_answer`/`finish_task`、
-模型 profile 路由、`ContextBundle`、`PromptAssembly` 与 Stage 描述均已落地。
-`Usage` 对象仍以内联字段记录。分层背景见 [Agent 分层与编排设计](agent-layers.md)。
-字段名以下文为准；实现时若需偏离，先更新本文件。
+[文档入口](index.md) · [分层设计](agent-layers.md)
 
-## 1. LLM 接口
+本页只描述当前保留的 `single_generate`、`guided_verify` 和知识检索接口。
 
-### 1.1 请求
+## 1. 模型请求
 
-```python
-@dataclass(frozen=True)
-class LLMRequest:
-    role: str                  # analyst / author / builder / reviewer / attributor
-    profile: str               # small / medium / large，由配置映射到实际模型
-    messages: list[dict]       # 已装配的消息，不再二次改写
-    context_ref: str | None    # ContextBundle 产物路径或 ID
-    params: dict               # temperature、top_p、max_tokens、timeout_s、response_format
-    tools: tuple[dict, ...] = ()
-    step: int = 0              # 阶段内工具循环步数，从 0 开始
-```
-
-约束：
-
-- `messages` 由 L2 装配层生成；LLM 层不拼接业务上下文。
-- `params` 的来源是工作流参数与清单声明；思考开关不允许按调用覆盖。
-- `profile` 只决定模型与配额，不改变消息内容。实现为 `Client.chat(profile=...)`：
-  未配置、未启用或未知 profile 都回落到主模型；`profile` 与实际 `model` 写入
-  `llm/finished` 事件。角色映射见 `agent/llm/router.py`。
-
-### 1.2 回复与用量
+`Client.chat()` 接收标准消息列表，至少包含：
 
 ```python
-@dataclass(frozen=True)
-class Usage:
-    tokens_in: int | None
-    tokens_out: int | None
-    wall_s: float
-    model: str
-    source: str                # reported / estimated / unknown
-
-@dataclass(frozen=True)
-class LLMReply:
-    call_id: str
-    content: str
-    tool_calls: tuple[dict, ...]
-    finish_reason: str | None
-    usage: Usage
-    raw_ref: str | None        # 完整原始响应产物路径
+[
+    {"role": "system", "content": "..."},
+    {"role": "user", "content": "..."},
+]
 ```
 
-兼容说明：现有 `agent/llm/types.py` 的 `Reply` 已提供 `call_id`、`content`、`tool_calls`、
-`finish_reason`、`tokens_in`、`tokens_out`、`model`；实现时在其上增加 `Usage` 或提供转换函数，
-不删除旧字段。未知用量保持 `None`，不记为零。
+调用参数包括 `purpose`、`max_tokens`、`temperature`、`top_p`、`timeout_s` 和可选
+`profile`。profile 由 `agent/roles.py` 按阶段决定，不从模型回复中读取。
+
+回复对象提供：
+
+```text
+call_id
+content
+finish_reason
+tokens_in / tokens_out
+model
+reasoning（可选）
+```
+
+模型错误按 `ModelError.kind` 分类；HTTP 200 不代表内容有效。
 
 ## 2. 工具接口
 
-### 2.1 工具描述
+节点可以调用 `ctx.call(name, **args)`；工具注册表负责参数校验和记录。当前工具：
 
-```python
-@dataclass(frozen=True)
-class ToolSpec:
-    name: str
-    description: str
-    input_schema: dict         # JSON Schema，严格校验
-    side_effect: str           # readonly / mutating / control
-    timeout_s: float
-    max_excerpt_bytes: int = 2048
-```
+| 工具 | 参数 | 返回 |
+|---|---|---|
+| `interface_check` | `candidate_id` | `CheckResult` |
+| `vivado_lint` | `candidate_id`、可选 `timeout_s` | `CheckResult` |
+| `vivado_synth` | `candidate_id`、可选 `timeout_s` | `CheckResult` |
 
-### 2.2 结果信封
-
-```python
-@dataclass(frozen=True)
-class ToolResult:
-    tool: str
-    call_id: str
-    rc: int                    # 0 成功；1 领域失败；2 参数非法；3 超时；4 不可用
-    status: str                # passed / failed / timeout / error / skipped
-    excerpt: str               # <= 2048 字节，UTF-8 边界截断
-    artifacts: tuple[str, ...] # 完整输出文件
-    elapsed_s: float
-    truncated: bool
-    failure_kind: str          # code / checker / environment / timeout / unknown
-    meta: dict
-```
-
-规则：
-
-- 模型只读取 `rc`、`status`、`excerpt` 与 `artifacts` 路径；完整内容按需读取。
-- `excerpt` 连同 `\n[truncated]` 标记不超过 2048 字节；记录器二次截断不会吃掉标记。
-- `to_dict()` 保留完整宿主字段；`to_model_dict()` 去掉 `meta.details`、命令等载荷。
-  `Ctx.dispatch()` 返回后者并做 JSON 归一化，避免 Path/dataclass 进入 tool 消息。
-- 参数校验失败返回 `rc=2`，不抛异常给模型自由文本。
-- 进程类工具超时先结束整个进程组，再返回 `rc=3`。
-- 现有 `CheckResult` 通过 `ToolResult.from_check_result()` 适配；`summary` 映射为 `excerpt`，
-  `log_paths` 映射为 `artifacts`，保留 `failure_kind` 与 `details` 到 `meta`。
-
-### 2.3 两条调用路径
+`CheckResult` 至少包含：
 
 ```text
-模型路径：LLMReply.tool_calls -> 白名单校验 -> ToolSpec.input_schema -> dispatch -> ToolResult -> 回填消息
-节点路径：node -> ctx.call(name, **args) -> 同一工具实现 -> 原生结果
+status: passed | failed | timeout | unavailable | error | skipped
+summary
+blocking
+rc
+failure_kind: code | checker | environment | timeout | unknown
+details
+log_paths
+candidate_id
+kind
 ```
 
-模型路径由 `agent/orchestration/agent_loop.py` 驱动，固定步数上限；每条 `tool_calls` 都经过
-白名单与 JSON 参数校验。`Ctx.dispatch()` 统一返回 `ToolResult` 字典；`Ctx.call()` 仍返回
-领域对象，供节点直接使用。两条路径共用预算、超时、进程组与记录。
+检查结果通过 `bind_result()` 绑定候选、检查器版本和可选 suite 身份。
 
-当前已注册的模型可调用工具：
+## 3. 阶段状态
 
-| 工具 | 作用 | 返回 |
-| --- | --- | --- |
-| `submit_answer` | 校验完整 RTL、创建候选并按策略登记/发布 | `ToolResult`，`meta.record` 含候选与策略 |
-| `finish_task` | 请求当前阶段结束 | `ToolResult`，`meta.reason` |
-
-`tool_steps` 默认 0；实验配置 `config/adaptive_tools.yaml` 设为 2。每步消耗一次 completion。
-
-## 3. 上下文与提示词
-
-### 3.1 ContextBundle
-
-```json
-{
-  "bundle_id": "ctx-<id>",
-  "task": {
-    "prompt_ref": "records/<run_id>/task/prompt.txt",
-    "interface_ref": null,
-    "top": "TopModule"
-  },
-  "sections": [
-    {"id": "route", "kind": "route", "trust": "host", "content": {}, "tokens_est": 0},
-    {"id": "skill:fsm", "kind": "knowledge", "ref": "knowledge/...", "trust": "frozen"},
-    {"id": "tool:lint-1", "kind": "tool_result", "ref": "records/.../tool-1.json", "trust": "observed"}
-  ],
-  "limits": {"max_input_tokens": 30000, "reserved_output_tokens": 8192}
-}
-```
-
-- 实现位置：`agent/context/prompt.py` 的 `ContextBundle`；`adaptive_analyze` 保存
-  `adaptive/context-bundle.json`。任务段只存题面哈希与字节数，不复制正文。
-- 大段正文只存引用；`content` 仅用于短结构。
-- `trust` 取值：`host`、`frozen`、`observed`、`model`。模型生成的建议不能标成 `host`。
-- 已冻结证据只读；后续节点只追加 section。
-
-### 3.2 装配结果
-
-```python
-@dataclass(frozen=True)
-class PromptAssembly:
-    template: str              # 如 repair.j2
-    template_sha256: str
-    messages: list[dict]
-    kept_sections: tuple[str, ...]
-    dropped_sections: tuple[str, ...]   # 因预算裁剪，必须可见
-    tokens_est: int
-    messages_sha256: str
-```
-
-裁剪优先级：任务原文 > 公开接口 > 已记录证据 > 冻结知识 > 历史消息。任何裁剪都写日志，不静默丢弃。
-
-## 4. 阶段描述
-
-```python
-@dataclass(frozen=True)
-class StageSpec:
-    node: str                  # 工作流节点别名
-    role: str                  # LLM 角色；纯宿主阶段为 executor
-    tools: tuple[str, ...]     # 模型可自主调用的工具白名单
-    max_steps: int             # 工具循环上限；>= 1
-    reads: tuple[str, ...]     # State 字段
-    writes: tuple[str, ...]
-    stage_budget: str          # 对应工作流参数中的阶段限额名
-```
-
-默认值：分析、构造、复核、归因 `max_steps=1`；作者 `max_steps=3`；修复当前为
-`max_steps=1` 且没有模型可调用工具；纯宿主阶段 `max_steps=0` 且不调用模型。
-实现表为 `agent/orchestration/stages.py` 的 `ADAPTIVE_STAGES`，角色统一来自 `agent/roles.py`；
-`stage_spec()` 同时接受节点名和请求标签（`draft_tool_2`）。当前只有作者阶段声明了
-`submit_answer` 与 `finish_task`。
-
-## 5. 提交接口
-
-### 5.1 工具
+`single_generate` 使用：
 
 ```text
-submit_answer(code: str, top: str | None = None, note: str | None = None)
-  -> {candidate_id, code_hash, accepted, published}
+round, target_id, reply_id, has_candidate, stop_reason, status
 ```
 
-- 校验失败：`rc=2`，`status=error`，附原因，不写 `solution.v`。
-- 校验成功且策略为 `last_written`：原子发布到 `solution.v`，`published=true`。
-- 策略为 `selected`：只登记候选，由晋升规则决定是否发布。
-
-实现位置：`agent/submission/gateway.py` 的 `SubmissionGateway`，以及
-`agent/orchestration/nodes/submission_tools.py` 的工具注册。`CandidateStore.publish()` 只做原子发布，
-不修改 `selected_id`；`select()` 仍表示证据选稿。
-
-### 5.2 收尾
+`guided_verify` 使用：
 
 ```text
-finalize_submission(reason)
-  -> {policy, published_id, code_hash, delivery}
+settings, method, target_id, parent_id, action,
+checker_status, stop_reason, status
 ```
 
-触发：图进入 `finish`、工作截止、`SIGTERM`、异常收尾。幂等；没有候选时 `delivery=empty`。
+内部运行数据放在 `ctx.store["guided"]`，包括 plan、assessments、observations、
+behaviors、checker 和预算快照。状态必须是可序列化数据；大正文放入记录器。
 
-### 5.3 事件
+## 4. 提示词
 
-```json
-{
-  "tool": "submission",
-  "event": "finalized",
-  "policy": "last_written",
-  "candidate_id": "c003",
-  "code_hash": "...",
-  "selected_id": "c002",
-  "overrode_selected": true,
-  "delivery": "complete_rtl",
-  "reason": "workflow_finished"
-}
+`TemplateRenderer` 从 `agent/context/prompts/` 读取模板。当前保留：
+
+```text
+system.j2
+repair.j2
 ```
 
-`overrode_selected` 用于在 LWW 期间显式暴露“覆盖了哪次证据选稿”，便于事后审计。
+`repair.j2` 同时用于 guided 首稿和修复；题面、公开接口、计划、反馈和父候选由宿主传入。
+模板不读取参考答案、官方测试台或判定反馈。
 
-## 6. 兼容与迁移
+## 5. 知识检索
 
-- 现有 `Reply`、`CheckResult`、`CandidateStore.select()` 保留；新接口以适配器叠加。
-- 现有 `record.emit` 的 2 KB `excerpt` 截断与 `docs/API_CONTRACT.md` 的建议一致，不另设第二套截断。
-- `trace.jsonl` 必须继续包含 `ts`、`tool`、`rc`、`excerpt`、`tokens_in`、`tokens_out`。
-- 新事件只追加，不删除旧字段；日志查看器按存在字段展示，缺失保持未知。
+`guided_verify` 的计划阶段可选择：
+
+```text
+retrieval_mode: off | legacy | rag | all
+retrieval_strategy: bm25 | dense
+```
+
+- `legacy`：只取 `activation_state=legacy_policy` 的卡片。
+- `rag`：取 `legacy_policy` 和 `restricted` 卡片。
+- `all`：包含 shadow 和 mechanical_only，仅用于开发检查。
+
+检索接口：
+
+```python
+from agent.domain.knowledge import guided
+
+cards, report = guided.retrieve(query, mode="legacy", limit=5)
+text = guided.card_text(cards[0])
+```
+
+dense 检索使用 `config/rag_embedding.yaml` 中的模型别名、维度、pooling、L2 归一化和
+query 投影。知识库和向量文件只保存内容，不保存版本、sha256、路径或 release lock。
+
+## 6. 提交
+
+`SubmissionGateway.submit_text()` 校验完整模块和题目顶层名，创建候选并登记。返回：
+
+```text
+policy
+candidate_id
+code_hash
+published
+```
+
+最终发布由 `SubmissionGateway.finalize()` 完成，写入 `<output>/solution.v`。答案选择可以是
+`last_written` 或 `selected`，两者都在结果中记录实际发布候选和证据候选。
+
+## 7. 事件
+
+`trace.jsonl` 常用事件：
+
+```text
+run/start, run/config, node/started, node/ended,
+llm/request, llm/reply, llm/finished,
+tool/call, tool/result, knowledge/retrieval,
+submission/published, submission/finalized, run/end
+```
+
+事件只保存摘要和引用；完整内容在 `records/<run_id>/`。任何未知值、未触发检查或未交付
+都不能写成通过。

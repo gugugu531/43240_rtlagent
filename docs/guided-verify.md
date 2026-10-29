@@ -1,8 +1,8 @@
 # guided_verify 工作流设计
 
 状态：初版已实现，单元测试通过；真实模型与 Vivado 单题验证完成，完整题集仍未验证。
-它是非默认开发流程，需要 8011 小模型服务；官方默认 `serve/start.sh` 不启动 8011。
-与现有 `adaptive_verify` 并存，便于同题对照。
+它是非默认流程，需要 8011 小模型服务；官方默认 `serve/start.sh` 不启动 8011。
+当前仓库只保留 `single_generate` 与其并存，不再保留 adaptive/design/repair 工作流。
 实现位于 `agent/orchestration/nodes/guided.py`、`agent/orchestration/workflows/guided_verify.py`，配置为 `config/guided_verify.yaml`；8011 小模型由可选的 `serve/start_verireason.sh` 启动，默认 `serve/start.sh` 不包含它。
 
 ## 1. 设计目标
@@ -139,8 +139,11 @@ step reset=0 load=0 data=00 q=01
 | `max_cases` | 4 | 关键 case 上限 |
 | `max_steps_per_case` | 8 | 每 case 行数上限 |
 | `init_cycles` | 2 | 顺序 case 初始化沿数 |
-| `knowledge_candidates` | 5 | host RAG 候选数 |
+| `knowledge_candidates` | 5 | host 知识候选数 |
 | `knowledge_select` | 3 | 小模型最多选卡数 |
+| `retrieval_mode` | legacy | `off` / `legacy` / `rag` / `all` |
+| `retrieval_strategy` | bm25 | `bm25` / `dense` |
+| `embedding_url` | 空 | dense 服务地址 |
 | `max_calls` | 8 | 总 completion 上限 |
 | `max_output_tokens` | 65536 | 总输出 token 上限 |
 
@@ -157,10 +160,25 @@ step reset=0 load=0 data=00 q=01
   `auxiliary_models` 暂时保持为空。**正式封存前必须补齐 manifest 声明，否则不满足
   FAQ Q26 / SCORING 2.12。**
 - 独立 flat plan 输出格式尚未实测；当前服务是 8010 的 Qwen3.8-27B，不含该小模型权重。
-  启用后 `adaptive_verify`/`guided_verify` 的小模型请求需要单独部署和验证，否则会失败。
+  启用后 `guided_verify` 的小模型请求需要单独部署和验证，否则会失败。
 - 行为检查 skill：`rtl-behavior-check-keycases`，团队原创 candidate，不在自动准入集合。
 
-## 9. 验证边界
+## 9. 知识检索路线
+
+`guided_verify` 默认 `retrieval_mode=legacy`，只从 `knowledge/cards.json` 的
+`legacy_policy` 卡片中选取候选。显式启用 RAG 时使用：
+
+```bash
+AGENT_CONFIG=config/guided_verify_rag_bm25.yaml ./run.sh <input> <output>
+# 或
+AGENT_CONFIG=config/guided_verify_rag_dense.yaml ./run.sh <input> <output>
+```
+
+`rag` 模式包含 `legacy_policy` 和 `restricted` 卡片。dense 路线必须与
+`config/rag_embedding.yaml` 的模型别名、1024 维、last pooling、L2 归一化和查询投影一致；
+知识库和向量文件本身不保存版本、sha256、路径或 release lock。
+
+## 10. 验证边界
 
 - 关键 case 通过只证明被检查输出在本次采样上一致，不是完整功能证明。
 - 未覆盖输出、未知值、未触发 case、checker 无效和环境失败分别记录。

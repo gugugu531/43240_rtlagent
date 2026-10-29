@@ -1,4 +1,4 @@
-"""Single-call generation or explicit bounded thinking-on repair stages."""
+"""Generation with optional knowledge-base retrieval for the RAG routes."""
 
 from typing import Literal
 
@@ -22,18 +22,16 @@ def generate(
     skill_ids: list[str] = [],
     skill_phases: list[Literal["generate", "repair"]] = ["generate", "repair"],
     rag: bool = False,
-    skill_mode: Literal['off', 'shadow', 'on'] | None = None,
-    rag_mode: Literal['off', 'shadow', 'on'] | None = None,
+    skill_mode: Literal["off", "shadow", "on"] | None = None,
+    rag_mode: Literal["off", "shadow", "on"] | None = None,
     retrieval: dict = {},
     knowledge_max_tokens: int = 2048,
-    delivery_mode: Literal['single', 'thinking_staged'] = 'single',
 ) -> State:
-    # Evidence belongs to one next-generation attempt, including when knowledge
-    # is disabled or extraction later fails. Never reuse a previous check.
-    evidence = ctx.store.pop("repair_check", None)
     from agent.domain.knowledge.policy import modes
+    from agent.domain.knowledge import guided as knowledge
+
     sm, rm = modes(skill_mode, rag_mode, skill_ids=skill_ids, rag=rag)
-    ctx.store["knowledge_rag_enabled"] = rm != 'off'
+    ctx.store["knowledge_rag_enabled"] = rm != "off"
     parent = ctx.candidates.get(state["target_id"]) if state.get("target_id") else None
     messages = ctx.prompts.render(
         prompt,
@@ -42,44 +40,47 @@ def generate(
         parent=parent,
         plan=ctx.store.get("plan"),
     )
-    assembly = None
-    window = ctx.llm.request_window(timeout_s)
-    with window:
-        from agent.domain.knowledge.context import prepare
-
-        messages, assembly = prepare(
-            ctx, messages, parent, evidence,
-            skill_ids=skill_ids, skill_phases=skill_phases, rag=rag,
-            max_tokens=max_tokens, max_extra_tokens=knowledge_max_tokens,
-            skill_mode=sm, rag_mode=rm, retrieval_options=retrieval,
-            raw_feedback=state.get('feedback', ''),
-        )
-        if delivery_mode == 'thinking_staged' and parent is not None:
-            from agent.llm.repair_delivery import complete
-            reply, delivery = complete(ctx, parent, state.get('feedback',''), messages,
-                max_tokens=max_tokens, timeout_s=timeout_s, temperature=temperature, top_p=top_p)
-            ctx.record.emit('delivery', 'result', **delivery)
-            if assembly is not None:
-                assembly = dict(assembly, messages_sha256=delivery['messages_sha256'])
-        elif delivery_mode in ('single', 'thinking_staged'):
-            original = ctx.llm.generation
-            try:
-                if delivery_mode == 'thinking_staged':
-                    from agent.llm.repair_delivery import thinking_generation
-                    ctx.llm.generation = thinking_generation(original)
-                reply = ctx.llm.chat(
-                    messages, temperature=temperature, max_tokens=max_tokens,
-                    top_p=top_p, timeout_s=timeout_s,
-                    purpose="repair" if parent else "generate",
+    report = {"mode": rm, "skills": sm, "strategy": retrieval.get("strategy", "bm25")}
+    if rm != "off":
+        query = ctx.task.prompt + "\n" + ctx.task.interface
+        mode = "rag" if rm in ("on", "shadow") else "off"
+        try:
+            cards, found = knowledge.retrieve(
+                query,
+                mode=mode,
+                limit=retrieval.get("retrieve_k", 5),
+                strategy=retrieval.get("strategy", "bm25"),
+                embedding_url=retrieval.get("embedding_url", ""),
+                embedding_timeout_s=retrieval.get("embedding_timeout_s", 2.0),
+            )
+            report.update(found)
+        except (OSError, ValueError, RuntimeError) as error:
+            report.update(error=type(error).__name__ + ": " + str(error), selected=[])
+            cards = []
+        if rm == "on" and cards:
+            pieces = []
+            used = 0
+            for card in cards[: retrieval.get("inject_k", 1)]:
+                text = knowledge.card_text(card)
+                if used + len(text) > knowledge_max_tokens:
+                    break
+                pieces.append(text)
+                used += len(text)
+            if pieces:
+                messages[-1]["content"] += (
+                    "\n\n## Optional knowledge (not task requirements)\n\n"
+                    + "\n\n".join(pieces)
                 )
-            finally:
-                ctx.llm.generation = original
-        else:
-            raise ValueError('unknown delivery mode')
-    if assembly is not None:
-        ctx.record.emit(
-            "knowledge", "model_result", assembly_id=assembly["assembly_id"],
-            messages_sha256=assembly["messages_sha256"], call_id=reply.call_id,
+                report["sent"] = [card["card_id"] for card in cards[: len(pieces)]]
+        ctx.record.emit("knowledge", "retrieval", **report)
+    with ctx.llm.request_window(timeout_s):
+        reply = ctx.llm.chat(
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
+            timeout_s=timeout_s,
+            purpose="repair" if parent else "generate",
         )
     ctx.store[reply.call_id] = reply
     return state.update(reply_id=reply.call_id, round=state.get("round", 0) + 1)

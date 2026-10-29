@@ -1,0 +1,73 @@
+"""Content-only knowledge base and retrieval interface."""
+
+import unittest
+from unittest.mock import patch
+
+from agent.domain.knowledge import guided
+from agent.domain.knowledge.embedding import settings
+
+
+class KnowledgeGuidedTests(unittest.TestCase):
+    def test_card_set_is_complete_and_has_no_release_metadata(self):
+        cards = guided.load_cards()
+        self.assertEqual(len(cards), 129)
+        self.assertEqual(len({card["card_id"] for card in cards}), 129)
+        states = {card.get("activation_state") for card in cards}
+        self.assertEqual(states, {"legacy_policy", "restricted", "shadow", "mechanical_only"})
+        self.assertEqual(sum(card["activation_state"] == "legacy_policy" for card in cards), 32)
+        self.assertEqual(sum(card["activation_state"] == "restricted" for card in cards), 38)
+        forbidden = {"version", "sha256", "path", "release_id", "projection_text", "source", "origin"}
+
+        def keys(value):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    yield key
+                    yield from keys(child)
+            elif isinstance(value, list):
+                for child in value:
+                    yield from keys(child)
+
+        for card in cards:
+            self.assertFalse(forbidden & set(keys(card)), card["card_id"])
+            self.assertTrue(card["title"])
+            self.assertTrue(guided.card_text(card))
+
+    def test_vectors_are_complete_and_match_embedding_settings(self):
+        vectors = guided.load_vectors()
+        self.assertEqual(set(vectors), {card["card_id"] for card in guided.load_cards()})
+        data = settings()
+        self.assertEqual(data["dimensions"], 1024)
+        self.assertEqual(data["pooling"], "last")
+        self.assertEqual(data["normalization"], "l2")
+        for value in vectors.values():
+            self.assertEqual(len(value), data["dimensions"])
+
+    def test_legacy_retrieval_uses_only_legacy_cards(self):
+        cards, report = guided.retrieve(
+            "synchronous reset counter register shift", mode="legacy", limit=3
+        )
+        self.assertTrue(cards)
+        self.assertTrue(all(card["activation_state"] == "legacy_policy" for card in cards))
+        self.assertEqual(report["mode"], "legacy")
+
+    def test_dense_route_uses_configured_vector_dimensions(self):
+        query_vector = [1.0] + [0.0] * 1023
+        with patch("agent.domain.knowledge.guided.embed_query", return_value=query_vector):
+            cards, report = guided.retrieve(
+                "signed arithmetic width carry", mode="rag", limit=3,
+                strategy="dense", embedding_url="http://127.0.0.1:8020",
+            )
+        self.assertTrue(cards)
+        self.assertEqual(report["strategy"], "dense")
+        self.assertTrue(report["selected"])
+
+    def test_rag_retrieval_can_return_restricted_cards(self):
+        cards, report = guided.retrieve(
+            "signed arithmetic width carry", mode="rag", limit=5
+        )
+        self.assertTrue(report["selected"])
+        self.assertTrue(all(card["activation_state"] in {"legacy_policy", "restricted"} for card in cards))
+
+
+if __name__ == "__main__":
+    unittest.main()

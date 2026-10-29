@@ -27,24 +27,19 @@
     "http_port": 7860
   },
   "agent": {
-    "workflow": "adaptive_verify",
+    "workflow": "single_generate",
     "max_rounds": 1,
     "temperature": 0.0,
     "tools": [
       "interface_check",
       "vivado_lint",
-      "vivado_synth",
-      "submit_answer",
-      "finish_task"
+      "vivado_synth"
     ],
     "skills": [
       "rtl-sequential-state-update"
     ],
     "available_workflows": [
       "single_generate",
-      "repair_loop",
-      "design_verify_loop",
-      "adaptive_verify",
       "guided_verify"
     ]
   },

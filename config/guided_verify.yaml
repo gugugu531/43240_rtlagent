@@ -3,6 +3,8 @@
 # 小模型权重、许可证和 flat plan 行为须先验证；未就绪时不要把该配置用于正式投题。
 workflow: guided_verify
 params:
+  retrieval_mode: legacy
+  retrieval_strategy: bm25
   planner: {timeout_s: 60, max_tokens: 512}
   solve: {timeout_s: 300, max_tokens: 8192}
   checker: {timeout_s: 300, max_tokens: 8192}

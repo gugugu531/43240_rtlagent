@@ -33,6 +33,10 @@ class GuidedParameters(BaseModel):
     first_tools_s: float = Field(default=120, gt=0)
     recheck_tools_s: float = Field(default=120, gt=0)
     submission_policy: Literal["last_written", "selected"] = "last_written"
+    retrieval_mode: Literal["off", "legacy", "rag", "all"] = "legacy"
+    retrieval_strategy: Literal["bm25", "dense"] = "bm25"
+    embedding_url: str = ""
+    embedding_timeout_s: float = Field(default=2.0, gt=0, le=10)
     temperature: float = Field(default=0.0, ge=0, le=2)
     top_p: float = Field(default=1.0, gt=0, le=1)
 
