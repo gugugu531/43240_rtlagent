@@ -174,7 +174,9 @@ AGENT_CONFIG=config/guided_verify_rag_bm25.yaml ./run.sh <input> <output>
 AGENT_CONFIG=config/guided_verify_rag_dense.yaml ./run.sh <input> <output>
 ```
 
-`rag` 模式包含 `legacy_policy` 和 `restricted` 卡片。dense 路线必须与
+`rag` 模式包含 `legacy_policy` 和 `restricted` 卡片。plan 阶段记录
+`knowledge/retrieval`，收尾结果也带 retrieval 摘要；dense 失败时关闭知识注入并记录
+`embedding_unavailable`，不退回 BM25。dense 路线必须与
 `config/rag_embedding.yaml` 的模型别名、1024 维、last pooling、L2 归一化和查询投影一致；
 知识库和向量文件本身不保存版本、sha256、路径或 release lock。
 

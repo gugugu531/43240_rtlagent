@@ -55,6 +55,18 @@ class ConfigTests(unittest.TestCase):
                     finally:
                         record.close()
 
+    def test_dense_switch_requires_an_embedding_endpoint(self):
+        from agent.orchestration.workflows.guided_verify import GuidedParameters
+
+        with self.assertRaises(ValueError):
+            GuidedParameters(retrieval_mode="rag", retrieval_strategy="dense")
+        configured = GuidedParameters(
+            retrieval_mode="rag",
+            retrieval_strategy="dense",
+            embedding_url="http://127.0.0.1:8020",
+        )
+        self.assertEqual(configured.retrieval_strategy, "dense")
+
     def test_removed_workflow_configs_are_absent(self):
         for name in (
             "adaptive_verify.yaml", "adaptive_dev_900.yaml", "adaptive_hip.yaml",

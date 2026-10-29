@@ -42,7 +42,8 @@ card_text(card)
 - `off`：不检索。
 
 `guided_verify` 默认 `retrieval_mode=legacy`、`retrieval_strategy=bm25`。RAG 路线通过
-显式配置选择：
+显式配置选择；dense 失败时返回空候选并在 `knowledge/retrieval` 记录
+`embedding_unavailable`，不会静默回退到 BM25：
 
 ```bash
 AGENT_CONFIG=config/guided_verify_rag_bm25.yaml ./run.sh <input> <output>

@@ -50,9 +50,45 @@ class KnowledgeGuidedTests(unittest.TestCase):
         self.assertTrue(all(card["activation_state"] == "legacy_policy" for card in cards))
         self.assertEqual(report["mode"], "legacy")
 
-    def test_dense_route_uses_configured_vector_dimensions(self):
-        query_vector = [1.0] + [0.0] * 1023
-        with patch("agent.domain.knowledge.guided.embed_query", return_value=query_vector):
+    def test_dense_route_uses_the_configured_http_embedding_service(self):
+        from agent.domain.knowledge.embedding import settings
+
+        captured = {}
+
+        class Response:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self.payload
+
+        class Client:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def get(self, url):
+                return Response({"data": [{"id": settings()["model_alias"]}]})
+
+            def post(self, url, json):
+                captured.update(json)
+                return Response({
+                    "model": settings()["model_alias"],
+                    "data": [{
+                        "index": 0,
+                        "embedding": [1.0] + [0.0] * (settings()["dimensions"] - 1),
+                    }],
+                })
+
+        with patch("agent.domain.knowledge.embedding.httpx.Client", Client):
             cards, report = guided.retrieve(
                 "signed arithmetic width carry", mode="rag", limit=3,
                 strategy="dense", embedding_url="http://127.0.0.1:8020",
@@ -60,6 +96,9 @@ class KnowledgeGuidedTests(unittest.TestCase):
         self.assertTrue(cards)
         self.assertEqual(report["strategy"], "dense")
         self.assertTrue(report["selected"])
+        self.assertEqual(captured["model"], settings()["model_alias"])
+        self.assertIn("Query:", captured["input"][0])
+        self.assertIn("stage:", captured["input"][0])
 
     def test_rag_retrieval_can_return_restricted_cards(self):
         cards, report = guided.retrieve(

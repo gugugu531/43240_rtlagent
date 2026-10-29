@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import math
 import re
+
+import httpx
 from collections import Counter
 from functools import lru_cache
 from pathlib import Path
@@ -125,8 +127,12 @@ def retrieve(
     embedding_timeout_s=2.0,
     trace=None,
 ):
+    report = {"mode": mode, "strategy": strategy, "retrieved": [], "selected": []}
     if mode == "off":
-        return [], {"mode": mode, "retrieved": [], "reason": "disabled"}
+        report["reason"] = "disabled"
+        if trace is not None:
+            trace.update(report)
+        return [], report
     if mode not in _MODES:
         raise ValueError("unknown knowledge retrieval mode")
     statuses = _MODES[mode]
@@ -135,30 +141,36 @@ def retrieve(
         for card in load_cards()
         if card.get("activation_state") in statuses
     ]
-    if strategy == "dense":
-        if not embedding_url:
-            raise ValueError("embedding_endpoint_unconfigured")
-        ranking = dense_rank(
-            cards,
-            query,
-            embedding_url=embedding_url,
-            timeout_s=embedding_timeout_s,
-            trace=trace,
-        )
-    elif strategy == "bm25":
-        ranking = bm25_rank(cards, query)
-    else:
-        raise ValueError("unknown knowledge retrieval strategy")
+    try:
+        if strategy == "dense":
+            if not embedding_url:
+                raise ValueError("embedding_endpoint_unconfigured")
+            ranking = dense_rank(
+                cards,
+                query,
+                embedding_url=embedding_url,
+                timeout_s=embedding_timeout_s,
+                trace=trace,
+            )
+        elif strategy == "bm25":
+            ranking = bm25_rank(cards, query)
+        else:
+            raise ValueError("unknown knowledge retrieval strategy")
+    except (OSError, ValueError, RuntimeError, httpx.HTTPError) as error:
+        report["error"] = type(error).__name__ + ": " + str(error)
+        report["reason"] = "embedding_unavailable" if strategy == "dense" else "retrieval_unavailable"
+        if trace is not None:
+            trace.update(report)
+        return [], report
     selected = [card_map()[card_id] for card_id, _ in ranking[:limit]]
-    report = {
-        "mode": mode,
-        "strategy": strategy,
-        "retrieved": [
+    report.update(
+        retrieved=[
             {"card_id": card_id, "score": score}
             for card_id, score in ranking[:limit]
         ],
-        "selected": [card["card_id"] for card in selected],
-    }
+        selected=[card["card_id"] for card in selected],
+        reason="retrieved" if selected else "empty",
+    )
     if trace is not None:
         trace.update(report)
     return selected, report

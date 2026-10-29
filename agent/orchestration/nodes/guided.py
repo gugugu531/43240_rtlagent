@@ -170,20 +170,23 @@ def _shortlist(ctx, limit):
                 "all": {"legacy_policy", "restricted", "shadow", "mechanical_only"}}.get(mode, set())
     cards = [card for card in knowledge.load_cards() if card.get("activation_state") in statuses]
     query = ctx.task.prompt + "\n" + ctx.task.interface
-    if settings.get("retrieval_strategy") == "dense" and mode != "off":
-        try:
-            picked, _ = knowledge.retrieve(
-                query, mode=mode, limit=limit, strategy="dense",
-                embedding_url=settings.get("embedding_url", ""),
-                embedding_timeout_s=settings.get("embedding_timeout_s", 2.0),
-            )
-        except (OSError, ValueError, RuntimeError):
-            picked = []
+    report = {"mode": mode, "strategy": settings.get("retrieval_strategy", "bm25")}
+    if mode == "off":
+        report.update(reason="disabled", selected=[])
+        picked = []
+    elif settings.get("retrieval_strategy") == "dense":
+        picked, report = knowledge.retrieve(
+            query, mode=mode, limit=limit, strategy="dense",
+            embedding_url=settings.get("embedding_url", ""),
+            embedding_timeout_s=settings.get("embedding_timeout_s", 2.0),
+        )
     else:
         ranked = [card_id for card_id, _ in knowledge.bm25_rank(cards, query)]
         by_id = {card["card_id"]: card for card in cards}
         ordered = ranked + [c["card_id"] for c in cards if c["card_id"] not in ranked]
         picked = [by_id[identity] for identity in ordered[:limit]]
+        report.update(selected=[card["card_id"] for card in picked], reason="retrieved" if picked else "empty")
+    data["retrieval"] = report
     return skills, picked
 
 
@@ -210,6 +213,7 @@ def initialize(ctx: Ctx, state: State) -> State:
         "assessments": {},
         "observations": {},
         "behaviors": {},
+        "retrieval": {},
         "checker_hash": None,
         "behavior": None,
         "selection": None,
@@ -230,6 +234,8 @@ def plan(ctx: Ctx, state: State) -> State:
     data = _g(ctx)
     settings = data["settings"]
     skills, cards = _shortlist(ctx, settings["knowledge_candidates"])
+    _save(ctx, "retrieval", data["retrieval"])
+    ctx.record.emit("knowledge", "retrieval", **data["retrieval"])
     messages = plan_request(ctx.task, skills, cards)
     reply = _request(
         ctx, "plan", messages, settings["planner"],
@@ -588,6 +594,7 @@ def finish(ctx: Ctx, state: State) -> State:
         "method": data["method"],
         "plan": data.get("plan"),
         "checker_status": data["checker_status"],
+        "retrieval": data.get("retrieval", {}),
         "checker_hash": data.get("checker_hash"),
         "behavior_candidate_id": evidence_id if behavior else None,
         "behavior": behavior,

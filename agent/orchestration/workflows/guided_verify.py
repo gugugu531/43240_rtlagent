@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from agent.kit import workflow, when, default
 
@@ -39,6 +39,12 @@ class GuidedParameters(BaseModel):
     embedding_timeout_s: float = Field(default=2.0, gt=0, le=10)
     temperature: float = Field(default=0.0, ge=0, le=2)
     top_p: float = Field(default=1.0, gt=0, le=1)
+
+    @model_validator(mode="after")
+    def dense_requires_endpoint(self):
+        if self.retrieval_strategy == "dense" and self.retrieval_mode != "off" and not self.embedding_url:
+            raise ValueError("dense_retrieval_requires_embedding_url")
+        return self
 
 
 @workflow(

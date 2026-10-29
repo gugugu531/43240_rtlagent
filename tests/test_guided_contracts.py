@@ -344,6 +344,62 @@ class GuidedContractTests(unittest.TestCase):
         self.assertEqual(result["published_id"], "child")
         self.assertFalse(result["structural_passed"])
 
+    def test_dense_guided_shortlist_uses_embedding(self):
+        from agent.domain.knowledge.embedding import settings
+
+        class Response:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self.payload
+
+        class Client:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def get(self, url):
+                return Response({"data": [{"id": settings()["model_alias"]}]})
+
+            def post(self, url, json):
+                return Response({
+                    "model": settings()["model_alias"],
+                    "data": [{
+                        "index": 0,
+                        "embedding": [1.0] + [0.0] * (settings()["dimensions"] - 1),
+                    }],
+                })
+
+        data = {
+            "settings": {
+                "retrieval_mode": "rag",
+                "retrieval_strategy": "dense",
+                "embedding_url": "http://127.0.0.1:8020",
+                "embedding_timeout_s": 2.0,
+                "knowledge_candidates": 3,
+            },
+            "retrieval": {},
+        }
+        ctx = SimpleNamespace(
+            task=task(),
+            store={"guided": data},
+            record=SimpleNamespace(emit=lambda *args, **kwargs: None),
+        )
+        with patch("agent.domain.knowledge.embedding.httpx.Client", Client):
+            skills, cards = guided._shortlist(ctx, 3)
+        self.assertTrue(cards)
+        self.assertEqual(data["retrieval"]["strategy"], "dense")
+        self.assertTrue(data["retrieval"]["selected"])
+
     def test_selected_knowledge_reaches_the_solve_message(self):
         data = {
             "settings": {
