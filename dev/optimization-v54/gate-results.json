@@ -1,0 +1,1556 @@
+{
+  "batch_id": "rag-restricted-promotion-v54-r1",
+  "base_release": "rag-catalog-v3-rc4.4",
+  "count": 10,
+  "passed": 10,
+  "rows": [
+    {
+      "card_id": "v8-lfsr-feedback-seed",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "71da0247d8a4262d66b2144c28f32cca424d297af8c7758cd6029060d53a489f",
+      "route_case_id": "b51-001",
+      "evidence_case_id": "b49-01",
+      "direct": {
+        "positive": {
+          "card_id": "v8-lfsr-feedback-seed",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "7a0065dc17427c13d0518f7a5c1e92f89140a1cafb2ffa873163a843f5c85d5e",
+          "interface_sha256": "8be1b6a20582fb061b45e501fe6cf077c4ba89b525e159dde4c106f6b8ca9e70",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 54,
+              "end": 142,
+              "text": "shift the low three old bits toward the high positions and append old state[3] XOR state"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 133,
+              "end": 178,
+              "text": "XOR state[2] as the new least significant bit"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 14,
+              "end": 38,
+              "text": "reset sets state to 0001"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "71da0247d8a4262d66b2144c28f32cca424d297af8c7758cd6029060d53a489f"
+        },
+        "known": {
+          "card_id": "v8-lfsr-feedback-seed",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "03a58e81d12a0af59e7031f2a5bc501407a3675e783001cade7089e08a215533",
+          "interface_sha256": "8be1b6a20582fb061b45e501fe6cf077c4ba89b525e159dde4c106f6b8ca9e70",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "71da0247d8a4262d66b2144c28f32cca424d297af8c7758cd6029060d53a489f"
+        },
+        "conflicting": {
+          "card_id": "v8-lfsr-feedback-seed",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "20cd87151f60fff768f2e2b17b382ec842a30deb2844983a4048039af2213846",
+          "interface_sha256": "8be1b6a20582fb061b45e501fe6cf077c4ba89b525e159dde4c106f6b8ca9e70",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "71da0247d8a4262d66b2144c28f32cca424d297af8c7758cd6029060d53a489f"
+        },
+        "insufficient": {
+          "card_id": "v8-lfsr-feedback-seed",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "8be1b6a20582fb061b45e501fe6cf077c4ba89b525e159dde4c106f6b8ca9e70",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "71da0247d8a4262d66b2144c28f32cca424d297af8c7758cd6029060d53a489f"
+        },
+        "irrelevant": {
+          "card_id": "v8-lfsr-feedback-seed",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "d02a45b30b04ac53bace79aef79eec693ebaa9acba0ba58bfa744f6be2c21339",
+          "interface_sha256": "8be1b6a20582fb061b45e501fe6cf077c4ba89b525e159dde4c106f6b8ca9e70",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "71da0247d8a4262d66b2144c28f32cca424d297af8c7758cd6029060d53a489f"
+        },
+        "tampered": {
+          "card_id": "v8-lfsr-feedback-seed",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "7a0065dc17427c13d0518f7a5c1e92f89140a1cafb2ffa873163a843f5c85d5e",
+          "interface_sha256": "8be1b6a20582fb061b45e501fe6cf077c4ba89b525e159dde4c106f6b8ca9e70",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v8-lfsr-feedback-seed",
+            "v9-public-sampled-edge-history",
+            "v9-public-bounded-modulus",
+            "v8-serializer-snapshot",
+            "v9-public-sticky-event-memory"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-lfsr-feedback-seed"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 117.771,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v8-lfsr-feedback-seed",
+            "v9-public-bounded-modulus",
+            "v9-public-saturation-not-wrap",
+            "v9-public-sampled-edge-history",
+            "v9-lang-conditional-x-merge"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-lfsr-feedback-seed"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1676.306,
+          "embedding_ms": 1516.583
+        }
+      },
+      "projection_tokens": 211,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-packer-valid-count",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "d77982db3d49cb5ddabd4f10e7ceb831e266fde2b45fd05921749c8544a9700b",
+      "route_case_id": "b51-003",
+      "evidence_case_id": "b49-02",
+      "direct": {
+        "positive": {
+          "card_id": "v8-packer-valid-count",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "356dc9c9d0b5dd67173eb1de5901462b837fc2a9d54de44eea71d17da6e7763f",
+          "interface_sha256": "b69cb4923ead9494afc74d761848d1f1c6b1ba8477c1887556dd66eaa42251ea",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 61,
+              "end": 98,
+              "text": "accepted only when in_valid and ready"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 114,
+              "end": 174,
+              "text": "Pack four two-bit accepted items into word from the low lane"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 254,
+              "end": 276,
+              "text": "Bubbles do not advance"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d77982db3d49cb5ddabd4f10e7ceb831e266fde2b45fd05921749c8544a9700b"
+        },
+        "known": {
+          "card_id": "v8-packer-valid-count",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "faa7d59cf7df7a5c1171d9e03fc24d4e10906cae27aca5339cddf7145a1c23de",
+          "interface_sha256": "b69cb4923ead9494afc74d761848d1f1c6b1ba8477c1887556dd66eaa42251ea",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d77982db3d49cb5ddabd4f10e7ceb831e266fde2b45fd05921749c8544a9700b"
+        },
+        "conflicting": {
+          "card_id": "v8-packer-valid-count",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "fa34085b672dd9208cc210f6be78d0a29950f467f953e048b051952f7422642d",
+          "interface_sha256": "b69cb4923ead9494afc74d761848d1f1c6b1ba8477c1887556dd66eaa42251ea",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d77982db3d49cb5ddabd4f10e7ceb831e266fde2b45fd05921749c8544a9700b"
+        },
+        "insufficient": {
+          "card_id": "v8-packer-valid-count",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "b69cb4923ead9494afc74d761848d1f1c6b1ba8477c1887556dd66eaa42251ea",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d77982db3d49cb5ddabd4f10e7ceb831e266fde2b45fd05921749c8544a9700b"
+        },
+        "irrelevant": {
+          "card_id": "v8-packer-valid-count",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "7a0a4de4fd8dc0d631bb6f0044a4b06611a95d15d3868ec4387a287b96ad8ec5",
+          "interface_sha256": "b69cb4923ead9494afc74d761848d1f1c6b1ba8477c1887556dd66eaa42251ea",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d77982db3d49cb5ddabd4f10e7ceb831e266fde2b45fd05921749c8544a9700b"
+        },
+        "tampered": {
+          "card_id": "v8-packer-valid-count",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "356dc9c9d0b5dd67173eb1de5901462b837fc2a9d54de44eea71d17da6e7763f",
+          "interface_sha256": "b69cb4923ead9494afc74d761848d1f1c6b1ba8477c1887556dd66eaa42251ea",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v8-packer-temporal-order",
+            "v8-packer-valid-count",
+            "v9-public-sampled-edge-history",
+            "v8-stack-boundary-guards",
+            "v8-serializer-snapshot"
+          ],
+          "target_rank": 2,
+          "target_rejections": [],
+          "admitted": [
+            "v8-packer-valid-count"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 96.155,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v8-packer-valid-count",
+            "v8-serializer-snapshot",
+            "v8-pipeline-valid-alignment",
+            "v8-result-backpressure-retention",
+            "v9-public-saturation-not-wrap"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-packer-valid-count"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1714.025,
+          "embedding_ms": 1578.004
+        }
+      },
+      "projection_tokens": 211,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-pipeline-valid-alignment",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "1644d78358ffcd896f1023f56234b54709ba2ed5d0373e4577e102e8717c6d7c",
+      "route_case_id": "b51-005",
+      "evidence_case_id": "b49-04",
+      "direct": {
+        "positive": {
+          "card_id": "v8-pipeline-valid-alignment",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "b7bfdf595b87f7842809b87fc283574b583e454dd70ee10f5ac4c3f8a74cdbe6",
+          "interface_sha256": "e2d55fd7521292a026a0ad3ce8d4efbcc00c16b37cb69523a030af3d69c2de5b",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 62,
+              "end": 78,
+              "text": "stall holds both"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 95,
+              "end": 136,
+              "text": "out_valid becomes in_valid; when in_valid"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 113,
+              "end": 151,
+              "text": "in_valid; when in_valid is high result"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "1644d78358ffcd896f1023f56234b54709ba2ed5d0373e4577e102e8717c6d7c"
+        },
+        "known": {
+          "card_id": "v8-pipeline-valid-alignment",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "9c7a8210c07e756ad85ddf019378973a978238b471ca59fcfcf9997c28a23928",
+          "interface_sha256": "e2d55fd7521292a026a0ad3ce8d4efbcc00c16b37cb69523a030af3d69c2de5b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "1644d78358ffcd896f1023f56234b54709ba2ed5d0373e4577e102e8717c6d7c"
+        },
+        "conflicting": {
+          "card_id": "v8-pipeline-valid-alignment",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "83e7cc0aed382f34a4e3d5debe2510a03707f47e38c588469651b907a764a7e2",
+          "interface_sha256": "e2d55fd7521292a026a0ad3ce8d4efbcc00c16b37cb69523a030af3d69c2de5b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "1644d78358ffcd896f1023f56234b54709ba2ed5d0373e4577e102e8717c6d7c"
+        },
+        "insufficient": {
+          "card_id": "v8-pipeline-valid-alignment",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "e2d55fd7521292a026a0ad3ce8d4efbcc00c16b37cb69523a030af3d69c2de5b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "1644d78358ffcd896f1023f56234b54709ba2ed5d0373e4577e102e8717c6d7c"
+        },
+        "irrelevant": {
+          "card_id": "v8-pipeline-valid-alignment",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "a58b6681a2799266e95856959663094f9a8153f5c491ce0d0a3e6cbcc589aead",
+          "interface_sha256": "e2d55fd7521292a026a0ad3ce8d4efbcc00c16b37cb69523a030af3d69c2de5b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "1644d78358ffcd896f1023f56234b54709ba2ed5d0373e4577e102e8717c6d7c"
+        },
+        "tampered": {
+          "card_id": "v8-pipeline-valid-alignment",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "b7bfdf595b87f7842809b87fc283574b583e454dd70ee10f5ac4c3f8a74cdbe6",
+          "interface_sha256": "e2d55fd7521292a026a0ad3ce8d4efbcc00c16b37cb69523a030af3d69c2de5b",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-sampled-edge-history",
+            "v8-lfsr-feedback-seed",
+            "v9-public-bounded-modulus",
+            "v8-packer-temporal-order",
+            "v8-pipeline-valid-alignment"
+          ],
+          "target_rank": 5,
+          "target_rejections": [],
+          "admitted": [
+            "v8-pipeline-valid-alignment"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 95.811,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v8-pipeline-valid-alignment",
+            "v8-result-backpressure-retention",
+            "v9-public-bounded-modulus",
+            "v9-lang-nba-rhs-sampling",
+            "v9-public-saturation-not-wrap"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-pipeline-valid-alignment"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1777.858,
+          "embedding_ms": 1643.836
+        }
+      },
+      "projection_tokens": 209,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-ram-port-write-mode",
+      "card_version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "d5c8d2ff114135ddc27a51705a5aae538a10efdbd14968155059108579b18a7f",
+      "route_case_id": "b51-006",
+      "evidence_case_id": "b49-05",
+      "direct": {
+        "positive": {
+          "card_id": "v8-ram-port-write-mode",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "5e532f8e627be3c3f27c66b3a874e1056fa67e579e299d1f3c8e854093c216e3",
+          "interface_sha256": "7e0de6683a022d9b5f16986094a8bfc7d6b51a50b4f55f621d31fe759e4ad5fe",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 53,
+              "end": 59,
+              "text": "memory"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 12,
+              "end": 23,
+              "text": "synchronous"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 171,
+              "end": 228,
+              "text": "same-address read/write returns the old value (read-first"
+            }
+          ],
+          "card_version": "0.1.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d5c8d2ff114135ddc27a51705a5aae538a10efdbd14968155059108579b18a7f"
+        },
+        "known": {
+          "card_id": "v8-ram-port-write-mode",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "58dc793eb18a79448873e2a523c5405805f3b1b035888a41b9b0200cca84dca4",
+          "interface_sha256": "7e0de6683a022d9b5f16986094a8bfc7d6b51a50b4f55f621d31fe759e4ad5fe",
+          "witnesses": [],
+          "card_version": "0.1.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d5c8d2ff114135ddc27a51705a5aae538a10efdbd14968155059108579b18a7f"
+        },
+        "conflicting": {
+          "card_id": "v8-ram-port-write-mode",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "5d95bcd6192702833751a29fef96eb7daa7ad8435a3dbeb703a3cc6007f1aaa2",
+          "interface_sha256": "7e0de6683a022d9b5f16986094a8bfc7d6b51a50b4f55f621d31fe759e4ad5fe",
+          "witnesses": [],
+          "card_version": "0.1.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d5c8d2ff114135ddc27a51705a5aae538a10efdbd14968155059108579b18a7f"
+        },
+        "insufficient": {
+          "card_id": "v8-ram-port-write-mode",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "7e0de6683a022d9b5f16986094a8bfc7d6b51a50b4f55f621d31fe759e4ad5fe",
+          "witnesses": [],
+          "card_version": "0.1.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d5c8d2ff114135ddc27a51705a5aae538a10efdbd14968155059108579b18a7f"
+        },
+        "irrelevant": {
+          "card_id": "v8-ram-port-write-mode",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "7f95f62ae381515abbf4764c02d861cea9fdfebdda4c594ffb03092ee687e3f6",
+          "interface_sha256": "7e0de6683a022d9b5f16986094a8bfc7d6b51a50b4f55f621d31fe759e4ad5fe",
+          "witnesses": [],
+          "card_version": "0.1.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d5c8d2ff114135ddc27a51705a5aae538a10efdbd14968155059108579b18a7f"
+        },
+        "tampered": {
+          "card_id": "v8-ram-port-write-mode",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "5e532f8e627be3c3f27c66b3a874e1056fa67e579e299d1f3c8e854093c216e3",
+          "interface_sha256": "7e0de6683a022d9b5f16986094a8bfc7d6b51a50b4f55f621d31fe759e4ad5fe",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v8-ram-port-write-mode",
+            "v9-public-sampled-edge-history",
+            "v9-public-bounded-modulus",
+            "v8-lfsr-feedback-seed",
+            "v9-lang-nba-rhs-sampling"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-ram-port-write-mode"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 89.498,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v8-ram-port-write-mode",
+            "v9-lang-nba-rhs-sampling",
+            "v8-serializer-snapshot",
+            "v9-public-sampled-edge-history",
+            "v9-public-bounded-modulus"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-ram-port-write-mode"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1994.344,
+          "embedding_ms": 1862.336
+        }
+      },
+      "projection_tokens": 220,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-result-backpressure-retention",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "49c3c5fb28f06654869e094afa70822bdf4efa848e930f179431bb2ec6ebeb56",
+      "route_case_id": "b51-007",
+      "evidence_case_id": "b49-06",
+      "direct": {
+        "positive": {
+          "card_id": "v8-result-backpressure-retention",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "4a404cddad6587cdcf505da0b5aa714efa184fd8477914b4f6a756b74529a174",
+          "interface_sha256": "4c3b156b1b6c8ad7675f7a08c7b8838338c61a4499ab1183c81e1799f5e4b163",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 53,
+              "end": 80,
+              "text": "valid is high and ready low"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 82,
+              "end": 94,
+              "text": "retain valid"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 149,
+              "end": 218,
+              "text": "produce captures value_in and sets valid; without produce clear valid"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "49c3c5fb28f06654869e094afa70822bdf4efa848e930f179431bb2ec6ebeb56"
+        },
+        "known": {
+          "card_id": "v8-result-backpressure-retention",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "7023aac25d001ae14b2350ef7ada7640ddd29533a6ff1dff43b0861dc269113c",
+          "interface_sha256": "4c3b156b1b6c8ad7675f7a08c7b8838338c61a4499ab1183c81e1799f5e4b163",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "49c3c5fb28f06654869e094afa70822bdf4efa848e930f179431bb2ec6ebeb56"
+        },
+        "conflicting": {
+          "card_id": "v8-result-backpressure-retention",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "948906a9b1191ecf5708067ba475611e199e5ad0fbdeef07e59a75853979f37a",
+          "interface_sha256": "4c3b156b1b6c8ad7675f7a08c7b8838338c61a4499ab1183c81e1799f5e4b163",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "49c3c5fb28f06654869e094afa70822bdf4efa848e930f179431bb2ec6ebeb56"
+        },
+        "insufficient": {
+          "card_id": "v8-result-backpressure-retention",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "4c3b156b1b6c8ad7675f7a08c7b8838338c61a4499ab1183c81e1799f5e4b163",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "49c3c5fb28f06654869e094afa70822bdf4efa848e930f179431bb2ec6ebeb56"
+        },
+        "irrelevant": {
+          "card_id": "v8-result-backpressure-retention",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "c845d5aa519fa32521afbe4e020f625faeee44a5a3cd37fa3025f8b333773ac9",
+          "interface_sha256": "4c3b156b1b6c8ad7675f7a08c7b8838338c61a4499ab1183c81e1799f5e4b163",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "49c3c5fb28f06654869e094afa70822bdf4efa848e930f179431bb2ec6ebeb56"
+        },
+        "tampered": {
+          "card_id": "v8-result-backpressure-retention",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "4a404cddad6587cdcf505da0b5aa714efa184fd8477914b4f6a756b74529a174",
+          "interface_sha256": "4c3b156b1b6c8ad7675f7a08c7b8838338c61a4499ab1183c81e1799f5e4b163",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-sampled-edge-history",
+            "v8-result-backpressure-retention",
+            "v8-lfsr-feedback-seed",
+            "v9-public-bounded-modulus",
+            "v8-packer-valid-count"
+          ],
+          "target_rank": 2,
+          "target_rejections": [],
+          "admitted": [
+            "v8-result-backpressure-retention"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 89.437,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v8-result-backpressure-retention",
+            "v9-lang-nba-rhs-sampling",
+            "v8-pipeline-valid-alignment",
+            "v9-public-sampled-edge-history",
+            "v9-public-sticky-event-memory"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-result-backpressure-retention"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1946.138,
+          "embedding_ms": 1812.556
+        }
+      },
+      "projection_tokens": 212,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-serializer-snapshot",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "d3468e4930e494b8f4e454631b56c14d8f40e6b62c289db5a2c5b5d4be571f68",
+      "route_case_id": "b51-008",
+      "evidence_case_id": "b49-07",
+      "direct": {
+        "positive": {
+          "card_id": "v8-serializer-snapshot",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "5e22321dc1bc5da03f4b3660e2a692e44cfa7aad3fc5d3d328bc96fdbe80f550",
+          "interface_sha256": "89375f9ca2fca1fc4bf691fcdabc7f576e9088439adc1faa8f6a2a19b2bdd741",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 48,
+              "end": 80,
+              "text": "start while idle accepts data_in"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 82,
+              "end": 108,
+              "text": "immediately emits bit zero"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 201,
+              "end": 241,
+              "text": "later live data_in changes do not affect"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d3468e4930e494b8f4e454631b56c14d8f40e6b62c289db5a2c5b5d4be571f68"
+        },
+        "known": {
+          "card_id": "v8-serializer-snapshot",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "39045bcbedeeb5dab865e393806c9a2ec2d6c6f85841ad983f9cda002cdc9a88",
+          "interface_sha256": "89375f9ca2fca1fc4bf691fcdabc7f576e9088439adc1faa8f6a2a19b2bdd741",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d3468e4930e494b8f4e454631b56c14d8f40e6b62c289db5a2c5b5d4be571f68"
+        },
+        "conflicting": {
+          "card_id": "v8-serializer-snapshot",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "2980752d0d6902bb250d117bb6e859567b55075f76c0794fa07fa6dac86c438d",
+          "interface_sha256": "89375f9ca2fca1fc4bf691fcdabc7f576e9088439adc1faa8f6a2a19b2bdd741",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d3468e4930e494b8f4e454631b56c14d8f40e6b62c289db5a2c5b5d4be571f68"
+        },
+        "insufficient": {
+          "card_id": "v8-serializer-snapshot",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "89375f9ca2fca1fc4bf691fcdabc7f576e9088439adc1faa8f6a2a19b2bdd741",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 76,
+              "end": 101,
+              "text": "start,input [7:0] data_in"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d3468e4930e494b8f4e454631b56c14d8f40e6b62c289db5a2c5b5d4be571f68"
+        },
+        "irrelevant": {
+          "card_id": "v8-serializer-snapshot",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "d6ecc52ebbc3a9a3245c7ab97233a2fd51bbf050af866cd00189548d46d731fe",
+          "interface_sha256": "89375f9ca2fca1fc4bf691fcdabc7f576e9088439adc1faa8f6a2a19b2bdd741",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "d3468e4930e494b8f4e454631b56c14d8f40e6b62c289db5a2c5b5d4be571f68"
+        },
+        "tampered": {
+          "card_id": "v8-serializer-snapshot",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "5e22321dc1bc5da03f4b3660e2a692e44cfa7aad3fc5d3d328bc96fdbe80f550",
+          "interface_sha256": "89375f9ca2fca1fc4bf691fcdabc7f576e9088439adc1faa8f6a2a19b2bdd741",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v8-serializer-snapshot",
+            "v8-lfsr-feedback-seed",
+            "v9-public-sampled-edge-history",
+            "v9-public-batch-final-sample",
+            "v9-public-bounded-modulus"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-serializer-snapshot"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 96.478,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v8-serializer-snapshot",
+            "v8-pipeline-valid-alignment",
+            "v8-result-backpressure-retention",
+            "v9-lang-nba-rhs-sampling",
+            "v9-public-sampled-edge-history"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-serializer-snapshot"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1642.141,
+          "embedding_ms": 1506.285
+        }
+      },
+      "projection_tokens": 210,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v8-stack-boundary-guards",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "20a2916381ce9cb1f5bcf0db378bc74f25bb214d154e7b7d780a5d7be49ae452",
+      "route_case_id": "b51-009",
+      "evidence_case_id": "b49-08",
+      "direct": {
+        "positive": {
+          "card_id": "v8-stack-boundary-guards",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "793559e6cc226404d30d8bf2d721b2ae5eb38bec1822c16ff88e2ffba4d903f0",
+          "interface_sha256": "3650f2449c4523ba8e19fdbd35d61f2c39d728f8fec9d3faddcc4a426d937814",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 140,
+              "end": 172,
+              "text": "push is accepted only below full"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 273,
+              "end": 285,
+              "text": "nonempty pop"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 304,
+              "end": 328,
+              "text": "Rejected operations hold"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "20a2916381ce9cb1f5bcf0db378bc74f25bb214d154e7b7d780a5d7be49ae452"
+        },
+        "known": {
+          "card_id": "v8-stack-boundary-guards",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "1f00394bc11eab14be34a14d2fc85124e10d0803f407b8eb0027f4bd6a9c23cd",
+          "interface_sha256": "3650f2449c4523ba8e19fdbd35d61f2c39d728f8fec9d3faddcc4a426d937814",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "20a2916381ce9cb1f5bcf0db378bc74f25bb214d154e7b7d780a5d7be49ae452"
+        },
+        "conflicting": {
+          "card_id": "v8-stack-boundary-guards",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "421c707979aab475f657d23b6072fcf5b90329668650350e7004565b4d2acfcf",
+          "interface_sha256": "3650f2449c4523ba8e19fdbd35d61f2c39d728f8fec9d3faddcc4a426d937814",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "20a2916381ce9cb1f5bcf0db378bc74f25bb214d154e7b7d780a5d7be49ae452"
+        },
+        "insufficient": {
+          "card_id": "v8-stack-boundary-guards",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "3650f2449c4523ba8e19fdbd35d61f2c39d728f8fec9d3faddcc4a426d937814",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "20a2916381ce9cb1f5bcf0db378bc74f25bb214d154e7b7d780a5d7be49ae452"
+        },
+        "irrelevant": {
+          "card_id": "v8-stack-boundary-guards",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "f9be5766859523f347811e63bcaa240d437e1e7096149400892c671fcf76e118",
+          "interface_sha256": "3650f2449c4523ba8e19fdbd35d61f2c39d728f8fec9d3faddcc4a426d937814",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "20a2916381ce9cb1f5bcf0db378bc74f25bb214d154e7b7d780a5d7be49ae452"
+        },
+        "tampered": {
+          "card_id": "v8-stack-boundary-guards",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "793559e6cc226404d30d8bf2d721b2ae5eb38bec1822c16ff88e2ffba4d903f0",
+          "interface_sha256": "3650f2449c4523ba8e19fdbd35d61f2c39d728f8fec9d3faddcc4a426d937814",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v8-stack-boundary-guards",
+            "v9-public-bounded-modulus",
+            "v9-public-sampled-edge-history",
+            "v8-lfsr-feedback-seed",
+            "v8-packer-valid-count"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-stack-boundary-guards"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 100.551,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v8-stack-boundary-guards",
+            "v8-packer-valid-count",
+            "v9-public-bounded-modulus",
+            "v9-public-saturation-not-wrap",
+            "v9-public-sampled-edge-history"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v8-stack-boundary-guards"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 2000.398,
+          "embedding_ms": 1866.468
+        }
+      },
+      "projection_tokens": 214,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-am-pm-phase",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "62e90f45ec2b400e6b69aa3883752865948e058923b0f12c44e2fc7859a101be",
+      "route_case_id": "b51-034",
+      "evidence_case_id": "b49-13",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-am-pm-phase",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "6983969dfef48f1a413b991dcd80ce05d7055e691c91b93966e69693387afb69",
+          "interface_sha256": "6e8d6d7b249c3212f8bf87a1d96d3240f86f4635478e0e2055c00efcffc4d9c0",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 103,
+              "end": 185,
+              "text": "eleven advances to twelve and flips pm, twelve advances to one without flipping pm"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 122,
+              "end": 182,
+              "text": "twelve and flips pm, twelve advances to one without flipping"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "62e90f45ec2b400e6b69aa3883752865948e058923b0f12c44e2fc7859a101be"
+        },
+        "known": {
+          "card_id": "v9-public-am-pm-phase",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "3785698d13909953861be0fd78af25af548b971de7be5f6f172960e3e048a374",
+          "interface_sha256": "6e8d6d7b249c3212f8bf87a1d96d3240f86f4635478e0e2055c00efcffc4d9c0",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "62e90f45ec2b400e6b69aa3883752865948e058923b0f12c44e2fc7859a101be"
+        },
+        "conflicting": {
+          "card_id": "v9-public-am-pm-phase",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "c2c4c0536dd4799d9f15150ac845793fc215dfc03b52144063fb98f21a6f6d6d",
+          "interface_sha256": "6e8d6d7b249c3212f8bf87a1d96d3240f86f4635478e0e2055c00efcffc4d9c0",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "62e90f45ec2b400e6b69aa3883752865948e058923b0f12c44e2fc7859a101be"
+        },
+        "insufficient": {
+          "card_id": "v9-public-am-pm-phase",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "6e8d6d7b249c3212f8bf87a1d96d3240f86f4635478e0e2055c00efcffc4d9c0",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "62e90f45ec2b400e6b69aa3883752865948e058923b0f12c44e2fc7859a101be"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-am-pm-phase",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "4a55ad4c32cbd71db2fafa475821635f6d317197ab214cd4da3e2e7715982030",
+          "interface_sha256": "6e8d6d7b249c3212f8bf87a1d96d3240f86f4635478e0e2055c00efcffc4d9c0",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "62e90f45ec2b400e6b69aa3883752865948e058923b0f12c44e2fc7859a101be"
+        },
+        "tampered": {
+          "card_id": "v9-public-am-pm-phase",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "6983969dfef48f1a413b991dcd80ce05d7055e691c91b93966e69693387afb69",
+          "interface_sha256": "6e8d6d7b249c3212f8bf87a1d96d3240f86f4635478e0e2055c00efcffc4d9c0",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-am-pm-phase",
+            "v8-lfsr-feedback-seed",
+            "v9-public-sampled-edge-history",
+            "v9-public-bounded-modulus",
+            "v8-packer-temporal-order"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v9-public-am-pm-phase"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 100.893,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-public-am-pm-phase",
+            "v9-lang-nba-rhs-sampling",
+            "v9-public-sampled-edge-history",
+            "v8-packer-valid-count",
+            "v9-public-bounded-modulus"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v9-public-am-pm-phase"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1685.111,
+          "embedding_ms": 1538.315
+        }
+      },
+      "projection_tokens": 229,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-carry-lookahead-composition",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "19ba29be0a7058cd3fd1ad422253cad84d9d33ed3b40c91f602794c1097acf65",
+      "route_case_id": "b51-038",
+      "evidence_case_id": "b49-14",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-carry-lookahead-composition",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "68cb55bc2b28796d23fac83868475121102182b29e618cfac36fae22690791ad",
+          "interface_sha256": "70557e4728f97e81e9345b8d14224e392eda8b903426b7375ffd5c78a06ae09b",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 24,
+              "end": 40,
+              "text": "two carry groups"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 63,
+              "end": 157,
+              "text": "Group zero receives cin, has generate g0 and propagate p0; group one receives group zero carry"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 92,
+              "end": 175,
+              "text": "generate g0 and propagate p0; group one receives group zero carry and has g1 and p1"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "19ba29be0a7058cd3fd1ad422253cad84d9d33ed3b40c91f602794c1097acf65"
+        },
+        "known": {
+          "card_id": "v9-public-carry-lookahead-composition",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "81a52e951cba7643d8f2b9343289172626beba3cbcfc365e3cfd7964dd21cea3",
+          "interface_sha256": "70557e4728f97e81e9345b8d14224e392eda8b903426b7375ffd5c78a06ae09b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "19ba29be0a7058cd3fd1ad422253cad84d9d33ed3b40c91f602794c1097acf65"
+        },
+        "conflicting": {
+          "card_id": "v9-public-carry-lookahead-composition",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "24c7df99fd40c152d0064947f14bc101569ce38a38d352a8e5bddbd80c9fdab1",
+          "interface_sha256": "70557e4728f97e81e9345b8d14224e392eda8b903426b7375ffd5c78a06ae09b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "19ba29be0a7058cd3fd1ad422253cad84d9d33ed3b40c91f602794c1097acf65"
+        },
+        "insufficient": {
+          "card_id": "v9-public-carry-lookahead-composition",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "70557e4728f97e81e9345b8d14224e392eda8b903426b7375ffd5c78a06ae09b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "19ba29be0a7058cd3fd1ad422253cad84d9d33ed3b40c91f602794c1097acf65"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-carry-lookahead-composition",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "3b18bb98efd1045b5dc7a387f2487e747b051b68902aa6033a5d7e06adedfc56",
+          "interface_sha256": "70557e4728f97e81e9345b8d14224e392eda8b903426b7375ffd5c78a06ae09b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "19ba29be0a7058cd3fd1ad422253cad84d9d33ed3b40c91f602794c1097acf65"
+        },
+        "tampered": {
+          "card_id": "v9-public-carry-lookahead-composition",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "68cb55bc2b28796d23fac83868475121102182b29e618cfac36fae22690791ad",
+          "interface_sha256": "70557e4728f97e81e9345b8d14224e392eda8b903426b7375ffd5c78a06ae09b",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-carry-lookahead-composition",
+            "v9-public-block-carry-chain",
+            "v8-packer-valid-count",
+            "v8-packer-temporal-order",
+            "v9-public-bounded-modulus"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v9-public-carry-lookahead-composition"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 95.96,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-public-carry-lookahead-composition",
+            "v9-public-block-carry-chain",
+            "v9-lang-context-before-operation",
+            "v9-lang-conditional-x-merge",
+            "v9-lang-comparison-result-sign"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v9-public-carry-lookahead-composition"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1541.519,
+          "embedding_ms": 1401.25
+        }
+      },
+      "projection_tokens": 214,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-division-remainder-invariant",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "a48d392fbeee1bd3583877db01073acdf6e761078e19258cc58fbd49532012eb",
+      "route_case_id": "b51-042",
+      "evidence_case_id": "b49-17",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-division-remainder-invariant",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "fe884bd7013440059f2a85bf0de4b81f5b59f43ccee6aee450eedc995ae18324",
+          "interface_sha256": "69ff63cdb50b8d87935b214fba4d74aa33eb0b2ef71348a58868bdc08c50bba3",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 4,
+              "end": 12,
+              "text": "unsigned"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 26,
+              "end": 41,
+              "text": "nonzero divisor"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 172,
+              "end": 240,
+              "text": "dividend equals quotient times divisor plus remainder, and remainder"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 216,
+              "end": 261,
+              "text": "remainder, and remainder is less than divisor"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "a48d392fbeee1bd3583877db01073acdf6e761078e19258cc58fbd49532012eb"
+        },
+        "known": {
+          "card_id": "v9-public-division-remainder-invariant",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "abf7d435c0469a783534bc0211a19617354d9e60edac58ec98949e8c9b3d1673",
+          "interface_sha256": "69ff63cdb50b8d87935b214fba4d74aa33eb0b2ef71348a58868bdc08c50bba3",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "a48d392fbeee1bd3583877db01073acdf6e761078e19258cc58fbd49532012eb"
+        },
+        "conflicting": {
+          "card_id": "v9-public-division-remainder-invariant",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "c9da5295f91875174ff38964cb7eb14a0c017e3aafafe2106668bae8be2c699e",
+          "interface_sha256": "69ff63cdb50b8d87935b214fba4d74aa33eb0b2ef71348a58868bdc08c50bba3",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "a48d392fbeee1bd3583877db01073acdf6e761078e19258cc58fbd49532012eb"
+        },
+        "insufficient": {
+          "card_id": "v9-public-division-remainder-invariant",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "69ff63cdb50b8d87935b214fba4d74aa33eb0b2ef71348a58868bdc08c50bba3",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "a48d392fbeee1bd3583877db01073acdf6e761078e19258cc58fbd49532012eb"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-division-remainder-invariant",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "76230b33c2ca79c02490538a5304d5f0e17fdd75e4b06546a97907f01ee1e89b",
+          "interface_sha256": "69ff63cdb50b8d87935b214fba4d74aa33eb0b2ef71348a58868bdc08c50bba3",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "a48d392fbeee1bd3583877db01073acdf6e761078e19258cc58fbd49532012eb"
+        },
+        "tampered": {
+          "card_id": "v9-public-division-remainder-invariant",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "fe884bd7013440059f2a85bf0de4b81f5b59f43ccee6aee450eedc995ae18324",
+          "interface_sha256": "69ff63cdb50b8d87935b214fba4d74aa33eb0b2ef71348a58868bdc08c50bba3",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-division-remainder-invariant",
+            "v8-packer-valid-count"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v9-public-division-remainder-invariant"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 91.87,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-public-division-remainder-invariant",
+            "v9-lang-unsigned-negative-check",
+            "v9-public-block-carry-chain",
+            "v9-lang-context-before-operation",
+            "v9-public-bounded-modulus"
+          ],
+          "target_rank": 1,
+          "target_rejections": [],
+          "admitted": [
+            "v9-public-division-remainder-invariant"
+          ],
+          "reason": "admitted",
+          "error": null,
+          "elapsed_ms": 1445.13,
+          "embedding_ms": 1300.281
+        }
+      },
+      "projection_tokens": 178,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "bm25_policy_state": true,
+        "dense_policy_state": true,
+        "token_budget": true,
+        "identical_model_fixture": true,
+        "current_rendering_model_pair": true
+      },
+      "passed": true
+    }
+  ],
+  "new_model_calls": 0,
+  "activation_changed": false,
+  "candidate_only": true,
+  "published_reaudit": true
+}

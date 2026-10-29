@@ -2,9 +2,11 @@
 
 {{ task.prompt }}
 
-## Module interface parsed from the task
+## Authoritative interface, when explicitly supplied
 
 {{ task.interface }}
+If this section is empty, use explicit public interface requirements in the task.
+Do not promote declarations in a buggy example or previous candidate to authoritative constraints.
 {% if plan %}
 Design plan (may be incorrect; the original task takes precedence):
 {{ plan | tojson }}
@@ -23,6 +25,19 @@ Design plan (may be incorrect; the original task takes precedence):
 ```
 
 ## Required actions for this round
+
+Apply a stop-and-deliver discipline for this repair:
+
+- First identify the smallest code location and modification that explain the supplied
+  feedback while preserving the public behavior.
+- Once that local modification is supported by the supplied evidence, stop considering
+  alternative architectures unless a new public counterexample shows it is insufficient.
+- Implement the change as legal Verilog/SystemVerilog and deliver the complete file. Prefer
+  a simple intermediate signal or explicit per-bit condition over syntax whose legality is
+  uncertain.
+- Do not let unresolved optional matters block delivery. Continue investigating only when an
+  uncertainty affects an explicit public requirement, the authoritative interface, or the
+  observed failure.
 
 For multiple-driver errors, inspect each reported signal and all of its assignment sites,
 including reset branches. A block that writes only once during reset still counts as a driver.
@@ -54,7 +69,9 @@ not proof of scope or driver ownership.
      Successful compilation or synthesis, or fewer warnings, does not prove functional correctness.
 3. **Change only what is necessary.** Do not rewrite previously correct parts and introduce
    new errors. Preserve module and port names, directions, widths, order, and any explicit type
-   constraints. If the task does not restrict net versus variable types, your own compiler
+   constraints. A declaration explicitly identified by the public task as faulty may be
+   repaired to satisfy that task; do not preserve a known faulty width merely because
+   it appears in the previous implementation. If the task does not restrict net versus variable types, your own compiler
    diagnostics may justify correcting a port's variable type (such as reg/logic). This does not
    permit adding, removing, or renaming ports, or changing connections or functionality.
 4. If the same error remains unresolved for two consecutive rounds, try a different approach

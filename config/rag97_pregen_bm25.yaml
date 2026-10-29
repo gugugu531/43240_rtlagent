@@ -1,0 +1,29 @@
+# Opt-in first-generation research path; legacy/default workflows stay available.
+workflow: single_generate
+nodes:
+  generate:
+    use: rtl_generate
+    params:
+      max_tokens: 16384
+      temperature: 0.0
+      top_p: 1.0
+      timeout_s: 800
+      skill_ids: []
+      skill_mode: 'off'
+      rag_mode: 'on'
+      retrieval:
+        pre_generation: true
+        strategy: bm25
+        fallback: empty
+        retrieve_k: 5
+        inject_k: 1
+      knowledge_max_tokens: 1024
+  extract: {use: rtl_extract}
+services:
+  model:
+    backend: mock
+    max_model_len: 65536
+runtime:
+  deadline_s: 900
+  reserve_s: 20
+  recording: {level: full}

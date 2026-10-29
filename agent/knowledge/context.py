@@ -53,9 +53,29 @@ def _prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, m
         })
     retrieval = {"reason": "disabled"}
     if rm != 'off':
-        from .runtime import retrieve_runtime
-        cards, retrieval = retrieve_runtime(evidence, parent, retrieval_options or {}, messages, raw_feedback)
+        if parent is None and (retrieval_options or {}).get('pre_generation', False):
+            from .pregen import retrieve_spec
+            cards, retrieval = retrieve_spec(ctx.task.prompt, ctx.task.interface,
+                                            retrieval_options or {}, messages)
+        elif parent is not None and (retrieval_options or {}).get('research_feedback', False):
+            from .feedback import retrieve_feedback
+            cards, retrieval = retrieve_feedback(ctx.task, evidence, parent,
+                                                  retrieval_options or {}, messages)
+        else:
+            from .runtime import retrieve_runtime
+            cards, retrieval = retrieve_runtime(evidence, parent, retrieval_options or {}, messages, raw_feedback)
+        from .research import scope_guard
         for card in cards:
+            if not scope_guard(card['card_id']):
+                retrieval.setdefault('rejected', []).append({'id': card['card_id'], 'reason': 'card_frozen_at_assembly', 'decision_class': 'not_needed'})
+                continue
+            if card.get('activation_state','restricted') not in ('restricted','legacy_policy'):
+                retrieval.setdefault('rejected',[]).append({'id':card['card_id'],'reason':'catalog_shadow_or_hold_at_assembly','decision_class':'unknown'})
+                continue
+            stage='pre_generation' if parent is None else retrieval.get('stage','post_diagnostic')
+            if card.get('injection_stages') is not None and stage not in card['injection_stages']:
+                retrieval.setdefault('rejected',[]).append({'id':card['card_id'],'reason':'card_stage_not_authorized_at_assembly','decision_class':'unknown'})
+                continue
             pieces.append({
                 "id": card['card_id'], "version": card['version'], "kind": "knowledge_card",
                 "text": card['projection_text'], "eligible": True,
@@ -114,6 +134,8 @@ def _prepare(ctx, messages, parent, evidence, *, skill_ids, skill_phases, rag, m
     report.update(messages_sha256=messages_hash(packed), packed_tokens=count,
                   sent=[p['id'] for p in report['pieces'] if p['status'] == 'included'],
                   elapsed_ms=round((time.monotonic()-started)*1000, 3))
+    retrieval['actually_sent'] = [p['id'] for p in report['pieces']
+                                if p['status'] == 'included' and p['kind'] == 'knowledge_card']
     ctx.record.write_json(f"knowledge/{assembly_id}.json", report)
     ctx.record.emit("knowledge", "assembly", **report)
     return packed, report

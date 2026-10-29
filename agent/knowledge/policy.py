@@ -21,6 +21,7 @@ def route_skill_ids(kind, risks, sequential_skill='rtl-sequential-state-update')
 class RetrievalOptions(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     strategy: Literal['exact', 'bm25', 'dense', 'hybrid'] = 'exact'
+    admission_policy: Literal['frozen-v1', 'evidence-v1'] = 'frozen-v1'
     release_id: str = RELEASE_ID
     release_sha256: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
     policy_sha256: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
@@ -32,6 +33,8 @@ class RetrievalOptions(BaseModel):
     embedding_timeout_s: float = Field(default=2.0, gt=0, le=10)
     retrieve_k: int = Field(default=5, ge=1, le=32)
     inject_k: int = Field(default=1, ge=1, le=1)
+    pre_generation: bool = False
+    research_feedback: bool = False
 
 
 def modes(skill_mode=None, rag_mode=None, *, skill_ids=(), rag=False):
@@ -78,12 +81,22 @@ def select_skills(assets, ids, phases, *, automatic=False):
 def validate_selection(params, *, automatic=False):
     """Called during graph construction before any model call."""
     from .assets import load_assets
+    delivery=params.get('delivery_mode','single')
+    if delivery not in ('single','thinking_staged'):
+        raise ValueError('unknown delivery mode')
+    if delivery=='thinking_staged' and (type(params.get('max_tokens',4096)) is not int or params.get('max_tokens',4096)<1024):
+        raise ValueError('thinking_staged requires >=1024 total output tokens per repair')
     ids = params.get('skill_ids', [])
     sm, rm = modes(params.get('skill_mode'), params.get('rag_mode'),
                   skill_ids=ids, rag=params.get('rag', False))
     options = RetrievalOptions.model_validate(params.get('retrieval', {}))
     if rm != 'off':
         validate_options(options)
+        if options.pre_generation or options.research_feedback:
+            from .research import load_bundle
+            load_bundle()
+            if options.strategy == 'exact' or options.fallback != 'empty':
+                raise ValueError('research_requires_bm25_dense_or_hybrid_and_empty_fallback')
     budget = params.get('knowledge_max_tokens', 2048)
     if type(budget) is not int or not 0 <= budget <= 8192:
         raise ValueError('knowledge_max_tokens must be in 0..8192')

@@ -1,0 +1,2445 @@
+{
+  "batch_id": "rag-restricted-promotion-v55-r1",
+  "base_release": "rag-catalog-v3-rc4.4",
+  "count": 10,
+  "passed": 10,
+  "rows": [
+    {
+      "card_id": "v9-public-cellular-snapshot-update",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "01badb9fbfafcda5b0341e53668bff710a397653fe9e73bc84f2d519dff280dd",
+      "route_case_id": "b51-039",
+      "evidence_path": "dev/optimization-v49/audit-33589.json",
+      "evidence_case_id": "b49-15",
+      "evidence_kind": "identical_fixture",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-cellular-snapshot-update",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "e9a14ad436ed7e14f9f75d735e0d48201b67fd1be9e2ae992e844029d23f0031",
+          "interface_sha256": "d63e437d2909425102f33c89fe6dd36344fb514d8004388635fe4d248433bcf3",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 179,
+              "end": 228,
+              "text": "All cells update from one previous-state snapshot"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 100,
+              "end": 146,
+              "text": "XOR of its two neighboring old bits: neighbors"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 48,
+              "end": 56,
+              "text": "periodic"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 3,
+              "end": 13,
+              "text": "rising clk"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01badb9fbfafcda5b0341e53668bff710a397653fe9e73bc84f2d519dff280dd"
+        },
+        "known": {
+          "card_id": "v9-public-cellular-snapshot-update",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "62ab3a229918c8bbdf0eae046d85fc3c1c570352201f6070fab18e7c60e578c0",
+          "interface_sha256": "d63e437d2909425102f33c89fe6dd36344fb514d8004388635fe4d248433bcf3",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01badb9fbfafcda5b0341e53668bff710a397653fe9e73bc84f2d519dff280dd"
+        },
+        "conflicting": {
+          "card_id": "v9-public-cellular-snapshot-update",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "c135386c174eb4905ee034b9285c49782a4b718787b3c996dbfe0339e6703313",
+          "interface_sha256": "d63e437d2909425102f33c89fe6dd36344fb514d8004388635fe4d248433bcf3",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01badb9fbfafcda5b0341e53668bff710a397653fe9e73bc84f2d519dff280dd"
+        },
+        "insufficient": {
+          "card_id": "v9-public-cellular-snapshot-update",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "d63e437d2909425102f33c89fe6dd36344fb514d8004388635fe4d248433bcf3",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01badb9fbfafcda5b0341e53668bff710a397653fe9e73bc84f2d519dff280dd"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-cellular-snapshot-update",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "067bcf8cd25c7028dcf17bd891480800b1ae95ded4681d6b8d81ab904616c7e0",
+          "interface_sha256": "d63e437d2909425102f33c89fe6dd36344fb514d8004388635fe4d248433bcf3",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01badb9fbfafcda5b0341e53668bff710a397653fe9e73bc84f2d519dff280dd"
+        },
+        "tampered": {
+          "card_id": "v9-public-cellular-snapshot-update",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "e9a14ad436ed7e14f9f75d735e0d48201b67fd1be9e2ae992e844029d23f0031",
+          "interface_sha256": "d63e437d2909425102f33c89fe6dd36344fb514d8004388635fe4d248433bcf3",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-cellular-snapshot-update",
+            "v8-lfsr-feedback-seed",
+            "v8-serializer-snapshot",
+            "v9-public-sampled-edge-history",
+            "v9-public-bounded-modulus"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-cellular-snapshot-update",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "e9a14ad436ed7e14f9f75d735e0d48201b67fd1be9e2ae992e844029d23f0031",
+              "interface_sha256": "d63e437d2909425102f33c89fe6dd36344fb514d8004388635fe4d248433bcf3",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 179,
+                  "end": 228,
+                  "text": "All cells update from one previous-state snapshot"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 100,
+                  "end": 146,
+                  "text": "XOR of its two neighboring old bits: neighbors"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 48,
+                  "end": 56,
+                  "text": "periodic"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 3,
+                  "end": 13,
+                  "text": "rising clk"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+              "card_sha256": "01badb9fbfafcda5b0341e53668bff710a397653fe9e73bc84f2d519dff280dd"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 111.349,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v8-lfsr-feedback-seed",
+            "v9-public-cellular-snapshot-update",
+            "v9-public-grid-row-column-wrap",
+            "v9-public-bounded-modulus",
+            "v9-public-saturation-not-wrap"
+          ],
+          "target_rank": 2,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-cellular-snapshot-update",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "e9a14ad436ed7e14f9f75d735e0d48201b67fd1be9e2ae992e844029d23f0031",
+              "interface_sha256": "d63e437d2909425102f33c89fe6dd36344fb514d8004388635fe4d248433bcf3",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 179,
+                  "end": 228,
+                  "text": "All cells update from one previous-state snapshot"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 100,
+                  "end": 146,
+                  "text": "XOR of its two neighboring old bits: neighbors"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 48,
+                  "end": 56,
+                  "text": "periodic"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 3,
+                  "end": 13,
+                  "text": "rising clk"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+              "card_sha256": "01badb9fbfafcda5b0341e53668bff710a397653fe9e73bc84f2d519dff280dd"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1933.154,
+          "embedding_ms": 1779.406
+        }
+      },
+      "projection_tokens": 204,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-triangle-endpoint-dwell",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+      "candidate_card_sha256": "f62e747fe0ab6e4b87f80f8fc97893ca2eccdcf8517cbed1b9865c2128661f22",
+      "route_case_id": "b51-069",
+      "evidence_path": "dev/optimization-v43/audit-33589.json",
+      "evidence_case_id": "b42-triangle",
+      "evidence_kind": "independent_public_context",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-triangle-endpoint-dwell",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "e59ba7e2a5c3db5c1607a8e67077a20091715c6ada52a07a2f83c97d198a897f",
+          "interface_sha256": "b6ab17f8c622e0a10c0109aceb951db66bdf64dd6d1c993fb081e48871869519",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 68,
+              "end": 79,
+              "text": "0,0,1,2,2,1"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 205,
+              "end": 236,
+              "text": "Endpoints dwell for two samples"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 8,
+              "end": 20,
+              "text": "rising clock"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 105,
+              "end": 149,
+              "text": "reset establishes phase zero with value zero"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "f62e747fe0ab6e4b87f80f8fc97893ca2eccdcf8517cbed1b9865c2128661f22"
+        },
+        "known": {
+          "card_id": "v9-public-triangle-endpoint-dwell",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "0a51355cb91f1a5b97dfb93273fa48f1f04bf12860e9336da2d41c7137327273",
+          "interface_sha256": "b6ab17f8c622e0a10c0109aceb951db66bdf64dd6d1c993fb081e48871869519",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "f62e747fe0ab6e4b87f80f8fc97893ca2eccdcf8517cbed1b9865c2128661f22"
+        },
+        "conflicting": {
+          "card_id": "v9-public-triangle-endpoint-dwell",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "3075fc790800ae2d7d742ac1d2e7ad0ecc20e4275e5ddd236972c5e32606e004",
+          "interface_sha256": "b6ab17f8c622e0a10c0109aceb951db66bdf64dd6d1c993fb081e48871869519",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "f62e747fe0ab6e4b87f80f8fc97893ca2eccdcf8517cbed1b9865c2128661f22"
+        },
+        "insufficient": {
+          "card_id": "v9-public-triangle-endpoint-dwell",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "b6ab17f8c622e0a10c0109aceb951db66bdf64dd6d1c993fb081e48871869519",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "f62e747fe0ab6e4b87f80f8fc97893ca2eccdcf8517cbed1b9865c2128661f22"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-triangle-endpoint-dwell",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "0d0b721776e209d01e07b0bc1f12a0672d055478b18ff07459cd24db1fb65f2d",
+          "interface_sha256": "b6ab17f8c622e0a10c0109aceb951db66bdf64dd6d1c993fb081e48871869519",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "f62e747fe0ab6e4b87f80f8fc97893ca2eccdcf8517cbed1b9865c2128661f22"
+        },
+        "tampered": {
+          "card_id": "v9-public-triangle-endpoint-dwell",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "e59ba7e2a5c3db5c1607a8e67077a20091715c6ada52a07a2f83c97d198a897f",
+          "interface_sha256": "b6ab17f8c622e0a10c0109aceb951db66bdf64dd6d1c993fb081e48871869519",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-sampled-edge-history",
+            "v9-public-triangle-endpoint-dwell",
+            "v9-public-batch-final-sample",
+            "v9-public-bounded-modulus",
+            "v9-lang-nba-rhs-sampling"
+          ],
+          "target_rank": 2,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-triangle-endpoint-dwell",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "e59ba7e2a5c3db5c1607a8e67077a20091715c6ada52a07a2f83c97d198a897f",
+              "interface_sha256": "b6ab17f8c622e0a10c0109aceb951db66bdf64dd6d1c993fb081e48871869519",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 68,
+                  "end": 79,
+                  "text": "0,0,1,2,2,1"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 205,
+                  "end": 236,
+                  "text": "Endpoints dwell for two samples"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 8,
+                  "end": 20,
+                  "text": "rising clock"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 105,
+                  "end": 149,
+                  "text": "reset establishes phase zero with value zero"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+              "card_sha256": "f62e747fe0ab6e4b87f80f8fc97893ca2eccdcf8517cbed1b9865c2128661f22"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 91.888,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-public-sampled-edge-history",
+            "v9-public-pause-preserves-subtick",
+            "v9-lang-nba-rhs-sampling",
+            "v9-public-triangle-endpoint-dwell",
+            "v9-public-bounded-modulus"
+          ],
+          "target_rank": 4,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-triangle-endpoint-dwell",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "e59ba7e2a5c3db5c1607a8e67077a20091715c6ada52a07a2f83c97d198a897f",
+              "interface_sha256": "b6ab17f8c622e0a10c0109aceb951db66bdf64dd6d1c993fb081e48871869519",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 68,
+                  "end": 79,
+                  "text": "0,0,1,2,2,1"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 205,
+                  "end": 236,
+                  "text": "Endpoints dwell for two samples"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 8,
+                  "end": 20,
+                  "text": "rising clock"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 105,
+                  "end": 149,
+                  "text": "reset establishes phase zero with value zero"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+              "card_sha256": "f62e747fe0ab6e4b87f80f8fc97893ca2eccdcf8517cbed1b9865c2128661f22"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1806.006,
+          "embedding_ms": 1671.362
+        }
+      },
+      "projection_tokens": 300,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-grid-row-column-wrap",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+      "candidate_card_sha256": "efe1d4153980da56d353d1d6b02d87696a5b29a5fa8339641c646c313227cdef",
+      "route_case_id": "b51-049",
+      "evidence_path": "dev/optimization-v43/audit-33589.json",
+      "evidence_case_id": "b42-grid",
+      "evidence_kind": "independent_public_context",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-grid-row-column-wrap",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "7d7b7e0f5de8886cfd1e57819cdefe43a0133376bbce63e8c6f63e368e247525",
+          "interface_sha256": "fd245a7768b33d7ec2f5ddfe91fe8d6871bceb1da6b999ec64ca4eadc5e3d91a",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 122,
+              "end": 130,
+              "text": "toroidal"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 156,
+              "end": 191,
+              "text": "Rows and columns wrap independently"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 99,
+              "end": 121,
+              "text": "three-row, four-column"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 41,
+              "end": 71,
+              "text": "four orthogonal live neighbors"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 214,
+              "end": 226,
+              "text": "0 through 11"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 7,
+              "end": 22,
+              "text": "combinationally"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "efe1d4153980da56d353d1d6b02d87696a5b29a5fa8339641c646c313227cdef"
+        },
+        "known": {
+          "card_id": "v9-public-grid-row-column-wrap",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "b59d088865263e209baf4c5b64db46da4b1c1b841ba1e947d70aedc3058e2555",
+          "interface_sha256": "fd245a7768b33d7ec2f5ddfe91fe8d6871bceb1da6b999ec64ca4eadc5e3d91a",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "efe1d4153980da56d353d1d6b02d87696a5b29a5fa8339641c646c313227cdef"
+        },
+        "conflicting": {
+          "card_id": "v9-public-grid-row-column-wrap",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "8fbcf958afbbc7999d6638654d5d9336b05cbb94bc6be2c71a5521e10bd6f338",
+          "interface_sha256": "fd245a7768b33d7ec2f5ddfe91fe8d6871bceb1da6b999ec64ca4eadc5e3d91a",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "efe1d4153980da56d353d1d6b02d87696a5b29a5fa8339641c646c313227cdef"
+        },
+        "insufficient": {
+          "card_id": "v9-public-grid-row-column-wrap",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "fd245a7768b33d7ec2f5ddfe91fe8d6871bceb1da6b999ec64ca4eadc5e3d91a",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "efe1d4153980da56d353d1d6b02d87696a5b29a5fa8339641c646c313227cdef"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-grid-row-column-wrap",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "68a564d546b2b2d850c963427831d44ab22fcf7099590e575d63f123bfdd3e8e",
+          "interface_sha256": "fd245a7768b33d7ec2f5ddfe91fe8d6871bceb1da6b999ec64ca4eadc5e3d91a",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "card_sha256": "efe1d4153980da56d353d1d6b02d87696a5b29a5fa8339641c646c313227cdef"
+        },
+        "tampered": {
+          "card_id": "v9-public-grid-row-column-wrap",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "7d7b7e0f5de8886cfd1e57819cdefe43a0133376bbce63e8c6f63e368e247525",
+          "interface_sha256": "fd245a7768b33d7ec2f5ddfe91fe8d6871bceb1da6b999ec64ca4eadc5e3d91a",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-grid-row-column-wrap",
+            "v9-public-cellular-snapshot-update",
+            "v9-public-bounded-modulus",
+            "v9-public-saturation-not-wrap",
+            "v8-serializer-snapshot"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-grid-row-column-wrap",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "7d7b7e0f5de8886cfd1e57819cdefe43a0133376bbce63e8c6f63e368e247525",
+              "interface_sha256": "fd245a7768b33d7ec2f5ddfe91fe8d6871bceb1da6b999ec64ca4eadc5e3d91a",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 122,
+                  "end": 130,
+                  "text": "toroidal"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 156,
+                  "end": 191,
+                  "text": "Rows and columns wrap independently"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 99,
+                  "end": 121,
+                  "text": "three-row, four-column"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 41,
+                  "end": 71,
+                  "text": "four orthogonal live neighbors"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 214,
+                  "end": 226,
+                  "text": "0 through 11"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 7,
+                  "end": 22,
+                  "text": "combinationally"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+              "card_sha256": "efe1d4153980da56d353d1d6b02d87696a5b29a5fa8339641c646c313227cdef"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 95.48,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-public-grid-row-column-wrap",
+            "v9-public-bounded-modulus",
+            "v9-public-cellular-snapshot-update",
+            "v9-public-carry-lookahead-composition",
+            "v9-public-saturation-not-wrap"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-grid-row-column-wrap",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "7d7b7e0f5de8886cfd1e57819cdefe43a0133376bbce63e8c6f63e368e247525",
+              "interface_sha256": "fd245a7768b33d7ec2f5ddfe91fe8d6871bceb1da6b999ec64ca4eadc5e3d91a",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 122,
+                  "end": 130,
+                  "text": "toroidal"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 156,
+                  "end": 191,
+                  "text": "Rows and columns wrap independently"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 99,
+                  "end": 121,
+                  "text": "three-row, four-column"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 41,
+                  "end": 71,
+                  "text": "four orthogonal live neighbors"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 214,
+                  "end": 226,
+                  "text": "0 through 11"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 7,
+                  "end": 22,
+                  "text": "combinationally"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+              "card_sha256": "efe1d4153980da56d353d1d6b02d87696a5b29a5fa8339641c646c313227cdef"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1832.383,
+          "embedding_ms": 1694.997
+        }
+      },
+      "projection_tokens": 268,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-lang-comparison-result-sign",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+      "candidate_card_sha256": "76398094dd50b8de890419dae08faa5ff51e9b71e6b27ebce45c09b7b855fe65",
+      "route_case_id": "b51-015",
+      "evidence_path": "dev/optimization-v46/audit-33376.json",
+      "evidence_case_id": "b45-comparison",
+      "evidence_kind": "independent_public_context",
+      "direct": {
+        "positive": {
+          "card_id": "v9-lang-comparison-result-sign",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "936aeee2db787032ebb3c0666775dc76cf23a50252dd45f84cf8690dfaaea40f",
+          "interface_sha256": "e3d8edacb48e9f06ea1f1b800aa4022e7bdb1bae111d361e2531a27905e8299b",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 12,
+              "end": 36,
+              "text": "unsigned four-bit inputs"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 0,
+              "end": 7,
+              "text": "Compare"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 42,
+              "end": 63,
+              "text": "signed six-bit result"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 67,
+              "end": 113,
+              "text": "positive one when a is smaller than b and zero"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 131,
+              "end": 144,
+              "text": "combinational"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+          "card_sha256": "76398094dd50b8de890419dae08faa5ff51e9b71e6b27ebce45c09b7b855fe65"
+        },
+        "known": {
+          "card_id": "v9-lang-comparison-result-sign",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "90d3e1f6beb5cf2197938baf5fd4c57874f33c90cbf3d34cbd1602a0fcd80ff2",
+          "interface_sha256": "e3d8edacb48e9f06ea1f1b800aa4022e7bdb1bae111d361e2531a27905e8299b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+          "card_sha256": "76398094dd50b8de890419dae08faa5ff51e9b71e6b27ebce45c09b7b855fe65"
+        },
+        "conflicting": {
+          "card_id": "v9-lang-comparison-result-sign",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "9aa7b59a04db26e65d63057207af316e2f6d504145af9494673947b21b491e91",
+          "interface_sha256": "e3d8edacb48e9f06ea1f1b800aa4022e7bdb1bae111d361e2531a27905e8299b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+          "card_sha256": "76398094dd50b8de890419dae08faa5ff51e9b71e6b27ebce45c09b7b855fe65"
+        },
+        "insufficient": {
+          "card_id": "v9-lang-comparison-result-sign",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "e3d8edacb48e9f06ea1f1b800aa4022e7bdb1bae111d361e2531a27905e8299b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+          "card_sha256": "76398094dd50b8de890419dae08faa5ff51e9b71e6b27ebce45c09b7b855fe65"
+        },
+        "irrelevant": {
+          "card_id": "v9-lang-comparison-result-sign",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "94899deff0d2d8a1a9bae73ec52e2c534e8d129a6b842eeba14a347b32828646",
+          "interface_sha256": "e3d8edacb48e9f06ea1f1b800aa4022e7bdb1bae111d361e2531a27905e8299b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+          "card_sha256": "76398094dd50b8de890419dae08faa5ff51e9b71e6b27ebce45c09b7b855fe65"
+        },
+        "tampered": {
+          "card_id": "v9-lang-comparison-result-sign",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "936aeee2db787032ebb3c0666775dc76cf23a50252dd45f84cf8690dfaaea40f",
+          "interface_sha256": "e3d8edacb48e9f06ea1f1b800aa4022e7bdb1bae111d361e2531a27905e8299b",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-lang-comparison-result-sign",
+            "v9-lang-unsigned-negative-check",
+            "v8-packer-valid-count",
+            "v9-public-bounded-modulus",
+            "v9-lang-arithmetic-right-sign"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-lang-comparison-result-sign",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "936aeee2db787032ebb3c0666775dc76cf23a50252dd45f84cf8690dfaaea40f",
+              "interface_sha256": "e3d8edacb48e9f06ea1f1b800aa4022e7bdb1bae111d361e2531a27905e8299b",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 12,
+                  "end": 36,
+                  "text": "unsigned four-bit inputs"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 0,
+                  "end": 7,
+                  "text": "Compare"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 42,
+                  "end": 63,
+                  "text": "signed six-bit result"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 67,
+                  "end": 113,
+                  "text": "positive one when a is smaller than b and zero"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 131,
+                  "end": 144,
+                  "text": "combinational"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+              "card_sha256": "76398094dd50b8de890419dae08faa5ff51e9b71e6b27ebce45c09b7b855fe65"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 99.945,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-lang-comparison-result-sign",
+            "v9-lang-unsigned-negative-check",
+            "v9-lang-conditional-x-merge",
+            "v9-public-carry-lookahead-composition",
+            "v9-public-division-remainder-invariant"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-lang-comparison-result-sign",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "936aeee2db787032ebb3c0666775dc76cf23a50252dd45f84cf8690dfaaea40f",
+              "interface_sha256": "e3d8edacb48e9f06ea1f1b800aa4022e7bdb1bae111d361e2531a27905e8299b",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 12,
+                  "end": 36,
+                  "text": "unsigned four-bit inputs"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 0,
+                  "end": 7,
+                  "text": "Compare"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 42,
+                  "end": 63,
+                  "text": "signed six-bit result"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 67,
+                  "end": 113,
+                  "text": "positive one when a is smaller than b and zero"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 131,
+                  "end": 144,
+                  "text": "combinational"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+              "card_sha256": "76398094dd50b8de890419dae08faa5ff51e9b71e6b27ebce45c09b7b855fe65"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1482.835,
+          "embedding_ms": 1347.038
+        }
+      },
+      "projection_tokens": 214,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-lang-unsigned-negative-check",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+      "candidate_card_sha256": "9416922fe8f39448429bf2101d800fd2c0a89b3999256badaaa099fb682341f9",
+      "route_case_id": "b51-033",
+      "evidence_path": "dev/optimization-v43/audit-33376.json",
+      "evidence_case_id": "b42-subtract",
+      "evidence_kind": "independent_public_context",
+      "direct": {
+        "positive": {
+          "card_id": "v9-lang-unsigned-negative-check",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "964d3602fa4acd85cca23f68dc4cad0690a505ccbe132ebc56c94c3be7c113cf",
+          "interface_sha256": "596b57dca09e7f596d9794431a4cf2dac9f9b3dd3dfef2f9c2f7e72e25dd5aa9",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 7,
+              "end": 15,
+              "text": "unsigned"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 22,
+              "end": 27,
+              "text": "minus"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 16,
+              "end": 35,
+              "text": "max(a minus b, zero"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 43,
+              "end": 56,
+              "text": "no wraparound"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 94,
+              "end": 107,
+              "text": "combinational"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "9416922fe8f39448429bf2101d800fd2c0a89b3999256badaaa099fb682341f9"
+        },
+        "known": {
+          "card_id": "v9-lang-unsigned-negative-check",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "1aa01107ef23f3e4af4667cd97256bc9d7ca283ee5dbb5d9f77e36a0c67293a1",
+          "interface_sha256": "596b57dca09e7f596d9794431a4cf2dac9f9b3dd3dfef2f9c2f7e72e25dd5aa9",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "9416922fe8f39448429bf2101d800fd2c0a89b3999256badaaa099fb682341f9"
+        },
+        "conflicting": {
+          "card_id": "v9-lang-unsigned-negative-check",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "11229669ad3a7e765f182e4ba11b2a71cf864a68f0d68f0d9e47aab9fe712617",
+          "interface_sha256": "596b57dca09e7f596d9794431a4cf2dac9f9b3dd3dfef2f9c2f7e72e25dd5aa9",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "9416922fe8f39448429bf2101d800fd2c0a89b3999256badaaa099fb682341f9"
+        },
+        "insufficient": {
+          "card_id": "v9-lang-unsigned-negative-check",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "596b57dca09e7f596d9794431a4cf2dac9f9b3dd3dfef2f9c2f7e72e25dd5aa9",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "9416922fe8f39448429bf2101d800fd2c0a89b3999256badaaa099fb682341f9"
+        },
+        "irrelevant": {
+          "card_id": "v9-lang-unsigned-negative-check",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "a613511a69f562c3a83ba75d1e18866d27d50fd6a64ae2836a8675d3c22abcb9",
+          "interface_sha256": "596b57dca09e7f596d9794431a4cf2dac9f9b3dd3dfef2f9c2f7e72e25dd5aa9",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "9416922fe8f39448429bf2101d800fd2c0a89b3999256badaaa099fb682341f9"
+        },
+        "tampered": {
+          "card_id": "v9-lang-unsigned-negative-check",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "964d3602fa4acd85cca23f68dc4cad0690a505ccbe132ebc56c94c3be7c113cf",
+          "interface_sha256": "596b57dca09e7f596d9794431a4cf2dac9f9b3dd3dfef2f9c2f7e72e25dd5aa9",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-lang-unsigned-negative-check",
+            "v9-lang-comparison-result-sign"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-lang-unsigned-negative-check",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "964d3602fa4acd85cca23f68dc4cad0690a505ccbe132ebc56c94c3be7c113cf",
+              "interface_sha256": "596b57dca09e7f596d9794431a4cf2dac9f9b3dd3dfef2f9c2f7e72e25dd5aa9",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 7,
+                  "end": 15,
+                  "text": "unsigned"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 22,
+                  "end": 27,
+                  "text": "minus"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 16,
+                  "end": 35,
+                  "text": "max(a minus b, zero"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 43,
+                  "end": 56,
+                  "text": "no wraparound"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 94,
+                  "end": 107,
+                  "text": "combinational"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+              "card_sha256": "9416922fe8f39448429bf2101d800fd2c0a89b3999256badaaa099fb682341f9"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 88.6,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-lang-unsigned-negative-check",
+            "v9-lang-comparison-result-sign",
+            "v9-lang-context-before-operation",
+            "v9-public-block-carry-chain",
+            "v9-public-bounded-modulus"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-lang-unsigned-negative-check",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "964d3602fa4acd85cca23f68dc4cad0690a505ccbe132ebc56c94c3be7c113cf",
+              "interface_sha256": "596b57dca09e7f596d9794431a4cf2dac9f9b3dd3dfef2f9c2f7e72e25dd5aa9",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 7,
+                  "end": 15,
+                  "text": "unsigned"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 22,
+                  "end": 27,
+                  "text": "minus"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 16,
+                  "end": 35,
+                  "text": "max(a minus b, zero"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 43,
+                  "end": 56,
+                  "text": "no wraparound"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 94,
+                  "end": 107,
+                  "text": "combinational"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+              "card_sha256": "9416922fe8f39448429bf2101d800fd2c0a89b3999256badaaa099fb682341f9"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1732.951,
+          "embedding_ms": 1597.64
+        }
+      },
+      "projection_tokens": 207,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-sampled-edge-history",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+      "candidate_card_sha256": "519d23299699d67ee935a8bf57e89e49b0759aadbeec059f43e47f196572b0a1",
+      "route_case_id": "b51-060",
+      "evidence_path": "dev/optimization-v43/audit-33376.json",
+      "evidence_case_id": "b42-edge",
+      "evidence_kind": "independent_public_context",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-sampled-edge-history",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "4f66f960594a96f5685233c874759d01c9eae1e2730e66d785783a65e2d8733a",
+          "interface_sha256": "16f8b8d9791beca0a9c5178f54366334080a6d087b270df14358f74c7203abe8",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 3,
+              "end": 13,
+              "text": "rising clk"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 15,
+              "end": 20,
+              "text": "reset"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 37,
+              "end": 52,
+              "text": "previous sample"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 118,
+              "end": 129,
+              "text": "low-to-high"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 159,
+              "end": 184,
+              "text": "zero for a sustained high"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 205,
+              "end": 215,
+              "text": "registered"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "519d23299699d67ee935a8bf57e89e49b0759aadbeec059f43e47f196572b0a1"
+        },
+        "known": {
+          "card_id": "v9-public-sampled-edge-history",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "0306731e95975f35be9a92e0a0b6614e97f37363143804c161342f4daba0f9b6",
+          "interface_sha256": "16f8b8d9791beca0a9c5178f54366334080a6d087b270df14358f74c7203abe8",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "519d23299699d67ee935a8bf57e89e49b0759aadbeec059f43e47f196572b0a1"
+        },
+        "conflicting": {
+          "card_id": "v9-public-sampled-edge-history",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "b12ddaff6399da83821eff5583edb573d23661f95d00c2a2b48b9dd4f5bfc935",
+          "interface_sha256": "16f8b8d9791beca0a9c5178f54366334080a6d087b270df14358f74c7203abe8",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "519d23299699d67ee935a8bf57e89e49b0759aadbeec059f43e47f196572b0a1"
+        },
+        "insufficient": {
+          "card_id": "v9-public-sampled-edge-history",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "16f8b8d9791beca0a9c5178f54366334080a6d087b270df14358f74c7203abe8",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "519d23299699d67ee935a8bf57e89e49b0759aadbeec059f43e47f196572b0a1"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-sampled-edge-history",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "0996ef4ae4f3413003a76593ba81939f6c3a489c9b62bb51d9c24b322d7edd50",
+          "interface_sha256": "16f8b8d9791beca0a9c5178f54366334080a6d087b270df14358f74c7203abe8",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "519d23299699d67ee935a8bf57e89e49b0759aadbeec059f43e47f196572b0a1"
+        },
+        "tampered": {
+          "card_id": "v9-public-sampled-edge-history",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "4f66f960594a96f5685233c874759d01c9eae1e2730e66d785783a65e2d8733a",
+          "interface_sha256": "16f8b8d9791beca0a9c5178f54366334080a6d087b270df14358f74c7203abe8",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-sampled-edge-history",
+            "v8-lfsr-feedback-seed",
+            "v9-public-bounded-modulus",
+            "v9-public-cellular-snapshot-update",
+            "v9-lang-nba-rhs-sampling"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-sampled-edge-history",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "4f66f960594a96f5685233c874759d01c9eae1e2730e66d785783a65e2d8733a",
+              "interface_sha256": "16f8b8d9791beca0a9c5178f54366334080a6d087b270df14358f74c7203abe8",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 3,
+                  "end": 13,
+                  "text": "rising clk"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 15,
+                  "end": 20,
+                  "text": "reset"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 37,
+                  "end": 52,
+                  "text": "previous sample"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 118,
+                  "end": 129,
+                  "text": "low-to-high"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 159,
+                  "end": 184,
+                  "text": "zero for a sustained high"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 205,
+                  "end": 215,
+                  "text": "registered"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+              "card_sha256": "519d23299699d67ee935a8bf57e89e49b0759aadbeec059f43e47f196572b0a1"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 98.45,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-public-sampled-edge-history",
+            "v9-lang-nba-rhs-sampling",
+            "v9-public-sticky-event-memory",
+            "v8-ram-port-write-mode",
+            "v9-public-instruction-bank-isolation"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-sampled-edge-history",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "4f66f960594a96f5685233c874759d01c9eae1e2730e66d785783a65e2d8733a",
+              "interface_sha256": "16f8b8d9791beca0a9c5178f54366334080a6d087b270df14358f74c7203abe8",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 3,
+                  "end": 13,
+                  "text": "rising clk"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 15,
+                  "end": 20,
+                  "text": "reset"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 37,
+                  "end": 52,
+                  "text": "previous sample"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 118,
+                  "end": 129,
+                  "text": "low-to-high"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 159,
+                  "end": 184,
+                  "text": "zero for a sustained high"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 205,
+                  "end": 215,
+                  "text": "registered"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+              "card_sha256": "519d23299699d67ee935a8bf57e89e49b0759aadbeec059f43e47f196572b0a1"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1772.757,
+          "embedding_ms": 1631.459
+        }
+      },
+      "projection_tokens": 242,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-framing-search-phase",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "8d0e0770e3532cdf1d83beee39409bd93b313a06419074dff162e85ef3832d89",
+      "route_case_id": "b51-048",
+      "evidence_path": "dev/optimization-v49/audit-33589.json",
+      "evidence_case_id": "b49-18",
+      "evidence_kind": "identical_fixture",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-framing-search-phase",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "b10c23b8628ff167475e19122f545dc18f8d531dd7f95cfd7c1468d30f572586",
+          "interface_sha256": "040876c5aaf7d883644f02639736099756e0dd3ce1e030954db92c69ea26f4bf",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 120,
+              "end": 132,
+              "text": "search, 0x7e"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 172,
+              "end": 207,
+              "text": "next two accepted bytes are payload"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 200,
+              "end": 226,
+              "text": "payload including any 0x7e"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 80,
+              "end": 100,
+              "text": "accepted valid bytes"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "8d0e0770e3532cdf1d83beee39409bd93b313a06419074dff162e85ef3832d89"
+        },
+        "known": {
+          "card_id": "v9-public-framing-search-phase",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "aa693ec0f061e863c7dd05a87c035be2942754952826f1a1d0e21f70ece57927",
+          "interface_sha256": "040876c5aaf7d883644f02639736099756e0dd3ce1e030954db92c69ea26f4bf",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "8d0e0770e3532cdf1d83beee39409bd93b313a06419074dff162e85ef3832d89"
+        },
+        "conflicting": {
+          "card_id": "v9-public-framing-search-phase",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "c6a9d7d0b5ae2cc0278bd657a521274557b11ca3b771418aa2702853521cce0a",
+          "interface_sha256": "040876c5aaf7d883644f02639736099756e0dd3ce1e030954db92c69ea26f4bf",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "8d0e0770e3532cdf1d83beee39409bd93b313a06419074dff162e85ef3832d89"
+        },
+        "insufficient": {
+          "card_id": "v9-public-framing-search-phase",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "040876c5aaf7d883644f02639736099756e0dd3ce1e030954db92c69ea26f4bf",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "8d0e0770e3532cdf1d83beee39409bd93b313a06419074dff162e85ef3832d89"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-framing-search-phase",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "6c16e87d71daa01e33e85075bcf8eb2fff40aa7aff722da1e6647a8d07f019ab",
+          "interface_sha256": "040876c5aaf7d883644f02639736099756e0dd3ce1e030954db92c69ea26f4bf",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "8d0e0770e3532cdf1d83beee39409bd93b313a06419074dff162e85ef3832d89"
+        },
+        "tampered": {
+          "card_id": "v9-public-framing-search-phase",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "b10c23b8628ff167475e19122f545dc18f8d531dd7f95cfd7c1468d30f572586",
+          "interface_sha256": "040876c5aaf7d883644f02639736099756e0dd3ce1e030954db92c69ea26f4bf",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-framing-search-phase",
+            "v9-public-bounded-modulus",
+            "v8-packer-valid-count",
+            "v9-public-sampled-edge-history",
+            "v8-result-backpressure-retention"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-framing-search-phase",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "b10c23b8628ff167475e19122f545dc18f8d531dd7f95cfd7c1468d30f572586",
+              "interface_sha256": "040876c5aaf7d883644f02639736099756e0dd3ce1e030954db92c69ea26f4bf",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 120,
+                  "end": 132,
+                  "text": "search, 0x7e"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 172,
+                  "end": 207,
+                  "text": "next two accepted bytes are payload"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 200,
+                  "end": 226,
+                  "text": "payload including any 0x7e"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 80,
+                  "end": 100,
+                  "text": "accepted valid bytes"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+              "card_sha256": "8d0e0770e3532cdf1d83beee39409bd93b313a06419074dff162e85ef3832d89"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 96.557,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-public-framing-search-phase",
+            "v8-result-backpressure-retention",
+            "v8-pipeline-valid-alignment",
+            "v9-public-sampled-edge-history",
+            "v8-serializer-snapshot"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-framing-search-phase",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "b10c23b8628ff167475e19122f545dc18f8d531dd7f95cfd7c1468d30f572586",
+              "interface_sha256": "040876c5aaf7d883644f02639736099756e0dd3ce1e030954db92c69ea26f4bf",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 120,
+                  "end": 132,
+                  "text": "search, 0x7e"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 172,
+                  "end": 207,
+                  "text": "next two accepted bytes are payload"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 200,
+                  "end": 226,
+                  "text": "payload including any 0x7e"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 80,
+                  "end": 100,
+                  "text": "accepted valid bytes"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+              "card_sha256": "8d0e0770e3532cdf1d83beee39409bd93b313a06419074dff162e85ef3832d89"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1770.482,
+          "embedding_ms": 1632.437
+        }
+      },
+      "projection_tokens": 212,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-instruction-bank-isolation",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "01c097aca535da78dccc7390d3f27132d23c46ad46bdbb14d99d9b99e6399ea9",
+      "route_case_id": "b51-052",
+      "evidence_path": "dev/optimization-v49/audit-33589.json",
+      "evidence_case_id": "b49-19",
+      "evidence_kind": "identical_fixture",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-instruction-bank-isolation",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "acbabbeb463008b61127ff7cbecec09bb5cf339f466e6a0ebe6876309015d6ff",
+          "interface_sha256": "d387858d8d7259b5ad8f4d41bacfeb0789301b4a0e3721417cc337c9caf6e25b",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 67,
+              "end": 96,
+              "text": "update only the selected bank"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 137,
+              "end": 161,
+              "text": "other locations preserve"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 92,
+              "end": 96,
+              "text": "bank"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 3,
+              "end": 13,
+              "text": "rising clk"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01c097aca535da78dccc7390d3f27132d23c46ad46bdbb14d99d9b99e6399ea9"
+        },
+        "known": {
+          "card_id": "v9-public-instruction-bank-isolation",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "5befafba34c8f3ef229bb2f8be10db331e5f62945b698e374b075937283d0a2c",
+          "interface_sha256": "d387858d8d7259b5ad8f4d41bacfeb0789301b4a0e3721417cc337c9caf6e25b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01c097aca535da78dccc7390d3f27132d23c46ad46bdbb14d99d9b99e6399ea9"
+        },
+        "conflicting": {
+          "card_id": "v9-public-instruction-bank-isolation",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "39323e1be3b31ca00db7bbd8b4f51195c518ff1e36cdea58fafd52e45ee32d53",
+          "interface_sha256": "d387858d8d7259b5ad8f4d41bacfeb0789301b4a0e3721417cc337c9caf6e25b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01c097aca535da78dccc7390d3f27132d23c46ad46bdbb14d99d9b99e6399ea9"
+        },
+        "insufficient": {
+          "card_id": "v9-public-instruction-bank-isolation",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "d387858d8d7259b5ad8f4d41bacfeb0789301b4a0e3721417cc337c9caf6e25b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01c097aca535da78dccc7390d3f27132d23c46ad46bdbb14d99d9b99e6399ea9"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-instruction-bank-isolation",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "c98e0971faaaa8334c22fbb02981a2617a865a75ca31e8c65e56d46ba048c662",
+          "interface_sha256": "d387858d8d7259b5ad8f4d41bacfeb0789301b4a0e3721417cc337c9caf6e25b",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "01c097aca535da78dccc7390d3f27132d23c46ad46bdbb14d99d9b99e6399ea9"
+        },
+        "tampered": {
+          "card_id": "v9-public-instruction-bank-isolation",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "acbabbeb463008b61127ff7cbecec09bb5cf339f466e6a0ebe6876309015d6ff",
+          "interface_sha256": "d387858d8d7259b5ad8f4d41bacfeb0789301b4a0e3721417cc337c9caf6e25b",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-instruction-bank-isolation",
+            "v9-public-sampled-edge-history",
+            "v9-public-bounded-modulus",
+            "v8-packer-temporal-order",
+            "v8-lfsr-feedback-seed"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-instruction-bank-isolation",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "acbabbeb463008b61127ff7cbecec09bb5cf339f466e6a0ebe6876309015d6ff",
+              "interface_sha256": "d387858d8d7259b5ad8f4d41bacfeb0789301b4a0e3721417cc337c9caf6e25b",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 67,
+                  "end": 96,
+                  "text": "update only the selected bank"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 137,
+                  "end": 161,
+                  "text": "other locations preserve"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 92,
+                  "end": 96,
+                  "text": "bank"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 3,
+                  "end": 13,
+                  "text": "rising clk"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+              "card_sha256": "01c097aca535da78dccc7390d3f27132d23c46ad46bdbb14d99d9b99e6399ea9"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 96.722,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-public-instruction-bank-isolation",
+            "v8-ram-port-write-mode",
+            "v8-serializer-snapshot",
+            "v9-lang-nba-rhs-sampling",
+            "v9-public-sampled-edge-history"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-instruction-bank-isolation",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "acbabbeb463008b61127ff7cbecec09bb5cf339f466e6a0ebe6876309015d6ff",
+              "interface_sha256": "d387858d8d7259b5ad8f4d41bacfeb0789301b4a0e3721417cc337c9caf6e25b",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 67,
+                  "end": 96,
+                  "text": "update only the selected bank"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 137,
+                  "end": 161,
+                  "text": "other locations preserve"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 92,
+                  "end": 96,
+                  "text": "bank"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 3,
+                  "end": 13,
+                  "text": "rising clk"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+              "card_sha256": "01c097aca535da78dccc7390d3f27132d23c46ad46bdbb14d99d9b99e6399ea9"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1920.32,
+          "embedding_ms": 1784.204
+        }
+      },
+      "projection_tokens": 199,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-public-pause-preserves-subtick",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "candidate_card_sha256": "bd72e6f8f0f3f63fe198a4ccf85002ed9c203cf6bfa4381c406fbf5b9829a4cc",
+      "route_case_id": "b51-057",
+      "evidence_path": "dev/optimization-v49/audit-33589.json",
+      "evidence_case_id": "b49-20",
+      "evidence_kind": "identical_fixture",
+      "direct": {
+        "positive": {
+          "card_id": "v9-public-pause-preserves-subtick",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "8c6adc497ec938460b25835e01e9a66bc66d046da3745615a6a3dc5e239824e9",
+          "interface_sha256": "3de8118acef32bc50ae92bd19459a9f12432c29ebe2fe42087290802d0019d60",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 157,
+              "end": 200,
+              "text": "disabled edge preserves fractional progress"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 106,
+              "end": 126,
+              "text": "every fourth enabled"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 222,
+              "end": 260,
+              "text": "resumption continues the partial count"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "bd72e6f8f0f3f63fe198a4ccf85002ed9c203cf6bfa4381c406fbf5b9829a4cc"
+        },
+        "known": {
+          "card_id": "v9-public-pause-preserves-subtick",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "8fea0333d488d7e3de0e7b8aa46221e305b126c8488f0297a94fa38b151b9cd6",
+          "interface_sha256": "3de8118acef32bc50ae92bd19459a9f12432c29ebe2fe42087290802d0019d60",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "bd72e6f8f0f3f63fe198a4ccf85002ed9c203cf6bfa4381c406fbf5b9829a4cc"
+        },
+        "conflicting": {
+          "card_id": "v9-public-pause-preserves-subtick",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "e3eb09e9b76e89e0f41f76d1fe748f24a25ace0fddadab9e9d5de68c794331b5",
+          "interface_sha256": "3de8118acef32bc50ae92bd19459a9f12432c29ebe2fe42087290802d0019d60",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "bd72e6f8f0f3f63fe198a4ccf85002ed9c203cf6bfa4381c406fbf5b9829a4cc"
+        },
+        "insufficient": {
+          "card_id": "v9-public-pause-preserves-subtick",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "3de8118acef32bc50ae92bd19459a9f12432c29ebe2fe42087290802d0019d60",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "bd72e6f8f0f3f63fe198a4ccf85002ed9c203cf6bfa4381c406fbf5b9829a4cc"
+        },
+        "irrelevant": {
+          "card_id": "v9-public-pause-preserves-subtick",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "8586b460652545189dbcc01b72c5d0422ec5064872fbb3e7813e8a4012e9383f",
+          "interface_sha256": "3de8118acef32bc50ae92bd19459a9f12432c29ebe2fe42087290802d0019d60",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "card_sha256": "bd72e6f8f0f3f63fe198a4ccf85002ed9c203cf6bfa4381c406fbf5b9829a4cc"
+        },
+        "tampered": {
+          "card_id": "v9-public-pause-preserves-subtick",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "8c6adc497ec938460b25835e01e9a66bc66d046da3745615a6a3dc5e239824e9",
+          "interface_sha256": "3de8118acef32bc50ae92bd19459a9f12432c29ebe2fe42087290802d0019d60",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-public-pause-preserves-subtick",
+            "v9-public-sampled-edge-history",
+            "v8-lfsr-feedback-seed",
+            "v9-public-bounded-modulus",
+            "v9-public-cellular-snapshot-update"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-pause-preserves-subtick",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "8c6adc497ec938460b25835e01e9a66bc66d046da3745615a6a3dc5e239824e9",
+              "interface_sha256": "3de8118acef32bc50ae92bd19459a9f12432c29ebe2fe42087290802d0019d60",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 157,
+                  "end": 200,
+                  "text": "disabled edge preserves fractional progress"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 106,
+                  "end": 126,
+                  "text": "every fourth enabled"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 222,
+                  "end": 260,
+                  "text": "resumption continues the partial count"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+              "card_sha256": "bd72e6f8f0f3f63fe198a4ccf85002ed9c203cf6bfa4381c406fbf5b9829a4cc"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 95.545,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-public-pause-preserves-subtick",
+            "v9-public-sampled-edge-history",
+            "v9-public-bounded-modulus",
+            "v9-lang-nba-rhs-sampling",
+            "v8-lfsr-feedback-seed"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-public-pause-preserves-subtick",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "8c6adc497ec938460b25835e01e9a66bc66d046da3745615a6a3dc5e239824e9",
+              "interface_sha256": "3de8118acef32bc50ae92bd19459a9f12432c29ebe2fe42087290802d0019d60",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 157,
+                  "end": 200,
+                  "text": "disabled edge preserves fractional progress"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 106,
+                  "end": 126,
+                  "text": "every fourth enabled"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 222,
+                  "end": 260,
+                  "text": "resumption continues the partial count"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1",
+              "card_sha256": "bd72e6f8f0f3f63fe198a4ccf85002ed9c203cf6bfa4381c406fbf5b9829a4cc"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1598.176,
+          "embedding_ms": 1467.286
+        }
+      },
+      "projection_tokens": 212,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    },
+    {
+      "card_id": "v9-lang-boolean-versus-bitwise",
+      "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+      "candidate_card_sha256": "f8f0867cf485b6919d38f69aa241a714468e75f90d75ad58265e1614da263460",
+      "route_case_id": "b51-012",
+      "evidence_path": "dev/optimization-v43/audit-33376.json",
+      "evidence_case_id": "b42-mask",
+      "evidence_kind": "independent_public_context",
+      "direct": {
+        "positive": {
+          "card_id": "v9-lang-boolean-versus-bitwise",
+          "admit": true,
+          "decision_class": "eligible",
+          "reason": "bounded_public_contract",
+          "stage": "pre_generation",
+          "prompt_sha256": "b59ad2e7d624e2f5391977b539f5c9e2c510487c50d903dc78eb3d3cb5608e9b",
+          "interface_sha256": "dc09e386df773ad40d5123495f13b2a4f777d2c2655129bfa672e8c08edb3fbc",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 33,
+              "end": 37,
+              "text": "mask"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 25,
+              "end": 32,
+              "text": "per-bit"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 142,
+              "end": 148,
+              "text": "binary"
+            },
+            {
+              "source": "prompt_and_interface",
+              "start": 0,
+              "end": 15,
+              "text": "Combinationally"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "f8f0867cf485b6919d38f69aa241a714468e75f90d75ad58265e1614da263460"
+        },
+        "known": {
+          "card_id": "v9-lang-boolean-versus-bitwise",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "knowledge_already_present",
+          "stage": "pre_generation",
+          "prompt_sha256": "0718051a1b7f9489d302616adfad5e224579e3da1e85e87547ac377df7ad6899",
+          "interface_sha256": "dc09e386df773ad40d5123495f13b2a4f777d2c2655129bfa672e8c08edb3fbc",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "f8f0867cf485b6919d38f69aa241a714468e75f90d75ad58265e1614da263460"
+        },
+        "conflicting": {
+          "card_id": "v9-lang-boolean-versus-bitwise",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "conflicting_supplied_fact",
+          "stage": "pre_generation",
+          "prompt_sha256": "c42fa904c4f0c7dd794c50cdf9daf53c070d7a022896fb10e5d45cda1864a1f6",
+          "interface_sha256": "dc09e386df773ad40d5123495f13b2a4f777d2c2655129bfa672e8c08edb3fbc",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "f8f0867cf485b6919d38f69aa241a714468e75f90d75ad58265e1614da263460"
+        },
+        "insufficient": {
+          "card_id": "v9-lang-boolean-versus-bitwise",
+          "admit": false,
+          "decision_class": "unknown",
+          "reason": "public_contract_insufficient",
+          "stage": "pre_generation",
+          "prompt_sha256": "7928293f2f2a13bd32591b47fe986d7892e17d3c7ff53db43e208387cf9569ef",
+          "interface_sha256": "dc09e386df773ad40d5123495f13b2a4f777d2c2655129bfa672e8c08edb3fbc",
+          "witnesses": [
+            {
+              "source": "prompt_and_interface",
+              "start": 73,
+              "end": 79,
+              "text": "masked"
+            }
+          ],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "f8f0867cf485b6919d38f69aa241a714468e75f90d75ad58265e1614da263460"
+        },
+        "irrelevant": {
+          "card_id": "v9-lang-boolean-versus-bitwise",
+          "admit": false,
+          "decision_class": "not_needed",
+          "reason": "explicitly_inapplicable",
+          "stage": "pre_generation",
+          "prompt_sha256": "3a3d39b24b1afdeb0bc6eb65ef77220a5785583cffd60b6f32e50f0f411977e9",
+          "interface_sha256": "dc09e386df773ad40d5123495f13b2a4f777d2c2655129bfa672e8c08edb3fbc",
+          "witnesses": [],
+          "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "card_sha256": "f8f0867cf485b6919d38f69aa241a714468e75f90d75ad58265e1614da263460"
+        },
+        "tampered": {
+          "card_id": "v9-lang-boolean-versus-bitwise",
+          "admit": false,
+          "decision_class": "failure",
+          "reason": "card_asset_mismatch",
+          "stage": "pre_generation",
+          "prompt_sha256": "b59ad2e7d624e2f5391977b539f5c9e2c510487c50d903dc78eb3d3cb5608e9b",
+          "interface_sha256": "dc09e386df773ad40d5123495f13b2a4f777d2c2655129bfa672e8c08edb3fbc",
+          "witnesses": []
+        }
+      },
+      "routes": {
+        "bm25": {
+          "top5": [
+            "v9-lang-boolean-versus-bitwise",
+            "v8-serializer-snapshot",
+            "v9-lang-comparison-result-sign",
+            "v8-packer-temporal-order",
+            "v9-lang-conditional-x-merge"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-lang-boolean-versus-bitwise",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "b59ad2e7d624e2f5391977b539f5c9e2c510487c50d903dc78eb3d3cb5608e9b",
+              "interface_sha256": "dc09e386df773ad40d5123495f13b2a4f777d2c2655129bfa672e8c08edb3fbc",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 33,
+                  "end": 37,
+                  "text": "mask"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 25,
+                  "end": 32,
+                  "text": "per-bit"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 142,
+                  "end": 148,
+                  "text": "binary"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 0,
+                  "end": 15,
+                  "text": "Combinationally"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+              "card_sha256": "f8f0867cf485b6919d38f69aa241a714468e75f90d75ad58265e1614da263460"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 94.563,
+          "embedding_ms": null
+        },
+        "dense": {
+          "top5": [
+            "v9-lang-boolean-versus-bitwise",
+            "v9-lang-conditional-x-merge",
+            "v9-public-carry-lookahead-composition",
+            "v9-public-block-carry-chain",
+            "v9-lang-context-before-operation"
+          ],
+          "target_rank": 1,
+          "target_rejections": [
+            {
+              "card_id": "v9-lang-boolean-versus-bitwise",
+              "admit": false,
+              "decision_class": "unknown",
+              "reason": "catalog_shadow_or_hold",
+              "stage": "pre_generation",
+              "prompt_sha256": "b59ad2e7d624e2f5391977b539f5c9e2c510487c50d903dc78eb3d3cb5608e9b",
+              "interface_sha256": "dc09e386df773ad40d5123495f13b2a4f777d2c2655129bfa672e8c08edb3fbc",
+              "witnesses": [
+                {
+                  "source": "prompt_and_interface",
+                  "start": 33,
+                  "end": 37,
+                  "text": "mask"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 25,
+                  "end": 32,
+                  "text": "per-bit"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 142,
+                  "end": 148,
+                  "text": "binary"
+                },
+                {
+                  "source": "prompt_and_interface",
+                  "start": 0,
+                  "end": 15,
+                  "text": "Combinationally"
+                }
+              ],
+              "card_version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+              "card_sha256": "f8f0867cf485b6919d38f69aa241a714468e75f90d75ad58265e1614da263460"
+            }
+          ],
+          "admitted": [],
+          "reason": "empty",
+          "error": null,
+          "elapsed_ms": 1511.592,
+          "embedding_ms": 1375.636
+        }
+      },
+      "projection_tokens": 193,
+      "model_outcome": "both_pass",
+      "checks": {
+        "positive_eligible": true,
+        "known_not_needed": true,
+        "conflicting_not_eligible": true,
+        "insufficient_not_eligible": true,
+        "irrelevant_not_needed": true,
+        "tampered_failure": true,
+        "bm25_top5": true,
+        "dense_top5": true,
+        "shadow_blocks_bm25": true,
+        "shadow_blocks_dense": true,
+        "token_budget": true,
+        "model_fixture_evidence": true,
+        "current_version_model_pair": true
+      },
+      "passed": true
+    }
+  ],
+  "new_model_calls": 0,
+  "activation_changed": false,
+  "candidate_only": true
+}

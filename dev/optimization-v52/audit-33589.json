@@ -1,0 +1,158 @@
+{
+  "actual_calls": 10,
+  "boundary": "Ten exact revised renderings use fixed repair pairs. Results test delivery, syntax and the declared functional checker; they do not validate retrieval, routing, or unseen-context generalization.",
+  "errors": [],
+  "host": 33589,
+  "outcomes": {
+    "both_pass": 5
+  },
+  "promotion_rule": "No automatic promotion. A no-regression screen only permits later admission and routed-request testing.",
+  "rows": [
+    {
+      "arms": {
+        "card": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-06/card",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 3154,
+          "unknown_usage": false,
+          "wall_s": 28.526037629693747
+        },
+        "control": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-06/control",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 2738,
+          "unknown_usage": false,
+          "wall_s": 21.263862624764442
+        }
+      },
+      "card_id": "v9-public-fp-normal-hidden-bit",
+      "case_id": "b52-06",
+      "mode": "repair",
+      "outcome": "both_pass",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.local51.1"
+    },
+    {
+      "arms": {
+        "card": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-07/card",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 5490,
+          "unknown_usage": false,
+          "wall_s": 73.90156237781048
+        },
+        "control": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-07/control",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 3566,
+          "unknown_usage": false,
+          "wall_s": 44.016019340604544
+        }
+      },
+      "card_id": "v9-public-fp-round-renormalize",
+      "case_id": "b52-07",
+      "mode": "repair",
+      "outcome": "both_pass",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.local51.1"
+    },
+    {
+      "arms": {
+        "card": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-08/card",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 3177,
+          "unknown_usage": false,
+          "wall_s": 25.711337357759476
+        },
+        "control": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-08/control",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 2943,
+          "unknown_usage": false,
+          "wall_s": 24.141315707936883
+        }
+      },
+      "card_id": "v9-public-fp-sticky-rounding",
+      "case_id": "b52-08",
+      "mode": "repair",
+      "outcome": "both_pass",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.local51.1"
+    },
+    {
+      "arms": {
+        "card": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-09/card",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 12100,
+          "unknown_usage": false,
+          "wall_s": 205.36039432883263
+        },
+        "control": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-09/control",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 8736,
+          "unknown_usage": false,
+          "wall_s": 144.23738355003297
+        }
+      },
+      "card_id": "v9-public-grid-row-column-wrap",
+      "case_id": "b52-09",
+      "mode": "repair",
+      "outcome": "both_pass",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1.local51.1"
+    },
+    {
+      "arms": {
+        "card": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-10/card",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 14240,
+          "unknown_usage": false,
+          "wall_s": 257.91507130488753
+        },
+        "control": {
+          "delivered": true,
+          "directory": "dev/optimization-v52/returned/33589/dev/optimization-v52/runs/33589/cases/b52-10/control",
+          "error": null,
+          "failure_kind": null,
+          "success": true,
+          "tokens": 14653,
+          "unknown_usage": false,
+          "wall_s": 267.40512957423925
+        }
+      },
+      "card_id": "v9-public-gshare-training-context",
+      "case_id": "b52-10",
+      "mode": "repair",
+      "outcome": "both_pass",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.local51.1"
+    }
+  ],
+  "status": "passed"
+}

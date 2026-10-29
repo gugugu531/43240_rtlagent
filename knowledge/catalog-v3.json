@@ -1,0 +1,1438 @@
+{
+  "card_count": 129,
+  "cards_sha256": "a955e7db5278e5fc378d5e30c65e7e25d3e9c5a1c2e8dd1f06f0b4a395fabd21",
+  "entries": [
+    {
+      "card_id": "diag-vrfc-10-1280",
+      "card_sha256": "1199caa5d7e7d1172f62e5e1872093c23beaa5609a560d3a3af63b8bf2b0e8a8",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "diag-vrfc-10-9336",
+      "card_sha256": "49d555fc9bbce478eef5ab6e672f370a22f724c280c0a6dcb9a04ff564694298",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "diag-vrfc-10-4982",
+      "card_sha256": "9b1a7ffdf557a1c4a1320805df5c640f6480afe985ea7acd0fbc0b882e85722f",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "diag-vrfc-10-2989",
+      "card_sha256": "83c7bf224ba96afb4c81b2ec295b15eeec50c8a2bc0af02be02223e5f3bd4b4c",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "diag-vrfc-10-9623",
+      "card_sha256": "4d7bd9d7b00fb0d953d3fbe80b4c10fd53f99039db1a22637e4a552ed95d1175",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "diag-synth-8-6859",
+      "card_sha256": "66718238026cb50a868c02f48d7f6c43eaa483c7938b1e04e2e833411b93d39c",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "counterexample-secondary-vrfc-8530",
+      "card_sha256": "1ff8638680682581269e87bf5563a5cd3d2e036218e76f108215eacd0c8ceeba",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-procedural-variable",
+      "card_sha256": "d2bee03f9aca5cf82411e53f8a45508cc08821b1768839f381a43aa2785672d3",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-ansi-port",
+      "card_sha256": "ae4f284041268a4101b83b4026f83c0835f0db96881cfd3ed91b2db499be6ff1",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-local-syntax",
+      "card_sha256": "e50fdf76ee8a3e1fad0d333ab8ebd6938976e5b678957c06def6136919d32d42",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-undeclared-identifier",
+      "card_sha256": "df5cdda9ef1ead806af11d936ec1573aae23aabc0084a1e4fcbdf0f335adca8a",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-source-encoding",
+      "card_sha256": "973a398dca7bebddd74200237868a1e54e78bc0fa5795767a01d23e9cf401c14",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-multiple-drivers",
+      "card_sha256": "53c25a0b16062946c216f9732fe21a526182cc0df4a3bdee91b95a71ba3d0493",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "semantic-rotate-versus-shift",
+      "card_sha256": "2ef0b5dac586077533f90a3042473bff79e5b652041767a189f90e80e3f97c31",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "semantic-reset-contract",
+      "card_sha256": "4a3e3b7aeb76ab1d0c1af22f2a028d50c695616bac93e808822afc9a6f94590b",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "semantic-combinational-completeness",
+      "card_sha256": "788c07a24360a3450a9fbe95356bbc11564ca05cbbb8f9c84bf7ec3834a6d546",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "counterexample-secondary-tool-failure",
+      "card_sha256": "cbef37588c3b72bc44104a0d0b75811339332ad204c33dafb2ecdb8187d8adff",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "diag-synth-event-control",
+      "card_sha256": "c698b30a325349bd2dd09ed1b6aefc8175ba0c17eb531b88b27f1c52430213d8",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-sequential-event-control",
+      "card_sha256": "296e2864f1ab386e340da1aae7fd66b518b92e5f65d908f495e31d35dad04765",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "semantic-selection-shape",
+      "card_sha256": "3844a032f8b1599e47c28878e103affe3123dfc435a21597bfcbbf2a02a511fb",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-index-and-part-select",
+      "card_sha256": "bb6cf83f709375a4e81971a6d1158dc31912b22debef07f7f78faa0a45867895",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "diag-design-unit-resolution",
+      "card_sha256": "68420248936e8d883c7908deff5cc22d82e73876bdac72ef284569bd9a2a3e5d",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-module-and-top-resolution",
+      "card_sha256": "d4d5191b8d5717aab083240608463d65a08fdeee99ee5268569cbaa3dcd45977",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "semantic-declaration-lifecycle",
+      "card_sha256": "e131aeb58fbb497c76d0f32b3efc91e8018b401fa820f25d9f07e85ea786fe4c",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-duplicate-and-implicit-declaration",
+      "card_sha256": "9cdab1090b60d3408be8c335dddf121375fab5b20fcd39b8121df7fc914178ce",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "semantic-elaboration-constant",
+      "card_sha256": "28e46d6803af2142f892dc1286433bd1fe3ae632e8e006759f7f38c787dc3bd1",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-generate-loop-index",
+      "card_sha256": "e2d8cb613593095fdf32e9e97e8412d55d8470b0e158a4a5d6eb6617ded2916d",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "semantic-enum-encoding",
+      "card_sha256": "e7e90f08f6dee13f982588c018776e7860a59e56fd236e373d524de739a34a50",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "semantic-module-compilation-scope",
+      "card_sha256": "3a0b916a2ac5263015edd1cb9a10bd496ed54bc1b3d4fcf5387a4c52de8a552a",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "diag-vrfc-explicit-type",
+      "card_sha256": "39d177b16cb862e5b6a9b801b450548ba68c1dfe007d2761af1256e31fb46937",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "repair-explicit-declaration-type",
+      "card_sha256": "ee0e7112a4d241f78e75ad99df55603ae79053034a297b77f5be4d77cd568b53",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "counterexample-encoding-before-syntax",
+      "card_sha256": "fdaef35076e209b4f888fe5b142f851ce450f5efbef7ea2717861d6e2fcb18d0",
+      "phases": [
+        "post_diagnostic"
+      ],
+      "policy_adapter": "legacy_diagnostic",
+      "state": "legacy_policy",
+      "version": "1.1.0-en.candidate.1.asset-v25"
+    },
+    {
+      "card_id": "v8-bcd-decimal-carry",
+      "card_sha256": "12cae1affcecdceccfdd88d3602aa739c311752803b5777beaf985a5942c07ee",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.3.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v8-lfsr-feedback-seed",
+      "card_sha256": "7d6ae4b0c3fc30f4320c2f704a95c3481c1cf98b4d1453690d110691f72ac40c",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v8-packer-temporal-order",
+      "card_sha256": "abd93b9708b2e356622eeaebf6d38ebb930cccd91731c029b5fbdc48c177543c",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_first_generation_trial",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1.syntax1"
+    },
+    {
+      "card_id": "v8-packer-valid-count",
+      "card_sha256": "18e660fa125768686694ca5fea70c8cb506d85e9bd4655acc0d52a415f12cb50",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v8-pipeline-operand-cohort",
+      "card_sha256": "527a0e794033e77cf68bd5d59633f76568a5a6384f015c0a00a0abf610f33b42",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v8-pipeline-valid-alignment",
+      "card_sha256": "8ce7c1d0d3d37106afa82f5afadb547a396d296f2b26dce8a6eb82c2de200a35",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v8-ram-port-write-mode",
+      "card_sha256": "70cb8a6d4e8e1822ee5c89aa2dba936ed4b6c82188f54c6d3aeadb1b4d54ba96",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v8-result-backpressure-retention",
+      "card_sha256": "9b33d29805e806cd06e4b375ccdb98049a41c547e8ed33f15b3293dbe27305c4",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v8-serializer-snapshot",
+      "card_sha256": "e0ffba694999465f46270848678c60ddcfaa9cc9a60c80cebf68b22461280656",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v8-stack-boundary-guards",
+      "card_sha256": "81dd2a9ed7d183cd91f86d498eb0cd956f9eb8265797a831e789dd7faec8339a",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-arithmetic-right-sign",
+      "card_sha256": "6b264237027d4f25ef00db46dc5d615bc836235943b879c1dc7cdfa203083852",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.3.0-pregen.v25.1.v26.1"
+    },
+    {
+      "card_id": "v9-lang-based-literal-sign",
+      "card_sha256": "c00e29e35a95baf28eb34da94e7cf2074324b737dcee0c22119d42d8f6152bd3",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-boolean-versus-bitwise",
+      "card_sha256": "d2a02a681179dd4a9362f84c1e247ba022099ffa534be3212f824707e6b18e7e",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_id": "v9-lang-case-equality-synthesis",
+      "card_sha256": "94e3f91ea3851f41b843d57a4c76b778028729ed0346c69fc5a4e9cb7c79e2d7",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-comb-read-before-write",
+      "card_sha256": "817df171805f22850605b4864ad5e2889672c5c2b67211f6140b744bf7bd141d",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-comparison-result-sign",
+      "card_sha256": "77eef0a4829ba79e83d14f42ec928dc8ac3735f1ece444b1a294c9e974edb2a6",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1"
+    },
+    {
+      "card_id": "v9-lang-concat-signedness",
+      "card_sha256": "4405c08fe9588c9d2247364dbc698e84364e181081ceb92abe4aac3c993a63e5",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-conditional-x-merge",
+      "card_sha256": "dad43d6dd1896b09118cd7c6c6064c087371bd4061111f2e37de2bb18713a227",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.3.0-pregen.v25.1.v26.1.draft-v33.1.night35-screen.1"
+    },
+    {
+      "card_id": "v9-lang-const-not-parameter",
+      "card_sha256": "edaa27b5627d07f030b4001f0213efc53e463ddafbf33800a77b1232f9a96f9c",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-context-before-operation",
+      "card_sha256": "2f4ee8fe9a690d7ee052ae9100fa622695c4149345a386e55370fb5c86e34e09",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.3.0-pregen.v25.1.v26.1"
+    },
+    {
+      "card_id": "v9-lang-delay-not-hardware",
+      "card_sha256": "f404201fda4a90d1a5b0867c1386bbe62d1790c41b69f9fe89d0dccff239e576",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-division-rounding",
+      "card_sha256": "ecaa89074326810d0a4204f46102ecda8ca0aec3f288e83eef9fa0a09767a738",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1"
+    },
+    {
+      "card_id": "v9-lang-empty-star-events",
+      "card_sha256": "b617eb10c58078bfadc6437a5a8b79d5e549443c1ec6256d25bd7ecab0b1987e",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "shadow_no_increment_predicate",
+      "state": "shadow",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.v37.1"
+    },
+    {
+      "card_id": "v9-lang-indexed-select-constant-width",
+      "card_sha256": "a4a9163afe24a949bc1a2447662383e73fb34400cea9ff166b9710f667932cb0",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.3.0-pregen.v25.1.v26.1"
+    },
+    {
+      "card_id": "v9-lang-lhs-not-sign-coercion",
+      "card_sha256": "e3cebdb074eedf76f1a0c1ceb46d566593a2b3722f541f27f0448fdf41e0f0fc",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.3.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-mixed-sign-arithmetic",
+      "card_sha256": "78b9fadf740cf739d11dc33d46fd98e201003a84e43fb2081de78313629704b5",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "shadow_no_increment_predicate",
+      "state": "shadow",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1.v39.1.v45.1"
+    },
+    {
+      "card_id": "v9-lang-nba-rhs-sampling",
+      "card_sha256": "8ede309d5cb41de5c540375dc6e86a966d7749d20090d2a0a120419b03dd7466",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.3.0-pregen.v25.1.v26.1"
+    },
+    {
+      "card_id": "v9-lang-overlapping-case-order",
+      "card_sha256": "89b5a010f84df684b3c8e2759dd7b797dfd3f3bf95c3ac6974b6997f8f851d58",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-remainder-sign",
+      "card_sha256": "7fa97570d00125bec2b80bbd6b776f47e3a005423927cbb236dfe530e91c3525",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-same-process-nba-order",
+      "card_sha256": "4cbbf6d7010f1fe45b6b9a0a56ba0f957355a5b4eb694ad3e2c17feef2a1a788",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1"
+    },
+    {
+      "card_id": "v9-lang-sign-conversion-width",
+      "card_sha256": "04027c9ea6b9c2b165aa2727ea783c04ef268612ef69637e37733226326e5604",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-lang-size-cast-sign",
+      "card_sha256": "bb6c97bde6493ac05df5c56626a7331e76ba66817763805aff5dd897875f24da",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.3.0-candidate.1.asset-v25.v26.1.night35.1"
+    },
+    {
+      "card_id": "v9-lang-slice-signedness",
+      "card_sha256": "091aefd35e5c3304514e56c173c493a30d6ecb97fa2b4f6e58caf58ad1bc85a7",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.screen-v32.1"
+    },
+    {
+      "card_id": "v9-lang-unsigned-negative-check",
+      "card_sha256": "1d475567f14d8bece73f31885dd2582b66c3edf99bf8b1ec96789d34eecea3ee",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_id": "v9-public-am-pm-phase",
+      "card_sha256": "085e9b3c5775a849369e5ab11ae114e045f7247c7b183f0aaeb0c8e40591580d",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-batch-final-sample",
+      "card_sha256": "7c2028090395e362bd08489193992cfb8ad1e6be883d87816ab1fd14193485eb",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1"
+    },
+    {
+      "card_id": "v9-public-block-carry-chain",
+      "card_sha256": "e6f291451ff362cb280a8d44289c07109d368a03c1ca879541569478cc47a5bb",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1"
+    },
+    {
+      "card_id": "v9-public-bounded-modulus",
+      "card_sha256": "c1d29d95b4a3a56b5f0c7e635a198f00f6655aa167c52cd84b6332c152c40fc7",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_id": "v9-public-carry-lookahead-composition",
+      "card_sha256": "5cfbd7f8c53fd556050d3f33b65ba8c1850d3aa1c5b1ad7c8adab8d481b80fd8",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-cellular-snapshot-update",
+      "card_sha256": "219e298660ea05e3fe8a2ada2cc51b8148c62ab4742e882549536bf11645b9a4",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-convolution-memory-depth",
+      "card_sha256": "f5baa7ebef1e769622c38cde1e547d2523c5f652713265ef2a1a2c74b3b35307",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-division-equality-boundary",
+      "card_sha256": "979ee268edb1b2df8633aa15c5e95956b9c67218e187c2eaf397c8a6d0c77818",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-division-remainder-invariant",
+      "card_sha256": "a9b882f6cb4716da33ca6237e96135070d05b8293fcf5b35af5102c5077f2cc0",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-fp-exponent-bias",
+      "card_sha256": "a15cf0a9c1f067991467951721d267eb2bfe6506033ebf81aef634edad083d4e",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-fp-normal-hidden-bit",
+      "card_sha256": "ab544bcb7ec454c0ed98a830c6456990300aafc29d075796493773bd517a1f91",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-fp-round-renormalize",
+      "card_sha256": "448b0926cb0ff4723888c1e860e2cf09f362d92371cc97197f411527a357231a",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-fp-sticky-rounding",
+      "card_sha256": "55f8e0990c0df46ef1c463a43a0447fdd53337ee86d7896e1e46fc730196e194",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-fractional-period-duty",
+      "card_sha256": "9d542cda587dd87f95471c482cf94ae72f3ea75c4dc92ca5463b0b50ac4de501",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.3.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-framing-search-phase",
+      "card_sha256": "f0d9ac39ca5f41b3a4998a9e974e6eec8c08eba9ae1e18c892a7d4bebe7fe9be",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-grid-row-column-wrap",
+      "card_sha256": "5b99af7ea43ebdf4cb4e6070aeefbc6ced6bc7d02cd787fecacae9e418689f0e",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1"
+    },
+    {
+      "card_id": "v9-public-gshare-training-context",
+      "card_sha256": "6c542cd36c7685becc3659fd6bd546eef99587b8766811e6e53e15146f7fa4e7",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-hdlc-run-classification",
+      "card_sha256": "f7e2f7c3a7af3e34fddc0208575cb93e7168bc6a344883d17f2326870a46b4ce",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-instruction-bank-isolation",
+      "card_sha256": "4478ee3880e4e84aca5bf4627c054f1829ad37b3fb5b9c56bde16ed26214aabe",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-iterative-product-restart",
+      "card_sha256": "bf9652d09634ac08ae3bec18d19498c46a0cb590806f1c9c213dfd896534c558",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-johnson-orbit",
+      "card_sha256": "bf3876cad2b1be37bf92b09577ad5ff69773f91df7838f4e94ffbd92d671bf8c",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-mixed-radix-time-rollover",
+      "card_sha256": "d7aa63b548c95069cf3d6d55b27740df9d6a70468e7abc33148e96b6ddc30f8d",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-odd-divider-duty-limit",
+      "card_sha256": "4f4875665e19c41204a37f0c86bc0181f343509e117fb696bd5f120d37e4b3f3",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-pause-preserves-subtick",
+      "card_sha256": "3db5f42873cd1119cb731cbf3cdfefc8c73514425f284b097203969a3cf9bc5a",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-progression-first-term",
+      "card_sha256": "b1027b81a37cc3e023c489ba3526870ef880a7ec1aff66e793986f14022eb011",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-ring-onehot-invariant",
+      "card_sha256": "87dd85dd75cbcd297c5fffa5ed35a9aad3e9b3843ad69402fbfc59d07a043d42",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-sampled-edge-history",
+      "card_sha256": "b712d4bee221f6245d3ab8e8fe258697da62c40be2b83aa643adf2f9e30c1b0c",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_id": "v9-public-saturation-not-wrap",
+      "card_sha256": "8f372400698d72e2f194de5be991147a35216502fbf4e088c126a49d77bd0432",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1"
+    },
+    {
+      "card_id": "v9-public-sequence-prefix-fallback",
+      "card_sha256": "90f25f672e3b1c677a580f32b35ae188df842324f08a3d8b1fed690ed3e5611b",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-serial-error-rearm",
+      "card_sha256": "b3ce3c73c74061456d21de5cabbc28fe720aab97264017b43a562cafabd00f49",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-serial-sampling-vs-latch",
+      "card_sha256": "e87c30ab454f134fc803d58c53f1b4c3950366d749a20f37b6396b8ff44901ee",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1"
+    },
+    {
+      "card_id": "v9-public-signed-subtract-overflow",
+      "card_sha256": "1b39cca5d53ffc88731f71638af24889a67e7d41ccb1ba3f8ab45a6e69e4c1cc",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-speculation-rollback-priority",
+      "card_sha256": "0e888392b518d7a34a956226972b4ea1340912b20d8f9cbc436f243cb879eefc",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-sticky-event-memory",
+      "card_sha256": "aa0ea1160c342fad72ab5c2959cae4c7a987ab482e3720e96664c3822d3d87bd",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.3.0-pregen.v25.1.v26.1"
+    },
+    {
+      "card_id": "v9-public-toggle-divider-period",
+      "card_sha256": "32a5a7eb46823d9c2d574ae808ac4af439c9a83c213cfcc2c76c9003800cbf85",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-triangle-endpoint-dwell",
+      "card_sha256": "abb992b437070519a852133c7817b69dd80a3898e8e778a4e63f9554db44af48",
+      "phases": [
+        "pre_generation",
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "reviewed_public_specification",
+      "state": "restricted",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1"
+    },
+    {
+      "card_id": "v9-public-unsigned-borrow-not-sign",
+      "card_sha256": "fb563e5ed0634579d748c3935baf800247dbe25a6bca910a50def837b0176cb9",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-public-weighted-partial-products",
+      "card_sha256": "4d1e13cb3ae44fb529fb5d2b6c0d90d84d99f403c749a9123342fc71ea51026c",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.night35.1"
+    },
+    {
+      "card_id": "v9-tool-bram-byte-column-shape",
+      "card_sha256": "5ffe96ee7213735e787245fe636dac4da690120ac21b9a3569f8ee47092ba932",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-direct-enable-selection",
+      "card_sha256": "2a5b7c9c4c1c23f99e1f6189340b951a82189a736357fa36ed2f1fd0a9d617d2",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-direct-reset-selection",
+      "card_sha256": "6807832765ad3b59cbd9ea31b3d927b91083766bb2ab6d7834728c50ce0b408d",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-dsp-adder-mapping-default",
+      "card_sha256": "85824552b0deb8e76f896df9c18653e595c95cc7d5a2fea32db6130f91739156",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-dsp-attribute-scope-priority",
+      "card_sha256": "08257d2fb8a9110dec192c9ac247029bf9e777fd81d52e7b6d2480c4f7b53b45",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-dsp-pipeline-utilization",
+      "card_sha256": "e04c40f0acfcfa91eeaa36b7bf55dd350c388fa980ae6508c2617c26a780414d",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-dsp-register-control-compatibility",
+      "card_sha256": "4bef79014399d6104c4b3f575279c7efad4235d80c2dcfef83a20c93e2a52d61",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-dsp-signed-capacity",
+      "card_sha256": "dda403b8b3c762abab7871019da6ab99530130576c229f45f1f7904edc05f710",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-dsp-symmetric-preadder",
+      "card_sha256": "32c5591fe64aa3143e42eae5d5f376db81311d9ffc243a8da2bc6fe0fb42981a",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-extract-reset-sync-only",
+      "card_sha256": "c2a156746d090cb6921676d0bdb3811130a7bbbf79e2831aa36cb8cc8bfef4b8",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-fsm-safe-default-target",
+      "card_sha256": "a169e91b118938084530f51015a2f9b087bdb83ac365b803b3c53e1fa36e1c42",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-fsm-safe-fault-model",
+      "card_sha256": "cbf67096e7545d12eca3e875d1dae382cd8d929a5cc398bd7ef2214cf28a1af1",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-ram-address-feedback",
+      "card_sha256": "925db05e8830bf1e700f9b0a7c7355624a660caa9df4584b1f1642924214c684",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-ram-array-runtime-reset",
+      "card_sha256": "7173133548b47bf3e8dea2b0fe718c7eef0df51267793a927fa6685f433fec12",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-ram-initialization-not-runtime-reset",
+      "card_sha256": "133a3b0d5608571039cd3cea2d2b51ce64bbe1133bf4211942ee1f04dc161d7a",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-ram-output-async-reset",
+      "card_sha256": "d6eabc3b7420578b61bd8fb17503022bb78c8e4e01c55d4eaefa14670d5dfed9",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-ram-output-fanout",
+      "card_sha256": "37a4e3635b97535fd38c766d9efc22a7c0926118adf7d7e5d146b11aa82ca2ec",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-register-reset-ce-priority",
+      "card_sha256": "0769fd677b15846724fecdc9c37ca5105c5750881657f1271717e80c66e6cee9",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-sdp-collision-bypass",
+      "card_sha256": "28278cb4b66d951415e7b9d658bbf178909f358f6f13c925ca6bb4f486821f04",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-srl-dynamic-tap",
+      "card_sha256": "5dfd10db0657f9931e3e59cf41a68dffb91fe3c61d6c07d4f42ca3d42fc24d3f",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-srl-extraction-precedence",
+      "card_sha256": "9a4981e22799b07dc6f4e7715be1bf622765ef9ede7694a9d87b55cb39a109a1",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-srl-output-register",
+      "card_sha256": "2bd7daa713eeb5a2a156f23b9758312c58269820b6d2da0c3ec594b4069d8a3d",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-srl-reset-emulation",
+      "card_sha256": "bbb1987f3771ad524abf987ccb858f6d2246f87f487b978d7153d721cdab46e9",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-srl-style-static-only",
+      "card_sha256": "a2bd2928d566a6616049132bb03d456168c0c96c91ace250a0b8d7223399f15e",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "mechanical_only",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    },
+    {
+      "card_id": "v9-tool-synthesis-excluded-functional-code",
+      "card_sha256": "f7f4a3d1621813019211a41f5a226bbfd4e5837d91bd6e211fc38d4fbf3abe2b",
+      "phases": [
+        "post_diagnostic",
+        "post_functional_feedback"
+      ],
+      "policy_adapter": "observe_only",
+      "state": "shadow",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1"
+    }
+  ],
+  "f24_adapter": "unchanged_legacy_restricted_exact_separate_card",
+  "frozen_excluded": 39,
+  "legacy_release_sha256": "8474fee979a28257db2d1ce02130a74bf2c11fd6271c9212546723157ed4cb54",
+  "release_id": "rag-catalog-v3-rc4.6"
+}

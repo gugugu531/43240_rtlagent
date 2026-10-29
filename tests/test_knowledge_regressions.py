@@ -53,11 +53,14 @@ class KnowledgeRegressions(unittest.TestCase):
                             parent, 'lint')
         messages = [{'role': 'user', 'content': 'Repair this syntax error.'}]
         original_client = httpx.Client
+        advertised = {'data': [{'id': bundle()[0]['model']['runtime_alias']}]}
         def client(**kwargs):
             return original_client(transport=httpx.MockTransport(
-                lambda request: httpx.Response(200, content=json.dumps(payload))), **kwargs)
+                lambda request: httpx.Response(200, content=json.dumps(advertised if request.method=='GET' else payload))), **kwargs)
+        def remote(*args, **kwargs):
+            return NS(stdout=json.dumps(payload if kwargs.get('input') is not None else advertised))
         with patch('agent.knowledge.runtime.httpx.Client', side_effect=client), patch(
-                'agent.knowledge.runtime.subprocess.run', return_value=NS(stdout=json.dumps(payload))):
+                'agent.knowledge.runtime.subprocess.run', side_effect=remote):
             packed, report = self.prepare(messages, parent, check, mode, strategy=strategy,
                 fallback=fallback, embedding_url='http://127.0.0.1:8765',
                 embedding_transport=transport, embedding_ssh_host='synthetic-host')
@@ -92,7 +95,7 @@ class KnowledgeRegressions(unittest.TestCase):
     def test_valid_embedding_and_model_mismatch(self):
         data, _ = bundle()
         payload = {'model': data['model']['runtime_alias'],
-                   'data': [{'embedding': data['documents'][0]['vector']}]}
+                   'data': [{'index': 0, 'embedding': data['documents'][0]['vector']}]}
         _, packed, report = self.embedding_case(payload)
         self.assertEqual(report['retrieval']['effective_strategy'], 'dense')
         self.assertNotIn('embedding_error', report['retrieval'])

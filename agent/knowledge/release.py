@@ -64,6 +64,12 @@ def validate_release(data, lock, raw, legacy_bytes):
         if data[field] != value or lock[field] != value:
             raise ValueError(field + '_mismatch')
     cards = {c['card_id']:c for c in data['cards']}
+    declared = lock.get('card_count', len(data['cards']))
+    if type(declared) is not int or not 0 < declared <= 512 or len(cards) != declared or len(data['cards']) != declared:
+        raise ValueError('runtime_card_count_mismatch')
+    for rows in (data['documents'], data['rules']):
+        if len(rows) != declared or {row['card_id'] for row in rows} != set(cards):
+            raise ValueError('runtime_release_identity_mismatch')
     for row in [*data['rules'], *data['checkpoints'], *data['documents']]:
         card = cards.get(row['card_id'])
         if card is None or row['card_version'] != card['version'] or row['card_sha256'] != fingerprint(card):

@@ -103,6 +103,18 @@ class Recorder:
             _span.reset(token)
 
     def write_text(self, relative, text):
+        text = str(text)
+        # HTTP JSON is redacted as structured data before serialization. Running
+        # credential patterns over serialized escapes can corrupt the JSON.
+        try:
+            value = json.loads(text)
+        except (ValueError, RecursionError):
+            return self._write(relative, self.redactor.copy(text))
+        if isinstance(value, (dict, list)):
+            return self.write_json(relative, value)
+        return self._write(relative, self.redactor.copy(text))
+
+    def _write(self, relative, text):
         if self.level != "full":
             return None
         path = (self.record_dir / relative).resolve()
@@ -110,12 +122,12 @@ class Recorder:
             raise ValueError("record path escapes run directory")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            self.redactor.copy(str(text)), encoding="utf-8", errors="backslashreplace"
+            text, encoding="utf-8", errors="backslashreplace"
         )
         return str(path)
 
     def write_json(self, relative, data):
-        return self.write_text(
+        return self._write(
             relative,
             json.dumps(
                 self.redactor.copy(json.loads(json.dumps(data, default=serializable))),

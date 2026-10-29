@@ -1,0 +1,33 @@
+{
+  "release_id": "rag-catalog-v3-rc4.4",
+  "status": "passed",
+  "unit_tests": {
+    "count": 139,
+    "returncode": 0,
+    "log": "dev/optimization-v54/unittest.log"
+  },
+  "compileall_returncode": 0,
+  "diff_check_returncode": 0,
+  "candidate_gate": {
+    "passed": 10,
+    "count": 10,
+    "sha256": "c1e852c9a95b4805a95046e886a8c4fd1c839019d68c89d2dd7062c9921e5a58"
+  },
+  "post_promotion_smoke": {
+    "status": "passed",
+    "promoted_count": 10,
+    "bm25_passed": 10,
+    "dense_passed": 10,
+    "sha256": "1d9b5cfc85e26a8b7f498433452b33f575644ff291b283dd8d521f15d943f309"
+  },
+  "new_generation_calls": 0,
+  "default_configuration_changed": false,
+  "online_configuration_changed": false,
+  "asset_sha256": {
+    "knowledge/research-v3.json": "823fe77f0acedc0f6a52b2a9bdc56113dd831a9444de77fc39eebc8555498e20",
+    "knowledge/catalog-v3.json": "a5a6217e0a3e61dfc5d10d53a9cb8b542c0273ee2f587286e4c11b19220d8907",
+    "knowledge/research-v3-lock.json": "b360c8646c8699428f917005b89efe39af947633692bc10b527fc6a6970ddfd2",
+    "knowledge/research-v3-vectors.json": "b36553566fdeec3b2758bc438455ed166acbfe6c9d1a722be4e92f71ad90fbb2",
+    "knowledge/research-v3-vectors-lock.json": "b4aebef0805c0f043e81feeed8ec6eb23ae773c7653da4a1460d1e5956959b1b"
+  }
+}

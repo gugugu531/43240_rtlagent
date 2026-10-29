@@ -1,0 +1,213 @@
+{
+  "actual_generation_calls": 16,
+  "boundary": "Four new candidate screens, including one feedback-only card. Mixed historical replay and one width variant do not establish unseen-family generalization. Packer cases use actual first-generation dense retrieval, admission and assembly.",
+  "cards": [
+    {
+      "card_delivered": true,
+      "card_failure_kind": null,
+      "card_id": "v9-lang-comparison-result-sign",
+      "card_success": true,
+      "card_tokens": 1802,
+      "case_id": "b45-comparison",
+      "control_delivered": true,
+      "control_success": true,
+      "control_tokens": 1458,
+      "mode": "screen_first",
+      "outcome": "both_pass",
+      "token_change_fraction": 0.23593964334705086,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1"
+    },
+    {
+      "card_delivered": true,
+      "card_failure_kind": null,
+      "card_id": "v9-public-block-carry-chain",
+      "card_success": true,
+      "card_tokens": 2177,
+      "case_id": "b45-carry",
+      "control_delivered": true,
+      "control_success": true,
+      "control_tokens": 2994,
+      "mode": "screen_first",
+      "outcome": "both_pass",
+      "token_change_fraction": -0.272879091516366,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1"
+    },
+    {
+      "card_delivered": true,
+      "card_failure_kind": null,
+      "card_id": "v9-lang-mixed-sign-arithmetic",
+      "card_success": true,
+      "card_tokens": 6135,
+      "case_id": "b45-mixed-history",
+      "control_delivered": true,
+      "control_success": true,
+      "control_tokens": 5498,
+      "mode": "repair",
+      "outcome": "both_pass",
+      "token_change_fraction": 0.11586031284103315,
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1.v39.1.v45.1"
+    },
+    {
+      "card_delivered": true,
+      "card_failure_kind": null,
+      "card_id": "v9-lang-mixed-sign-arithmetic",
+      "card_success": true,
+      "card_tokens": 10407,
+      "case_id": "b45-mixed-context",
+      "control_delivered": true,
+      "control_success": true,
+      "control_tokens": 8486,
+      "mode": "repair",
+      "outcome": "both_pass",
+      "token_change_fraction": 0.22637284939901003,
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1.v39.1.v45.1"
+    },
+    {
+      "card_delivered": true,
+      "card_failure_kind": null,
+      "card_id": "v9-lang-same-process-nba-order",
+      "card_success": true,
+      "card_tokens": 3740,
+      "case_id": "b45-nba-order",
+      "control_delivered": true,
+      "control_success": true,
+      "control_tokens": 5082,
+      "mode": "repair",
+      "outcome": "both_pass",
+      "token_change_fraction": -0.2640692640692641,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1"
+    },
+    {
+      "card_delivered": true,
+      "card_failure_kind": null,
+      "card_id": "v9-public-batch-final-sample",
+      "card_success": true,
+      "card_tokens": 3004,
+      "case_id": "b45-batch",
+      "control_delivered": true,
+      "control_success": true,
+      "control_tokens": 4453,
+      "mode": "screen_first",
+      "outcome": "both_pass",
+      "token_change_fraction": -0.32539860768021556,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1"
+    },
+    {
+      "card_delivered": true,
+      "card_failure_kind": null,
+      "card_id": "v8-packer-temporal-order",
+      "card_success": true,
+      "card_tokens": 2592,
+      "case_id": "b45-packer-4",
+      "control_delivered": true,
+      "control_success": true,
+      "control_tokens": 2515,
+      "mode": "routed_first",
+      "outcome": "both_pass",
+      "token_change_fraction": 0.03061630218687883,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1.syntax1"
+    },
+    {
+      "card_delivered": true,
+      "card_failure_kind": null,
+      "card_id": "v8-packer-temporal-order",
+      "card_success": true,
+      "card_tokens": 3578,
+      "case_id": "b45-packer-5",
+      "control_delivered": true,
+      "control_success": true,
+      "control_tokens": 5296,
+      "mode": "routed_first",
+      "outcome": "both_pass",
+      "token_change_fraction": -0.32439577039274925,
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1.syntax1"
+    }
+  ],
+  "groups": {
+    "mixed_sign": {
+      "card": {
+        "attempts": 2,
+        "delivered": 2,
+        "execution_errors": 0,
+        "successes": 2,
+        "tokens_including_failures": 16542,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 266.21950187906623
+      },
+      "control": {
+        "attempts": 2,
+        "delivered": 2,
+        "execution_errors": 0,
+        "successes": 2,
+        "tokens_including_failures": 13984,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 232.5666800197214
+      }
+    },
+    "new_cards": {
+      "card": {
+        "attempts": 4,
+        "delivered": 4,
+        "execution_errors": 0,
+        "successes": 4,
+        "tokens_including_failures": 10723,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 136.3307587839663
+      },
+      "control": {
+        "attempts": 4,
+        "delivered": 4,
+        "execution_errors": 0,
+        "successes": 4,
+        "tokens_including_failures": 13987,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 220.77660366892815
+      }
+    },
+    "routed_packer": {
+      "card": {
+        "attempts": 2,
+        "delivered": 2,
+        "execution_errors": 0,
+        "successes": 2,
+        "tokens_including_failures": 6170,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 86.21126912347972
+      },
+      "control": {
+        "attempts": 2,
+        "delivered": 2,
+        "execution_errors": 0,
+        "successes": 2,
+        "tokens_including_failures": 7811,
+        "unknown_usage": 0,
+        "wall_s_including_failures": 129.1494054812938
+      }
+    }
+  },
+  "implemented_specification_methods": 15,
+  "prior_r1_generation_calls": 0,
+  "query_evaluation": {
+    "count": 120,
+    "decision_passed": 120,
+    "generation_calls": 0,
+    "metrics": {
+      "bm25": {
+        "negative_queries_with_any_admission": 0,
+        "positive_target_recall5": 0.9361702127659575,
+        "service_failures": 0
+      },
+      "dense": {
+        "negative_queries_with_any_admission": 0,
+        "positive_target_recall5": 1.0,
+        "service_failures": 0
+      }
+    },
+    "negative_count": 73,
+    "positive_count": 47,
+    "release_id": "rag-catalog-v3-rc4",
+    "status": "completed"
+  },
+  "source_release": "rag-catalog-v3-rc4",
+  "status": "completed_and_audited"
+}

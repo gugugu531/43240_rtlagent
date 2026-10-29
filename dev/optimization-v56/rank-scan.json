@@ -1,0 +1,264 @@
+{
+  "release_id": "rag-catalog-v3-rc4.5",
+  "count": 43,
+  "rows": [
+    {
+      "card_id": "v8-bcd-decimal-carry",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v8-pipeline-operand-cohort",
+      "bm25_rank": null,
+      "dense_rank": null,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-arithmetic-right-sign",
+      "bm25_rank": 2,
+      "dense_rank": null,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-based-literal-sign",
+      "bm25_rank": 3,
+      "dense_rank": null,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-comb-read-before-write",
+      "bm25_rank": null,
+      "dense_rank": 3,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-concat-signedness",
+      "bm25_rank": null,
+      "dense_rank": null,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-const-not-parameter",
+      "bm25_rank": 3,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-division-rounding",
+      "bm25_rank": 1,
+      "dense_rank": 2,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-empty-star-events",
+      "bm25_rank": 1,
+      "dense_rank": 2,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-lhs-not-sign-coercion",
+      "bm25_rank": 4,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-mixed-sign-arithmetic",
+      "bm25_rank": null,
+      "dense_rank": 2,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-overlapping-case-order",
+      "bm25_rank": null,
+      "dense_rank": null,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-remainder-sign",
+      "bm25_rank": 2,
+      "dense_rank": 2,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-same-process-nba-order",
+      "bm25_rank": null,
+      "dense_rank": null,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-sign-conversion-width",
+      "bm25_rank": null,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-size-cast-sign",
+      "bm25_rank": null,
+      "dense_rank": null,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-lang-slice-signedness",
+      "bm25_rank": null,
+      "dense_rank": 2,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-bounded-modulus",
+      "bm25_rank": null,
+      "dense_rank": 3,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-convolution-memory-depth",
+      "bm25_rank": 4,
+      "dense_rank": null,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-division-equality-boundary",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-fp-exponent-bias",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-fp-normal-hidden-bit",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-fp-round-renormalize",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-fp-sticky-rounding",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-fractional-period-duty",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-gshare-training-context",
+      "bm25_rank": 2,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-hdlc-run-classification",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-iterative-product-restart",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-johnson-orbit",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-mixed-radix-time-rollover",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-odd-divider-duty-limit",
+      "bm25_rank": 3,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-progression-first-term",
+      "bm25_rank": null,
+      "dense_rank": null,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-ring-onehot-invariant",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-saturation-not-wrap",
+      "bm25_rank": null,
+      "dense_rank": 2,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-sequence-prefix-fallback",
+      "bm25_rank": 3,
+      "dense_rank": 5,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-serial-error-rearm",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-serial-sampling-vs-latch",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-signed-subtract-overflow",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-speculation-rollback-priority",
+      "bm25_rank": 2,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-toggle-divider-period",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-unsigned-borrow-not-sign",
+      "bm25_rank": 1,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-public-weighted-partial-products",
+      "bm25_rank": null,
+      "dense_rank": 1,
+      "dense_error": null
+    },
+    {
+      "card_id": "v9-tool-synthesis-excluded-functional-code",
+      "bm25_rank": 1,
+      "dense_rank": 4,
+      "dense_error": null
+    }
+  ]
+}

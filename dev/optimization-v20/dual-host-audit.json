@@ -1,0 +1,461 @@
+{
+  "interpretation_boundary": "Thinking is attribution evidence only. Outcomes use actual requests, delivered drafts, paired checkers, usage, synthesis netlists, and simulation logs.",
+  "invalid_runs_excluded": {
+    "unsupported_uram_cards": 4,
+    "v20_mechanical_v1": "Immutable fixture/tool-part failures retained separately; not counted as card failures or passes."
+  },
+  "mechanical": [
+    {
+      "cards": [
+        {
+          "candidate_id": "v8-ram-port-write-mode",
+          "family": "memory/port-write-mode",
+          "fixture_kind": "repaired_v19_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-dsp-pipeline-utilization",
+          "family": "dsp-inference",
+          "fixture_kind": "repaired_v19_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-dsp-symmetric-preadder",
+          "family": "dsp-inference",
+          "fixture_kind": "repaired_v19_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-lang-delay-not-hardware",
+          "family": "tool-language/synthesis",
+          "fixture_kind": "first_mechanical_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-ram-output-fanout",
+          "family": "memory-inference",
+          "fixture_kind": "first_mechanical_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-ram-address-feedback",
+          "family": "memory-inference",
+          "fixture_kind": "first_mechanical_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-bram-byte-column-shape",
+          "family": "memory-inference",
+          "fixture_kind": "first_mechanical_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-sdp-collision-bypass",
+          "family": "memory-inference",
+          "fixture_kind": "first_mechanical_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-ram-initialization-not-runtime-reset",
+          "family": "memory-inference",
+          "fixture_kind": "first_mechanical_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-lang-case-equality-synthesis",
+          "family": "tool-language/synthesis",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        }
+      ],
+      "counts": {
+        "cards": 10,
+        "model_calls": 0,
+        "needs_revision": 0,
+        "passed": 10,
+        "variants": 30
+      },
+      "host": "31778"
+    },
+    {
+      "cards": [
+        {
+          "candidate_id": "v9-tool-srl-output-register",
+          "family": "shift-register-inference",
+          "fixture_kind": "repaired_v19_fixture",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-ram-output-async-reset",
+          "family": "memory-inference",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-ram-array-runtime-reset",
+          "family": "memory-inference",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-srl-reset-emulation",
+          "family": "shift-register-inference",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-register-reset-ce-priority",
+          "family": "control-set-inference",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-synthesis-excluded-functional-code",
+          "family": "simulation-synthesis-consistency",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-dsp-adder-mapping-default",
+          "family": "dsp-inference",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-dsp-attribute-scope-priority",
+          "family": "dsp-inference",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-srl-dynamic-tap",
+          "family": "shift-register-inference",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        },
+        {
+          "candidate_id": "v9-tool-srl-extraction-precedence",
+          "family": "shift-register-inference",
+          "fixture_kind": "independent_fixture_confirmation",
+          "part": "xczu3eg-sbva484-1-e",
+          "status": "passed"
+        }
+      ],
+      "counts": {
+        "cards": 10,
+        "model_calls": 0,
+        "needs_revision": 0,
+        "passed": 10,
+        "variants": 30
+      },
+      "host": "33376"
+    }
+  ],
+  "model": [
+    {
+      "by_arm": {
+        "control": {
+          "attempts": 6,
+          "delivered": 4,
+          "successes": 4,
+          "tokens": 45847,
+          "wall_s": 936.3934434950352
+        },
+        "knowledge": {
+          "attempts": 6,
+          "delivered": 5,
+          "successes": 5,
+          "tokens": 45905,
+          "wall_s": 906.8939986173064
+        }
+      },
+      "host": "31778",
+      "integrity": {
+        "admission_scenarios": 20,
+        "attempts": 12,
+        "environment_failures": 0,
+        "pairs": 6,
+        "thinking_verified": 12
+      },
+      "pairs": [
+        {
+          "delivered": [
+            true,
+            false
+          ],
+          "disposition": "regression_revise_or_reject",
+          "experiment_kind": "first_positive_pair",
+          "pair_id": "v8-pipeline-operand-cohort",
+          "success": [
+            true,
+            false
+          ],
+          "token_change_fraction": 4.0931223371880705,
+          "tokens": [
+            3286,
+            16736
+          ]
+        },
+        {
+          "delivered": [
+            false,
+            true
+          ],
+          "disposition": "rescue_requires_independent_confirmation",
+          "experiment_kind": "first_positive_pair",
+          "pair_id": "v8-lfsr-feedback-seed",
+          "success": [
+            false,
+            true
+          ],
+          "token_change_fraction": -0.294925876822948,
+          "tokens": [
+            16594,
+            11700
+          ]
+        },
+        {
+          "delivered": [
+            false,
+            true
+          ],
+          "disposition": "rescue_requires_independent_confirmation",
+          "experiment_kind": "first_positive_pair",
+          "pair_id": "v8-packer-valid-count",
+          "success": [
+            false,
+            true
+          ],
+          "token_change_fraction": -0.6371872562548748,
+          "tokens": [
+            16667,
+            6047
+          ]
+        },
+        {
+          "delivered": [
+            true,
+            true
+          ],
+          "disposition": "independent_efficiency_confirmation_no_accuracy_gain",
+          "experiment_kind": "independent_context_confirmation",
+          "pair_id": "v8-pipeline-valid-alignment",
+          "success": [
+            true,
+            true
+          ],
+          "token_change_fraction": -0.23952236010302042,
+          "tokens": [
+            4271,
+            3248
+          ]
+        },
+        {
+          "delivered": [
+            true,
+            true
+          ],
+          "disposition": "cost_regression_no_accuracy_loss",
+          "experiment_kind": "independent_context_confirmation",
+          "pair_id": "v8-result-backpressure-retention",
+          "success": [
+            true,
+            true
+          ],
+          "token_change_fraction": 0.9039519759879939,
+          "tokens": [
+            1999,
+            3806
+          ]
+        },
+        {
+          "delivered": [
+            true,
+            true
+          ],
+          "disposition": "cost_regression_no_accuracy_loss",
+          "experiment_kind": "independent_context_confirmation",
+          "pair_id": "v8-stack-boundary-guards",
+          "success": [
+            true,
+            true
+          ],
+          "token_change_fraction": 0.44158415841584153,
+          "tokens": [
+            3030,
+            4368
+          ]
+        }
+      ]
+    },
+    {
+      "by_arm": {
+        "control": {
+          "attempts": 6,
+          "delivered": 5,
+          "successes": 5,
+          "tokens": 37992,
+          "wall_s": 774.4106328822672
+        },
+        "knowledge": {
+          "attempts": 6,
+          "delivered": 6,
+          "successes": 6,
+          "tokens": 28412,
+          "wall_s": 538.8835531845689
+        }
+      },
+      "host": "33376",
+      "integrity": {
+        "admission_scenarios": 20,
+        "attempts": 12,
+        "environment_failures": 0,
+        "pairs": 6,
+        "thinking_verified": 12
+      },
+      "pairs": [
+        {
+          "delivered": [
+            false,
+            true
+          ],
+          "disposition": "rescue_requires_independent_confirmation",
+          "experiment_kind": "first_positive_pair",
+          "pair_id": "v9-public-carry-lookahead-composition",
+          "success": [
+            false,
+            true
+          ],
+          "token_change_fraction": -0.8538145823273781,
+          "tokens": [
+            16568,
+            2422
+          ]
+        },
+        {
+          "delivered": [
+            true,
+            true
+          ],
+          "disposition": "cost_regression_no_accuracy_loss",
+          "experiment_kind": "first_positive_pair",
+          "pair_id": "v9-public-batch-final-sample",
+          "success": [
+            true,
+            true
+          ],
+          "token_change_fraction": 1.5134843581445523,
+          "tokens": [
+            1854,
+            4660
+          ]
+        },
+        {
+          "delivered": [
+            true,
+            true
+          ],
+          "disposition": "cost_regression_no_accuracy_loss",
+          "experiment_kind": "first_positive_pair",
+          "pair_id": "v9-public-ring-onehot-invariant",
+          "success": [
+            true,
+            true
+          ],
+          "token_change_fraction": 0.20007923930269422,
+          "tokens": [
+            2524,
+            3029
+          ]
+        },
+        {
+          "delivered": [
+            true,
+            true
+          ],
+          "disposition": "independent_efficiency_confirmation_no_accuracy_gain",
+          "experiment_kind": "independent_context_confirmation",
+          "pair_id": "v9-public-serial-error-rearm",
+          "success": [
+            true,
+            true
+          ],
+          "token_change_fraction": -0.5057303604917691,
+          "tokens": [
+            14397,
+            7116
+          ]
+        },
+        {
+          "delivered": [
+            true,
+            true
+          ],
+          "disposition": "cost_regression_no_accuracy_loss",
+          "experiment_kind": "independent_context_confirmation",
+          "pair_id": "v9-lang-size-cast-sign",
+          "success": [
+            true,
+            true
+          ],
+          "token_change_fraction": 7.207579672695951,
+          "tokens": [
+            1161,
+            9529
+          ]
+        },
+        {
+          "delivered": [
+            true,
+            true
+          ],
+          "disposition": "no_clear_benefit",
+          "experiment_kind": "independent_context_confirmation",
+          "pair_id": "v9-public-toggle-divider-period",
+          "success": [
+            true,
+            true
+          ],
+          "token_change_fraction": 0.11290322580645151,
+          "tokens": [
+            1488,
+            1656
+          ]
+        }
+      ]
+    }
+  ],
+  "production_promotion": false,
+  "runtime_enabled": false,
+  "schema_version": 1,
+  "status": "complete_v20_dual_host_audit",
+  "totals": {
+    "admission_scenarios": 40,
+    "environment_failures": 0,
+    "mechanical_cards": 20,
+    "mechanical_passed": 20,
+    "mechanical_variants": 60,
+    "model_attempts": 24,
+    "model_pairs": 12,
+    "thinking_verified": 24
+  }
+}

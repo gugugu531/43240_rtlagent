@@ -1,0 +1,3506 @@
+{
+  "created_utc": "2026-10-29T03:29:16.025583+00:00",
+  "release_id": "rag-catalog-v3-rc4.2",
+  "sources": {
+    "knowledge/research-v3.json": "73f9acc98d326b460c94c7bbd9cdd075d4a2278a9a4dbec132345a78e38c7a64",
+    "knowledge/research-v3-lock.json": "0a613700b681cca888d179f747ef71b7ece18c3fd5d972461de4fbb77b3bc364",
+    "knowledge/catalog-v3.json": "5ad41694180896d89b56a9e5f13577c38e5f064ce84cac6a1e008f5569ccdee6",
+    "agent/knowledge/pregen.py": "f96992f0bc39cafed24aadb3c7e000b13a7b2f592c51e1191f25680a50e2a960",
+    "agent/knowledge/spec_methods.py": "e205e6fe0e524267e9637283713a33b3b24cf3dba3f8cedf2574576b7eac9a64",
+    "dev/optimization-v36/card-ledger.json": "a61cb2426e277dfa4120bc326820b32222074788806ae101ffd296c28abc56d4",
+    "dev/optimization-v35/previous-audit.json": "a599eea59c92423f7338d448662762e370eba73946ed5fbc1be5aa5039021438",
+    "dev/optimization-v38/campaign-audit-33376.json": "8e486b64fd9f74dd73ba67066247a4c42f2eba30800781771d7b6d9c4e745dc6",
+    "dev/optimization-v38/campaign-audit-33589.json": "3300b70cf7cde840c39b8907674672ae95fae2a891f0abc6003869e4c9167c18",
+    "dev/optimization-v43/summary.json": "7c0e6efd263ce777ec6092822ad515d451b214e0129e2ea80754b86fb047db7d",
+    "dev/optimization-v46/summary.json": "96c50b2a40904af58eb9bc7495266acbe5bc8ac21d6a66cb345d92c0a2e4e9aa",
+    "dev/optimization-v49/tasks.json": "434f30b701178af986b18d34513cab5c2c0bbea080d20b715f31875a49d84079"
+  },
+  "counts": {
+    "integration": 41,
+    "caution": 15,
+    "restricted": 5,
+    "predicate_cost": 8,
+    "tool": 26,
+    "priority": 2
+  },
+  "pregen_predicates": 15,
+  "assessment_is_not_publication": true,
+  "no_new_model_calls": true,
+  "cards": [
+    {
+      "card_id": "v8-bcd-decimal-carry",
+      "title": "Decimal carry must use the full digit sum",
+      "version": "0.3.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v8-bcd-decimal-carry",
+          "card_success": true,
+          "card_tokens": 4386,
+          "case_id": "v32-15",
+          "control_success": true,
+          "control_tokens": 6774,
+          "cost_ratio": 0.6474756421612046,
+          "host": 33589,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v8-lfsr-feedback-seed",
+      "title": "Feedback polarity determines absorbing seed states",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 11880,
+          "control_tokens": 3112,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": "旧配对两侧通过，但卡片成本增加281.7%，分析曾质疑正确递推；先审查反馈极性/seed边界和重复事实。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-01",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v8-packer-temporal-order",
+      "title": "Arrival order is a separate packing contract",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1.syntax1",
+      "activation_state": "restricted",
+      "assessment_group": "restricted",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 4524,
+          "control_tokens": 6034,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1.syntax1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2968,
+          "control_tokens": 4034,
+          "matches_current_version": true,
+          "mode": "fixed_first_screen"
+        },
+        {
+          "source": "dev/optimization-v46/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1.syntax1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2592,
+          "control_tokens": 2515,
+          "matches_current_version": true,
+          "mode": "routed_first"
+        },
+        {
+          "source": "dev/optimization-v46/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1.syntax1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3578,
+          "control_tokens": 5296,
+          "matches_current_version": true,
+          "mode": "routed_first"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v8-packer-valid-count",
+      "title": "Pack accepted items rather than adjacent clock cycles",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 13916,
+          "control_tokens": 9362,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": "旧配对两侧通过，成本增加48.6%；先区分接受事件与周期计数的信息增量，并检查气泡、复位和完成沿。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-02",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v8-pipeline-operand-cohort",
+      "title": "Partial arithmetic must use one transaction's operands",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 4163,
+          "control_tokens": 3255,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": "旧配对代码相同，成本增加27.9%；需绑定实际事务、流水级及同批操作数，单独的流水主题不足以准入。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-03",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v8-pipeline-valid-alignment",
+      "title": "Valid tracks the same accepted transaction as result",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3306,
+          "control_tokens": 3110,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-04",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v8-ram-port-write-mode",
+      "title": "RAM read-during-write is mode-dependent",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.1.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3166,
+          "control_tokens": 3580,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-05",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v8-result-backpressure-retention",
+      "title": "Unconsumed result is not a completed transfer",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 4138,
+          "control_tokens": 3267,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": "旧配对两侧通过，成本增加26.7%；需绑定ready/valid、接受沿和保持合同，检查背压与新结果同时出现的边界。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-06",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v8-serializer-snapshot",
+      "title": "Serial bits belong to one accepted word",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 9735,
+          "control_tokens": 10810,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-07",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v8-stack-boundary-guards",
+      "title": "Illegal stack operations do not move occupancy",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 9156,
+          "control_tokens": 14574,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-08",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-arithmetic-right-sign",
+      "title": "Arithmetic shift depends on sign",
+      "version": "0.3.0-pregen.v25.1.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "predicate_cost",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch06-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "not_needed",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": "b49-09",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-based-literal-sign",
+      "title": "Based literal sign marker",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch06-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-lang-based-literal-sign",
+          "card_success": true,
+          "card_tokens": 4875,
+          "case_id": "v32-06",
+          "control_success": true,
+          "control_tokens": 3532,
+          "cost_ratio": 1.380237825594564,
+          "host": 33376,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": "历史样例有边界常数改错风险；v32虽两侧通过，卡片成本仍增加38.0%；需复核数值边界与signed位模式。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-boolean-versus-bitwise",
+      "title": "Boolean reduction differs from bitwise masking",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+      "activation_state": "shadow",
+      "assessment_group": "predicate_cost",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch06-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 1295,
+          "control_tokens": 1106,
+          "matches_current_version": true,
+          "mode": "fixed_first_screen"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-case-equality-synthesis",
+      "title": "Case equality is not an X detector in hardware",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-comb-read-before-write",
+      "title": "Combinational source order matters",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-comparison-result-sign",
+      "title": "Comparison result is unsigned",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+      "activation_state": "shadow",
+      "assessment_group": "predicate_cost",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-lang-comparison-result-sign",
+          "card_success": true,
+          "card_tokens": 3757,
+          "case_id": "v32-01",
+          "control_success": true,
+          "control_tokens": 5165,
+          "cost_ratio": 0.7273959341723136,
+          "host": 33589,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        },
+        {
+          "source": "dev/optimization-v46/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 1802,
+          "control_tokens": 1458,
+          "matches_current_version": true,
+          "mode": "screen_first"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-concat-signedness",
+      "title": "Concatenation drops signedness",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-lang-concat-signedness",
+          "card_success": true,
+          "card_tokens": 3490,
+          "case_id": "v32-02",
+          "control_success": true,
+          "control_tokens": 4347,
+          "cost_ratio": 0.8028525419829767,
+          "host": 33376,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-conditional-x-merge",
+      "title": "Conditional unknown merges bits",
+      "version": "0.3.0-pregen.v25.1.v26.1.draft-v33.1.night35-screen.1",
+      "activation_state": "restricted",
+      "assessment_group": "restricted",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/supplemental-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.3.0-pregen.v25.1.v26.1.draft-v33.1.night35-screen.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 11591,
+          "control_tokens": 9493,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-const-not-parameter",
+      "title": "Const is not an elaboration parameter",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch06-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3101,
+          "control_tokens": 3271,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-10",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-context-before-operation",
+      "title": "Context propagates before evaluation",
+      "version": "0.3.0-pregen.v25.1.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "predicate_cost",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/supplemental-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.3.0-pregen.v25.1.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3133,
+          "control_tokens": 2940,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": "b49-11",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-delay-not-hardware",
+      "title": "Procedural delay is not a hardware timer",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-division-rounding",
+      "title": "Signed division truncates",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v22/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 8781,
+          "control_tokens": 13082,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-empty-star-events",
+      "title": "Empty implicit event set",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.v37.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.1.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_fail",
+          "card_success": false,
+          "control_success": false,
+          "card_tokens": 18337,
+          "control_tokens": 18156,
+          "matches_current_render": false
+        },
+        {
+          "additional_generation_calls": 0,
+          "card_success": true,
+          "case_id": "s37-empty",
+          "observed_card_sha256": "afbb4339772b8e387d57ec6098fbe63c035cfdf2406bdbb9ea6de19240bf631a",
+          "observed_rendered_sha256": "2a4476afcee0a350e6d205ecebaac52bd1bb6899dbb67c35b563d67b01d1275c",
+          "observed_version": "0.1.0-candidate.1.asset-v25.v26.1.v37.1",
+          "only_explicit_systemverilog_contract_was_tested": true,
+          "path": "dev/optimization-v38/campaign-audit-33376.json",
+          "production_admission_implemented": false,
+          "sha256": "8e486b64fd9f74dd73ba67066247a4c42f2eba30800781771d7b6d9c4e745dc6"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-indexed-select-constant-width",
+      "title": "Indexed selection separates base and width",
+      "version": "0.3.0-pregen.v25.1.v26.1",
+      "activation_state": "restricted",
+      "assessment_group": "restricted",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/supplemental-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "not_needed",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-lhs-not-sign-coercion",
+      "title": "Destination sign is insufficient",
+      "version": "0.3.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-lang-lhs-not-sign-coercion",
+          "card_success": true,
+          "card_tokens": 3294,
+          "case_id": "v32-03",
+          "control_success": false,
+          "control_tokens": 4963,
+          "cost_ratio": 0.6637114648398146,
+          "host": 33589,
+          "new_compile_error": false,
+          "outcome": "rescue",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-mixed-sign-arithmetic",
+      "title": "Unsigned arithmetic operand changes interpretation",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1.v39.1.v45.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v22/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3754,
+          "control_tokens": 6221,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1.v39.1",
+          "outcome": "regression",
+          "card_success": false,
+          "control_success": true,
+          "card_tokens": 4862,
+          "control_tokens": 5498,
+          "matches_current_version": false,
+          "mode": "fixed_first_screen"
+        },
+        {
+          "source": "dev/optimization-v46/summary.json",
+          "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1.v39.1.v45.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 6135,
+          "control_tokens": 5498,
+          "matches_current_version": true,
+          "mode": "repair"
+        },
+        {
+          "source": "dev/optimization-v46/summary.json",
+          "version": "0.1.0-candidate.1.asset-v25.v26.1.night35.1.v39.1.v45.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 10407,
+          "control_tokens": 8486,
+          "matches_current_version": true,
+          "mode": "repair"
+        }
+      ],
+      "specific_review": "最新正文两组均通过，旧语法/零扩展退步已修订；但最新两组成本分别增加11.6%和22.6%，落实方式仍不稳定。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-nba-rhs-sampling",
+      "title": "Nonblocking assignment samples at execution",
+      "version": "0.3.0-pregen.v25.1.v26.1",
+      "activation_state": "restricted",
+      "assessment_group": "restricted",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/supplemental-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "not_needed",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-overlapping-case-order",
+      "title": "Overlapping case order matters",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.1.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2794,
+          "control_tokens": 2986,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-12",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-remainder-sign",
+      "title": "Remainder follows dividend",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v22/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-lang-remainder-sign",
+          "card_success": true,
+          "card_tokens": 7623,
+          "case_id": "v32-09",
+          "control_success": true,
+          "control_tokens": 9859,
+          "cost_ratio": 0.773202150319505,
+          "host": 33589,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-same-process-nba-order",
+      "title": "Same-process overlapping NBA priority",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2871,
+          "control_tokens": 5656,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v46/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3740,
+          "control_tokens": 5082,
+          "matches_current_version": true,
+          "mode": "repair"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-sign-conversion-width",
+      "title": "Sign conversion preserves width",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch06-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-lang-sign-conversion-width",
+          "card_success": true,
+          "card_tokens": 4848,
+          "case_id": "v32-05",
+          "control_success": true,
+          "control_tokens": 7441,
+          "cost_ratio": 0.6515253326165837,
+          "host": 33589,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-size-cast-sign",
+      "title": "Size cast preserves sign",
+      "version": "0.3.0-candidate.1.asset-v25.v26.1.night35.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.3.0-candidate.1.asset-v25.v26.1.night35.1",
+          "outcome": "rescue",
+          "card_success": true,
+          "control_success": false,
+          "card_tokens": 5894,
+          "control_tokens": 7690,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-slice-signedness",
+      "title": "Selection drops signedness",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1.screen-v32.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v22/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-lang-slice-signedness",
+          "card_success": true,
+          "card_tokens": 5254,
+          "case_id": "v32-00",
+          "control_success": true,
+          "control_tokens": 3163,
+          "cost_ratio": 1.6610812519759721,
+          "host": 33376,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": true,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": "保留历史配对成本增加66.1%；需绑定实际切片、signed来源和目标表达式，并回接开发结构谓词。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-lang-unsigned-negative-check",
+      "title": "Unsigned negativity check is constant",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+      "activation_state": "shadow",
+      "assessment_group": "predicate_cost",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-lang-unsigned-negative-check",
+          "card_success": true,
+          "card_tokens": 2620,
+          "case_id": "v32-10",
+          "control_success": true,
+          "control_tokens": 3042,
+          "cost_ratio": 0.8612754766600921,
+          "host": 33376,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        },
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 1327,
+          "control_tokens": 1132,
+          "matches_current_version": true,
+          "mode": "fixed_first_screen"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-am-pm-phase",
+      "title": "AM/PM transition is not the hour wrap transition",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3633,
+          "control_tokens": 3158,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-13",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-batch-final-sample",
+      "title": "A completed batch includes its final accepted sample",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+      "activation_state": "shadow",
+      "assessment_group": "priority",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 5756,
+          "control_tokens": 6462,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v46/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3004,
+          "control_tokens": 4453,
+          "matches_current_version": true,
+          "mode": "screen_first"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-block-carry-chain",
+      "title": "Carry across arithmetic blocks",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+      "activation_state": "shadow",
+      "assessment_group": "priority",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-public-block-carry-chain",
+          "card_success": true,
+          "card_tokens": 3646,
+          "case_id": "v32-14",
+          "control_success": true,
+          "control_tokens": 4435,
+          "cost_ratio": 0.8220969560315671,
+          "host": 33376,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        },
+        {
+          "source": "dev/optimization-v46/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v45.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2177,
+          "control_tokens": 2994,
+          "matches_current_version": true,
+          "mode": "screen_first"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-bounded-modulus",
+      "title": "Storage width does not define the requested modulus",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+      "activation_state": "shadow",
+      "assessment_group": "predicate_cost",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/supplemental-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3665,
+          "control_tokens": 2413,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 1715,
+          "control_tokens": 1793,
+          "matches_current_version": true,
+          "mode": "fixed_first_screen"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-carry-lookahead-composition",
+      "title": "Compose carry generate and propagate over ordered groups",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2738,
+          "control_tokens": 2668,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-14",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-cellular-snapshot-update",
+      "title": "All cells use one previous generation",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3618,
+          "control_tokens": 4429,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-15",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-convolution-memory-depth",
+      "title": "Constraint length includes the current input",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 9276,
+          "control_tokens": 8413,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-16",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-division-equality-boundary",
+      "title": "Restoring division includes equality in subtraction",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch06-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-public-division-equality-boundary",
+          "card_success": true,
+          "card_tokens": 2599,
+          "case_id": "v32-16",
+          "control_success": true,
+          "control_tokens": 3306,
+          "cost_ratio": 0.7861464004839686,
+          "host": 33376,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-division-remainder-invariant",
+      "title": "Unsigned quotient and remainder satisfy one identity",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 4904,
+          "control_tokens": 7840,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-17",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-fp-exponent-bias",
+      "title": "Multiplication removes one exponent bias",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-public-fp-exponent-bias",
+          "card_success": true,
+          "card_tokens": 4741,
+          "case_id": "v32-17",
+          "control_success": true,
+          "control_tokens": 5304,
+          "cost_ratio": 0.8938536953242836,
+          "host": 33589,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": "现有窄夹具通过，不覆盖完整浮点；先限定格式、正规/非正规数和特殊值适用域，再设计需求谓词。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-fp-normal-hidden-bit",
+      "title": "Implicit significand bit depends on operand class",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-public-fp-normal-hidden-bit",
+          "card_success": true,
+          "card_tokens": 2726,
+          "case_id": "v32-18",
+          "control_success": true,
+          "control_tokens": 2421,
+          "cost_ratio": 1.1259809995869476,
+          "host": 33376,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": "现有窄夹具通过；需明确正规数前提、指数为零和特殊值，不能把隐含1应用到所有编码。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-fp-round-renormalize",
+      "title": "Rounding can require a second normalization",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 4280,
+          "control_tokens": 4045,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": "现有窄夹具通过；需限定舍入模式并覆盖舍入进位、指数溢出与特殊值边界。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-fp-sticky-rounding",
+      "title": "Discarded low bits participate in rounding",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-public-fp-sticky-rounding",
+          "card_success": true,
+          "card_tokens": 3147,
+          "case_id": "v32-19",
+          "control_success": true,
+          "control_tokens": 2816,
+          "cost_ratio": 1.1175426136363635,
+          "host": 33589,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": "现有窄夹具通过；需限定舍入合同、guard/round/sticky位置及tie场景，不能泛化成完整浮点正确性。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-fractional-period-duty",
+      "title": "Fractional ratio does not uniquely determine duty cycle",
+      "version": "0.3.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.3.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 6786,
+          "control_tokens": 9361,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-framing-search-phase",
+      "title": "Start markers are interpreted only while searching",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 5226,
+          "control_tokens": 4922,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-18",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-grid-row-column-wrap",
+      "title": "Toroidal neighborhoods wrap each coordinate separately",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "regression",
+          "card_success": false,
+          "control_success": true,
+          "card_tokens": 18488,
+          "control_tokens": 5491,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 6473,
+          "control_tokens": 10354,
+          "matches_current_version": true,
+          "mode": "fixed_first_screen"
+        }
+      ],
+      "specific_review": "修订后配对通过，早期存在未交付；需独立网格合同与索引位宽边界确认，限制为可证明的局部邻居修改。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-gshare-training-context",
+      "title": "Training indexes the original prediction context",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "rescue",
+          "card_success": true,
+          "control_success": false,
+          "card_tokens": 13303,
+          "control_tokens": 18393,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": "曾有一次救援，但已审计记录指出模型样例只有一个公开断言；先补预测/训练跨周期、别名及更新时刻覆盖。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-hdlc-run-classification",
+      "title": "Stuffed data and framing runs have distinct meanings",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3120,
+          "control_tokens": 3158,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-instruction-bank-isolation",
+      "title": "A selected write preserves unrelated banks",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 4281,
+          "control_tokens": 4481,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-19",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-iterative-product-restart",
+      "title": "A new multiply does not inherit the previous sum",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 8799,
+          "control_tokens": 9665,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-johnson-orbit",
+      "title": "A Johnson sequence is not a binary count",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3846,
+          "control_tokens": 6307,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-mixed-radix-time-rollover",
+      "title": "Cascaded time fields use their own moduli",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3539,
+          "control_tokens": 3305,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-odd-divider-duty-limit",
+      "title": "Odd periods cannot have equal integer half-periods",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 5746,
+          "control_tokens": 11604,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-pause-preserves-subtick",
+      "title": "Pause preserves fractional progress when specified",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3608,
+          "control_tokens": 3217,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": "b49-20",
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-progression-first-term",
+      "title": "The initial term is not an incremented term",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 10347,
+          "control_tokens": 11744,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-ring-onehot-invariant",
+      "title": "Rotation preserves the number of asserted state bits",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2470,
+          "control_tokens": 2746,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-sampled-edge-history",
+      "title": "An edge requires previous and current samples",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+      "activation_state": "shadow",
+      "assessment_group": "predicate_cost",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3833,
+          "control_tokens": 3179,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 1869,
+          "control_tokens": 1566,
+          "matches_current_version": true,
+          "mode": "fixed_first_screen"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-saturation-not-wrap",
+      "title": "Saturating boundaries hold rather than wrap",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+      "activation_state": "shadow",
+      "assessment_group": "predicate_cost",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/supplemental-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 4117,
+          "control_tokens": 6637,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v42.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2142,
+          "control_tokens": 1695,
+          "matches_current_version": true,
+          "mode": "fixed_first_screen"
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-sequence-prefix-fallback",
+      "title": "Mismatch fallback may preserve a useful suffix",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 3590,
+          "control_tokens": 4702,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-serial-error-rearm",
+      "title": "A bad stop symbol requires an explicit recovery phase",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 14941,
+          "control_tokens": 18173,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-serial-sampling-vs-latch",
+      "title": "A latch event follows the last sampling edge",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch05-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "regression",
+          "card_success": false,
+          "control_success": true,
+          "card_tokens": 18579,
+          "control_tokens": 14134,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "outcome": "rescue",
+          "card_success": true,
+          "control_success": false,
+          "card_tokens": 5944,
+          "control_tokens": 18432,
+          "matches_current_version": true,
+          "mode": "fixed_first_screen"
+        }
+      ],
+      "specific_review": "修订后救援通过，历史存在未交付和长尾；需继续绑定最后采样沿、后一沿latch、气泡、连续帧及复位。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-signed-subtract-overflow",
+      "title": "Subtraction overflow depends on operand signs",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-public-signed-subtract-overflow",
+          "card_success": true,
+          "card_tokens": 7742,
+          "case_id": "v32-12",
+          "control_success": true,
+          "control_tokens": 11796,
+          "cost_ratio": 0.6563241776873516,
+          "host": 33376,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-speculation-rollback-priority",
+      "title": "Recovery discards younger speculative history",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch04-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2991,
+          "control_tokens": 2664,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-sticky-event-memory",
+      "title": "A captured event remains pending",
+      "version": "0.3.0-pregen.v25.1.v26.1",
+      "activation_state": "restricted",
+      "assessment_group": "restricted",
+      "pregen_predicate_in_runtime": true,
+      "pre_generation_phase_published": true,
+      "mechanical_evidence": [
+        "dev/optimization-v18/supplemental-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "not_needed",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-toggle-divider-period",
+      "title": "A toggle interval is half an output period",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch01-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 7229,
+          "control_tokens": 8036,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-triangle-endpoint-dwell",
+      "title": "Endpoint dwell is separate from count direction",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+      "activation_state": "shadow",
+      "assessment_group": "caution",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch03-shadow-freeze.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1",
+          "outcome": "regression",
+          "card_success": false,
+          "control_success": true,
+          "card_tokens": 18543,
+          "control_tokens": 10685,
+          "matches_current_render": false
+        },
+        {
+          "source": "dev/optimization-v43/summary.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.v37.1.v42.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 6250,
+          "control_tokens": 7197,
+          "matches_current_version": true,
+          "mode": "fixed_first_screen"
+        }
+      ],
+      "specific_review": "修订后两侧通过，历史存在相位反推和未交付；需独立端点驻留/复位相位合同，不能仅靠主题路由。",
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-unsigned-borrow-not-sign",
+      "title": "Unsigned borrow is not the truncated result sign",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "prior_pair_retained",
+      "observations": [
+        {
+          "source": "dev/optimization-v35/previous-audit.json",
+          "card_id": "v9-public-unsigned-borrow-not-sign",
+          "card_success": true,
+          "card_tokens": 2471,
+          "case_id": "v32-11",
+          "control_success": true,
+          "control_tokens": 3434,
+          "cost_ratio": 0.7195690157251019,
+          "host": 33589,
+          "new_compile_error": false,
+          "outcome": "both_passed",
+          "revision_priority": false,
+          "matches_current_render": null,
+          "identity_note": "Historical retained result; this inventory does not re-audit original transport or assume exact current-render identity."
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-public-weighted-partial-products",
+      "title": "Partial products preserve bit-position weights",
+      "version": "0.2.0-candidate.1.asset-v25.v26.1.night35.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v18/batch02-shadow-freeze.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.2.0-candidate.1.asset-v25.v26.1.night35.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 4327,
+          "control_tokens": 8119,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-bram-byte-column-shape",
+      "title": "Byte-enable inference depends on write-column shape",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-direct-enable-selection",
+      "title": "DIRECT_ENABLE can override data-path enable mapping",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-direct-reset-selection",
+      "title": "DIRECT_RESET can choose which reset uses the dedicated pin",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-dsp-adder-mapping-default",
+      "title": "An adder is not automatically mapped like a multiplier",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-dsp-attribute-scope-priority",
+      "title": "A signal-level DSP directive can override a broader directive",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-dsp-pipeline-utilization",
+      "title": "DSP pipeline stages require explicit latency agreement",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-dsp-register-control-compatibility",
+      "title": "DSP48 register controls restrict direct absorption",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-dsp-signed-capacity",
+      "title": "Unsigned operands can consume DSP sign capacity",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-dsp-symmetric-preadder",
+      "title": "Symmetric filters can use a DSP pre-adder",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-extract-reset-sync-only",
+      "title": "EXTRACT_RESET does not control asynchronous-reset mapping",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-fsm-safe-default-target",
+      "title": "A safe-state default target must exist in the RTL",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-fsm-safe-fault-model",
+      "title": "Safe-state modes cover particular encoding fault models",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-ram-address-feedback",
+      "title": "Address-register feedback can block RAM packing",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-ram-array-runtime-reset",
+      "title": "Whole-array runtime reset is not a block-RAM output reset",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-ram-initialization-not-runtime-reset",
+      "title": "Configuration contents and runtime clearing are different operations",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-ram-output-async-reset",
+      "title": "Asynchronous output reset can prevent BRAM register absorption",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-ram-output-fanout",
+      "title": "Additional fanout blocks the documented BRAM output packing",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-register-reset-ce-priority",
+      "title": "Reset-first coding matches dedicated register control priority",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-sdp-collision-bypass",
+      "title": "Registered-address SDP collision can need explicit bypass",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-srl-dynamic-tap",
+      "title": "Dynamic SRL addressing selects an existing stored tap",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-srl-extraction-precedence",
+      "title": "SRL extraction disabling outranks style and global threshold",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-srl-output-register",
+      "title": "A final slice register can improve SRL output timing",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-srl-reset-emulation",
+      "title": "SRL reset behavior may require surrounding logic",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-srl-style-static-only",
+      "title": "SRL_STYLE boundary-register choices are for static SRLs",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "mechanical_only",
+      "assessment_group": "tool",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v21/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "mechanical_only",
+      "observations": [],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability",
+        "bind_vivado_version_device_constraints_and_resource_report",
+        "define_mapping_or_synthesis_acceptance_checker_before_model_repair_scoring"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    },
+    {
+      "card_id": "v9-tool-synthesis-excluded-functional-code",
+      "title": "Synthesis exclusion pragmas can hide functional behavior",
+      "version": "0.1.0-candidate.1.asset-v25.v26.1",
+      "activation_state": "shadow",
+      "assessment_group": "integration",
+      "pregen_predicate_in_runtime": false,
+      "pre_generation_phase_published": false,
+      "mechanical_evidence": [
+        "dev/optimization-v19/dual-host-mechanical-audit.json",
+        "dev/optimization-v20/dual-host-audit.json"
+      ],
+      "night35_mechanical_passed": true,
+      "historical_ledger_status": "pair_completed",
+      "observations": [
+        {
+          "source": "dev/optimization-v36/card-ledger.json",
+          "version": "0.1.0-candidate.1.asset-v25.v26.1",
+          "outcome": "both_pass",
+          "card_success": true,
+          "control_success": true,
+          "card_tokens": 2244,
+          "control_tokens": 2331,
+          "matches_current_render": true
+        }
+      ],
+      "specific_review": null,
+      "remaining_steps": [
+        "implement_or_publish_bounded_stage_appropriate_predicate",
+        "prove_information_increment_and_redundancy_from_actual_public_evidence",
+        "test_known_fact_inapplicable_incomplete_conflicting_and_asset_failure_cases",
+        "test_retrieval_admission_budget_and_actual_first_request_with_bound_card_version",
+        "publish_pre_generation_phase_only_if_public_spec_alone_can_establish_applicability"
+      ],
+      "batch49_case": null,
+      "batch49_result_counted": false
+    }
+  ]
+}

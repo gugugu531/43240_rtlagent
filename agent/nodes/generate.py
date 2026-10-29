@@ -1,4 +1,4 @@
-"""Generation is one model call; retry decisions belong to the graph."""
+"""Single-call generation or explicit bounded thinking-on repair stages."""
 
 from typing import Literal
 
@@ -26,6 +26,7 @@ def generate(
     rag_mode: Literal['off', 'shadow', 'on'] | None = None,
     retrieval: dict = {},
     knowledge_max_tokens: int = 2048,
+    delivery_mode: Literal['single', 'thinking_staged'] = 'single',
 ) -> State:
     # Evidence belongs to one next-generation attempt, including when knowledge
     # is disabled or extraction later fails. Never reuse a previous check.
@@ -53,14 +54,28 @@ def generate(
             skill_mode=sm, rag_mode=rm, retrieval_options=retrieval,
             raw_feedback=state.get('feedback', ''),
         )
-        reply = ctx.llm.chat(
-            messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            timeout_s=timeout_s,
-            purpose="repair" if parent else "generate",
-        )
+        if delivery_mode == 'thinking_staged' and parent is not None:
+            from agent.llm.repair_delivery import complete
+            reply, delivery = complete(ctx, parent, state.get('feedback',''), messages,
+                max_tokens=max_tokens, timeout_s=timeout_s, temperature=temperature, top_p=top_p)
+            ctx.record.emit('delivery', 'result', **delivery)
+            if assembly is not None:
+                assembly = dict(assembly, messages_sha256=delivery['messages_sha256'])
+        elif delivery_mode in ('single', 'thinking_staged'):
+            original = ctx.llm.generation
+            try:
+                if delivery_mode == 'thinking_staged':
+                    from agent.llm.repair_delivery import thinking_generation
+                    ctx.llm.generation = thinking_generation(original)
+                reply = ctx.llm.chat(
+                    messages, temperature=temperature, max_tokens=max_tokens,
+                    top_p=top_p, timeout_s=timeout_s,
+                    purpose="repair" if parent else "generate",
+                )
+            finally:
+                ctx.llm.generation = original
+        else:
+            raise ValueError('unknown delivery mode')
     if assembly is not None:
         ctx.record.emit(
             "knowledge", "model_result", assembly_id=assembly["assembly_id"],

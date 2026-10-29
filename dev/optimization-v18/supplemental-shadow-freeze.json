@@ -1,0 +1,172 @@
+{
+  "cards": [
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-lang-conditional-x-merge",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "checker_sha256": "048788dd515b3db2e3a90c45e9676f2a28fc66def03dd6a93b50cf609a8b64d9",
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "model_pair_result": "positive_signal_optional_confirmation",
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "remaining_release_blocker": "Linked source content hash is missing; model benefit and runtime admission are unmeasured.",
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-lang-context-before-operation",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "checker_sha256": "61b307c4cff975de84b0d990c4a401733865d721fb5941dd05ea1a5f46f2edc0",
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "model_pair_result": "positive_signal_optional_confirmation",
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "remaining_release_blocker": "Linked source content hash is missing; model benefit and runtime admission are unmeasured.",
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-lang-indexed-select-constant-width",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "checker_sha256": "ee9e19124c13dd27ad51688d94ff64ab76220f4cd87734b28795bc69bc393321",
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "model_pair_result": "no_regression_no_clear_benefit",
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "remaining_release_blocker": "Linked source content hash is missing; model benefit and runtime admission are unmeasured.",
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-lang-nba-rhs-sampling",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "checker_sha256": "4d038c94d4bf12a1905a03173160f13ea39fca975ec3ab442ee79140c2d1b75f",
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "model_pair_result": "positive_signal_optional_confirmation",
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "remaining_release_blocker": "No completed matched-pair benefit evidence and no runtime admission validation.",
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-public-bounded-modulus",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "checker_sha256": "6755b28ac729b90facf2000625e509224e3a017650f3c72be217f505c6870942",
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "model_pair_result": "positive_signal_optional_confirmation",
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "remaining_release_blocker": "Model benefit, independent-context confirmation, and runtime admission are unmeasured.",
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-public-saturation-not-wrap",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "checker_sha256": "e5c9b54a6770b75ece3c2186943610e5883c7ac3bb410a0185bc87e9b7479c89",
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "model_pair_result": "positive_signal_optional_confirmation",
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "remaining_release_blocker": "Model benefit, independent-context confirmation, and runtime admission are unmeasured.",
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-public-sticky-event-memory",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "checker_sha256": "853c567937d9258f63952d0b3d2a48d9faebba30188b98fa85b44da1f64702ac",
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "model_pair_result": "no_regression_no_clear_benefit",
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "remaining_release_blocker": "Model benefit, independent-context confirmation, and runtime admission are unmeasured.",
+      "runtime_enabled": false
+    }
+  ],
+  "counts": {
+    "cards": 7,
+    "restricted_exact": 0,
+    "runtime_enabled": 0,
+    "shadow": 7
+  },
+  "inputs": {
+    "candidates_sha256": "fff2a63d29570d481b6d5d91f4484e5346a75b689133a8ae2100c59d1234ce02",
+    "readiness_sha256": "229c9870396d4f6de68967d3536e9b72e21ea0147902c4372a6e7258b04b480f",
+    "supplemental_audit_sha256": "08c82132e7130c99aebb14107cbb290555fa721e3f9e9b7211e25b76795b7642"
+  },
+  "schema_version": 1,
+  "scope": "Internal development shadow assets; retrieval/admission may be observed but model messages remain identical to off.",
+  "status": "seven_observation_only_shadow_cards_frozen"
+}

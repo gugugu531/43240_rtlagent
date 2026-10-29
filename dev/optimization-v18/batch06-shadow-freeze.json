@@ -1,0 +1,146 @@
+{
+  "cards": [
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-lang-arithmetic-right-sign",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_pair_required_before_restricted_exact": true,
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-lang-based-literal-sign",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_pair_required_before_restricted_exact": true,
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-lang-boolean-versus-bitwise",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_pair_required_before_restricted_exact": true,
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-lang-const-not-parameter",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_pair_required_before_restricted_exact": true,
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-lang-sign-conversion-width",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_pair_required_before_restricted_exact": true,
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    },
+    {
+      "asset_tier": "shadow",
+      "candidate_id": "v9-public-division-equality-boundary",
+      "card_version": "0.2.0-candidate.1",
+      "mechanical": {
+        "adjacent_error_detected": true,
+        "reference_passed": true,
+        "target_error_detected": true
+      },
+      "positive_pair_required_before_restricted_exact": true,
+      "positive_shadow_decision": "shadow_only",
+      "production_promotion": false,
+      "refusal_contract": {
+        "already_known": "not_needed",
+        "asset_or_service_error": "failure",
+        "inapplicable": "not_needed",
+        "insufficient_evidence": "unknown",
+        "shadow_messages_equal_off": true
+      },
+      "runtime_enabled": false
+    }
+  ],
+  "counts": {
+    "cards": 6,
+    "model_calls": 0,
+    "restricted_exact": 0,
+    "runtime_enabled": 0,
+    "shadow": 6
+  },
+  "inputs": {
+    "candidate_pool_sha256": "fff2a63d29570d481b6d5d91f4484e5346a75b689133a8ae2100c59d1234ce02",
+    "cards_sha256": "1c0ab3599e55f68f09e1c5e2564d286cc482e1da9df2dbb767b23c2694c1de61",
+    "mechanical_results_sha256": "193a8b55cfcf6d7d63419a4130bf45a6c3bf5a2d3a41936d2b7c46e8ed225c45",
+    "run_archive_sha256": "dfab8b95690d4a2205d41e52f63306172eb1fe6f5c9240a0625d81246035d31a"
+  },
+  "schema_version": 1,
+  "scope": "Mechanically validated batch-06 Vivado-supported cards; shadow never changes the model request.",
+  "status": "six_observation_only_shadow_cards_frozen"
+}

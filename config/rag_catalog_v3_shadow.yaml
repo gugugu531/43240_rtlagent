@@ -1,0 +1,34 @@
+# Unified 32+97 candidate catalog; actual admission is limited by card state.
+workflow: single_generate
+nodes:
+  generate:
+    use: rtl_generate
+    params:
+      max_tokens: 16384
+      temperature: 0.0
+      top_p: 1.0
+      timeout_s: 800
+      skill_mode: 'off'
+      skill_ids: []
+      rag_mode: shadow
+      retrieval:
+        pre_generation: true
+        strategy: dense
+        fallback: empty
+        embedding_url: http://127.0.0.1:8020
+        embedding_timeout_s: 2.0
+        retrieve_k: 5
+        inject_k: 1
+      knowledge_max_tokens: 1024
+  extract: {use: rtl_extract}
+services:
+  model:
+    backend: openai
+    base_url: http://127.0.0.1:8010/v1
+    model: qwen38-27b-q4-k-m
+    max_model_len: 65536
+    tokenizer_protocol: llama_cpp
+runtime:
+  deadline_s: 900
+  reserve_s: 20
+  recording: {level: full}

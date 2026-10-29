@@ -1,0 +1,16 @@
+{
+  "runtime_commit": "f114f91",
+  "binary_sha256": "6fe3a0a7194eebb68423dd7f502659285f792a3a780308b9d88e1486fc59d638",
+  "libraries": {
+    "libllama.so": "d1682e9f145d012991f011eb864a228617cbbdfc9ce98bc5c0a85c3fe25fd7be",
+    "libggml.so": "08a23ca36d4a4b1ac6b7bd284e19efbc970eeff59cba5221ce5fcda198e1e90b",
+    "libggml-base.so": "72ce814d917651f88883857906f2e3f3dc701c71b2e77486521faca756cacf9d",
+    "libggml-cpu.so": "5ecc784ba61bbabea309949ed0b8531fe8507b36ae1b2b4ecc8212aa0c542a8b"
+  },
+  "pooling": "last",
+  "normalization": "client_l2",
+  "dimensions": 1024,
+  "threads": 4,
+  "cpu_only": true,
+  "boundary": "Pin existing verified executable and dynamic libraries; model hash is in the catalog model contract."
+}

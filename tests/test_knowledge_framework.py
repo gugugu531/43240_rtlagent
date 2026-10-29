@@ -212,7 +212,7 @@ class Framework(unittest.TestCase):
 
 
 class GraphAcceptance(unittest.TestCase):
-    def run_case(self, mode, *, no_delivery=False, skill_ids=None, workflow='repair_loop'):
+    def run_case(self, mode, *, no_delivery=False, skill_ids=None, workflow='repair_loop', delivery_mode='single'):
         import agent.nodes
         import agent.workflows
         from agent.config import load_config
@@ -229,12 +229,16 @@ class GraphAcceptance(unittest.TestCase):
             config,_ = load_config(Path('config') / f'{workflow}.yaml', {})
             from agent.config import Component
             config.nodes['generate'] = Component(use='rtl_generate', params={
-                'rag_mode':mode,'skill_ids':skill_ids or []})
+                'rag_mode':mode,'skill_ids':skill_ids or [],'delivery_mode':delivery_mode})
             budget = Budget(900,20,record=record)
             response = 'No complete module delivered.' if no_delivery else 'module TopModule; wire x; wire [8:0] y; assign y = {{8{x}},x}; endmodule'
             llm = Client(config.services.model,budget,record,load_generation(),transport=make_transport(responses={
                 'generate':['module TopModule; wire x; wire [8:0] y; assign y = {8{x},x}; endmodule'],
-                'repair':[response]}))
+                'repair':[response],
+                'repair_plan':[{'choices':[{'message':{'content':'{}'},'finish_reason':'stop'}],
+                                'usage':{'prompt_tokens':100,'completion_tokens':20}}],
+                'repair_delivery':[{'choices':[{'message':{'content':response},'finish_reason':'stop'}],
+                                    'usage':{'prompt_tokens':100,'completion_tokens':20}}]}))
             ctx = Ctx(task=TaskSpec.from_text('synthetic','Implement module TopModule(); endmodule'),
                       budget=budget,llm=llm,record=record,processes=None,
                       candidates=CandidateStore(record,directory),prompts=TemplateRenderer(),config=config)
@@ -259,7 +263,9 @@ class GraphAcceptance(unittest.TestCase):
                 from agent.knowledge.outcome import summarize
                 outcome = summarize(Path(directory)/'trace.jsonl',Path(directory)/'solution.v')
                 requests = [r['messages'] for r in llm.requests]
-                self.assertEqual(len(requests),2)
+                self.assertEqual(len(requests),3 if delivery_mode=='thinking_staged' else 2)
+                if delivery_mode=='thinking_staged':
+                    self.assertTrue(all(r['chat_template_kwargs']['enable_thinking'] for r in llm.requests))
                 self.assertTrue(outcome['solution_matches_selection'])
                 self.assertIsNone(outcome['external_score'])
                 return requests, outcome, state
@@ -284,6 +290,20 @@ class GraphAcceptance(unittest.TestCase):
         _,outcome,_ = self.run_case('on',no_delivery=True)
         self.assertEqual(outcome['selected_candidate_id'],'c001')
         self.assertFalse(outcome['deliveries'][-1]['complete_new_draft'])
+        self.assertEqual(outcome['attempts'][-1]['outcome'],'not_delivered')
+
+    def test_staged_graph_shadow_matches_off_and_delivers(self):
+        off,_,_=self.run_case('off',delivery_mode='thinking_staged')
+        shadow,outcome,_=self.run_case('shadow',delivery_mode='thinking_staged')
+        self.assertEqual(off,shadow)
+        self.assertTrue(outcome['selected_latest_complete'])
+        self.assertIn('exactly one JSON',off[1][0]['content'])
+        self.assertIn('Output exactly one fenced',off[2][0]['content'])
+
+    def test_staged_no_delivery_never_promotes_old_score(self):
+        _,outcome,_=self.run_case('off',delivery_mode='thinking_staged',no_delivery=True)
+        self.assertEqual(outcome['selected_candidate_id'],'c001')
+        self.assertEqual(outcome['attempts'][-1]['outcome'],'not_delivered')
 
     def test_full_graph_explicit_rejected_fails_before_request(self):
         self.run_case('off',skill_ids=['rtl-fsm-state-output'])

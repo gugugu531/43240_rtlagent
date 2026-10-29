@@ -1,0 +1,11 @@
+{
+  "bytes": 3855425,
+  "files": 230,
+  "generation_calls": 0,
+  "isolated_import_hashes_and_tests_verified": true,
+  "isolated_test_count": 139,
+  "online_configuration_changed": false,
+  "release_id": "rag-catalog-v3-rc4.4",
+  "sha256": "179ad2ac4c780f299b25a9a20b9d3fbd09594c602fe185bcb35264355873e399",
+  "uploaded": false
+}
