@@ -14,6 +14,8 @@ from agent.domain.rtl.guided_plan import PlanError, parse_plan
 from agent.domain.rtl.observation import TraceRun, sampling_hash
 from agent.domain.rtl.task import TaskSpec
 from agent.kit import State
+from agent.context.prompts import TemplateRenderer
+from agent.domain.knowledge import guided as knowledge
 from agent.orchestration.nodes import guided
 
 
@@ -341,6 +343,61 @@ class GuidedContractTests(unittest.TestCase):
         self.assertEqual(result["evidence_candidate_id"], "child")
         self.assertEqual(result["published_id"], "child")
         self.assertFalse(result["structural_passed"])
+
+    def test_selected_knowledge_reaches_the_solve_message(self):
+        data = {
+            "settings": {
+                "planner": {"timeout_s": 1, "max_tokens": 1},
+                "solve": {"timeout_s": 1, "max_tokens": 1},
+                "first_tools_s": 1,
+                "knowledge_candidates": 5,
+                "knowledge_select": 3,
+                "retrieval_mode": "legacy",
+                "retrieval_strategy": "bm25",
+            },
+            "plan": None,
+            "method": "structural",
+            "attempted": set(),
+            "request_outcomes": {},
+            "plan": None,
+        }
+        artifacts = {}
+        ctx = SimpleNamespace(
+            task=task(),
+            prompts=TemplateRenderer(),
+            store={"guided": data},
+            record=SimpleNamespace(
+                write_json=lambda name, value: artifacts.update({name: value}),
+                emit=lambda *args, **kwargs: None,
+            ),
+        )
+        card = guided._shortlist(ctx, 5)[1][0]
+        plan_reply = SimpleNamespace(
+            content=(
+                "method=table\nskills=\n"
+                f"knowledge={card['card_id']}\nfocus=reset\nreason=test"
+            ),
+            call_id="plan-1",
+            finish_reason="stop",
+        )
+        sent = {}
+
+        def fake_request(ctx_arg, stage, messages, *args, **kwargs):
+            if stage == "plan":
+                return plan_reply
+            sent["messages"] = messages
+            return SimpleNamespace(
+                content="module TopModule; endmodule",
+                call_id="solve-1",
+                finish_reason="stop",
+            )
+
+        with patch.object(guided, "_request", side_effect=fake_request), \
+             patch.object(guided, "_candidate", return_value=None):
+            guided.plan(ctx, State({}))
+            guided.solve(ctx, State({}))
+        self.assertEqual(data["plan"]["knowledge"], [card["card_id"]])
+        self.assertIn(knowledge.card_text(card), sent["messages"][-1]["content"])
 
     def test_mismatch_is_failed(self):
         checker = parse_checker(

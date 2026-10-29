@@ -68,11 +68,24 @@ def make_transport(*, replay_path=None, responses=None):
         if request.url.path.endswith("/models"):
             return httpx.Response(200, json={"data": [{"id": "mock-model"}]})
         payload = json.loads(request.content)
+        if request.url.path.endswith("/apply-template"):
+            messages = payload.get("messages") or []
+            prompt = "\n".join(
+                str(message.get("content") or "")
+                for message in messages
+                if isinstance(message, dict)
+            )
+            return httpx.Response(200, json={"prompt": prompt})
         if request.url.path.endswith("/tokenize"):
             # 只供流程测试；此数值不代表真实 tokenizer 的计数。
-            return httpx.Response(
-                200, json={"count": len(json.dumps(payload["messages"])) // 4 + 1}
-            )
+            messages = payload.get("messages")
+            if messages is None and isinstance(payload.get("content"), str):
+                count = len(payload["content"]) // 4 + 1
+                return httpx.Response(
+                    200, json={"tokens": list(range(count))}
+                )
+            count = len(json.dumps(messages)) // 4 + 1
+            return httpx.Response(200, json={"count": count})
         if request.url.path.endswith("/chat/completions"):
             purpose = request.extensions.get("purpose", "generate")
             if purpose in queues:
