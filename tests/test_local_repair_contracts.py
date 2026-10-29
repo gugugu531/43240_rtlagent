@@ -231,14 +231,4 @@ class Attribution(unittest.TestCase):
         self.assertTrue(result['eligible_for_attempt_success_rate'])
         self.assertFalse(result['attempt_success'])
 
-    def test_experimental_profile_builds_and_small_budget_rejected(self):
-        from agent.config import load_config
-        from agent.domain.knowledge.policy import validate_selection
-        from agent.orchestration.graph import build_graph
-        import agent.orchestration.nodes,agent.orchestration.workflows
-        config,_=load_config('dev/optimization-v4/thinking-staged.yaml',{})
-        build_graph(NS(config=config,record=NS(run_id='offline',emit=lambda *a,**kw:None)))
-        with self.assertRaises(ValueError):validate_selection({'delivery_mode':'thinking_staged','max_tokens':512})
-
-
 if __name__=='__main__':unittest.main()

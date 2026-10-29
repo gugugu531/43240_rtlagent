@@ -87,7 +87,7 @@ embedding 只接收限长、路径脱敏后的首个有效工具诊断及工具�
 
 ## 发布与记录
 
-`python -m agent.knowledge.publish <实验仓库>` 从声明源文件生成 `knowledge/runtime-v1.json` 与摘要；参数是包含 `dev/rag` 冻结源文件（corpus、index、准入策略、F24 投影）的开发仓库路径。发布验证 corpus/index 配对和 F24 投影哈希；运行加载再检查文件摘要、唯一 ID、文档投影哈希和向量。Skill 仍使用 catalog 的版本／正文哈希／状态校验。源文件变更需重新发布和验收，禁止直接手改向量。
+`python -m agent.domain.knowledge.publish <实验仓库>` 从声明源文件生成 `knowledge/runtime-v1.json` 与摘要；参数是包含 `dev/rag` 冻结源文件（corpus、index、准入策略、F24 投影）的开发仓库路径。发布验证 corpus/index 配对和 F24 投影哈希；运行加载再检查文件摘要、唯一 ID、文档投影哈希和向量。Skill 仍使用 catalog 的版本／正文哈希／状态校验。源文件变更需重新发布和验收，禁止直接手改向量。
 
 英文发布采用 schema 2，并生成 `runtime-lock.json`。每条准入规则、检查点规则和文档向量元数据都绑定实际英文卡的 `card_version` 与规范 JSON 的 `card_sha256`。旧策略版本仅保留在 `source_card_version` 作来源记录，不能参与当前卡版本匹配。F24 的卡哈希与确定性谓词 ID 单独绑定；发布锁同时固定准入策略、索引和六卡快照的摘要。历史六卡版本更新为 `1.0.1-burr.en.1`，其原 `source` 仍表示上游来源，不冒充译文哈希。
 

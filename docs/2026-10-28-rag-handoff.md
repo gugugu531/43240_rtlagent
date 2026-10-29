@@ -44,7 +44,7 @@
 | 真实向量 | `knowledge/research-vectors.json` 及相应锁 |
 | 模型缓存 | `/home/cloudia/.cache/rtlagent-embedding/models/Qwen3-Embedding-0.6B-Q8_0.gguf` |
 | 本地 CPU embedding 程序及库 | `/home/cloudia/.cache/rtlagent-embedding/runtime/build/bin/` |
-| 当前实现入口 | `agent/knowledge/pregen.py`、`feedback.py`、`context.py`、`runtime.py`、`research.py` |
+| 当前实现入口 | `agent/domain/knowledge/pregen.py`、`feedback.py`、`context.py`、`runtime.py`、`research.py` |
 
 工作树有大量已有未提交修改，不应 reset、clean 或覆盖。交接不表示已提交或推送。修改发布实现后必须建立新实验身份与有效锁；不能只改哈希来绕过检查，也不能使用新工作树去复跑旧冻结实验。
 

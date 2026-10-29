@@ -103,4 +103,4 @@
 
 最优先的可交付成果是**统一入库和真实准入修复**。若时间不足，先减少额外生成与检索器差异对照；不删发布身份、实际请求检查或最终审计。全部 97 张通用题面路由及独立泛化验收留待后续。
 
-参考：[夜间审计](2026-10-29-rag-night35-audit.md)、[97 卡处置](../dev/optimization-v36/dispositions.json)、[研究资产加载](../agent/knowledge/research.py)、[运行发布校验](../agent/knowledge/release.py)、[题面路由](../agent/knowledge/pregen.py)、[真实反馈路径](../agent/knowledge/feedback.py)。
+参考：[夜间审计](2026-10-29-rag-night35-audit.md)、[97 卡处置](../dev/optimization-v36/dispositions.json)、[研究资产加载](../agent/domain/knowledge/research.py)、[运行发布校验](../agent/domain/knowledge/release.py)、[题面路由](../agent/domain/knowledge/pregen.py)、[真实反馈路径](../agent/domain/knowledge/feedback.py)。
