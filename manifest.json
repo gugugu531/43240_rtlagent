@@ -3,18 +3,21 @@
   "track": "rtl",
   "model": {
     "name": "Qwen/Qwen3.8-27B",
-    "source": "https://huggingface.co/Abiray/Qwen3.8-27B-Q4_K_M-GGUF",
-    "revision": "f7a1cda580fe828415151042bf9f3dc5bb8b0d76",
+    "source": "https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF",
+    "revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
     "weights_file": "Qwen3.8-27B-Q4_K_M.gguf",
-    "weights_sha256": "6a96cc760fc65cc6b9ea7f1922e3ff8b2a48c09f209456f23bbae9ef7032c867",
+    "weights_sha256": "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747",
     "quantization": "GGUF Q4_K_M",
-    "measured_vram_gb": 22.457,
+    "measured_vram_gb": 27.981,
     "vram_measurement": {
       "unit": "GiB",
       "kind": "single_snapshot_not_peak",
       "date": "2026-10-30",
-      "scope": "instance-visible GPU including resident unused embedding service",
-      "method": "sysfs mem_info_vram_used"
+      "scope": "instance 33376 visible GPU including main model, MTP head, resident unused planner and embedding services",
+      "method": "sysfs mem_info_vram_used",
+      "device_total_bytes": 51522830336,
+      "device_used_bytes": 30044221440,
+      "main_process_including_mtp_vram_kib": 25288804
     },
     "finetuned": false,
     "finetune_weights_url": null
@@ -27,6 +30,14 @@
   "serving": {
     "backend": "llama.cpp",
     "version": "0.4.0-dev (build 1, commit f114f91)",
+    "source_revision": "f114f91f9ed6792cf402437e3874adad98902744",
+    "gpu_backend": "HIP",
+    "kv_cache_type": "f16",
+    "speculative_decoding": {
+      "type": "draft-mtp",
+      "max_draft_tokens": 3,
+      "draft_gpu_layers": "all"
+    },
     "binary_sha256": "290708d22f8b495d36b8aedd0afb0cdc081c415548f855e6a950a75dd742ad97",
     "model_alias": "qwen38-27b-q4-k-m",
     "start_command": "./serve/start.sh",
@@ -53,5 +64,21 @@
       "enable_thinking": true
     }
   },
-  "auxiliary_models": []
+  "auxiliary_models": [
+    {
+      "name": "Qwen3.8-27B MTP 预测头",
+      "base_model": "Qwen/Qwen3.8-27B",
+      "source": "https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF",
+      "revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+      "weights_file": "mtp-Qwen3.8-27B-Q4_0.gguf",
+      "weights_bytes": 1680271776,
+      "weights_sha256": "c5be331f82fb61f5304adfa00ccd60c6743c8ce52255d66fa863446231d49ba4",
+      "quantization": "GGUF Q4_0",
+      "license": "apache-2.0",
+      "parameter_count": null,
+      "purpose": "MTP3 推测解码预测头，不是独立求解、规划或检索模型；baseline 与方案共用",
+      "runtime": "与主模型在同一 llama-server 进程、同一 GPU 上运行",
+      "vram_measurement": "包含在主进程 25288804 KiB 和设备 30044221440 bytes 瞬时采样中；未单独测量预测头占用，非峰值"
+    }
+  ]
 }

@@ -24,9 +24,9 @@ COPY model/  model/
 COPY run.sh run_baseline.sh baseline.py manifest.json REPORT.md LICENSE ./
 RUN chmod +x run.sh run_baseline.sh serve/llamacpp.sh serve/start.sh serve/start_verireason.sh serve/run_api.sh
 
-# Prepare a compatible llama-server (including its runtime libraries) in the
-# base image or mount it and set LLAMA_SERVER explicitly. No runtime downloads.
-# Bind-mount the text GGUF under /models before starting the offline service;
+# Prepare a compatible HIP llama-server (including its runtime libraries) in
+# the base image or mount it and set LLAMA_SERVER. No runtime downloads.
+# Bind-mount both the text GGUF and its Q4_0 MTP head under /models;
 # weights and development files are deliberately not copied into this image.
 
 ENV LLM_BACKEND=openai \
@@ -34,6 +34,7 @@ ENV LLM_BACKEND=openai \
     LLM_MODEL=qwen38-27b-q4-k-m \
     MODEL_NAME=qwen38-27b-q4-k-m \
     MODEL=/models/Qwen3.8-27B-Q4_K_M.gguf \
+    MTP_MODEL=/models/mtp-Qwen3.8-27B-Q4_0.gguf \
     LLAMA_SERVER=llama-server \
     PORT=8010 \
     LLM_API_KEY=dummy \

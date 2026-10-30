@@ -19,22 +19,33 @@
 `response_format: json_schema`，不支持时可在 YAML 显式设置
 `services.model.structured_outputs: false`，保留严格校验和有限重问。
 
-## 正式提交：本地文本 GGUF
+## 正式提交：HIP + MTP3 本地文本 GGUF
 
-当前使用 [Qwen/Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) 的
-[Abiray/Qwen3.8-27B-Q4_K_M-GGUF 固定版本](https://huggingface.co/Abiray/Qwen3.8-27B-Q4_K_M-GGUF/tree/f7a1cda580fe828415151042bf9f3dc5bb8b0d76)：
-`Qwen3.8-27B-Q4_K_M.gguf`，16,810,714,400 字节，
-SHA256 `6a96cc760fc65cc6b9ea7f1922e3ff8b2a48c09f209456f23bbae9ef7032c867`。
-只加载文本权重，不加载 mmproj；模型声明见 [MODEL.md](../model/MODEL.md)。
-已核对的现有后端版本是 `llama-server 0.4.0-dev`（build 1，commit `f114f91`），
+正式路线使用 [Qwen/Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B)，
+两份权重均来自 [ggml-org/Qwen3.8-27B-GGUF 固定版本](https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/tree/a316ea527fde32c12487be7574e2db5ac2ad2a7e)
+（revision `a316ea527fde32c12487be7574e2db5ac2ad2a7e`）：
+
+| 用途 | 文件 | 字节数 | SHA256 |
+| --- | --- | ---: | --- |
+| 主模型 | `Qwen3.8-27B-Q4_K_M.gguf` | 18,973,870,528 | `c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747` |
+| MTP（多 token 预测）头 | `mtp-Qwen3.8-27B-Q4_0.gguf` | 1,680,271,776 | `c5be331f82fb61f5304adfa00ccd60c6743c8ce52255d66fa863446231d49ba4` |
+
+两文件均已实读核对哈希并与公开来源匹配。只加载文本权重，不加载 mmproj；
+MTP 头不是独立求解模型，但属于 `auxiliary_models`，显存必须计入。
+模型声明见 [MODEL.md](../model/MODEL.md)。
+2026-10-30 已核对现有服务实际运行 HIP + MTP3，后端为 `llama-server 0.4.0-dev`
+（build 1，源码 commit `f114f91f9ed6792cf402437e3874adad98902744`），
 二进制 SHA256 为 `290708d22f8b495d36b8aedd0afb0cdc081c415548f855e6a950a75dd742ad97`。
-换编译产物或运行库后须重新核对兼容性，不能只依据版本字符串认定相同。
+实际加载 HIP、amdhip、hipblas 和 rocblas 运行库。换编译产物或运行库后须重新核对兼容性，
+不能只依据版本字符串认定相同；脚本不编译后端，也不自动识别或选择 GPU 后端。
 
 ### 复用已有服务
 
-以下命令均从方案仓库根目录运行。先核对已有服务的模型文件、版本及启动参数与声明一致，
-不要仅凭 alias 判断权重。`start.sh` 检查本机对应端口的 `/health`；已健康时复用，
-不会重复加载主模型，也不会替换、重启已有服务。
+以下命令均从方案仓库根目录运行。先人工核对已有服务的两份模型文件、哈希、版本及
+实际启动参数与声明一致，不要仅凭 alias 判断权重；并检查 `/slots` 的
+`speculative=true`，确认启用推测解码。`start.sh` 只检查本机对应端口的 `/health`；
+已健康时复用，不会重复加载主模型，也不会替换、重启已有服务。
+`/health` 成功不证明 HIP、权重或 MTP3 参数已匹配，不能跳过上述人工核对。
 
 ```bash
 export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8010/v1
@@ -45,33 +56,41 @@ PORT=8010 ./serve/start.sh
 
 ### 没有现有服务时启动
 
-断网前在本地准备上述 GGUF、匹配目标 GPU 的 `llama-server` 及其运行库；
-权重和二进制不随方案提交，脚本不会下载。默认从 `PATH` 找 `llama-server`，
-权重默认在 `/models/Qwen3.8-27B-Q4_K_M.gguf`；可通过环境变量显式指定：
+断网前从上述固定版本下载两份 GGUF，按表中大小与 SHA256 核对；在本地准备适用于
+目标 AMD GPU、支持 `draft-mtp` 的 HIP 构建 `llama-server`，以及匹配的
+HIP/amdhip、hipblas、rocblas 等运行库。权重和二进制不随方案提交，脚本不会下载。
+默认从 `PATH` 找 `llama-server`，主权重默认在 `/models/Qwen3.8-27B-Q4_K_M.gguf`，
+MTP 权重默认在 `/models/mtp-Qwen3.8-27B-Q4_0.gguf`；可通过环境变量显式指定：
 
 ```bash
 export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8010/v1
 export LLM_API_KEY=dummy
 export MODEL_NAME=qwen38-27b-q4-k-m LLM_MODEL=qwen38-27b-q4-k-m
 MODEL=/local/models/Qwen3.8-27B-Q4_K_M.gguf \
+MTP_MODEL=/local/models/mtp-Qwen3.8-27B-Q4_0.gguf \
 LLAMA_SERVER=/local/bin/llama-server ./serve/start.sh
 ```
 
-`/local` 是示例准备位置，须换为实际路径。缺失或不可读权重、找不到二进制时明确失败。
+`/local` 是示例准备位置，须换为实际路径。任一权重缺失或不可读、找不到二进制时明确失败，不自动降级为无 MTP。
 主模型日志在 `${SERVE_LOG_DIR:-${AGENT_TMP:-/tmp}/serve-logs}/llamacpp.log`；
 就绪等待默认 `START_TIMEOUT_S=900`。启动使用 `setsid`，保持原有临时目录清理及可选小模型机制。
 
 `llamacpp.sh` 默认参数：`PORT=8010`、`MAX_LEN=65536`、`PARALLEL=1`、
 `N_GPU_LAYERS=all`、`THREADS=16`、`THREADS_BATCH=16`、`FLASH_ATTN=on`、
 `REASONING_BUDGET=-1`，固定绑定 `127.0.0.1` 并启用 `--no-webui --metrics`。
-没有 MTP draft 或额外 RoPE 覆盖。覆盖端口时也要同步 `LLM_BASE_URL`；
-覆盖 `MODEL_NAME` 时同步 `LLM_MODEL`；改变模型或服务参数须同步模型声明。
-默认 `single_generate` 与 baseline 共用此服务和 manifest 思考设置，
-不启用 Skill、RAG 或辅助模型。
+固定使用 `--cpu-strict 1`、FP16 KV cache（`--cache-type-k f16 --cache-type-v f16`），
+以及 MTP3 参数 `--spec-type draft-mtp --model-draft "$MTP_MODEL" --spec-draft-ngl all --spec-draft-n-max 3`。
+无额外 RoPE 覆盖；已核对的现有服务 CPU affinity 为 0–15，脚本不据此自动绑定 CPU。
+覆盖端口时也要同步 `LLM_BASE_URL`；覆盖 `MODEL_NAME` 时同步 `LLM_MODEL`；
+改变模型或服务参数须同步模型声明。
+默认 `single_generate` 与 baseline 共用此服务和 manifest 思考设置（`enable_thinking=true`），
+不启用 Skill、RAG、独立 planner 或 embedding；MTP 预测头仍随主模型加载并计入辅助模型。
 
-Dockerfile 不复制权重或开发区；使用前须在基础镜像或挂载目录中准备兼容后端及运行库，
-再挂载本地权重，必要时覆盖 `LLAMA_SERVER`。这些部署说明不代表已完成容器构建、
-冷启动或目标 GPU 验收。
+Dockerfile 不复制权重或开发区；使用前须在基础镜像或挂载目录中准备兼容的 HIP 后端及运行库，
+再挂载两份本地权重，必要时覆盖 `LLAMA_SERVER`。这些部署说明不代表已完成容器构建、
+冷启动或目标 GPU 的完整验收。本轮只修仓库，未发布新版本或切换云端服务；
+实例重启和公网网址配置由用户自行完成。旧无 MTP 服务和旧公网测试仅为历史记录，
+不能作为当前 HIP + MTP3 路线的验收证据。
 
 ## 起投题接口
 
@@ -113,10 +132,14 @@ curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://localhost:7860/v1/jobs/<
 
 ## 几处容易踩的地方
 
-**显存按单卡 32 GB 限制核对，包含辅助模型。** llama.cpp 的实际占用受权重、
-上下文与运行参数影响，不能套用其他后端的预分配比例。2026-10-30 现有服务的
-sysfs 瞬时读数约 22.457 GiB，主模型进程约 19.590 GiB，另有本流程未使用的
-embedding 进程约 2.412 GiB；这是观测值，不是峰值或冷启动验收。
+**显存按单卡 32 GB 限制核对，包含 MTP 等辅助模型。** llama.cpp 的实际占用受权重、
+上下文与运行参数影响，不能套用其他后端的预分配比例。2026-10-30 已核对 HIP + MTP3
+现有服务的快照：可见设备为 `renderD128/card1`、PCI `0000:03:00.0`；
+sysfs 总容量 51,522,830,336 字节（47.984 GiB），瞬时已用 30,044,221,440 字节
+（27.981 GiB）；主模型进程（含 MTP）的 `drm-total-vram` 为 25,288,804 KiB
+（24.117 GiB）。设备读数包含本流程未使用但仍常驻的 planner 和 embedding，
+不能扣除它们后声称整卡占用更低。设备容量也不改变赛事的单卡 32 GB 限制。
+这些瞬时读数不是请求期或启动期峰值；32 GB 限制、峰值、冷启动及容器重建仍未完成验收。
 投题健康接口的 `vram_gb=0` 也不代表没有显存占用，须独立测量。
 
 **绑 `127.0.0.1`，不是 `0.0.0.0`。** Radeon Cloud 的 `rc-tunnel` 只接管绑在环回口上的
