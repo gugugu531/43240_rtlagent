@@ -90,7 +90,7 @@ class Config(BaseSettings):
         env_nested_delimiter="__",
         allow_inf_nan=False,
     )
-    workflow: str = "single_generate"
+    workflow: str = "guided_verify"
     params: dict = Field(default_factory=dict)
     nodes: dict[str, Component] = Field(default_factory=dict)
     tools: dict[str, Component] = Field(default_factory=dict)
@@ -150,7 +150,7 @@ ENV_FIELDS = {
 
 
 def load_config(path=None, overrides=None):
-    path = Path(path or ROOT / "config/single_generate.yaml").resolve()
+    path = Path(path or ROOT / "config/guided_verify.yaml").resolve()
     raw = path.read_text(encoding="utf-8")
     data = yaml.load(raw, Loader=UniqueLoader) or {}
     if not isinstance(data, dict):

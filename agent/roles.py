@@ -5,6 +5,8 @@ stage's declared role and the profile used for its requests cannot drift.
 No runtime or domain imports here.
 """
 
+# Profile names are compatibility labels, not model-size requirements. Disabled
+# profiles use the primary model; each stage builds its own request messages.
 ROLE_PROFILES = {
     "analyst": "small",
     "author": "large",

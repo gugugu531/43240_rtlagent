@@ -399,9 +399,14 @@ def scratch_directory():
 
 
 def executable(name):
-    return shutil.which(
-        name, path=os.environ.get("RTL_TOOL_BIN") or os.environ.get("PATH")
-    )
+    # Preserve an explicit override; otherwise honor the official image's
+    # XILINX_VIVADO variable without assuming its versioned directory layout.
+    if os.environ.get("RTL_TOOL_BIN"):
+        return shutil.which(name, path=os.environ["RTL_TOOL_BIN"])
+    found = shutil.which(name)
+    if found or not os.environ.get("XILINX_VIVADO"):
+        return found
+    return shutil.which(name, path=str(Path(os.environ["XILINX_VIVADO"]) / "bin"))
 
 
 def process_output(result):

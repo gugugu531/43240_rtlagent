@@ -24,7 +24,7 @@ nodes:
 services:
   model:
     backend: openai
-    base_url: http://127.0.0.1:8010/v1
+    base_url: http://127.0.0.1:8000/v1
     model: qwen38-27b-q4-k-m
     max_model_len: 65536
     tokenizer_protocol: llama_cpp

@@ -30,11 +30,15 @@ restricted、33 张 shadow、26 张 mechanical_only。每张卡片保留标题�
 同时存在时小写文件优先。扫描仅限直接子目录，不限制为 32 项。
 格式、可选阶段/冲突/准入字段和来源要求见[技能扩展指南](../skill/README.md)。
 
+专项方法覆盖计数终点、反馈移位、流式分组、单时钟存储、流水线对齐、打包索引和卡诺图坐标；
+名称与适用边界见技能扩展指南。它们只有通用方法，不含题目身份映射或答案。
+新增方法采用默认自动准入，已有候选/拒绝状态保持不变；尚无真实模型收益结论。
+
 `guided_verify` 每题建立技能快照，规划器从允许自动选择的描述中最多选择两个，
 生成与修复分别校验 `phases` 后注入；新技能不进入独立 checker。
 `rtl_generate` 默认用 BM25 匹配技能描述，至少两个不同词项匹配才入选，
 同样最多两个；显式 `skill_ids`、`skill_mode=off/shadow/on` 仍受支持。
-默认 `single_generate` 的 baseline 节点保持无技能，不因目录扩展改变基线。
+显式 `single_generate` 的 baseline 节点保持无技能，不因目录扩展改变基线；当前默认 `guided_verify` 由规划选择技能。
 
 guided 的 `guided/material.json` 及 `guided/material-repair_*.json` 记录实际发送、
 拒绝原因、阶段和快照内容哈希；`rtl_generate` 记录 `knowledge/skills` 事件。

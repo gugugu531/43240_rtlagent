@@ -10,9 +10,18 @@ from .guided_context import public_context
 from .observation import SamplingPlan, validate_trace
 from .suite.semantics import SuiteError
 
+# Read the sampling schema's bound rather than maintain a second port limit.
+MAX_PORTS = next(
+    bound.max_length for bound in SamplingPlan.model_fields["ports"].metadata
+    if hasattr(bound, "max_length")
+)
 CASE_ID = re.compile(r"^[A-Za-z0-9_-]{1,63}$")
 CLOCK_NAME = re.compile(r"(?i)(?:^|_)(?:clk|clock)$|^(?:clk|clock)")
-NEG_EDGE = re.compile(r"(?i)\b(?:negedge|falling[- ]edge|negative[- ]edge)\b")
+EDGE = re.compile(
+    r"(?i)\b(?P<hdl>posedge|negedge)\b|"
+    r"\b(?P<english>rising|positive|falling|negative)[ -]+"
+    r"(?:(?:clock|clk)[ -]+)?edges?\b"
+)
 
 
 class CheckerError(ValueError):
@@ -54,10 +63,14 @@ class TableChecker:
         }
 
 
-def checker_request(task, skill_body, focus=()):
+def checker_request(task, skill_body, focus=(), *, max_cases=4, max_steps=8, init_cycles=2):
     user = (
         "Public task and resolved interface:\n"
         + json.dumps(public_context(task), ensure_ascii=False, separators=(",", ":"))
+        + "\n\nHost execution contract (authoritative mechanics, not functional requirements):\n"
+        + json.dumps(checker_contract(task, max_cases=max_cases, max_steps=max_steps,
+                                      init_cycles=init_cycles), ensure_ascii=False,
+                     separators=(",", ":"))
         + "\n\nSelected focus (untrusted hints, not requirements):\n"
         + "\n".join("- " + item for item in focus)
         + "\n\nReturn only the line table described by the skill. "
@@ -76,6 +89,8 @@ def _ports(task):
     interface = task.expected_interface
     if not interface.parsed or not interface.complete or not interface.ports:
         raise CheckerError("public interface is not complete")
+    if len(interface.ports) > MAX_PORTS:
+        raise CheckerError(f"public port count exceeds sampling limit of {MAX_PORTS}")
     ports = {}
     for port in interface.ports:
         if port.width is None or not 1 <= port.width <= 256:
@@ -93,9 +108,123 @@ def _ports(task):
     ]
     if len(clocks) > 1:
         raise CheckerError("multiple clock candidates are not supported")
-    if NEG_EDGE.search(task.prompt):
-        raise CheckerError("falling-edge checking is not supported")
-    return ports, inputs, outputs, (clocks[0] if clocks else None)
+    clock = clocks[0] if clocks else None
+    public_text = task.prompt + "\n" + task.interface
+    if clock:
+        _clock_edge(public_text, clock, inputs)
+    elif EDGE.search(public_text):
+        raise CheckerError("edge-triggered task has no supported clock input")
+    return ports, inputs, outputs, clock
+
+
+def _clock_edge(text, clock, inputs):
+    """Bind each edge phrase locally; reset edges never erase clock edges.
+
+    This is deliberately a conservative recognizer, not a language interpreter.
+    An unspecified or unbound edge cannot prove a positive-edge clock.
+    """
+    aliases = {name.lower(): name for name in inputs}
+    aliases.update({"clock": clock, "clk": clock})
+    positive = False
+    for match in EDGE.finditer(text):
+        before, after = text[:match.start()], text[match.end():]
+        subject = None
+        if match.group("hdl"):
+            target = re.match(r"\s+([A-Za-z_][A-Za-z0-9_$]*)\b", after)
+            if target:
+                subject = aliases.get(target.group(1).lower())
+        else:
+            # e.g. "falling edge of reset_n", "rising edge on clk".
+            target = re.match(
+                r"\s+(?:of|on)\s+(?:the\s+)?(?:signal\s+)?"
+                r"([A-Za-z_][A-Za-z0-9_$]*)\b", after, re.I,
+            )
+            if target:
+                subject = aliases.get(target.group(1).lower())
+            else:
+                # e.g. "clk's rising edge" or "reset_n falling edge".
+                target = re.search(
+                    r"\b([A-Za-z_][A-Za-z0-9_$]*)(?:['’]s)?\s+$", before,
+                )
+                if target:
+                    subject = aliases.get(target.group(1).lower())
+                if subject is None and re.search(r"\b(?:clock|clk)\b", match.group(), re.I):
+                    subject = clock
+                # A generic edge-triggered declaration explicitly tied to clock.
+                if subject is None and re.match(r"[- ]triggered\s+(?:by\s+)?(?:the\s+)?(?:clock|clk)\b", after, re.I):
+                    subject = clock
+        if subject is None:
+            raise CheckerError("clock edge semantics are ambiguous or unsupported")
+        if subject != clock:
+            if not re.search(r"(?i)(?:^|_)(?:reset|rst)(?:_|$)|^(?:reset|rst)", subject):
+                raise CheckerError("non-reset edge-triggered inputs are not supported")
+            continue
+        polarity = (match.group("hdl") or match.group("english")).lower()
+        if polarity in ("negedge", "falling", "negative"):
+            raise CheckerError("falling-edge checking is not supported")
+        positive = True
+    if not positive:
+        raise CheckerError("positive clock edge is not specified unambiguously")
+    return "posedge"
+
+
+def _limits(max_cases, max_steps, init_cycles, clock):
+    if any(type(value) is not int or value < 1 for value in (max_cases, max_steps, init_cycles)):
+        raise CheckerError("checker limits must be positive integers")
+    event_limit = 32 if clock else 256
+    if clock and init_cycles > event_limit:
+        raise CheckerError("init_cycles exceeds sequential event limit")
+    return min(max_cases, 8), min(max_steps, event_limit), event_limit
+
+
+def checker_contract(task, *, max_cases=4, max_steps=8, init_cycles=2):
+    """Return JSON-only mechanics from public input; never inspect a candidate."""
+    result = {
+        "schema_version": 1,
+        "supported": False,
+        "reason": "",
+        "configured_limits": {"max_cases": max_cases, "max_steps": max_steps,
+                              "init_cycles": init_cycles},
+    }
+    try:
+        ports, inputs, outputs, clock = _ports(task)
+        cases, lines, events = _limits(max_cases, max_steps, init_cycles, clock)
+    except CheckerError as error:
+        result["reason"] = str(error)
+        return result
+    result.update({
+        "supported": True,
+        "ports": ports,
+        "clock": {"port": clock, "edge": "posedge"} if clock else None,
+        "limits": {"max_ports": MAX_PORTS, "max_cases": cases, "max_table_lines_per_case": lines,
+                   "max_expanded_events_per_case": events, "max_total_expanded_events": 256,
+                   "max_table_characters": 16384},
+        "table": {
+            "all_non_clock_inputs_required": [name for name in inputs if name != clock],
+            "outputs": outputs,
+            "checked_outputs": "At least one output on each line; the same output set throughout a case. Omitted outputs remain unchecked.",
+            "value_encoding": "Unsigned hexadecimal bit patterns, no width prefix or 0x; fit the declared width. Signed values use their exact width's two's-complement bits. X/Z, negative literals and overflow are rejected.",
+            "first_line": "init" if clock else "init or step",
+            "line_count": "Both init and step lines count toward max_table_lines_per_case.",
+        },
+        "execution": {
+            "case_isolation": "Each case uses a separate DUT instance; no state is shared. No automatic reset or internal state initialization is performed.",
+            "initial_clock": 0 if clock else None,
+            "init_repeats": init_cycles if clock else 1,
+            "init_semantics": "Every init line repeats its input values for init_repeats events; compare its expected outputs only after its final repetition. Init is not an automatic reset: drive reset explicitly if required by the public specification.",
+            "step_semantics": "Each step line produces one event and one expected-output comparison.",
+            "event_timing_ns": {"drive_inputs": 5, "record_pre": 9,
+                                "active_clock_edge": 10 if clock else None,
+                                "record_post_and_compare": 11,
+                                "return_clock_inactive": 15 if clock else None,
+                                "event_period": 15},
+            "sampling": "Compare post samples only, after input settling and (for sequential cases) the positive clock edge and nonblocking updates. Pre samples are diagnostic only.",
+            "failure_step_index": "Zero-based index of the expanded event in that case, not the table line number. A first init of N repeats is checked at step N-1; the next step is N.",
+            "failure_value_encoding": "Expanded sampling inputs, expected_bits, actual_bits and known masks are JSON integer bit patterns (decimal JSON numbers), unlike hexadecimal table tokens.",
+            "unknown_outputs": "Unknown output bits remain unknown and cannot pass a comparison.",
+        },
+    })
+    return result
 
 
 def _value(token, width, *, name):
@@ -114,6 +243,7 @@ def parse_checker(text, task, *, max_cases=4, max_steps=8, init_cycles=2):
     if not text or len(text) > 16384:
         raise CheckerError("checker output missing or too large")
     ports, inputs, outputs, clock = _ports(task)
+    max_cases, max_steps, _ = _limits(max_cases, max_steps, init_cycles, clock)
     non_clock = [name for name in inputs if name != clock]
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:

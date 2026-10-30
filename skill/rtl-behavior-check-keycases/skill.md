@@ -49,6 +49,9 @@ as the expected value.
 
 - The complete public task statement and the resolved public interface.
 - The public reset, initial, or warm-up rule for each sequential case.
+- The host execution contract, including effective case/line/event limits, initialization
+  repetition, sampling times and expanded event indexing. Use these mechanics to compute
+  table values; they do not override the public functional specification.
 - The list of outputs the user or workflow permits checking. If the list is omitted,
   all public outputs are checked.
 
@@ -61,7 +64,7 @@ sampling phase: after the active clock edge and after nonblocking assignments se
 For a combinational block, sample after inputs have been stable for the host-defined
 settle interval. Do not reference internal signals or hierarchical paths.
 
-### 2. Select at most four discriminating cases
+### 2. Select a few discriminating cases within the host limits
 
 Prefer, in this order:
 
@@ -127,8 +130,9 @@ Rules:
   MUST NOT be reported as a full functional pass.
 - Values are hexadecimal without a width prefix. The host validates width and rejects
   unknown or out-of-range values.
-- At most four cases and eight lines per case, unless the workflow configures lower
-  limits.
+- Obey the effective case, table-line and expanded-event limits in the host execution
+  contract. Defaults are four cases and eight lines per case. Repeated init events count
+  toward the expanded-event limits even though they occupy one table line.
 - A sequential case without an `init` first line is invalid.
 - The `init` line's expected outputs are compared after the final init edge; they are
   not ignored.

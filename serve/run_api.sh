@@ -20,34 +20,63 @@
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT="${API_PORT:-7860}"
-STATE="${AGENT_TMP:-/tmp}/run_api"
+STATE="${AGENT_TMP:-/var/tmp}/run_api"
 PIDFILE="$STATE/run_api.pid"
+CHILD_PIDFILE="$STATE/serve_api.pid"
 LOG="$STATE/serve_api.log"
 mkdir -p "$STATE"
 
 running() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
+child_running() { [ -f "$CHILD_PIDFILE" ] && kill -0 "$(cat "$CHILD_PIDFILE")" 2>/dev/null; }
 
 case "${1:-}" in
 start)
     if running; then
-        echo "run_api.sh: already running (pid $(cat "$PIDFILE")), log $LOG"
-        exit 0
+        if child_running; then
+            echo "run_api.sh: already running (pid $(cat "$PIDFILE")), log $LOG"
+            exit 0
+        fi
+        echo "run_api.sh: watchdog running but API is recovering; see $LOG" >&2
+        exit 1
     fi
     [ -n "$FPGACHINA_TOKEN" ] || { echo "run_api.sh: FPGACHINA_TOKEN is not set" >&2; exit 1; }
+    for dependency in setsid uvicorn; do
+        command -v "$dependency" >/dev/null 2>&1 || {
+            echo "run_api.sh: required executable not found: $dependency" >&2
+            exit 1
+        }
+    done
+    rm -f "$CHILD_PIDFILE"
     setsid "$0" _loop </dev/null >>"$LOG" 2>&1 &
-    sleep 1
-    echo "run_api.sh: started (pid $(cat "$PIDFILE" 2>/dev/null)), log $LOG"
+    supervisor=$!
+    for _ in 1 2 3 4 5; do
+        sleep 1
+        if running && child_running; then
+            started_child="$(cat "$CHILD_PIDFILE")"
+            sleep 1
+            if running && child_running && [ "$(cat "$CHILD_PIDFILE")" = "$started_child" ]; then
+                echo "run_api.sh: started (pid $(cat "$PIDFILE")), log $LOG"
+                exit 0
+            fi
+        fi
+    done
+    kill "$supervisor" 2>/dev/null
+    wait "$supervisor" 2>/dev/null
+    echo "run_api.sh: API did not stay running; see $LOG" >&2
+    exit 1
     ;;
 _loop)
     echo $$ > "$PIDFILE"
-    trap 'kill "$child" 2>/dev/null; wait "$child" 2>/dev/null; rm -f "$PIDFILE"; exit 0' TERM INT
+    trap 'kill "$child" 2>/dev/null; wait "$child" 2>/dev/null; rm -f "$PIDFILE" "$CHILD_PIDFILE"; exit 0' TERM INT
     cd "$HERE/.."
     while :; do
         echo "$(date '+%F %T') run_api.sh: starting serve_api on 127.0.0.1:$PORT"
         uvicorn serve.serve_api:app --host 127.0.0.1 --port "$PORT" &
         child=$!
+        echo "$child" > "$CHILD_PIDFILE"
         wait "$child"
         rc=$?
+        rm -f "$CHILD_PIDFILE"
         echo "$(date '+%F %T') run_api.sh: serve_api exited (rc=$rc), restarting in 2 s"
         sleep 2
     done
@@ -62,7 +91,7 @@ stop)
     fi
     ;;
 status)
-    if running; then echo "run_api.sh: running (pid $(cat "$PIDFILE")), log $LOG"
+    if running && child_running; then echo "run_api.sh: running (pid $(cat "$PIDFILE")), log $LOG"
     else echo "run_api.sh: not running"; exit 1; fi
     ;;
 *)

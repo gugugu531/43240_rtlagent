@@ -2,7 +2,7 @@ workflow: single_generate
 services:
   model:
     backend: openai
-    base_url: http://127.0.0.1:8010/v1
+    base_url: http://127.0.0.1:8000/v1
     model: qwen38-27b-q4-k-m
     tokenizer_protocol: llama_cpp
     max_model_len: 65536

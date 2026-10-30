@@ -20,8 +20,10 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIGS = (
     "single_generate.yaml",
     "guided_verify.yaml",
+    "guided_verify_large_v3.yaml",
     "guided_verify_rag_bm25.yaml",
     "guided_verify_rag_dense.yaml",
+    "guided_verify_rag_dense_large_v3.yaml",
     "rag97_pregen_bm25.yaml",
     "rag97_pregen_dense.yaml",
     "rag_catalog_v3_shadow.yaml",

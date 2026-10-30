@@ -8,16 +8,16 @@
     "weights_file": "Qwen3.8-27B-Q4_K_M.gguf",
     "weights_sha256": "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747",
     "quantization": "GGUF Q4_K_M",
-    "measured_vram_gb": 27.981,
+    "measured_vram_gb": 23.67,
     "vram_measurement": {
       "unit": "GiB",
       "kind": "single_snapshot_not_peak",
       "date": "2026-10-30",
-      "scope": "instance 33376 visible GPU including main model, MTP head, resident unused planner and embedding services",
+      "scope": "instance SSH 32535 visible GPU 0000:03:00.0 including main model, MTP head and device overhead; no resident planner or embedding",
       "method": "sysfs mem_info_vram_used",
       "device_total_bytes": 51522830336,
-      "device_used_bytes": 30044221440,
-      "main_process_including_mtp_vram_kib": 25288804
+      "device_used_bytes": 25415020544,
+      "main_process_including_mtp_vram_kib": 24566664
     },
     "finetuned": false,
     "finetune_weights_url": null
@@ -36,12 +36,28 @@
     "speculative_decoding": {
       "type": "draft-mtp",
       "max_draft_tokens": 3,
-      "draft_gpu_layers": "all"
+      "draft_gpu_layers": "all",
+      "draft_model": {
+        "name": "Qwen3.8-27B MTP 预测头",
+        "base_model": "Qwen/Qwen3.8-27B",
+        "source": "https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF",
+        "revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+        "weights_file": "mtp-Qwen3.8-27B-Q4_0.gguf",
+        "weights_bytes": 1680271776,
+        "weights_sha256": "c5be331f82fb61f5304adfa00ccd60c6743c8ce52255d66fa863446231d49ba4",
+        "quantization": "GGUF Q4_0",
+        "license": "apache-2.0",
+        "parameter_count": null,
+        "purpose": "同一推理服务生成推测 token；baseline 与方案共用，不属于智能体专用规划、评分或检索模型",
+        "runtime": "与主模型在同一 llama-server 进程、同一 GPU 上运行",
+        "vram_measurement": "包含在主进程 24566664 KiB 和设备 25415020544 bytes 瞬时采样中；未单独测量预测头占用，非峰值"
+      }
     },
     "binary_sha256": "290708d22f8b495d36b8aedd0afb0cdc081c415548f855e6a950a75dd742ad97",
     "model_alias": "qwen38-27b-q4-k-m",
     "start_command": "./serve/start.sh",
-    "port": 8010
+    "port": 8000,
+    "chat_template": "jinja"
   },
   "endpoints": {
     "solve": "./run.sh",
@@ -49,11 +65,52 @@
     "http_port": 7860
   },
   "agent": {
-    "workflow": "single_generate",
-    "max_rounds": 1,
+    "workflow": "guided_verify",
+    "config": "config/guided_verify.yaml",
+    "retrieval_mode": "off",
+    "planner_model": "qwen38-27b-q4-k-m",
+    "context_policy": "independent messages per stage; no shared conversation history",
+    "max_calls": 8,
+    "max_output_tokens": 65536,
+    "minimum_request_s": 20,
+    "timeout_policy": "clip stage timeout to remaining budget after preserving followup reserve; require min(stage timeout, minimum_request_s)",
     "temperature": 0.0,
-    "tools": [],
-    "skills": [],
+    "stage_limits": {
+      "planner": {
+        "timeout_s": 300,
+        "max_tokens": 4096
+      },
+      "solve": {
+        "timeout_s": 300,
+        "max_tokens": 8192
+      },
+      "checker": {
+        "timeout_s": 300,
+        "max_tokens": 16384
+      },
+      "adjudicate": {
+        "timeout_s": 120,
+        "max_tokens": 1024
+      }
+    },
+    "tools": [
+      "interface_check",
+      "vivado_lint",
+      "vivado_synth",
+      "xsim"
+    ],
+    "skills": [
+      "rtl-counter-terminal-events",
+      "rtl-kmap-coordinate-mapping",
+      "rtl-lfsr-topology",
+      "rtl-memory-accepted-transactions",
+      "rtl-module-interface-contract",
+      "rtl-packed-index-neighborhood",
+      "rtl-pipeline-transaction-alignment",
+      "rtl-sequential-state-update",
+      "rtl-stream-word-boundaries"
+    ],
+    "skill_selection": "planner selects up to two eligible skills from the per-task discovered snapshot",
     "available_workflows": [
       "single_generate",
       "guided_verify"
@@ -61,24 +118,9 @@
   },
   "generation": {
     "chat_template_kwargs": {
-      "enable_thinking": true
+      "enable_thinking": true,
+      "reasoning_effort": "medium"
     }
   },
-  "auxiliary_models": [
-    {
-      "name": "Qwen3.8-27B MTP 预测头",
-      "base_model": "Qwen/Qwen3.8-27B",
-      "source": "https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF",
-      "revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
-      "weights_file": "mtp-Qwen3.8-27B-Q4_0.gguf",
-      "weights_bytes": 1680271776,
-      "weights_sha256": "c5be331f82fb61f5304adfa00ccd60c6743c8ce52255d66fa863446231d49ba4",
-      "quantization": "GGUF Q4_0",
-      "license": "apache-2.0",
-      "parameter_count": null,
-      "purpose": "MTP3 推测解码预测头，不是独立求解、规划或检索模型；baseline 与方案共用",
-      "runtime": "与主模型在同一 llama-server 进程、同一 GPU 上运行",
-      "vram_measurement": "包含在主进程 25288804 KiB 和设备 30044221440 bytes 瞬时采样中；未单独测量预测头占用，非峰值"
-    }
-  ]
+  "auxiliary_models": []
 }

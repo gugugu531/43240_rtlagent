@@ -45,6 +45,20 @@ review_status: frozen_default_fixed
 
 ## 现有技能与来源
 
+新增七个专项方法，均为团队原创，使用默认自动准入，可用于生成和修复；这只说明可以被选中，不代表经过真实模型收益验证。正文采用现有英文技能格式。方法按公开语义选择，不按题号、平台或参考答案匹配：
+
+| 技能 | 适用问题与重点 | 不覆盖的范围 |
+| --- | --- | --- |
+| [rtl-counter-terminal-events](rtl-counter-terminal-events/skill.md) | 计数终点、周期首末拍、同拍级联进位 | 不把计数使能当作新时钟 |
+| [rtl-lfsr-topology](rtl-lfsr-topology/skill.md) | 线性反馈移位寄存器的反馈拓扑、抽头编号与逐位映射 | 不由多项式名称猜抽头或最大周期 |
+| [rtl-stream-word-boundaries](rtl-stream-word-boundaries/skill.md) | 串并转换、数据分组、非整数倍位宽转换 | 不假设未声明的握手或中断行为 |
+| [rtl-memory-accepted-transactions](rtl-memory-accepted-transactions/skill.md) | 单时钟 FIFO 的有效操作、RAM 冲突与读延迟 | 不覆盖异步 FIFO 的跨时钟实现 |
+| [rtl-pipeline-transaction-alignment](rtl-pipeline-transaction-alignment/skill.md) | 流水线数据、部分结果、有效位和控制信号对齐 | 不新增原接口没有的 ready/valid 协议 |
+| [rtl-packed-index-neighborhood](rtl-packed-index-neighborhood/skill.md) | 打包向量切片、网格邻居、边界及同步更新 | 不把非法索引截断或猜成零 |
+| [rtl-kmap-coordinate-mapping](rtl-kmap-coordinate-mapping/skill.md) | 卡诺图坐标、最小项编号、有效输入域与等价核验 | 不替代通用组合完整性技能 |
+
+这些方法细化常见解题步骤；已有通用时序技能仍可用于寄存器、移位与计数。自动选择仍最多两项，新增专项技能可能改变描述检索或规划器的选择；应查看实际发送记录，不能从目录存在推断已经使用。题目分类、来源链接和选题分析只保存在工作区开发资料，不随技能包提交。
+
 原有时序技能保留自动准入；v3 时序技能和关键 case 技能保留候选状态；位宽、组合完整性、FSM 技能保留原有拒绝状态。`rtl-module-interface-contract/SKILL.md` 现由目录发现机制加载。状态由各运行文件 frontmatter 声明，不再使用 `knowledge/catalog.json`。
 
 时序、位宽、组合和 FSM 方法来自 [MIT 上游分支](https://github.com/wyc888-crypto/amd-rtlagent-prompt-engineering/tree/fb1c2803e5db0f32b59b9ba9100877f2a0d26412)，原文及版权说明保留在各目录。`rtl-behavior-check-keycases` 是团队原创，其来源说明见 [PROVENANCE.md](rtl-behavior-check-keycases/PROVENANCE.md)。历史来源与准入状态不构成当前模型效果证明。

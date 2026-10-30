@@ -1,13 +1,93 @@
 """Content-only knowledge base and retrieval interface."""
 
+import json
+from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 
+import httpx
+
 from agent.domain.knowledge import guided
-from agent.domain.knowledge.embedding import settings
+from agent.domain.knowledge.embedding import embed_query, settings
+from agent.observability.recorder import Recorder
 
 
 class KnowledgeGuidedTests(unittest.TestCase):
+    def test_embedding_http_lifecycle_and_unknown_usage(self):
+        for usage in ({"prompt_tokens": 7}, {}, {"prompt_tokens": True, "completion_tokens": -1}):
+            with self.subTest(usage=usage), tempfile.TemporaryDirectory() as directory:
+                calls = []
+
+                def handle(request):
+                    calls.append(request)
+                    if request.url.path.endswith("/models"):
+                        return httpx.Response(200, json={"data": [{"id": settings()["model_alias"]}]})
+                    return httpx.Response(200, json={
+                        "model": settings()["model_alias"], "usage": usage,
+                        "data": [{"index": 0, "embedding": [1.0] + [0.0] * (settings()["dimensions"] - 1)}],
+                    })
+
+                client = httpx.Client(transport=httpx.MockTransport(handle))
+                record = Recorder(directory, secrets=["private-query"])
+                with patch("agent.domain.knowledge.embedding.httpx.Client", return_value=client):
+                    result = embed_query("private-query", url="http://localhost:8020", record=record)
+                record.close()
+                rows = [json.loads(line) for line in Path(directory, "trace.jsonl").read_text().splitlines()]
+                self.assertEqual([(row["tool"], row["event"]) for row in rows], [
+                    ("embedding_models", "started"), ("embedding_models", "finished"),
+                    ("embedding", "started"), ("embedding", "finished"),
+                ])
+                self.assertEqual(rows[0]["call_id"], rows[1]["call_id"])
+                self.assertEqual(rows[2]["call_id"], rows[3]["call_id"])
+                self.assertNotEqual(rows[0]["call_id"], rows[2]["call_id"])
+                self.assertEqual(rows[-1]["tokens_in"], 7 if usage.get("prompt_tokens") == 7 else None)
+                self.assertIsNone(rows[-1]["tokens_out"])
+                self.assertEqual(result[0], 1.0)
+                self.assertEqual(len(calls), 2)
+                request_file = record.record_dir / "calls" / rows[-1]["call_id"] / "request.json"
+                self.assertNotIn("private-query", request_file.read_text())
+                self.assertTrue(request_file.with_name("response.txt").is_file())
+
+    def test_embedding_failures_remain_retrieval_fallback_and_are_recorded(self):
+        for failure in ("discovery", "connection", "http", "json", "model", "vector"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                def handle(request):
+                    if request.url.path.endswith("/models"):
+                        return httpx.Response(200, json={"data": [{
+                            "id": "wrong" if failure == "discovery" else settings()["model_alias"],
+                        }]})
+                    if failure == "connection":
+                        raise httpx.ConnectError("offline", request=request)
+                    if failure == "http":
+                        return httpx.Response(503, text="unavailable")
+                    if failure == "json":
+                        return httpx.Response(200, text="invalid json")
+                    return httpx.Response(200, json={
+                        "model": "wrong" if failure == "model" else settings()["model_alias"],
+                        "usage": {"prompt_tokens": 9},
+                        "data": [{"index": 0, "embedding": []}],
+                    })
+
+                client = httpx.Client(transport=httpx.MockTransport(handle))
+                record = Recorder(directory)
+                with patch("agent.domain.knowledge.embedding.httpx.Client", return_value=client):
+                    cards, report = guided.retrieve(
+                        "counter", mode="rag", strategy="dense", embedding_url="http://localhost:8020",
+                        record=record,
+                    )
+                record.close()
+                self.assertEqual(cards, [])
+                self.assertEqual(report["reason"], "embedding_unavailable")
+                rows = [json.loads(line) for line in Path(directory, "trace.jsonl").read_text().splitlines()]
+                self.assertEqual(rows[-1]["event"], "failed")
+                self.assertEqual(rows[-1]["rc"], 1)
+                self.assertEqual(rows[-2]["event"], "started")
+                self.assertEqual(rows[-1]["call_id"], rows[-2]["call_id"])
+                self.assertEqual(rows[-1]["tokens_in"], 9 if failure in ("model", "vector") else None)
+                self.assertIsNone(rows[-1]["tokens_out"])
+                self.assertEqual(len(rows), 2 if failure == "discovery" else 4)
+
     def test_card_set_is_complete_and_has_no_release_metadata(self):
         cards = guided.load_cards()
         self.assertEqual(len(cards), 129)

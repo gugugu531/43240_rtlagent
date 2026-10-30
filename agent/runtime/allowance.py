@@ -124,13 +124,24 @@ class CompletionLedger:
             "permits": [p.public_dict() for p in self._permits],
         }
 
-    def reserve(self, stage, max_tokens, timeout_s, followup_s=0, optional=True):
+    def reserve(self, stage, max_tokens, timeout_s, followup_s=0, optional=True,
+                min_timeout_s=None):
         if not isinstance(stage, str) or not stage.strip():
             raise ValueError("completion stage must be a nonempty name")
         if type(max_tokens) is not int or max_tokens <= 0 or type(optional) is not bool:
             raise ValueError("invalid completion token limit or optional flag")
         if any(not math.isfinite(value) for value in (timeout_s, followup_s)) or timeout_s <= 0 or followup_s < 0:
             raise ValueError("completion time limits must be finite and nonnegative")
+        if min_timeout_s is not None and (
+            not math.isfinite(min_timeout_s) or not 0 < min_timeout_s <= timeout_s
+        ):
+            raise ValueError("minimum completion time must be positive and within the stage limit")
+        requested_timeout_s = timeout_s
+        remaining_s = self.budget.remaining()
+        if min_timeout_s is not None:
+            # Shrink only the model's allowance. Never borrow the tool/followup
+            # reserve or admit an unusably short request to make progress appear.
+            timeout_s = min(timeout_s, max(0.0, remaining_s - followup_s))
         snapshot = self.snapshot()
         reason = (
             "unfinished_permit" if any(p.state in ("reserved", "active") for p in self._permits)
@@ -138,20 +149,25 @@ class CompletionLedger:
             else "unknown_usage" if optional and snapshot["unknown_usage_calls"]
             else "call_limit" if not snapshot["calls_remaining"]
             else "output_token_limit" if max_tokens > snapshot["output_tokens_remaining"]
-            else "insufficient_followup_time" if timeout_s + followup_s > self.budget.remaining()
+            else "insufficient_followup_time" if (
+                (min_timeout_s is None and timeout_s + followup_s > remaining_s)
+                or (min_timeout_s is not None and timeout_s < min_timeout_s)
+            )
             else None
         )
         self.last_denial = reason
         if reason:
             self._emit("denied", stage=stage, reason=reason, max_tokens=max_tokens,
-                       timeout_s=timeout_s, followup_s=followup_s, optional=optional)
+                       timeout_s=timeout_s, requested_timeout_s=requested_timeout_s,
+                       min_timeout_s=min_timeout_s, followup_s=followup_s, optional=optional)
             return None
         permit = CompletionPermit(
             f"a{len(self._permits) + 1:04d}", stage, max_tokens, timeout_s,
             followup_s, optional, time.monotonic() + timeout_s, self,
         )
         self._permits.append(permit)
-        self._emit("reserved", permit)
+        self._emit("reserved", permit, requested_timeout_s=requested_timeout_s,
+                   min_timeout_s=min_timeout_s)
         return permit
 
     def confirm_terminated(self, permit, evidence):

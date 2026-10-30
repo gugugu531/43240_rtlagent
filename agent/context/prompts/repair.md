@@ -68,9 +68,13 @@ not proof of scope or driver ownership.
    elaboration-failure summary. Check every independent root cause; do not assume an error
    on a second signal is a consequence of the first.
 2. Classify the failure:
-   - **Interface mismatch**: `interface mismatch`, `cannot find port`, or `Module <X> not found`.
-     Rewrite the module header to match the interface without changing any port name.
+   - **Interface mismatch**: `interface mismatch` or `cannot find port`.
+     Rewrite the module header to match the public interface without changing any port name.
      These failures score zero and must be handled first.
+   - **Missing module**: for `Module <X> not found`, compare X with the public top module
+     and the reported instance. Rename the top only if its name violates the public task;
+     a missing instantiated helper requires its implementation or an instance correction,
+     not renaming the correct top module to X.
    - **Syntax error**: `VRFC 10-4982 syntax error`, often caused by a missing module-header
      semicolon, unmatched `begin`/`end`, or an invalid width expression.
    - **Unsynthesizable construct**: locate the cause using the diagnostic text and source,

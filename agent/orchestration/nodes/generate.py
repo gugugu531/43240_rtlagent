@@ -104,6 +104,7 @@ def generate(
                 strategy=retrieval.get("strategy", "bm25"),
                 embedding_url=retrieval.get("embedding_url", ""),
                 embedding_timeout_s=retrieval.get("embedding_timeout_s", 2.0),
+                record=ctx.record,
             )
             report.update(found)
         except (OSError, ValueError, RuntimeError) as error:

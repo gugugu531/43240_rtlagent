@@ -5,7 +5,7 @@
 当前仓库只保留两条工作流：
 
 - `single_generate`：官方 baseline 生成 → baseline 提取 → 选稿 → 写答案。
-- `guided_verify`：小模型规划 → 生成 → 结构检查 → 独立 key-case checker → 归因 →
+- `guided_verify`（默认）：主模型独立规划 → 生成 → 结构检查 → 独立 key-case checker → 归因 →
   有界修复 → 收尾；可选使用知识库检索。
 
 `adaptive_verify`、`design_verify_loop` 和 `repair_loop` 已从当前仓库移除，历史实现保留在
@@ -33,7 +33,7 @@ generate -> extract -> select -> finish
 
 - 使用 `baseline_generate` 和 `baseline_extract`，保持官方 baseline 的提示和提取行为。
 - 不加载 Skill，不调用 Vivado，不做额外检查。
-- 默认入口 `run.sh` 使用 `config/single_generate.yaml`。
+- 显式设置 `AGENT_CONFIG=config/single_generate.yaml` 使用此流程。
 
 ### `guided_verify`
 
@@ -47,7 +47,7 @@ adjudicate -> repair_behavior | build_checker | finish
 repair_behavior -> structure
 ```
 
-- `plan` 使用 small profile 生成扁平计划。
+- `plan` 默认使用主模型 Qwen3.8-27B 生成扁平计划，不接入小模型。
 - `solve` 生成候选，并可选注入 planner 选中的知识卡片。
 - `structure` 通过 interface/lint/synth 工具检查。
 - `build_checker` 生成行式 key-case 表，宿主生成 Verilog testbench。
@@ -57,10 +57,10 @@ repair_behavior -> structure
 ## 3. 模型与 profile
 
 - 模型 profile 只按角色映射，模型不能自行选择 profile。
-- `guided_verify` 默认：
-  - `small`：planner；
-  - `large`：solve、checker、adjudicate、repair；未启用时回落到主模型。
-- `config/guided_verify.yaml` 默认关闭知识注入；RAG 可选配置单独启用。
+- `small` 与 `large` 是兼容的角色 profile 名，默认均关闭，所有阶段回落到主模型。
+  显式研究配置仍可给 planner 设置 `small`，给 solve、checker、adjudicate、repair 设置 `large`。
+- 默认入口 `run.sh` 使用 `config/guided_verify.yaml`，关闭知识卡片检索；Skill 仍可由规划选择。
+- 每阶段重新构造 messages，不拼接其他阶段的聊天历史；共用推理服务不代表共用会话。
 - 模型思考开关沿用 `manifest.json` 的 `generation` 声明，不按请求类型另设一套。
 
 ## 4. 工具与提交

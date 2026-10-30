@@ -1,14 +1,17 @@
-"""Subprocess groups, bounded waits and file-backed output."""
+"""Task-group subprocesses, bounded tree cleanup and file-backed output."""
 
 from dataclasses import dataclass
 import os
 import ctypes
+import json
 from contextlib import contextmanager
 import threading
 import signal
 import subprocess
 import tempfile
 import time
+from pathlib import Path
+import sys
 
 
 @contextmanager
@@ -49,7 +52,9 @@ class ProcessManager:
         self.budget, self.record = budget, record
         self.groups = {}
         self.sequence = 0
-        # Adopt descendants so killed tool groups do not leave zombies at PID 1.
+        # Adopt tool descendants for per-call cleanup. All tools also stay in
+        # the task's process group, so the outer timeout can kill them even if
+        # this Python process has already been killed or stopped.
         try:
             self.subreaper = (
                 ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0) == 0
@@ -58,23 +63,24 @@ class ProcessManager:
             self.subreaper = False
 
     @staticmethod
-    def _kill(pgid):
+    def _kill(pid):
         try:
-            os.killpg(pgid, signal.SIGKILL)
+            os.kill(pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
 
-    def _reap(self, pgid):
-        if not self.subreaper:
-            return
-        deadline = time.monotonic() + 1.0
-        while time.monotonic() < deadline:
+    def _cleanup(self, proc):
+        if proc.poll() is None:
             try:
-                pid, _ = os.waitpid(-pgid, os.WNOHANG)
-            except ChildProcessError:
-                return
-            if pid == 0:
-                time.sleep(0.01)
+                os.kill(proc.pid, signal.SIGTERM)
+                os.kill(proc.pid, signal.SIGCONT)
+            except ProcessLookupError:
+                pass
+            try:
+                proc.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                self._kill(proc.pid)
+                proc.wait(timeout=1.0)
 
     def run(self, command, *, cwd=None, timeout_s=None, env=None):
         timeout = self.budget.timeout(timeout_s or self.budget.deadline_s)
@@ -84,21 +90,25 @@ class ProcessManager:
         with self.record.span(
             "process", process_id=identity, command=list(command), cwd=str(cwd)
         ):
-            with tempfile.TemporaryFile() as stream:
+            with tempfile.TemporaryDirectory(prefix="rtla_process_") as control, tempfile.TemporaryFile() as stream:
+                result_path = Path(control) / "result.json"
                 proc = None
                 timed_out = False
                 try:
                     try:
                         with defer_cancellation():
                             proc = subprocess.Popen(
-                                command,
+                                [sys.executable, str(Path(__file__).with_name("process_worker.py")), str(result_path), *command],
                                 cwd=cwd,
                                 env=env,
                                 stdout=stream,
                                 stderr=subprocess.STDOUT,
-                                start_new_session=True,
                             )
                             self.groups[proc.pid] = proc
+                            self.record.emit(
+                                "process", "spawned", process_id=identity,
+                                pid=proc.pid, pgid=os.getpgrp(),
+                            )
                     except OSError as exc:
                         self.record.emit(
                             "process",
@@ -115,23 +125,31 @@ class ProcessManager:
                         timed_out = True
                 finally:
                     if proc is not None:
-                        self._kill(proc.pid)
-                        proc.wait()
-                        self._reap(proc.pid)
+                        self._cleanup(proc)
                         self.groups.pop(proc.pid, None)
                     stream.seek(0)
                     output = stream.read().decode("utf-8", errors="replace")
                     path = self.record.write_text(
                         f"process_logs/{identity}.log", output
                     )
+                try:
+                    tool_result = json.loads(result_path.read_text())
+                    if type(tool_result.get("rc")) is not int:
+                        raise ValueError("missing tool return code")
+                except (OSError, ValueError, AttributeError):
+                    tool_result = {"rc": -1, "status": "worker_failed"}
+                if tool_result.get("status") in ("unavailable", "worker_failed", "cleanup_failed"):
+                    self.record.emit("process", tool_result["status"], process_id=identity,
+                                     rc=-1, error=tool_result.get("error"), worker_rc=proc.returncode)
                 result = ProcessResult(
-                    proc.returncode, output, time.monotonic() - started, timed_out, path
+                    tool_result["rc"], output, time.monotonic() - started, timed_out, path
                 )
                 self.record.emit(
                     "process",
                     "result",
                     process_id=identity,
                     rc=result.rc,
+                    worker_rc=proc.returncode,
                     timed_out=timed_out,
                     elapsed_s=result.elapsed_s,
                     log_path=path,
@@ -140,8 +158,6 @@ class ProcessManager:
                 return result
 
     def close(self):
-        for pgid, proc in list(self.groups.items()):
-            self._kill(pgid)
-            proc.wait()
-            self._reap(pgid)
-            self.groups.pop(pgid, None)
+        for pid, proc in list(self.groups.items()):
+            self._cleanup(proc)
+            self.groups.pop(pid, None)

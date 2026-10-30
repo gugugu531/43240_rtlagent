@@ -32,10 +32,11 @@ does not produce a link error late in the flow, it stops elaboration, so **the
 task scores zero** — there is no partial credit for a design that was
 algorithmically right.
 
-Your task is to verify the module against rules 1 through 5 and, when a rule
-fails, apply the corresponding repair. **Do not modify the logic while repairing
-the interface.** These are separate failures and mixing the fixes makes both
-harder to attribute.
+Use rules 1 through 5 as an internal checklist during generation or repair.
+The outer task and its output contract take precedence over this method. Preserve
+specified behavior while fixing interface defects; when the public task or
+current repair feedback also requires a functional correction, make that
+correction too. Do not let this interface checklist replace solving the task.
 
 ---
 
@@ -45,14 +46,16 @@ harder to attribute.
 - The module name must be **character-for-character identical** to the declared
   one. `top_module` is not `TopModule`.
 - Verilog identifiers are case sensitive; the elaborator does no fuzzy matching.
-- Helper modules may have any name. Only the instantiated top is constrained.
+- The top must match the public task. Helper module declarations must also match
+  their instantiations; a missing helper is not evidence that the top needs renaming.
 - → If no module with the exact name is declared, **Rule 1 FAIL**.
 
 ### Rule 2 — Every Declared Port Exists, Spelled the Same Way
 - The testbench connects by name (`.q(q_dut)`), not by position. A renamed port
   is a missing port.
-- Adding a port the interface does not declare is equally fatal: the instance
-  leaves it unconnected only if the testbench knows about it, and it does not.
+- Do not add ports absent from the public interface. Named-port instances can
+  leave extra ports unconnected without an elaboration error; that does not make
+  the added port compliant with the task.
 - → If any declared port is missing, or any undeclared port is added,
   **Rule 2 FAIL**.
 
@@ -66,7 +69,9 @@ harder to attribute.
 - `wire` / `reg` / `logic` on a port is **not** part of the contract. Changing
   `output q` to `output reg q` is legal and often necessary; it does not break
   elaboration.
-- → If a direction or a width differs, **Rule 3 FAIL**.
+- A width mismatch can produce a warning or implicit padding/truncation rather
+  than a fatal error. Successful elaboration does not establish width agreement.
+- → If a direction or a width differs from the public requirements, **Rule 3 FAIL**.
 
 ### Rule 4 — The Module Header Parses
 - A missing semicolon after the port list is the single most common way to lose
@@ -102,10 +107,10 @@ a reference testbench. "Grade" is the level reached under the progressive scheme
 
 Three things worth reading off this table.
 
-**Every interface fault scores L0.** Compare with the logic fault on row four,
-which still scores L1 despite being wrong. Getting the ports right is worth more
-than getting the algorithm right, which is not the intuition most people bring
-from software.
+**The injected interface faults in rows one to three stop elaboration.**
+Other interface faults, including some width mismatches or extra unconnected
+ports, may elaborate. Check the public contract explicitly; neither elaboration
+success nor interface agreement proves functional correctness.
 
 **The syntax error points at the wrong line.** The missing semicolon is at the
 end of the port list; `xvlog` reports `near 'always'` on the following line.
@@ -120,14 +125,18 @@ below.
 
 ## Repair Procedure
 
-Apply in order. Stop after the first repair and re-elaborate; repairs compound
-badly when applied blind.
+Inspect in order and make evidence-based changes. Tool execution belongs to the
+outer workflow; do not claim to have re-elaborated without actual tool results.
+Deliver the complete required RTL after any supported interface and functional
+repairs, following the outer generation or repair instructions.
 
 ### Step 1 — Check the interface before invoking any tool
-Comparing the generated module header against the declared one is a text
-operation. It takes microseconds, needs no Vivado, and decides the entire L0
-failure class. Doing it first is strictly better than spending an `xelab`
-invocation to learn the same thing.
+Compare the generated header with the authoritative public interface before
+using tools. A separate interface file is optional: explicit module and port
+requirements in the public task are also authoritative. Do not adopt a buggy
+example or previous candidate as the required interface. Header comparison can
+catch simple mismatches, but cannot decide every syntax or elaboration failure;
+parameter-dependent widths may need further analysis.
 
 Compare, in this order: module name; the set of port names; each port's
 direction; each port's width. Ignore whitespace, comments, and
@@ -137,7 +146,7 @@ direction; each port's width. Ignore whitespace, comments, and
 
 | Log signature | Failing rule | Repair |
 | --- | --- | --- |
-| `VRFC 10-2063 Module <X> not found` | 1 | Rename the module to exactly `X`. |
+| `VRFC 10-2063 Module <X> not found` | 1 or unresolved helper | Check the instance path and public top name. If `X` is the required top, correct its declaration or source inclusion. If `X` is a helper, restore/define that helper or correct its instantiation while preserving the required top. Never rename the top merely because a missing module is named `X`. |
 | `VRFC 10-3180 cannot find port '<p>'` | 2 | Restore port `<p>` under its declared name. Do not add an alias; rename the one you invented. |
 | `VRFC 10-4982 syntax error near '<kw>'` | 4 | Look at the line **above** `<kw>` first. |
 | Width or direction mismatch reported by the interface check | 3 | Copy the port declaration verbatim from the interface. |
@@ -146,60 +155,42 @@ direction; each port's width. Ignore whitespace, comments, and
 ### Step 3 — Rebuild the header by copying, not retyping
 The reliable construction is mechanical:
 
-1. Take the module header from the interface verbatim, including the `);`.
+1. Use the authoritative public header, including the `);`, or reconstruct it
+   from explicit public module and port requirements when no header is supplied.
+   Do not copy a declaration that the task explicitly identifies as faulty.
 2. Add `reg` to output ports that are driven from an `always` block.
 3. Write the body below it.
 
 Retyping a port list from memory is how widths and underscores get lost.
 
 ### Step 4 — Verify before moving on
-The interface is fixed when `xelab` elaborates the testbench — that is, when the
-failure changes from an elaboration error to either a passing run or a mismatch
-count. **A mismatch count is progress**: it means the contract now holds and the
-remaining problem is the logic.
+Check the header against the public contract and use actual tool results to
+confirm that syntax/elaboration errors were resolved. `xelab` success alone does
+not prove exact interface agreement or functional correctness. A simulation
+mismatch may still come from interface widths or connections as well as logic;
+use the specific evidence instead of assuming the interface is now correct.
 
 ---
 
 ## Output Format
 
-Respond with a structured analysis in this exact format:
-
-```
-### RTL Module Interface Contract Analysis
-
-**Declared interface:**
-- <module name and port list taken from the interface>
-
-**Module found in the generated code:**
-- <module name and port list actually declared, or "none">
-
-**Rule-by-Rule Evaluation:**
-
-| Rule | Description                                  | Result               |
-| ---- | -------------------------------------------- | -------------------- |
-| 1    | Module name matches exactly                  | PASS / FAIL (reason) |
-| 2    | All declared ports present, none added       | PASS / FAIL (reason) |
-| 3    | Directions and widths match                  | PASS / FAIL (reason) |
-| 4    | Module header parses                         | PASS / FAIL (reason) |
-| 5    | No testbench content in the file             | PASS / FAIL (reason) |
-
-**Verdict:** ✅ Contract satisfied / ❌ Contract violated
-**First failing rule:** <rule number and explanation>
-**Repair applied:** <the single edit made, or "none required">
-```
+This checklist is internal method material, not a request for an analysis report.
+For generation and repair, output exactly one fenced ```verilog code block
+containing the complete RTL file, with no text outside it, as required by the
+outer prompt. Do not emit a rule table, verdict, commentary, patch or fragment.
 
 ---
 
 ## Behavioral Constraints
-- **Do not** add rules beyond 1–5. Functional correctness, reset style, and
-  synthesizability are out of scope for this skill.
-- **Do not** change the logic while repairing the interface. One edit, one
-  failure class.
-- **Do not** "fix" a port name mismatch by adding an alias wire. Rename the port.
-- **Do not** remove `reg` from an output port to make it match the interface
-  textually — `reg` is not part of the contract and removing it will break the
-  `always` block that drives it.
-- Evaluate rules in order (1 → 5) and stop at the first failure for the repair,
-  but still report all five in the table.
-- If no interface declaration was supplied, report all rules as N/A rather than
-  guessing a module name.
+- Use rules 1–5 to check the interface without overriding the public functional,
+  reset, timing or synthesis requirements. Preserve correct logic and apply
+  functional fixes when the task or current feedback requires them.
+- **Do not** "fix" a port name mismatch by adding an alias wire. Correct the
+  external declaration and its internal uses to match the public interface.
+- **Do not** remove `reg` from an output port just to match interface text.
+  Respect explicit type constraints; otherwise keep the legal net/variable type
+  required by its drivers.
+- Evaluate rules internally; the outer prompt determines the final RTL output.
+- If no separate interface declaration was supplied, check explicit module and
+  port requirements in the public task. Only genuinely unspecified properties
+  remain unresolved; do not mark every rule N/A or invent missing requirements.

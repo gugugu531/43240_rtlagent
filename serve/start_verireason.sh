@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # start_verireason.sh -- optional 8011 llama.cpp service for guided_verify.
 #
-# This is not part of the official default startup. Call it explicitly, or
-# export VERI_GGUF before serve/start.sh, when guided_verify is being tested.
+# This is not part of the default startup. Call it explicitly only when
+# testing a research configuration with an enabled small-model profile.
 # It requires a llama-server binary and a converted GGUF file.
 #
-#   VERI_GGUF=/models/verireason-1.5b-f16.gguf ./serve/start.sh
+#   VERI_GGUF=/models/verireason-1.5b-f16.gguf ./serve/start_verireason.sh
 #
 # The script is idempotent: it returns 0 when 8011 already answers.
 
 set -eo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${SERVE_LOG_DIR:-${AGENT_TMP:-/tmp}/serve-logs}"
+LOG_DIR="${SERVE_LOG_DIR:-${AGENT_TMP:-/var/tmp}/serve-logs}"
 MODEL="${VERI_GGUF:-/models/verireason-1.5b-f16.gguf}"
 PORT="${VERI_PORT:-8011}"
 ALIAS="${VERI_ALIAS:-verireason-1.5b}"
@@ -21,6 +21,10 @@ THREADS="${VERI_THREADS:-8}"
 SERVER="${VERI_SERVER:-/opt/llamacpp/llama-server}"
 WAIT_S="${VERI_WAIT_S:-180}"
 mkdir -p "$LOG_DIR"
+
+if [ -z "${ROCBLAS_TENSILE_LIBPATH:-}" ] && [ -d "$(dirname "$SERVER")/rocblas/library" ]; then
+    export ROCBLAS_TENSILE_LIBPATH="$(dirname "$SERVER")/rocblas/library"
+fi
 
 if curl -sf -o /dev/null "http://127.0.0.1:$PORT/v1/models"; then
     echo "start_verireason.sh: small model already up on $PORT" >&2
@@ -42,7 +46,7 @@ setsid "$SERVER" \
     --host 127.0.0.1 --port "$PORT" \
     --ctx-size "$CTX" --parallel 1 \
     --n-gpu-layers all --threads "$THREADS" \
-    --flash-attn on --no-webui --metrics \
+    --flash-attn on --jinja --no-webui --metrics \
     >>"$LOG_DIR/verireason.log" 2>&1 </dev/null &
 
 waited=0

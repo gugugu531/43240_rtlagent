@@ -105,9 +105,9 @@ def bm25_rank(cards, query):
     return sorted(ranked, key=lambda item: (-item[1], item[0]))
 
 
-def dense_rank(cards, query, *, embedding_url, timeout_s=2.0, trace=None):
+def dense_rank(cards, query, *, embedding_url, timeout_s=2.0, trace=None, record=None):
     query_vector = embed_query(
-        query, url=embedding_url, timeout_s=timeout_s, trace=trace
+        query, url=embedding_url, timeout_s=timeout_s, trace=trace, record=record
     )
     vectors = load_vectors()
     ranked = [
@@ -138,6 +138,7 @@ def retrieve(
     embedding_timeout_s=2.0,
     stage="pre_generation",
     trace=None,
+    record=None,
 ):
     report = {
         "mode": mode, "stage": stage, "strategy": strategy,
@@ -167,6 +168,7 @@ def retrieve(
                 embedding_url=embedding_url,
                 timeout_s=embedding_timeout_s,
                 trace=trace,
+                record=record,
             )
         elif strategy == "bm25":
             ranking = bm25_rank(cards, query)

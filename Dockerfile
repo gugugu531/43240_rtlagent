@@ -24,19 +24,21 @@ COPY model/  model/
 COPY run.sh run_baseline.sh baseline.py manifest.json REPORT.md LICENSE ./
 RUN chmod +x run.sh run_baseline.sh serve/llamacpp.sh serve/start.sh serve/start_verireason.sh serve/run_api.sh
 
-# Prepare a compatible HIP llama-server (including its runtime libraries) in
-# the base image or mount it and set LLAMA_SERVER. No runtime downloads.
+# Use the official image's bundled HIP server and matching runtime libraries.
+# A different build must be prepared during image construction, never at runtime.
+RUN test -x /opt/llamacpp/llama-server && test -d /opt/llamacpp/rocblas/library
 # Bind-mount both the text GGUF and its Q4_0 MTP head under /models;
 # weights and development files are deliberately not copied into this image.
 
 ENV LLM_BACKEND=openai \
-    LLM_BASE_URL=http://127.0.0.1:8010/v1 \
+    LLM_BASE_URL=http://127.0.0.1:8000/v1 \
     LLM_MODEL=qwen38-27b-q4-k-m \
     MODEL_NAME=qwen38-27b-q4-k-m \
     MODEL=/models/Qwen3.8-27B-Q4_K_M.gguf \
     MTP_MODEL=/models/mtp-Qwen3.8-27B-Q4_0.gguf \
-    LLAMA_SERVER=llama-server \
-    PORT=8010 \
+    LLAMA_SERVER=/opt/llamacpp/llama-server \
+    ROCBLAS_TENSILE_LIBPATH=/opt/llamacpp/rocblas/library \
+    PORT=8000 \
     LLM_API_KEY=dummy \
     AGENT_TMP=/var/tmp \
     EDA_TMP=/var/tmp/eda \
@@ -51,7 +53,7 @@ ENV LLM_BACKEND=openai \
 
 # Container metadata only. On Radeon Cloud both services bind 127.0.0.1 and
 # just 7860 is published, via rc-tunnel. See docs/API_CONTRACT.md section 7.
-EXPOSE 7860 8010
+EXPOSE 7860 8000
 
 # Start resident services once with serve/start.sh before calling run.sh or
 # run_baseline.sh. HTTP submission additionally runs serve/serve_api.py.

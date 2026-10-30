@@ -31,8 +31,9 @@
 set -eo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${SERVE_LOG_DIR:-${AGENT_TMP:-/tmp}/serve-logs}"
-LLM_PORT="${PORT:-8010}"
+LOG_DIR="${SERVE_LOG_DIR:-${AGENT_TMP:-/var/tmp}/serve-logs}"
+LLM_PORT="${PORT:-8000}"
+MODEL_NAME="${MODEL_NAME:-qwen38-27b-q4-k-m}"
 START_TIMEOUT_S="${START_TIMEOUT_S:-900}"   # loading weights can take minutes
 
 mkdir -p "$LOG_DIR"
@@ -41,7 +42,7 @@ mkdir -p "$LOG_DIR"
 # the timeout runs out.
 wait_ready() {
     local name="$1" url="$2" pid="$3" waited=0
-    while ! curl -sf -o /dev/null "$url"; do
+    while ! curl --noproxy '*' --connect-timeout 2 --max-time 3 -sf -o /dev/null "$url"; do
         if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
             echo "start.sh: $name exited during startup, see $LOG_DIR/$name.log" >&2
             tail -n 20 "$LOG_DIR/$name.log" >&2 || true
@@ -66,7 +67,7 @@ wait_ready() {
 # harmless. Only directories whose whole subtree has been idle for two hours
 # are removed; see serve/README.md for the process-group cleanup contract.
 
-EDA_TMP="${EDA_TMP:-/tmp/eda}"
+EDA_TMP="${EDA_TMP:-/var/tmp/eda}"
 mkdir -p "$EDA_TMP"
 setsid flock -n "$EDA_TMP/.cleanup.lock" bash -c '
     while :; do
@@ -81,19 +82,21 @@ setsid flock -n "$EDA_TMP/.cleanup.lock" bash -c '
 # --- inference service ------------------------------------------------------
 
 LLM_URL="http://127.0.0.1:$LLM_PORT/health"
-if curl -sf -o /dev/null "$LLM_URL"; then
+if curl --noproxy '*' --connect-timeout 2 --max-time 3 -sf -o /dev/null "$LLM_URL"; then
     echo "start.sh: llama.cpp already up on $LLM_PORT" >&2
 else
     setsid "$HERE/llamacpp.sh" >"$LOG_DIR/llamacpp.log" 2>&1 </dev/null &
     wait_ready llamacpp "$LLM_URL" "$!"
 fi
 
-# --- optional small model for guided_verify --------------------------------
-#
-# The official default does not start 8011. Export VERI_GGUF to opt in.
-if [ -n "${VERI_GGUF:-}" ]; then
-    "$HERE/start_verireason.sh"
-fi
+# A healthy process on this port may serve a different model. Do not silently
+# reuse it as the declared inference service (API contract sections 2 and 8).
+curl --noproxy '*' --connect-timeout 2 --max-time 3 -sf "http://127.0.0.1:$LLM_PORT/v1/models" |
+    python3 -c 'import json,sys; data=json.load(sys.stdin); sys.exit(0 if any(item.get("id") == sys.argv[1] for item in data.get("data", [])) else "start.sh: model alias does not match MODEL_NAME")' "$MODEL_NAME"
+
+# The default guided workflow routes every stage to the primary model.
+# Research-only small services must be started explicitly via start_verireason.sh;
+# a leftover VERI_GGUF variable must not load another model on the default path.
 
 # --- your own resident processes -------------------------------------------
 #

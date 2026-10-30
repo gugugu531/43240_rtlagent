@@ -1,13 +1,12 @@
-# guided_verify 开发配置：小模型在 8011，主模型在 8010。
-# 8011 不是官方默认常驻服务；可用 VERI_GGUF=... ./serve/start_verireason.sh 启动。
-# 小模型权重、许可证和 flat plan 行为须先验证；未就绪时不要把该配置用于正式投题。
+# 默认流程：规划、生成和独立检查均使用 8000 的 Qwen3.8-27B。
+# 每个阶段重新构造 messages，不续接其他阶段的聊天历史；RAG 关闭。
 workflow: guided_verify
 params:
   retrieval_mode: "off"
   retrieval_strategy: bm25
-  planner: {timeout_s: 60, max_tokens: 512}
+  planner: {timeout_s: 300, max_tokens: 4096}
   solve: {timeout_s: 300, max_tokens: 8192}
-  checker: {timeout_s: 300, max_tokens: 8192}
+  checker: {timeout_s: 300, max_tokens: 16384}
   adjudicate: {timeout_s: 120, max_tokens: 1024}
   structure_repair_limit: 1
   behavior_repair_limit: 1
@@ -20,6 +19,7 @@ params:
   knowledge_select: 3
   max_calls: 8
   max_output_tokens: 65536
+  minimum_request_s: 20
   first_tools_s: 120
   recheck_tools_s: 120
   submission_policy: last_written
@@ -30,16 +30,12 @@ runtime:
 services:
   model:
     backend: openai
-    base_url: http://127.0.0.1:8010/v1
+    base_url: http://127.0.0.1:8000/v1
     model: qwen38-27b-q4-k-m
     tokenizer_protocol: llama_cpp
     max_model_len: 65536
     timeout_s: 300
     structured_outputs: false
   profiles:
-    small:
-      enabled: true
-      model: verireason-1.5b
-      base_url: http://127.0.0.1:8011/v1
-      timeout_s: 120
+    small: {enabled: false}
     large: {enabled: false}

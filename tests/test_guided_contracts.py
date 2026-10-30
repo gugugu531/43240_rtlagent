@@ -1,5 +1,6 @@
 """guided_verify flat plan, checker table, and adjudication contracts."""
 
+import json
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -141,7 +142,7 @@ class GuidedContractTests(unittest.TestCase):
                 "Implement a module named TopModule with the following interface.\n"
                 " - input clk\n - input reset\n - input load\n"
                 " - input data (8 bits)\n - output q (8 bits)\n - output z\n"
-                "Reset sets q to 1; load sets q to data; otherwise hold.",
+                "On each positive clock edge, reset sets q to 1; load sets q to data; otherwise hold.",
             ),
         )
         # z is public but not checked; host must report partial, not full pass.
@@ -243,6 +244,7 @@ class GuidedContractTests(unittest.TestCase):
             "structure_repairs": 0, "behavior_repairs": 0,
             "behavior": {"failed": [], "unknown": []},
             "checker_text": "", "attempted": set(), "request_outcomes": {},
+            "checker": parse_checker("case reset\ninit reset=1 load=0 data=00 q=01", task()),
             "ledger": ledger,
         }
         ctx = SimpleNamespace(
@@ -251,7 +253,7 @@ class GuidedContractTests(unittest.TestCase):
             prompts=SimpleNamespace(
                 render=lambda *args, **kwargs: [{"role": "user", "content": "repair"}]
             ),
-            task=object(),
+            task=task(),
         )
         with patch.object(guided, "_candidate", return_value=None):
             for repair in (guided.repair_structure, guided.repair_behavior):
@@ -377,6 +379,8 @@ class GuidedContractTests(unittest.TestCase):
         class Response:
             def __init__(self, payload):
                 self.payload = payload
+                self.status_code = 200
+                self.text = json.dumps(payload)
 
             def raise_for_status(self):
                 return None
@@ -419,7 +423,11 @@ class GuidedContractTests(unittest.TestCase):
         ctx = SimpleNamespace(
             task=task(),
             store={"guided": data},
-            record=SimpleNamespace(emit=lambda *args, **kwargs: None),
+            record=SimpleNamespace(
+                emit=lambda *args, **kwargs: None,
+                write_json=lambda *args, **kwargs: None,
+                write_text=lambda *args, **kwargs: None,
+            ),
         )
         with patch("agent.domain.knowledge.embedding.httpx.Client", Client):
             skills, cards = guided._shortlist(ctx, 3)

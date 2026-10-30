@@ -25,6 +25,11 @@ class SkillWorkflowTests(unittest.TestCase):
 
     def context(self):
         return SimpleNamespace(
+            record=SimpleNamespace(
+                emit=lambda *args, **kwargs: None,
+                write_json=lambda *args, **kwargs: None,
+                write_text=lambda *args, **kwargs: None,
+            ),
             task=TaskSpec.from_text(
                 "skills", "Implement module top_module(input a, output y); assign y = a; endmodule"
             ),

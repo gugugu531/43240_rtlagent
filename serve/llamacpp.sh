@@ -7,8 +7,8 @@ set -eo pipefail
 MODEL="${MODEL:-/models/Qwen3.8-27B-Q4_K_M.gguf}"
 MTP_MODEL="${MTP_MODEL:-/models/mtp-Qwen3.8-27B-Q4_0.gguf}"
 MODEL_NAME="${MODEL_NAME:-qwen38-27b-q4-k-m}"
-LLAMA_SERVER="${LLAMA_SERVER:-llama-server}"
-PORT="${PORT:-8010}"
+LLAMA_SERVER="${LLAMA_SERVER:-/opt/llamacpp/llama-server}"
+PORT="${PORT:-8000}"
 MAX_LEN="${MAX_LEN:-65536}"
 PARALLEL="${PARALLEL:-1}"
 N_GPU_LAYERS="${N_GPU_LAYERS:-all}"
@@ -30,6 +30,13 @@ if ! command -v "$LLAMA_SERVER" >/dev/null 2>&1 || [ ! -x "$(command -v "$LLAMA_
     exit 1
 fi
 
+# Official FAQ Q7: the bundled HIP build needs its matching Tensile library.
+# An explicitly configured library path takes precedence for custom builds.
+SERVER_DIR="$(dirname "$(readlink -f "$(command -v "$LLAMA_SERVER")")")"
+if [ -z "${ROCBLAS_TENSILE_LIBPATH:-}" ] && [ -d "$SERVER_DIR/rocblas/library" ]; then
+    export ROCBLAS_TENSILE_LIBPATH="$SERVER_DIR/rocblas/library"
+fi
+
 exec "$LLAMA_SERVER" \
     -m "$MODEL" \
     --alias "$MODEL_NAME" \
@@ -44,6 +51,7 @@ exec "$LLAMA_SERVER" \
     --cache-type-k f16 \
     --cache-type-v f16 \
     --flash-attn "$FLASH_ATTN" \
+    --jinja \
     --no-webui \
     --metrics \
     --reasoning-budget "$REASONING_BUDGET" \

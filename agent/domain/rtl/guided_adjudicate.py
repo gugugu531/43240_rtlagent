@@ -24,7 +24,7 @@ class Adjudication:
         }
 
 
-def adjudicate_request(task, candidate, checker, failures):
+def adjudicate_request(task, candidate, checker, failures, *, execution=None):
     user = (
         "Public task:\n"
         + task.prompt
@@ -34,6 +34,8 @@ def adjudicate_request(task, candidate, checker, failures):
         + candidate.code
         + "\n```\n\nChecker table:\n"
         + checker
+        + "\n\nHost execution contract and expanded sampling plan:\n"
+        + json.dumps(execution, ensure_ascii=False, separators=(",", ":"))
         + "\n\nObserved failures:\n"
         + json.dumps(failures, ensure_ascii=False, separators=(",", ":"))
         + "\n\nDecide whether the candidate or the checker is wrong. "
@@ -47,7 +49,8 @@ def adjudicate_request(task, candidate, checker, failures):
             "content": (
                 "You are diagnosing a mismatch between a public RTL specification and a "
                 "small hand-written checker table. The checker may be wrong. "
-                "Use only the public task, the candidate and the recorded failures. "
+                "Use only the public task, candidate, checker table, host execution mechanics and recorded failures. "
+                "Failure step indices refer to expanded sampling events, not table lines. "
                 "Do not invent requirements or expected values."
             ),
         },

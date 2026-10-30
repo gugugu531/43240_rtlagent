@@ -1,4 +1,4 @@
-"""Guided solve/check workflow: small planner, host TB, bounded repair."""
+"""Guided solve/check workflow: isolated planner, host TB, bounded repair."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from agent.domain.rtl.guided_adjudicate import (
 )
 from agent.domain.rtl.guided_checker import (
     CheckerError,
+    checker_contract,
     checker_request,
     evaluate_checker,
     parse_checker,
@@ -33,6 +34,24 @@ from agent.domain.knowledge.policy import select_skills
 
 def _g(ctx):
     return ctx.store["guided"]
+
+
+def _checker_limits(ctx):
+    settings = _g(ctx)["settings"]
+    return {
+        "max_cases": settings.get("max_cases", 4),
+        "max_steps": settings.get("max_steps_per_case", 8),
+        "init_cycles": settings.get("init_cycles", 2),
+    }
+
+
+def _checker_execution(ctx):
+    """Public stimulus/index mapping, never measured outputs or candidate RTL."""
+    data = _g(ctx)
+    return {
+        "contract": checker_contract(ctx.task, **_checker_limits(ctx)),
+        "sampling_plan": data["checker"].plan,
+    }
 
 
 def _save(ctx, name, value):
@@ -69,7 +88,8 @@ def _request(ctx, stage, messages, limits, *, followup_s=0):
         raise ValueError(f"guided stage may only request once: {stage}")
     data["attempted"].add(stage)
     permit = data["ledger"].reserve(
-        stage, **limits, followup_s=followup_s, optional=False
+        stage, **limits, followup_s=followup_s, optional=False,
+        min_timeout_s=min(limits["timeout_s"], data["settings"].get("minimum_request_s", 20)),
     )
     if permit is None:
         data["request_outcomes"][stage] = {
@@ -85,7 +105,7 @@ def _request(ctx, stage, messages, limits, *, followup_s=0):
                 temperature=data["settings"]["temperature"],
                 top_p=data["settings"]["top_p"],
                 profile=profile_for_stage(stage) or None,
-                **limits,
+                **{**limits, "timeout_s": permit.timeout_s},
             )
         data["request_outcomes"][stage] = {
             "status": "returned", "call_id": reply.call_id,
@@ -192,6 +212,7 @@ def _shortlist(ctx, limit):
         embedding_url=settings.get("embedding_url", ""),
         embedding_timeout_s=settings.get("embedding_timeout_s", 2.0),
         stage="pre_generation",
+        record=ctx.record,
     )
     data["retrieval"] = report
     return skills, picked
@@ -257,7 +278,12 @@ def plan(ctx: Ctx, state: State) -> State:
     skills, cards = _shortlist(ctx, settings["knowledge_candidates"])
     _save(ctx, "retrieval", data["retrieval"])
     ctx.record.emit("knowledge", "retrieval", **data["retrieval"])
-    messages = plan_request(ctx.task, skills, cards)
+    rules = checker_contract(ctx.task, **_checker_limits(ctx))
+    _save(ctx, "checker-contract", rules)
+    messages = plan_request(
+        ctx.task, skills, cards, checker_rules=rules,
+        max_skills=2, max_cards=settings["knowledge_select"],
+    )
     reply = _request(
         ctx, "plan", messages, settings["planner"],
         followup_s=settings["solve"]["timeout_s"] + settings["first_tools_s"],
@@ -276,6 +302,11 @@ def plan(ctx: Ctx, state: State) -> State:
             _save(ctx, "plan-error", {"status": "invalid", "reason": str(error)})
     if chosen is None:
         chosen = Plan("structural", (), (), (), "planner_fallback")
+    if chosen.method == "table" and not rules["supported"]:
+        _save(ctx, "plan-capability", {
+            "requested": "table", "effective": "structural", "reason": rules["reason"],
+        })
+        chosen = Plan("structural", chosen.skills, chosen.knowledge, chosen.focus, chosen.reason)
     data["plan"] = chosen.public_dict()
     data["method"] = chosen.method
     _save(ctx, "plan", data["plan"])
@@ -374,11 +405,20 @@ def repair_structure(ctx: Ctx, state: State) -> State:
     settings = data["settings"]
     parent = ctx.candidates.get(state["target_id"])
     assessment = data["assessments"].get(parent.id, {})
-    feedback = "\n".join(
-        f"{name}: {check.get('excerpt', '')}"
-        for name, check in assessment.get("checks", {}).items()
-        if check.get("status") in ("failed", "timeout")
-    )
+    feedback = json.dumps({
+        "candidate_id": parent.id,
+        "candidate_hash": getattr(parent, "code_hash", None),
+        "checks": [
+            {
+                "tool": name, "status": check.get("status"),
+                "failure_kind": check.get("failure_kind"), "rc": check.get("rc"),
+                "repair_diagnostics": (check.get("details") or {}).get("repair_diagnostics"),
+                "excerpt": check.get("excerpt", ""),
+            }
+            for name, check in assessment.get("checks", {}).items()
+            if check.get("status") in ("failed", "timeout")
+        ],
+    }, ensure_ascii=False)
     messages = ctx.prompts.render(
         "repair.md", task=ctx.task, parent=parent, feedback=feedback, plan=None
     )
@@ -404,7 +444,15 @@ def build_checker(ctx: Ctx, state: State) -> State:
         data["checker_status"] = "invalid"
         return state.update(checker_status="invalid")
     body = entry[1]
-    messages = checker_request(ctx.task, body, data["plan"].get("focus", ()))
+    rules = checker_contract(ctx.task, **_checker_limits(ctx))
+    if not rules["supported"]:
+        data["checker_status"] = "invalid"
+        data["checker_hash"] = None
+        _save(ctx, "checker-error", {"status": "unsupported", "reason": rules["reason"]})
+        return state.update(checker_status="invalid")
+    messages = checker_request(
+        ctx.task, body, data["plan"].get("focus", ()), **_checker_limits(ctx)
+    )
     context = data.get("checker_rebuild_context")
     if context:
         messages[-1]["content"] += (
@@ -497,7 +545,8 @@ def adjudicate(ctx: Ctx, state: State) -> State:
     behavior = data["behavior"]
     failures = behavior.get("failed", []) + behavior.get("unknown", [])
     messages = adjudicate_request(
-        ctx.task, candidate, data["checker_text"], failures
+        ctx.task, candidate, data["checker_text"], failures,
+        execution=_checker_execution(ctx),
     )
     data["adjudications"] += 1
     stage = "adjudicate" if data["adjudications"] == 1 else f"adjudicate_{data['adjudications']}"
@@ -552,6 +601,10 @@ def repair_behavior(ctx: Ctx, state: State) -> State:
             behavior.get("failed", []) + behavior.get("unknown", []),
             ensure_ascii=False,
         )
+        + "\nHost checker execution rules and expanded input timeline:\n"
+        + json.dumps(_checker_execution(ctx), ensure_ascii=False)
+        + "\nPrior diagnosis (untrusted hypothesis; public task takes precedence):\n"
+        + json.dumps(data.get("adjudication"), ensure_ascii=False)
     )
     messages = ctx.prompts.render(
         "repair.md", task=ctx.task, parent=parent, feedback=feedback, plan=None

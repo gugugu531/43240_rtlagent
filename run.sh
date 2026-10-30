@@ -29,11 +29,11 @@ case "$OUT" in
     *) OUT="$PWD/$OUT" ;;
 esac
 
-# The submission default is single_generate. An explicit AGENT_CONFIG still
-# wins for guided_verify and the optional RAG routes.
+# The submission default is guided_verify with the primary model and RAG off.
+# An explicit AGENT_CONFIG still wins for alternate research configurations.
 if [ -z "${AGENT_CONFIG:-}" ]; then
     # The default belongs to this checkout, not to the caller's directory.
-    AGENT_CONFIG="$HERE/config/single_generate.yaml"
+    AGENT_CONFIG="$HERE/config/guided_verify.yaml"
 else
     # A user-supplied relative path keeps the caller's meaning.
     case "$AGENT_CONFIG" in /*) ;; *) AGENT_CONFIG="$PWD/$AGENT_CONFIG" ;; esac
@@ -43,9 +43,10 @@ export AGENT_CALLER_CWD="$PWD"
 mkdir -p "$OUT"
 
 cd "$HERE"
-# Create protocol files before starting the Burr application.
-[ -f "$OUT/solution.v" ] || : > "$OUT/solution.v"
-[ -f "$OUT/trace.jsonl" ] || : > "$OUT/trace.jsonl"
+# Start a new task even if Python fails before its own initialization. Never
+# return an answer or trace left by a previous invocation of this directory.
+: > "$OUT/solution.v"
+: > "$OUT/trace.jsonl"
 
 answer_ready() {
     # A whitespace-only file is not an answer; the contract counts content.
@@ -56,7 +57,9 @@ answer_ready() {
 stop_agent() {
     kill -TERM "$agent_pid" 2>/dev/null || true
     wait "$agent_pid" || true
-    if answer_ready; then exit 0; else exit 1; fi
+    if answer_ready; then exit 0; fi
+    : > "$OUT/solution.v"
+    exit 1
 }
 
 rc=0
@@ -73,4 +76,5 @@ if answer_ready; then
     exit 0
 fi
 echo "run.sh: no answer produced" >&2
+: > "$OUT/solution.v"
 exit 1

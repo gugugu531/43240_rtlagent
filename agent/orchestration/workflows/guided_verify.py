@@ -1,4 +1,4 @@
-"""Small planner, independent key-case checker, bounded repair."""
+"""Independent planning and key-case checking, with bounded repair."""
 
 from typing import Literal
 
@@ -30,6 +30,7 @@ class GuidedParameters(BaseModel):
     knowledge_select: int = Field(default=3, ge=0, le=5)
     max_calls: int = Field(default=8, ge=1, le=12)
     max_output_tokens: int = Field(default=65536, gt=0)
+    minimum_request_s: float = Field(default=20, gt=0)
     first_tools_s: float = Field(default=120, gt=0)
     recheck_tools_s: float = Field(default=120, gt=0)
     submission_policy: Literal["last_written", "selected"] = "last_written"
