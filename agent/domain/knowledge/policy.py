@@ -39,7 +39,7 @@ class RetrievalOptions(BaseModel):
 
 
 def modes(skill_mode=None, rag_mode=None, *, skill_ids=(), rag=False):
-    sm = skill_mode if skill_mode is not None else ("on" if skill_ids else "off")
+    sm = skill_mode if skill_mode is not None else "on"
     rm = rag_mode if rag_mode is not None else ("on" if rag else "off")
     if sm not in ("off", "shadow", "on") or rm not in ("off", "shadow", "on"):
         raise ValueError("knowledge mode must be off, shadow or on")
@@ -65,7 +65,7 @@ def select_skills(assets, ids, phases, *, automatic=False):
                 reason = "rejected_fixed_ab"
             elif automatic and skill.review_status != "frozen_default_fixed":
                 reason = "not_approved_for_automatic_selection"
-            elif skill.conflict_group in groups:
+            elif skill.conflict_group is not None and skill.conflict_group in groups:
                 reason = "conflicting_skill"
             elif not set(phases) <= set(skill.phases):
                 reason = "unsupported_phase"
@@ -75,7 +75,8 @@ def select_skills(assets, ids, phases, *, automatic=False):
             rejected.append({"id": identity, "reason": reason})
         else:
             selected.append(identity)
-            groups.add(skill.conflict_group)
+            if skill.conflict_group is not None:
+                groups.add(skill.conflict_group)
     return selected, rejected
 
 

@@ -1,6 +1,9 @@
 ---
 name: rtl-sequential-state-update
 description: Derive and implement edge-triggered register, shift, rotate, and counter updates from the public clock, reset, priority, and next-state contract.
+phases: [generate, repair]
+conflict_group: sequential-state-update
+review_status: frozen_default_fixed
 ---
 
 <!--

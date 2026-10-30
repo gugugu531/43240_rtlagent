@@ -1,13 +1,17 @@
-"""Prompt regressions for the single-stage stop-and-deliver repair contract."""
+"""Behavioral coverage for Markdown prompt rendering and stage dispatch."""
 
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
+
+from jinja2 import UndefinedError
 
 from agent.context.prompts import TemplateRenderer
 from agent.domain.rtl.candidate import CandidateFactory
 from agent.domain.rtl.task import TaskSpec
 
 
-class DeliveryStopContract(unittest.TestCase):
+class MarkdownPromptRendering(unittest.TestCase):
     def setUp(self):
         self.renderer = TemplateRenderer()
         self.task = TaskSpec.from_text(
@@ -21,57 +25,67 @@ class DeliveryStopContract(unittest.TestCase):
             round=1,
         )
 
-    def render_repair(self):
-        return self.renderer.render(
-            "repair.j2",
-            task=self.task,
-            parent=self.parent,
-            feedback="The public output width is two bits, but the candidate declares one bit.",
-        )
+    def test_repair_feedback_controls_candidate_inclusion(self):
+        feedback = "Public width mismatch: expected <2> bits."
+        for evidence in ("", feedback):
+            with self.subTest(feedback=bool(evidence)):
+                messages = self.renderer.render(
+                    "repair.md",
+                    task=self.task,
+                    parent=self.parent,
+                    feedback=evidence,
+                )
+                self.assertEqual(
+                    [message["role"] for message in messages], ["system", "user"]
+                )
+                user = messages[1]["content"]
+                self.assertIn(self.task.prompt, user)
+                self.assertIn(self.task.interface, user)
+                if evidence:
+                    self.assertIn(self.parent.code, user)
+                    self.assertIn(feedback, user)
+                else:
+                    self.assertNotIn(self.parent.code, user)
+                    self.assertNotIn(feedback, user)
 
-    def test_system_contract_stops_and_delivers_complete_legal_rtl(self):
-        system = self.render_repair()[0]["content"]
-        self.assertIn("## Stop and deliver", system)
-        self.assertIn("smallest", system)
-        self.assertIn("stop exploring alternative architectures", system)
-        self.assertIn("complete, syntactically legal RTL file", system)
-        self.assertIn("must not delay delivery", system)
-        self.assertIn("not a patch, fragment, or analysis note", system)
 
-    def test_repair_contract_binds_stopping_to_supplied_evidence(self):
-        user = self.render_repair()[1]["content"]
-        self.assertIn("Apply a stop-and-deliver discipline", user)
-        self.assertIn("smallest code location and modification", user)
-        self.assertIn("unless a new public counterexample", user)
-        self.assertIn("Prefer", user)
-        self.assertIn("a simple intermediate signal or explicit per-bit condition", user)
-        self.assertIn("Do not let unresolved optional matters block delivery", user)
+    def test_missing_required_values_fail_instead_of_rendering_empty(self):
+        with self.assertRaises(UndefinedError):
+            self.renderer.render("repair.md", task=self.task, parent=self.parent)
 
-    def test_authoritative_interface_allows_explicit_declaration_repair(self):
-        system, user = (message["content"] for message in self.render_repair())
-        self.assertIn("example explicitly described as buggy is not", system)
-        self.assertIn("explicitly requires fixing a declaration", system)
-        self.assertIn("A declaration explicitly identified by the public task as faulty", user)
-        self.assertIn("do not preserve a known faulty width", user)
-
-    def test_analysis_and_delivery_output_contracts_do_not_conflict(self):
-        delivery = self.render_repair()
-        analysis = self.renderer.render(
-            "repair_analysis.j2",
-            task=self.task,
-            parent=self.parent,
-            feedback="The candidate output width is inconsistent with the public interface.",
-        )
-        self.assertIn("Output exactly one fenced ```verilog code block", delivery[0]["content"])
-        self.assertNotIn("exactly one JSON object", delivery[0]["content"])
-        self.assertIn("exactly one JSON object", analysis[0]["content"])
-        self.assertNotIn("fenced ```verilog code block", analysis[0]["content"])
-
-    def test_stop_contract_does_not_disable_thinking_or_request_reasoning_transfer(self):
-        rendered = "\n".join(message["content"] for message in self.render_repair()).lower()
-        self.assertNotIn("disable thinking", rendered)
-        self.assertNotIn("reasoning_content", rendered)
-        self.assertNotIn("truncated reasoning", rendered)
+    def test_custom_directory_controls_templates_and_stage_dispatch(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory)
+            templates = {
+                "system.md": "  delivery {{ marker }}  ",
+                "repair_analysis_system.md": "  analysis {{ marker }}  ",
+                "repair.md": "  {% if plan %}{{ plan }}{% else %}{{ marker }}{% endif %}  ",
+                "repair_analysis.md": "  {{ marker }}  ",
+                "custom.md": "  {{ marker }}  ",
+            }
+            for name, text in templates.items():
+                (path / name).write_text(text, encoding="utf-8")
+            renderer = TemplateRenderer(paths=[directory])
+            for name, stage in (
+                ("repair.md", "delivery"),
+                ("repair_analysis.md", "analysis"),
+                ("custom.md", "delivery"),
+            ):
+                with self.subTest(name=name):
+                    self.assertEqual(
+                        renderer.render(name, marker="<public & unescaped>"),
+                        [
+                            {
+                                "role": "system",
+                                "content": f"{stage} <public & unescaped>",
+                            },
+                            {"role": "user", "content": "<public & unescaped>"},
+                        ],
+                    )
+            self.assertEqual(
+                renderer.render("repair.md", marker="task", plan="explicit plan")[1],
+                {"role": "user", "content": "explicit plan"},
+            )
 
 
 if __name__ == "__main__":

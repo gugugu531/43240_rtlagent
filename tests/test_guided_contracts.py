@@ -199,54 +199,81 @@ class GuidedContractTests(unittest.TestCase):
         self.assertEqual(result["status"], "partial_passed")
         self.assertEqual(result["unchecked_outputs"], ["q", "z"])
 
+
     def test_repeated_repairs_use_distinct_stage_names(self):
-        self.assertEqual(guided._attempt_stage("repair", 1), "repair")
-        self.assertEqual(guided._attempt_stage("repair", 2), "repair_2")
+        from contextlib import contextmanager
+        from agent.runtime.allowance import CompletionLedger
+
+        artifacts = {}
+        record = SimpleNamespace(
+            write_json=lambda name, value: artifacts.update({name: value}),
+            emit=lambda *args, **kwargs: None,
+        )
+        ledger = CompletionLedger(
+            SimpleNamespace(remaining=lambda: 60), record, max_calls=4
+        )
+
+        class Model:
+            @contextmanager
+            def permitted(self, permit):
+                self.permit = permit
+                permit._begin()
+                try:
+                    yield
+                finally:
+                    permit._finish()
+
+            def chat(self, messages, **kwargs):
+                permit = self.permit
+                permit._sent(permit.id, kwargs["max_tokens"])
+                permit._response({"usage": {"prompt_tokens": 1, "completion_tokens": 1}})
+                return SimpleNamespace(
+                    call_id=permit.id, content="", finish_reason="stop"
+                )
 
         parent = SimpleNamespace(id="c1", code_hash="h")
-        child = SimpleNamespace(id="c2", code_hash="h2")
         data = {
             "settings": {
                 "solve": {"timeout_s": 1, "max_tokens": 1},
-                "first_tools_s": 1,
+                "first_tools_s": 1, "temperature": 0.0, "top_p": 1.0,
             },
+            "plan": {"skills": [], "knowledge": []},
+            "skill_assets": {"skills": {}, "cards": [], "resources": {}},
             "assessments": {"c1": {"checks": {}}},
-            "structure_repairs": 0,
-            "behavior_repairs": 0,
+            "structure_repairs": 0, "behavior_repairs": 0,
             "behavior": {"failed": [], "unknown": []},
-            "checker_text": "",
+            "checker_text": "", "attempted": set(), "request_outcomes": {},
+            "ledger": ledger,
         }
         ctx = SimpleNamespace(
-            store={"guided": data},
+            store={"guided": data}, record=record, llm=Model(),
             candidates=SimpleNamespace(get=lambda candidate_id: parent),
             prompts=SimpleNamespace(
-                render=lambda *args, **kwargs: [{"role": "user", "content": "x"}]
+                render=lambda *args, **kwargs: [{"role": "user", "content": "repair"}]
             ),
             task=object(),
         )
-        stages = []
-
-        def fake_request(ctx_arg, stage, *args, **kwargs):
-            stages.append(stage)
-            return SimpleNamespace(
-                call_id=stage, content="", finish_reason="stop"
-            )
-
-        with patch.object(guided, "_request", side_effect=fake_request), \
-             patch.object(guided, "_candidate", return_value=child):
-            guided.repair_structure(ctx, State({"target_id": "c1"}))
-            guided.repair_structure(ctx, State({"target_id": "c1"}))
-            guided.repair_behavior(ctx, State({"target_id": "c1"}))
-            guided.repair_behavior(ctx, State({"target_id": "c1"}))
+        with patch.object(guided, "_candidate", return_value=None):
+            for repair in (guided.repair_structure, guided.repair_behavior):
+                repair(ctx, State({"target_id": "c1"}))
+                repair(ctx, State({"target_id": "c1"}))
+        stages = {
+            "repair_structure", "repair_structure_2",
+            "repair_behavior", "repair_behavior_2",
+        }
+        self.assertEqual(data["attempted"], stages)
+        self.assertEqual(ledger.snapshot()["calls_sent"], 4)
         self.assertEqual(
+            {stage for stage, value in data["request_outcomes"].items()
+             if value["status"] == "returned"},
             stages,
-            [
-                "repair_structure",
-                "repair_structure_2",
-                "repair_behavior",
-                "repair_behavior_2",
-            ],
         )
+        self.assertEqual(
+            {name for name in artifacts if name.startswith("guided/material-")},
+            {f"guided/material-{stage}.json" for stage in stages},
+        )
+        with self.assertRaisesRegex(ValueError, "may only request once"):
+            guided._request(ctx, "repair_structure", [], data["settings"]["solve"])
 
     def test_finish_does_not_mix_child_behavior_with_parent_structure(self):
         data = {

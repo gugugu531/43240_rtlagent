@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from agent.config import ROOT, UniqueLoader
 import yaml
@@ -37,26 +37,31 @@ class Resource(Strict):
 
 
 class Skill(Strict):
-    id: Identifier
-    version: Text
+    id: Identifier = Field(alias="name")
     description: Text
-    task_types: Texts
-    subtypes: Texts
-    phases: Annotated[list[Phase], Field(min_length=1)]
-    conflict_group: Identifier
-    resource: Resource
-    source: Resource
+    phases: Annotated[list[Phase], Field(min_length=1)] = Field(
+        default_factory=lambda: ["generate", "repair"]
+    )
+    conflict_group: Identifier | None = None
     review_status: Literal[
         "frozen_default_fixed",
         "frozen_candidate_not_default",
         "frozen_rejected_fixed_ab",
-    ]
+    ] = "frozen_default_fixed"
 
+    @field_validator("description")
+    @classmethod
+    def nonblank_description(cls, value):
+        if not value.strip():
+            raise ValueError("skill description must not be blank")
+        return value
 
-class Catalog(Strict):
-    schema_version: Literal[1]
-    source: Origin
-    skills: Annotated[list[Skill], Field(min_length=1, max_length=32)]
+    @field_validator("phases")
+    @classmethod
+    def distinct_phases(cls, value):
+        if len(set(value)) != len(value):
+            raise ValueError("skill phases must be distinct")
+        return value
 
 
 class Trigger(Strict):
@@ -109,8 +114,9 @@ def _unique(pairs):
 def read_resource(relative, *, root=ROOT, limit=1_048_576):
     """Only normal files inside the package; reject symlinked ancestors too."""
     root = Path(root).resolve()
+    raw_path = str(relative)
     relative = Path(relative)
-    if relative.is_absolute() or any(p in ("..", ".") for p in relative.parts):
+    if relative.is_absolute() or any(p in ("", "..", ".") for p in raw_path.split("/")):
         raise ValueError("knowledge path must stay inside the package")
     path = root / relative
     if any(p.is_symlink() for p in (path, *path.parents) if p != root and p.is_relative_to(root)):
@@ -124,42 +130,62 @@ def read_resource(relative, *, root=ROOT, limit=1_048_576):
     return data
 
 
-def load_assets(*, skills=False, rag=False, root=ROOT):
-    """Load only enabled asset kinds, once per task; never read task directories."""
-    result = {"skills": {}, "cards": [], "resources": {}}
-    for enabled, path, model, field in (
-        (skills, "knowledge/catalog.json", Catalog, "skills"),
-        (rag, "knowledge/cards.json", Corpus, "cards"),
-    ):
-        if not enabled:
+def _load_skills(root, result):
+    root = Path(root).resolve()
+    directory = root / "skill"
+    if directory.is_symlink() or not directory.is_dir():
+        raise ValueError("skill directory must be a normal package directory")
+    for folder in sorted(directory.iterdir(), key=lambda path: path.name):
+        if folder.is_symlink():
+            raise ValueError("skill directory entry cannot be a symlink")
+        if not folder.is_dir():
             continue
+        candidates = (folder / "skill.md", folder / "SKILL.md")
+        for candidate in candidates:
+            if candidate.is_symlink():
+                raise ValueError("skill resource cannot be a symlink")
+            if candidate.exists() and not candidate.is_file():
+                raise ValueError("skill resource must be a normal file")
+        path = next((candidate for candidate in candidates if candidate.is_file()), None)
+        if path is None:
+            continue
+        relative = path.relative_to(root).as_posix()
+        raw = read_resource(relative, root=root, limit=32_768)
+        text = raw.decode("utf-8")
+        if not text.startswith("---\n") or "\n---\n" not in text[4:]:
+            raise ValueError("invalid skill frontmatter: " + relative)
+        head, body = text[4:].split("\n---\n", 1)
+        try:
+            meta = yaml.load(head, Loader=UniqueLoader)
+        except yaml.YAMLError as exc:
+            raise ValueError("invalid skill frontmatter: " + relative) from exc
+        skill = Skill.model_validate(meta)
+        if skill.id != folder.name:
+            raise ValueError("skill name must match its directory: " + relative)
+        if not body.strip():
+            raise ValueError("skill body must not be empty: " + relative)
+        if skill.id in result["skills"]:
+            raise ValueError("duplicate skill name: " + skill.id)
+        result["skills"][skill.id] = (skill, body.strip())
+        result["resources"][relative] = sha256(raw)
+
+
+def load_assets(*, skills=False, rag=False, root=ROOT):
+    """Snapshot enabled assets afresh; skills are discovered in direct subdirectories."""
+    result = {"skills": {}, "cards": [], "resources": {}}
+    if skills:
+        _load_skills(root, result)
+    if rag:
+        path = "knowledge/cards.json"
         raw = read_resource(path, root=root)
         data = json.loads(raw, object_pairs_hook=_unique)
         if type(data.get("schema_version")) is not int:
             raise ValueError("knowledge schema_version must be an integer")
-        manifest = model.model_validate(data)
-        result["resources"][path] = sha256(raw)
-        items = getattr(manifest, field)
-        if len({item.id for item in items}) != len(items):
+        corpus = Corpus.model_validate(data)
+        if len({card.id for card in corpus.cards}) != len(corpus.cards):
             raise ValueError("duplicate knowledge resource id")
-        if field == "cards":
-            result[field] = items
-            continue
-        for item in items:
-            if item.resource.path != f"skill/{item.id}/skill.md":
-                raise ValueError("skill resource path does not match its id")
-            raw = read_resource(item.resource.path, root=root, limit=32_768)
-            if sha256(raw) != item.resource.sha256:
-                raise ValueError("skill resource hash mismatch: " + item.id)
-            text = raw.decode("utf-8")
-            if not text.startswith("---\n") or "\n---\n" not in text[4:]:
-                raise ValueError("invalid skill frontmatter: " + item.id)
-            head, body = text[4:].split("\n---\n", 1)
-            meta = yaml.load(head, Loader=UniqueLoader)
-            if meta != {"name": item.id, "description": item.description} or not body.strip():
-                raise ValueError("skill frontmatter does not match catalog: " + item.id)
-            result["skills"][item.id] = (item, body.strip())
-            result["resources"][item.resource.path] = item.resource.sha256
+        result["cards"] = corpus.cards
+        result["resources"][path] = sha256(raw)
     return result
 
 

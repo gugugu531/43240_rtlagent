@@ -1,6 +1,9 @@
 ---
 name: rtl-width-signed-arithmetic
 description: Derive RTL expression widths and signedness explicitly before implementing arithmetic, comparisons, extensions, truncation, and concatenation.
+phases: [generate, repair]
+conflict_group: rtl-width-signed-arithmetic
+review_status: frozen_rejected_fixed_ab
 ---
 
 <!--

@@ -1,6 +1,9 @@
 ---
 name: rtl-combinational-completeness
 description: Implement complete combinational RTL with explicit defaults, full assignment coverage, and public priority semantics without unintended storage.
+phases: [generate, repair]
+conflict_group: rtl-combinational-completeness
+review_status: frozen_rejected_fixed_ab
 ---
 
 <!--

@@ -77,19 +77,26 @@ behaviors、checker 和预算快照。状态必须是可序列化数据；大正
 
 ## 4. 提示词
 
-`TemplateRenderer` 从 `agent/context/prompts/` 读取模板。当前保留：
+`TemplateRenderer` 从 `agent/context/prompts/` 读取 Markdown 模板，仍由 Jinja2 渲染变量和条件：
 
 ```text
-system.j2
-repair.j2
+system.md
+repair.md
+repair_analysis_system.md
+repair_analysis.md
 ```
 
-`repair.j2` 同时用于 guided 首稿和修复；题面、公开接口、计划、反馈和父候选由宿主传入。
+`repair.md` 同时用于 guided 首稿和修复；题面、公开接口、计划、反馈和父候选由宿主传入。
 模板不读取参考答案、官方测试台或判定反馈。
+缺少必需变量会报错；自定义模板目录也须使用新的 `.md` 名称，不保留旧扩展名兼容入口。
 
 ## 5. 知识检索
 
-`guided_verify` 的计划阶段可选择：
+Skill 不依赖卡片检索模式。运行时从 `skill/` 直接子目录自动发现，
+每题固定正文快照，最多选择两个满足阶段、准入状态和冲突组约束的技能。
+新增文件的最小格式及默认行为见[技能扩展指南](../skill/README.md)。
+`guided_verify` 的卡片检索可选择：
+
 
 ```text
 retrieval_mode: off | legacy | rag | all

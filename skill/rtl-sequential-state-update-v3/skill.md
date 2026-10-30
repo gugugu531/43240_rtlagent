@@ -1,6 +1,9 @@
 ---
 name: rtl-sequential-state-update-v3
 description: Implement and repair clocked registers, shifts, rotations, and counters with explicit ANSI output-variable and concatenation delivery checks.
+phases: [generate, repair]
+conflict_group: sequential-state-update
+review_status: frozen_candidate_not_default
 ---
 
 <!--

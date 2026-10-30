@@ -39,7 +39,7 @@ flowchart TD
 | --- | --- | --- | --- |
 | 入口与配置 | `run.sh`、`agent/main.py`、`agent/config.py` | 目录协议、配置覆盖、任务服务装配、退出收尾 | 在入口堆放题目策略或重复工作流分支 |
 | 编排 | `agent/orchestration/` | Burr 绑定、Stage 描述、工具循环、节点与工作流 | 执行模型、进程或工具副作用 |
-| 提示与上下文 | `agent/context/` | `ContextBundle`、`PromptAssembly`、Jinja2 模板 | 调用模型或工具 |
+| 提示与上下文 | `agent/context/` | `ContextBundle`、`PromptAssembly`、Jinja2 渲染的 Markdown 模板 | 调用模型或工具 |
 | 模型服务 | `agent/llm/` | HTTP 协议、分词、模型 profile、响应类型、结构校验、离线重放 | 在节点中复制网络请求、隐式切换思考策略 |
 | 工具 | `agent/tools/` | 注册、参数校验、`ToolResult` 信封 | 决定流程分支或题目语义 |
 | RTL 领域 | `agent/domain/rtl/` | 公开题面、接口、候选身份、检查结果、检查器语义与仿真 | 决定整条工作流应重试几轮或读取官方判定 |
@@ -127,7 +127,7 @@ Burr 提供动作、不可变状态更新和条件连线；工作流选择了哪
 
 每个扩展尽量只改变一层的职责，通过已有契约组合其他层；必要的跨层改动必须说明触发条件、旧行为、新行为和兼容范围。具体步骤见[开发规范](development.md)。
 
-知识检索由 `agent/domain/knowledge/guided.py` 提供；`single_generate` 的显式 RAG 配置使用 `rtl_generate`，guided 默认关闭知识注入。卡片和向量不保存版本、sha256、路径或 release lock。使用方法见 [Skill 与知识检索](knowledge.md)。
+知识卡片检索由 `agent/domain/knowledge/guided.py` 提供；`single_generate` 的显式 RAG 配置使用 `rtl_generate`，guided 默认关闭 RAG 卡片注入。技能由 `assets.py` 自动发现 `skill/` 直接子目录，每题建立快照，再按阶段、准入状态和冲突组选择；不需要维护清单。卡片和向量不保存版本、sha256、路径或 release lock；技能快照记录实读内容哈希。使用方法见 [Skill 与知识检索](knowledge.md)。
 
 ## 10. 可选的模型请求额度
 

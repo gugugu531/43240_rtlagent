@@ -5,6 +5,50 @@ from typing import Literal
 from agent.kit import Ctx, State, node
 
 
+def _skill_material(ctx, *, mode, ids, phase):
+    from agent.domain.knowledge.assets import load_assets
+    from agent.domain.knowledge.policy import select_skills
+    from agent.domain.knowledge.guided import bm25_rank
+
+    if "skill_assets" not in ctx.store:
+        ctx.store["skill_assets"] = load_assets(skills=True)
+    assets = ctx.store["skill_assets"]
+    if ids:
+        selected, rejected = select_skills(assets, ids, [phase])
+    else:
+        candidates = []
+        rejected = []
+        for identity, (skill, _) in assets["skills"].items():
+            allowed, refused = select_skills(
+                assets, [identity], [phase], automatic=True
+            )
+            rejected.extend(refused)
+            if allowed:
+                candidates.append({
+                    "card_id": identity, "search_text": skill.description,
+                })
+        ranking = bm25_rank(candidates, ctx.task.prompt + "\n" + ctx.task.interface)
+        selected = []
+        for identity, _ in ranking:
+            selected, refused = select_skills(
+                assets, selected + [identity], [phase], automatic=True
+            )
+            rejected.extend(refused)
+            if len(selected) == 2:
+                break
+    ctx.record.emit(
+        "knowledge", "skills", mode=mode, phase=phase, selected=selected,
+        sent=selected if mode == "on" else [], rejected=rejected,
+        resources=assets["resources"],
+    )
+    if mode != "on":
+        return ""
+    return "\n\n".join(
+        f"[Skill {identity}]\n{assets['skills'][identity][1]}"
+        for identity in selected
+    )
+
+
 @node(
     "rtl_generate",
     reads=["feedback", "target_id", "round"],
@@ -18,7 +62,7 @@ def generate(
     max_tokens: int = 4096,
     top_p: float = 1.0,
     timeout_s: float = 180,
-    prompt: str = "repair.j2",
+    prompt: str = "repair.md",
     skill_ids: list[str] = [],
     skill_phases: list[Literal["generate", "repair"]] = ["generate", "repair"],
     rag: bool = False,
@@ -40,6 +84,14 @@ def generate(
         parent=parent,
         plan=ctx.store.get("plan"),
     )
+    phase = "repair" if parent else "generate"
+    if sm != "off" and phase in skill_phases:
+        material = _skill_material(ctx, mode=sm, ids=skill_ids, phase=phase)
+        if material:
+            messages[-1]["content"] += (
+                "\n\n## Selected method material (optional; public task takes precedence)\n"
+                + material
+            )
     report = {"mode": rm, "skills": sm, "strategy": retrieval.get("strategy", "bm25")}
     if rm != "off":
         query = ctx.task.prompt + "\n" + ctx.task.interface

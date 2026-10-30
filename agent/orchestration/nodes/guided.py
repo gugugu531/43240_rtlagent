@@ -141,18 +141,25 @@ def _candidate(ctx, reply, *, parent=None, stage="solve", extraction=None):
     return candidate
 
 
-def _skill_and_card_material(ctx):
+def _skill_assets(ctx):
     data = _g(ctx)
-    assets = load_assets(skills=True)
+    if "skill_assets" not in data:
+        data["skill_assets"] = load_assets(skills=True)
+    return data["skill_assets"]
+
+
+def _skill_and_card_material(ctx, phase="generate"):
+    data = _g(ctx)
+    assets = _skill_assets(ctx)
     selected, rejected = select_skills(
-        assets, list(data["plan"]["skills"]), ["generate"], automatic=True
-    ) if data["plan"]["skills"] else ([], [])
+        assets, list(data["plan"]["skills"]), [phase], automatic=True
+    )
     parts = []
     for skill_id in selected:
         parts.append(f"[Skill {skill_id}]\n{assets['skills'][skill_id][1]}")
-    cards = knowledge.card_map()
+    cards = knowledge.card_map() if phase == "generate" and data["plan"]["knowledge"] else {}
     card_sent = []
-    for card_id in data["plan"]["knowledge"]:
+    for card_id in data["plan"]["knowledge"] if phase == "generate" else ():
         card = cards.get(card_id)
         if card is None:
             rejected.append({"id": card_id, "reason": "unknown_card"})
@@ -169,11 +176,14 @@ def _skill_and_card_material(ctx):
 def _shortlist(ctx, limit):
     data = _g(ctx)
     settings = data["settings"]
-    assets = load_assets(skills=True)
-    skills = [
-        (identity, skill.description)
-        for identity, (skill, _) in assets["skills"].items()
-    ]
+    assets = _skill_assets(ctx)
+    skills = []
+    for identity, (skill, _) in assets["skills"].items():
+        if any(
+            select_skills(assets, [identity], [phase], automatic=True)[0]
+            for phase in ("generate", "repair")
+        ):
+            skills.append((identity, skill.description))
     mode = settings.get("retrieval_mode", "legacy")
     query = ctx.task.prompt + "\n" + ctx.task.interface
     picked, report = knowledge.retrieve(
@@ -185,6 +195,20 @@ def _shortlist(ctx, limit):
     )
     data["retrieval"] = report
     return skills, picked
+
+
+def _append_material(ctx, messages, phase, artifact):
+    material, selection = _skill_and_card_material(ctx, phase)
+    if material:
+        messages[-1]["content"] += (
+            "\n\n## Selected method material (optional; public task takes precedence)\n"
+            + material
+        )
+    _save(ctx, artifact, {
+        **selection,
+        "phase": phase,
+        "resources": _skill_assets(ctx)["resources"],
+    })
 
 
 @node("guided_initialize", reads=["settings"], writes=[])
@@ -263,15 +287,9 @@ def solve(ctx: Ctx, state: State) -> State:
     data = _g(ctx)
     settings = data["settings"]
     messages = ctx.prompts.render(
-        "repair.j2", task=ctx.task, feedback="", parent=None, plan=None
+        "repair.md", task=ctx.task, feedback="", parent=None, plan=None
     )
-    material, selection = _skill_and_card_material(ctx)
-    if material:
-        messages[-1]["content"] += (
-            "\n\n## Selected method material (optional; public task takes precedence)\n"
-            + material
-        )
-    _save(ctx, "material", selection)
+    _append_material(ctx, messages, "generate", "material")
     reply = _request(
         ctx, "solve", messages, settings["solve"],
         followup_s=settings["first_tools_s"],
@@ -362,10 +380,11 @@ def repair_structure(ctx: Ctx, state: State) -> State:
         if check.get("status") in ("failed", "timeout")
     )
     messages = ctx.prompts.render(
-        "repair.j2", task=ctx.task, parent=parent, feedback=feedback, plan=None
+        "repair.md", task=ctx.task, parent=parent, feedback=feedback, plan=None
     )
     data["structure_repairs"] += 1
     stage = _attempt_stage("repair_structure", data["structure_repairs"])
+    _append_material(ctx, messages, "repair", f"material-{stage}")
     reply = _request(
         ctx, stage, messages, settings["solve"],
         followup_s=settings["first_tools_s"],
@@ -378,7 +397,7 @@ def repair_structure(ctx: Ctx, state: State) -> State:
 def build_checker(ctx: Ctx, state: State) -> State:
     data = _g(ctx)
     settings = data["settings"]
-    assets = load_assets(skills=True)
+    assets = _skill_assets(ctx)
     identity = "rtl-behavior-check-keycases"
     entry = assets["skills"].get(identity)
     if entry is None:
@@ -535,10 +554,11 @@ def repair_behavior(ctx: Ctx, state: State) -> State:
         )
     )
     messages = ctx.prompts.render(
-        "repair.j2", task=ctx.task, parent=parent, feedback=feedback, plan=None
+        "repair.md", task=ctx.task, parent=parent, feedback=feedback, plan=None
     )
     data["behavior_repairs"] += 1
     stage = _attempt_stage("repair_behavior", data["behavior_repairs"])
+    _append_material(ctx, messages, "repair", f"material-{stage}")
     reply = _request(
         ctx, stage, messages, settings["solve"],
         followup_s=settings["first_tools_s"],

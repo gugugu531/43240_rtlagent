@@ -65,7 +65,7 @@ reason=single clock, reset and load are public
 规则：
 
 - `method` 只能是 `structural` 或 `table`。
-- `skills` 来自 host 短名单，最多 2 个；未自动准入的 Skill 不发送。
+- `skills` 来自每题自动扫描 `skill/` 形成的候选，最多 2 个；只向规划器提供允许自动选择的技能。宿主按生成/修复阶段和冲突组检查，实际发送与快照哈希记录在 material 产物中。新增技能无需改代码或清单，格式见[技能扩展指南](../skill/README.md)。
 - `knowledge` 来自 host 检索候选，最多 3 个；host 还原卡片原文。
 - `focus` 最多 4 段，用 `|` 分隔，只用于 checker 提示，不作为题面要求。
 - 格式错误、未知 ID、超限或不支持的方法：回退 `structural`，记录原因，仍继续解题。

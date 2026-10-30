@@ -2,15 +2,15 @@
 
 [文档入口](index.md) · [架构](architecture.md) · [Guided Verify](guided-verify.md)
 
-知识库现在只保存卡片正文和可检索文本。卡片版本、sha256、文件路径、release lock 和向量
-文件哈希不再维护。Skill 文件和 prompt 模板保持现状。
+知识库只保存卡片正文和可检索文本。卡片版本、sha256、文件路径、release lock 和向量
+文件哈希不再维护。Skill 改为自动扫描目录，提示文件使用 Markdown，由 Jinja2 渲染。
 
 ## 1. 文件
 
 ```text
 knowledge/cards.json     129 张卡片正文
 knowledge/vectors.json   129 个 card_id + 向量
-knowledge/catalog.json   Skill 目录
+skill/<id>/skill.md      自动发现的技能正文与 frontmatter
 config/rag_embedding.yaml embedding 运行参数
 config/rag97_pregen_bm25.yaml
 config/rag97_pregen_dense.yaml
@@ -22,6 +22,24 @@ config/guided_verify_rag_dense.yaml
 `knowledge/cards.json` 的卡片来自合并分支的 129 张唯一卡片：32 张 legacy、38 张
 restricted、33 张 shadow、26 张 mechanical_only。每张卡片保留标题、适用/拒绝条件、
 方法正文、验证/停止条件和必要的 activation state。
+
+### 自动发现 Skill
+
+新增技能只需添加 `skill/<id>/skill.md`，声明 `name`、`description` 并填写正文。
+不再维护 `knowledge/catalog.json` 或内容哈希。已有目录可读取 `SKILL.md`；
+同时存在时小写文件优先。扫描仅限直接子目录，不限制为 32 项。
+格式、可选阶段/冲突/准入字段和来源要求见[技能扩展指南](../skill/README.md)。
+
+`guided_verify` 每题建立技能快照，规划器从允许自动选择的描述中最多选择两个，
+生成与修复分别校验 `phases` 后注入；新技能不进入独立 checker。
+`rtl_generate` 默认用 BM25 匹配技能描述，至少两个不同词项匹配才入选，
+同样最多两个；显式 `skill_ids`、`skill_mode=off/shadow/on` 仍受支持。
+默认 `single_generate` 的 baseline 节点保持无技能，不因目录扩展改变基线。
+
+guided 的 `guided/material.json` 及 `guided/material-repair_*.json` 记录实际发送、
+拒绝原因、阶段和快照内容哈希；`rtl_generate` 记录 `knowledge/skills` 事件。
+同一题的技能不热更新，下一题重新扫描。自动可选不代表已证明有效；
+原有候选/拒绝技能的状态保留在其 frontmatter，非法文件明确失败。
 
 ## 2. 检索模式
 
@@ -41,9 +59,9 @@ card_text(card)
 - `all`：包含 shadow 和 mechanical_only，仅用于开发检查；
 - `off`：不检索。
 
-`guided_verify` 默认 `retrieval_mode=off`、`retrieval_strategy=bm25`，不注入知识。`legacy` 卡片属于
-`post_diagnostic` 且不可作为首稿注入，因此 guided 首稿阶段不会选中它们。RAG 路线通过
-显式配置选择；dense 失败时返回空候选并在 `knowledge/retrieval` 记录
+`guided_verify` 默认 `retrieval_mode=off`、`retrieval_strategy=bm25`，不注入 RAG 卡片；
+Skill 自动发现与选择独立启用。`legacy` 卡片属于 `post_diagnostic`，不能注入首稿。
+RAG 路线通过显式配置选择；dense 失败时返回空候选并在 `knowledge/retrieval` 记录
 `embedding_unavailable`，不会静默回退到 BM25：
 
 ```bash
@@ -93,4 +111,4 @@ generate -> extract -> select -> finish
 - 卡片只包含公开方法文本，不包含参考实现、官方测试台或判定反馈。
 - 检索失败、空结果或 embedding 不可用时，请求继续使用原题面和接口，不把失败算作知识收益。
 - 当前没有 release lock、卡片版本比较或文件哈希校验；修改卡片或向量后应重新验证检索结果。
-- `guided_verify` 的 RAG 模式仍是可选项，默认关闭知识注入。
+- `guided_verify` 的 RAG 模式仍是可选项，默认关闭卡片注入，不关闭 Skill 自动发现。

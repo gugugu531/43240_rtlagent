@@ -1,6 +1,9 @@
 ---
 name: rtl-behavior-check-keycases
 description: Select a few high-value public test cases and express them as a flat input and expected-output table for a host-generated self-checking testbench.
+phases: [generate, repair]
+conflict_group: behavior-check-keycases
+review_status: frozen_candidate_not_default
 ---
 
 <!--

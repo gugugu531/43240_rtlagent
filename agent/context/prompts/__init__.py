@@ -18,7 +18,7 @@ class TemplateRenderer:
             {
                 "role": "system",
                 "content": self.env.get_template(
-                    "repair_analysis_system.j2" if name == "repair_analysis.j2" else "system.j2"
+                    "repair_analysis_system.md" if name == "repair_analysis.md" else "system.md"
                 ).render(**values).strip(),
             },
             {

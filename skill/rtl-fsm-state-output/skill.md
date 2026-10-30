@@ -1,6 +1,9 @@
 ---
 name: rtl-fsm-state-output
 description: Derive finite-state transitions and output timing from the public state, event, reset, and Moore or Mealy contract before implementing RTL.
+phases: [generate, repair]
+conflict_group: rtl-fsm-state-output
+review_status: frozen_rejected_fixed_ab
 ---
 
 <!--
