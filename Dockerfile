@@ -22,17 +22,20 @@ COPY knowledge/ knowledge/
 COPY serve/  serve/
 COPY model/  model/
 COPY run.sh run_baseline.sh baseline.py manifest.json REPORT.md LICENSE ./
-RUN chmod +x run.sh run_baseline.sh serve/vllm.sh serve/start.sh serve/start_verireason.sh serve/run_api.sh
+RUN chmod +x run.sh run_baseline.sh serve/llamacpp.sh serve/start.sh serve/start_verireason.sh serve/run_api.sh
 
-# Model weights. Copy them in, or bind-mount at run time -- but they must be on
-# local disk before the network goes away. `huggingface-cli download` at startup
-# fails in the sandbox.
-#
-# COPY models/ /models/
+# Prepare a compatible llama-server (including its runtime libraries) in the
+# base image or mount it and set LLAMA_SERVER explicitly. No runtime downloads.
+# Bind-mount the text GGUF under /models before starting the offline service;
+# weights and development files are deliberately not copied into this image.
 
 ENV LLM_BACKEND=openai \
-    LLM_BASE_URL=http://localhost:8000/v1 \
-    LLM_MODEL=Qwen3-8B \
+    LLM_BASE_URL=http://127.0.0.1:8010/v1 \
+    LLM_MODEL=qwen38-27b-q4-k-m \
+    MODEL_NAME=qwen38-27b-q4-k-m \
+    MODEL=/models/Qwen3.8-27B-Q4_K_M.gguf \
+    LLAMA_SERVER=llama-server \
+    PORT=8010 \
     LLM_API_KEY=dummy \
     AGENT_TMP=/var/tmp \
     EDA_TMP=/var/tmp/eda \
@@ -47,7 +50,7 @@ ENV LLM_BACKEND=openai \
 
 # Container metadata only. On Radeon Cloud both services bind 127.0.0.1 and
 # just 7860 is published, via rc-tunnel. See docs/API_CONTRACT.md section 7.
-EXPOSE 7860 8000
+EXPOSE 7860 8010
 
 # Start resident services once with serve/start.sh before calling run.sh or
 # run_baseline.sh. HTTP submission additionally runs serve/serve_api.py.

@@ -13,14 +13,14 @@ here returns in well under a second.
 One worker solves one task at a time, in arrival order.
 
     export FPGACHINA_TOKEN=<token issued by the organisers>
-    export MODEL_NAME=Qwen/Qwen3-8B
+    export MODEL_NAME=qwen38-27b-q4-k-m
     ./serve/run_api.sh start
 
 Bind 127.0.0.1, not 0.0.0.0. Radeon Cloud's rc-tunnel only picks up HTTP
 services bound to the loopback interface; a service on 0.0.0.0 is never
 exposed, and from the organisers' side that is indistinguishable from a
 crash. Expose it with `rc-tunnel expose --port 7860`; only one port per
-notebook can be exposed, so leave vLLM's 8000 internal.
+notebook can be exposed, so leave llama.cpp's 8010 internal.
 
 The public app URL carries no platform-level auth, so the token check below is
 not optional -- without it anyone who learns the URL can submit tasks.

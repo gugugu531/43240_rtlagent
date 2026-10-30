@@ -32,7 +32,7 @@ set -eo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="${SERVE_LOG_DIR:-${AGENT_TMP:-/tmp}/serve-logs}"
-LLM_PORT="${PORT:-8000}"
+LLM_PORT="${PORT:-8010}"
 START_TIMEOUT_S="${START_TIMEOUT_S:-900}"   # loading weights can take minutes
 
 mkdir -p "$LOG_DIR"
@@ -80,12 +80,12 @@ setsid flock -n "$EDA_TMP/.cleanup.lock" bash -c '
 
 # --- inference service ------------------------------------------------------
 
-LLM_URL="http://127.0.0.1:$LLM_PORT/v1/models"
+LLM_URL="http://127.0.0.1:$LLM_PORT/health"
 if curl -sf -o /dev/null "$LLM_URL"; then
-    echo "start.sh: vllm already up on $LLM_PORT" >&2
+    echo "start.sh: llama.cpp already up on $LLM_PORT" >&2
 else
-    setsid "$HERE/vllm.sh" >"$LOG_DIR/vllm.log" 2>&1 </dev/null &
-    wait_ready vllm "$LLM_URL" "$!"
+    setsid "$HERE/llamacpp.sh" >"$LOG_DIR/llamacpp.log" 2>&1 </dev/null &
+    wait_ready llamacpp "$LLM_URL" "$!"
 fi
 
 # --- optional small model for guided_verify --------------------------------

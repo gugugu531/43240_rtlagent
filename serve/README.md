@@ -3,7 +3,7 @@
 推理服务与投题接口。两者跑在同一个实例里，互不干扰。
 
 ```
-  8000   vllm.sh        推理服务   绑 127.0.0.1，不暴露
+  8010   llamacpp.sh    推理服务   绑 127.0.0.1，不暴露
   7860   serve_api.py   投题接口   绑 127.0.0.1，经 rc-tunnel 对外
 ```
 
@@ -19,26 +19,65 @@
 `response_format: json_schema`，不支持时可在 YAML 显式设置
 `services.model.structured_outputs: false`，保留严格校验和有限重问。
 
-## 正式提交：必须是本地权重
+## 正式提交：本地文本 GGUF
+
+当前使用 [Qwen/Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) 的
+[Abiray/Qwen3.8-27B-Q4_K_M-GGUF 固定版本](https://huggingface.co/Abiray/Qwen3.8-27B-Q4_K_M-GGUF/tree/f7a1cda580fe828415151042bf9f3dc5bb8b0d76)：
+`Qwen3.8-27B-Q4_K_M.gguf`，16,810,714,400 字节，
+SHA256 `6a96cc760fc65cc6b9ea7f1922e3ff8b2a48c09f209456f23bbae9ef7032c867`。
+只加载文本权重，不加载 mmproj；模型声明见 [MODEL.md](../model/MODEL.md)。
+已核对的现有后端版本是 `llama-server 0.4.0-dev`（build 1，commit `f114f91`），
+二进制 SHA256 为 `290708d22f8b495d36b8aedd0afb0cdc081c415548f855e6a950a75dd742ad97`。
+换编译产物或运行库后须重新核对兼容性，不能只依据版本字符串认定相同。
+
+### 复用已有服务
+
+以下命令均从方案仓库根目录运行。先核对已有服务的模型文件、版本及启动参数与声明一致，
+不要仅凭 alias 判断权重。`start.sh` 检查本机对应端口的 `/health`；已健康时复用，
+不会重复加载主模型，也不会替换、重启已有服务。
 
 ```bash
-MODEL=/models/Qwen3-8B ./serve/start.sh     # 后台拉起 vllm.sh，就绪后返回
-
-export LLM_BACKEND=openai
-export LLM_BASE_URL=http://localhost:8000/v1        # 换成本机
+export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8010/v1
 export LLM_API_KEY=dummy
-export LLM_MODEL=Qwen3-8B
+export MODEL_NAME=qwen38-27b-q4-k-m LLM_MODEL=qwen38-27b-q4-k-m
+PORT=8010 ./serve/start.sh
 ```
 
-智能体代码无需改动，服务连接通过上述环境变量配置。但提示词与重试策略未必可以直接平移，商用
-API 与本地小模型在输出长度、指令遵循、代码格式稳定性上差异明显，围绕前者调好的东西
-换到后者常常直接失效。尽早跑一次本地模型。
+### 没有现有服务时启动
+
+断网前在本地准备上述 GGUF、匹配目标 GPU 的 `llama-server` 及其运行库；
+权重和二进制不随方案提交，脚本不会下载。默认从 `PATH` 找 `llama-server`，
+权重默认在 `/models/Qwen3.8-27B-Q4_K_M.gguf`；可通过环境变量显式指定：
+
+```bash
+export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8010/v1
+export LLM_API_KEY=dummy
+export MODEL_NAME=qwen38-27b-q4-k-m LLM_MODEL=qwen38-27b-q4-k-m
+MODEL=/local/models/Qwen3.8-27B-Q4_K_M.gguf \
+LLAMA_SERVER=/local/bin/llama-server ./serve/start.sh
+```
+
+`/local` 是示例准备位置，须换为实际路径。缺失或不可读权重、找不到二进制时明确失败。
+主模型日志在 `${SERVE_LOG_DIR:-${AGENT_TMP:-/tmp}/serve-logs}/llamacpp.log`；
+就绪等待默认 `START_TIMEOUT_S=900`。启动使用 `setsid`，保持原有临时目录清理及可选小模型机制。
+
+`llamacpp.sh` 默认参数：`PORT=8010`、`MAX_LEN=65536`、`PARALLEL=1`、
+`N_GPU_LAYERS=all`、`THREADS=16`、`THREADS_BATCH=16`、`FLASH_ATTN=on`、
+`REASONING_BUDGET=-1`，固定绑定 `127.0.0.1` 并启用 `--no-webui --metrics`。
+没有 MTP draft 或额外 RoPE 覆盖。覆盖端口时也要同步 `LLM_BASE_URL`；
+覆盖 `MODEL_NAME` 时同步 `LLM_MODEL`；改变模型或服务参数须同步模型声明。
+默认 `single_generate` 与 baseline 共用此服务和 manifest 思考设置，
+不启用 Skill、RAG 或辅助模型。
+
+Dockerfile 不复制权重或开发区；使用前须在基础镜像或挂载目录中准备兼容后端及运行库，
+再挂载本地权重，必要时覆盖 `LLAMA_SERVER`。这些部署说明不代表已完成容器构建、
+冷启动或目标 GPU 验收。
 
 ## 起投题接口
 
 ```bash
 export FPGACHINA_TOKEN=<赛事方发的令牌>
-export MODEL_NAME=Qwen3-8B
+export MODEL_NAME=qwen38-27b-q4-k-m
 ./serve/run_api.sh start        # 后台运行，进程退出后等待 2 秒重启
 
 # 让外面能访问到：平台只接管绑在 127.0.0.1 上的 HTTP 服务
@@ -59,7 +98,7 @@ env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
 
 ```bash
 curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://localhost:7860/v1/health
-# {"ready":true,"track":"rtl","model":"Qwen3-8B","vram_gb":21.4}
+# 核对 ready、track="rtl" 和 model="qwen38-27b-q4-k-m"；vram_gb 不是峰值测量。
 
 # 投一道题：立即返回 job_id，之后查询直到 status 为 done
 curl -X POST -H "Authorization: Bearer $FPGACHINA_TOKEN" -H "Content-Type: application/json" \
@@ -74,16 +113,17 @@ curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://localhost:7860/v1/jobs/<
 
 ## 几处容易踩的地方
 
-**显存按 32 GB 预算，而不是按卡的容量。** vLLM 按 `--gpu-memory-utilization` 乘以整卡显存
-预先分配，与模型大小无关。验证窗口的 W7900 有 48 GB，若取 0.90 将占用约 43 GB，超出单卡
-32 GB 的上限。`vllm.sh` 因此按 `VRAM_BUDGET_GB`（默认 30）换算该比例，也可用 `GPU_UTIL`
-直接指定；提交前须以 `rocm-smi --showmemuse` 实测稳态占用。
+**显存按单卡 32 GB 限制核对，包含辅助模型。** llama.cpp 的实际占用受权重、
+上下文与运行参数影响，不能套用其他后端的预分配比例。2026-10-30 现有服务的
+sysfs 瞬时读数约 22.457 GiB，主模型进程约 19.590 GiB，另有本流程未使用的
+embedding 进程约 2.412 GiB；这是观测值，不是峰值或冷启动验收。
+投题健康接口的 `vram_gb=0` 也不代表没有显存占用，须独立测量。
 
 **绑 `127.0.0.1`，不是 `0.0.0.0`。** Radeon Cloud 的 `rc-tunnel` 只接管绑在环回口上的
 HTTP 服务，绑 `0.0.0.0` 平台不接管。绑错了服务本身是活的，但外面永远打不进来，在赛事方
 那边看起来和挂掉没有区别，而失败不重投。
 
-**只暴露 7860 一个端口。** 平台限制一个 notebook 同时只能暴露一个端口。vLLM 的 8000
+**只暴露 7860 一个端口。** 平台限制一个 notebook 同时只能暴露一个端口。llama.cpp 的 8010
 由智能体经 `127.0.0.1` 内部调用，不要去暴露。**同时参加两个赛道的队伍需要两台 VM。**
 
 **令牌检查不是可选项。** 平台给出的公网 app URL 不带业务层鉴权，没有令牌检查，任何人

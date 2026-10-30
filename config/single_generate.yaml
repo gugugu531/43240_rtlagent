@@ -1,6 +1,11 @@
 workflow: single_generate
 services:
-  model: {backend: mock}
+  model:
+    backend: openai
+    base_url: http://127.0.0.1:8010/v1
+    model: qwen38-27b-q4-k-m
+    tokenizer_protocol: llama_cpp
+    max_model_len: 65536
 runtime:
   deadline_s: 900
   reserve_s: 20

@@ -2,24 +2,35 @@
   "schema_version": 1,
   "track": "rtl",
   "model": {
-    "name": "Qwen/Qwen3-8B",
-    "source": "https://huggingface.co/Qwen/Qwen3-8B",
-    "revision": "REPLACE_WITH_COMMIT_SHA",
-    "quantization": "none",
-    "measured_vram_gb": 0.0,
+    "name": "Qwen/Qwen3.8-27B",
+    "source": "https://huggingface.co/Abiray/Qwen3.8-27B-Q4_K_M-GGUF",
+    "revision": "f7a1cda580fe828415151042bf9f3dc5bb8b0d76",
+    "weights_file": "Qwen3.8-27B-Q4_K_M.gguf",
+    "weights_sha256": "6a96cc760fc65cc6b9ea7f1922e3ff8b2a48c09f209456f23bbae9ef7032c867",
+    "quantization": "GGUF Q4_K_M",
+    "measured_vram_gb": 22.457,
+    "vram_measurement": {
+      "unit": "GiB",
+      "kind": "single_snapshot_not_peak",
+      "date": "2026-10-30",
+      "scope": "instance-visible GPU including resident unused embedding service",
+      "method": "sysfs mem_info_vram_used"
+    },
     "finetuned": false,
     "finetune_weights_url": null
   },
   "context": {
-    "max_model_len": 32768,
+    "max_model_len": 65536,
     "max_output_tokens": 16384,
     "rope_scaling": null
   },
   "serving": {
-    "backend": "vllm",
-    "version": "REPLACE",
+    "backend": "llama.cpp",
+    "version": "0.4.0-dev (build 1, commit f114f91)",
+    "binary_sha256": "290708d22f8b495d36b8aedd0afb0cdc081c415548f855e6a950a75dd742ad97",
+    "model_alias": "qwen38-27b-q4-k-m",
     "start_command": "./serve/start.sh",
-    "port": 8000
+    "port": 8010
   },
   "endpoints": {
     "solve": "./run.sh",
@@ -30,14 +41,8 @@
     "workflow": "single_generate",
     "max_rounds": 1,
     "temperature": 0.0,
-    "tools": [
-      "interface_check",
-      "vivado_lint",
-      "vivado_synth"
-    ],
-    "skills": [
-      "rtl-sequential-state-update"
-    ],
+    "tools": [],
+    "skills": [],
     "available_workflows": [
       "single_generate",
       "guided_verify"
