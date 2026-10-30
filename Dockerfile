@@ -2,17 +2,10 @@
 # working inference stack for the target architecture; rebuilding that yourself
 # is a large amount of work for no score.
 #
-# Two variants are planned, gfx1100 (validation window, W7900) and gfx1201
-# (finals, R9700). Pin the one you are targeting -- prebuilt kernels and
-# wheels are not interchangeable between the two generations.
-#
-# ★ The tag below is a PLACEHOLDER. The real image name is announced before
-#   the validation window; until then this build only works if you pass the
-#   name explicitly:
-#
-#     docker build --build-arg BASE_IMAGE=<announced name> -t myteam-agent .
-#
-ARG BASE_IMAGE=fpgachina2026/base-gfx1100:REPLACE_WITH_ANNOUNCED_TAG
+# Both preliminary and final rounds use gfx1100 (Radeon PRO W7900).
+# This official image is available only inside the platform. Organisers
+# rebuild it in fallback mode; keep installation steps aligned with the instance.
+ARG BASE_IMAGE=fpgachina-rtlhls@sha256:a7cf627e11708e8a6dcd9de689ff934f7b450b79369ebc7bb0217e8b54d81e56
 FROM ${BASE_IMAGE}
 
 # --- everything must be baked in: the sandbox has no network ----------------
@@ -29,7 +22,7 @@ COPY knowledge/ knowledge/
 COPY serve/  serve/
 COPY model/  model/
 COPY run.sh run_baseline.sh baseline.py manifest.json REPORT.md LICENSE ./
-RUN chmod +x run.sh run_baseline.sh serve/vllm.sh serve/start.sh serve/start_verireason.sh
+RUN chmod +x run.sh run_baseline.sh serve/vllm.sh serve/start.sh serve/start_verireason.sh serve/run_api.sh
 
 # Model weights. Copy them in, or bind-mount at run time -- but they must be on
 # local disk before the network goes away. `huggingface-cli download` at startup

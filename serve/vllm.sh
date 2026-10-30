@@ -25,9 +25,7 @@ MAX_LEN="${MAX_LEN:-32768}"            # declare this in MODEL.md, it is not a f
 # verify the steady-state figure with `rocm-smi --showmemuse`.
 VRAM_BUDGET_GB="${VRAM_BUDGET_GB:-30}"   # stay under 32 GB with some headroom
 
-# Single card. Tensor / pipeline parallelism across cards is not usable on
-# gfx1201 (no XGMI, collective comms will not start reliably), and the memory
-# budget is per-card anyway. Four cards means four independent instances.
+# Single card: the memory budget is per card and the instance has one GPU.
 export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0}"
 
 if [ -z "${GPU_UTIL:-}" ]; then

@@ -14,7 +14,7 @@ One worker solves one task at a time, in arrival order.
 
     export FPGACHINA_TOKEN=<token issued by the organisers>
     export MODEL_NAME=Qwen/Qwen3-8B
-    uvicorn serve.serve_api:app --host 127.0.0.1 --port 7860
+    ./serve/run_api.sh start
 
 Bind 127.0.0.1, not 0.0.0.0. Radeon Cloud's rc-tunnel only picks up HTTP
 services bound to the loopback interface; a service on 0.0.0.0 is never
