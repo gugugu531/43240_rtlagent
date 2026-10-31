@@ -189,7 +189,8 @@ class ApiContractTests(unittest.TestCase):
 
     def test_modes_receive_same_effective_model_and_remaining_timeout(self):
         settings = {"RTLAGENT_SERVICES__MODEL__BASE_URL": "http://127.0.0.1:8123/v1",
-                    "RTLAGENT_SERVICES__MODEL__MODEL": "configured-model"}
+                    "RTLAGENT_SERVICES__MODEL__MODEL": "configured-model",
+                    "TRACK": "hls"}
         with patch.dict(os.environ, settings), patch.object(api.time, "time", return_value=100), \
              patch.object(api, "_run_task") as run:
             for mode in ("agent", "baseline"):
@@ -202,6 +203,7 @@ class ApiContractTests(unittest.TestCase):
             self.assertEqual(env["LLM_MODEL"], "configured-model")
             self.assertEqual(env["MODEL_NAME"], "configured-model")
             self.assertEqual(env["LLM_BACKEND"], "openai")
+            self.assertEqual(env["TRACK"], "rtl")
             self.assertTrue(Path(env["AGENT_CONFIG"]).is_absolute())
         self.assertEqual(agent.args[0][-2:], ["--hard-deadline-s", "50"])
         self.assertEqual(Path(baseline.args[0][0]).name, "run_baseline.sh")

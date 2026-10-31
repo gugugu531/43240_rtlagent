@@ -101,8 +101,10 @@ LLAMA_SERVER=/local/bin/llama-server ./serve/start.sh
 规划路由、生成、检查、归因与修复均使用 Qwen3.8-27B，默认不启用小模型 profile 或 embedding。
 规划仍可选择 Skill；`retrieval_mode: off` 关闭 RAG 卡片。每阶段重新构造 messages，不共享聊天历史或思考正文，
 只按阶段契约传递规划和证据；这不表示独立模型进程或独占 KV 内存。MTP 预测头仍随主模型加载并计入设备总显存。
-规划上限为 300 秒 / 4096 token，生成为 300 秒 / 8192 token、检查为 300 秒 / 16384 token，归因为 120 秒 / 1024 token；
-所有请求共用单题 900 秒预算，额度会按剩余时间和上下文裁剪。当前云端与这些默认参数对齐。
+规划上限为 90 秒 / 4096 token，生成为 300 秒 / 16384 token、检查为 180 秒 / 8192 token，归因为 120 秒 / 8192 token；
+所有请求共用单题 900 秒、8次调用和65536输出token额度，实际额度按剩余时间和上下文裁剪。
+首次生成或首次检查的最终正文为空且终止原因为 stop/length 时，各最多独立恢复一次；恢复共享上述总额度，
+不复制思考正文，未知用量或未确认请求时不继续恢复。完整流程见 [guided-verify.md](../docs/guided-verify.md)。
 
 Dockerfile 不复制权重或开发区；使用固定官方镜像内 `/opt/llamacpp` 的 HIP 后端和配套 rocBLAS 库，
 构建时检查这两项存在，再挂载提前准备的两份本地权重。自定义后端须在构建阶段准备并同步版本声明。
@@ -113,9 +115,11 @@ Dockerfile 不复制权重或开发区；使用固定官方镜像内 `/opt/llama
 
 以下从干净方案仓库根目录执行。镜像已提供 Vivado、HIP 后端；Python 环境须在断网前安装
 `requirements.txt`。实际云端使用 `/workspace/rtlagent/venv`，其他实例可换为自己的环境。
+方案仓库直接克隆到 `/workspace/43240_rtlagent`，从该目录执行下列命令；不依赖嵌套的历史部署目录。
 令牌及授权变量保存在持久盘 `/workspace/env.sh`，不得提交到仓库，也不要用覆盖写法丢失已有令牌。
 
 ```bash
+cd /workspace/43240_rtlagent
 source /workspace/env.sh
 source /tools/Xilinx/setup.sh
 export PATH="/workspace/rtlagent/venv/bin:$PATH"
@@ -172,6 +176,7 @@ curl -H "Authorization: Bearer $FPGACHINA_TOKEN" http://localhost:7860/v1/jobs/<
 
 正式 HTTP 启动从同一份有效 YAML/环境配置解析模型地址，并把同一个地址和模型别名传给
 agent 与 baseline 子进程；仅接受 loopback HTTP 服务。CLI 开发仍可显式使用 mock 或其他后端。
+两种 HTTP 模式均显式传入 `TRACK=rtl`，不继承宿主残留的其他赛道设置；官方 baseline 文件保持原样。
 health 不运行解题；模型、入口、配置或实测显存不可用时返回 503。mode 仅接受 agent/baseline，
 deadline 必须为正整数，排队时间计入两模式共同的时限；同 nonce 不重复求解。
 API 守护启动前检查依赖及子进程持续存活，启动成功仍须另行验证鉴权 health。

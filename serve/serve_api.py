@@ -208,7 +208,9 @@ def _solve(req: SolveRequest, submitted: float) -> tuple[str, str]:
         # same effective endpoint/model to both entry points, including when
         # those values came from nested RTLAGENT_* environment overrides.
         model = config.services.model
-        env = dict(os.environ, AGENT_CONFIG=str(config_path),
+        # The HTTP service is RTL-only. A stale host TRACK must not send the
+        # untouched official baseline down its HLS output path.
+        env = dict(os.environ, TRACK=TRACK, AGENT_CONFIG=str(config_path),
                    LLM_BACKEND=model.backend, LLM_BASE_URL=model.base_url,
                    LLM_MODEL=model.model, MODEL_NAME=model.model)
         left = req.deadline_s - (time.time() - submitted)
