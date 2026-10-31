@@ -73,8 +73,16 @@ Prefer, in this order:
 3. one priority conflict or control overlap stated by the task;
 4. one boundary, transition, or arithmetic edge that distinguishes common mistakes.
 
-Do not enumerate the full input space. Do not add random stimulus. Do not add a case
-that cannot state a public expected value.
+For a small combinational truth table, cover every publicly defined input combination
+when it fits within the host limits; split lines across cases if needed. Otherwise
+select discriminating cases without claiming exhaustive coverage. Do not add random
+stimulus or a case that cannot state a public expected value.
+
+Respect the finite event budget. A few observed shifts do not establish a full state
+cycle, and visiting an output does not establish priority or transition coverage.
+Prefer cases that actually activate the property being checked. A waveform with
+simultaneous input and clock changes does not override the host drive/edge/sample
+order; omit ambiguous expectations instead of guessing a scheduling convention.
 
 ### 3. Establish a known initial state for each sequential case
 
@@ -94,6 +102,14 @@ For every checked output on every line, compute the value from the public rules 
 old-state semantics at the clock edge. State the exact bit pattern in hexadecimal.
 The host expands it to the declared width. A value that is unknown, X, or dependent
 on an unspecified behavior must not be written as an expected value.
+
+For truth tables and Karnaugh maps, first resolve the public variable/bit order,
+row and column axis labels, and the stated Gray-code ordering. Map each selected cell
+to named input bits before converting the stimulus to hexadecimal; do not interchange
+row and column variables or infer a formula from planning hints. A don't-care cell
+permits multiple implementation results: do not force it to zero or one. Omit that
+expected output (and, if no known output remains, that line), keeping each case's
+checked output set consistent. Do not turn unknown output bits into known values.
 
 If the workflow permits checking only key outputs, use the same output set on every
 line of one case. The host records every public output not in that set as unchecked;

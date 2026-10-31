@@ -6,6 +6,8 @@ import unittest
 
 from agent.runtime.allowance import CompletionLedger
 from agent.orchestration.nodes import guided
+from agent.orchestration.workflows.guided_verify import GuidedParameters
+from pydantic import ValidationError
 
 
 class GuidedBudgetTests(unittest.TestCase):
@@ -91,3 +93,35 @@ class GuidedBudgetTests(unittest.TestCase):
                 _, ledger, _, _ = self.context(900)
                 with self.assertRaises(ValueError):
                     ledger.reserve("checker", 10, 300, min_timeout_s=minimum)
+
+
+class GuidedRecoveryBudgetConfigurationTests(unittest.TestCase):
+    def test_recovery_limit_cannot_be_more_than_one(self):
+        for name in ("solve_empty_recovery_limit", "checker_empty_recovery_limit"):
+            for value in (-1, 2, True):
+                with self.subTest(name=name, value=value), self.assertRaises(ValidationError):
+                    GuidedParameters(**{name: value})
+        for value in (0, -1):
+            with self.assertRaises(ValidationError):
+                GuidedParameters(solve_minimum_s=value)
+
+    def test_existing_explicit_limits_remain_valid_without_new_fields(self):
+        settings = GuidedParameters(planner={"timeout_s": 300, "max_tokens": 4096},
+                                    solve={"timeout_s": 900, "max_tokens": 32768})
+        self.assertEqual(settings.solve.timeout_s, 900)
+        self.assertEqual(settings.solve_minimum_s, 120)
+        self.assertEqual(settings.max_calls, 8)
+        self.assertEqual(settings.max_output_tokens, 65536)
+
+    def test_unconfirmed_completion_prevents_recovery(self):
+        ctx, ledger, sent, _ = GuidedBudgetTests().context(840)
+        permit = ledger.reserve("solve", 100, 300, optional=False)
+        permit._begin()
+        permit._sent("first", 100)
+        permit._finish()
+        self.assertIsNone(guided._request(ctx, "solve_recovery", [],
+                                         {"max_tokens": 100, "timeout_s": 300},
+                                         followup_s=120, optional=True))
+        self.assertEqual(sent, [])
+        self.assertEqual(ctx.store["guided"]["request_outcomes"]["solve_recovery"],
+                         {"status": "not_sent", "reason": "unconfirmed_completion"})

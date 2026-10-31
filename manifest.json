@@ -73,24 +73,24 @@
     "max_calls": 8,
     "max_output_tokens": 65536,
     "minimum_request_s": 20,
-    "timeout_policy": "clip stage timeout to remaining budget after preserving followup reserve; require min(stage timeout, minimum_request_s)",
+    "timeout_policy": "clip stage timeout after preserving followup tools; planner reserves min(solve timeout, solve_minimum_s) plus first tools; recovery shares existing global limits",
     "temperature": 0.0,
     "stage_limits": {
       "planner": {
-        "timeout_s": 300,
+        "timeout_s": 90,
         "max_tokens": 4096
       },
       "solve": {
         "timeout_s": 300,
-        "max_tokens": 8192
+        "max_tokens": 16384
       },
       "checker": {
-        "timeout_s": 300,
-        "max_tokens": 16384
+        "timeout_s": 180,
+        "max_tokens": 8192
       },
       "adjudicate": {
         "timeout_s": 120,
-        "max_tokens": 1024
+        "max_tokens": 8192
       }
     },
     "tools": [
@@ -114,7 +114,10 @@
     "available_workflows": [
       "single_generate",
       "guided_verify"
-    ]
+    ],
+    "solve_minimum_s": 120,
+    "solve_empty_recovery_limit": 1,
+    "checker_empty_recovery_limit": 1
   },
   "generation": {
     "chat_template_kwargs": {

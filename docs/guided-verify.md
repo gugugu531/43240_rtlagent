@@ -1,6 +1,6 @@
 # guided_verify 工作流设计
 
-状态：2026-10-30 已切换为源码默认工作流，`run.sh`、配置加载和 HTTP 服务统一选择 `config/guided_verify.yaml`。RAG 关闭，规划与其他模型阶段均使用 8000 的 Qwen3.8-27B；无需 8011 小模型或 embedding 服务。当前云端已切换，并完成自编单题真实模型及 API 验证；这不代表完整题集或官方成绩。早期实现的单元测试、真实模型与 Vivado 单题记录保留为对应版本证据，不能代替新默认或完整题集验收。
+状态：2026-10-30 已切换为源码默认工作流，`run.sh`、配置加载和 HTTP 服务统一选择 `config/guided_verify.yaml`。RAG 关闭，规划与其他模型阶段均使用 8000 的 Qwen3.8-27B；无需 8011 小模型或 embedding 服务。旧版本云端已切换，并完成自编单题真实模型及 API 验证；2026-10-31源码的恢复和预算改动须按新版本独立验收；这不代表完整题集或官方成绩。早期实现的单元测试、真实模型与 Vivado 单题记录保留为对应版本证据，不能代替新默认或完整题集验收。
 当前仓库只保留 `single_generate` 与其并存，不再保留 adaptive/design/repair 工作流。
 实现位于 `agent/orchestration/nodes/guided.py`、`agent/orchestration/workflows/guided_verify.py`。`serve/start.sh` 只启动主模型及同进程 MTP；显式小模型研究仍可手动运行 `serve/start_verireason.sh`。
 
@@ -33,6 +33,10 @@ flowchart TD
     A -->|spec_unclear| F
 ```
 
+首次solve或首次checker收到`stop`/`length`且最终正文为空时，可在原全局额度内各恢复一次。恢复重新构造公开上下文，不带前次reasoning；checker仍不带候选、实测或planner公式。非空格式错误、未知终止、HTTP异常和宿主unsupported不进入此恢复。未知usage或未确认请求也不能盲重发。恢复尝试、实际发出次数、原失败与恢复响应分别记录；原失败不会被覆盖。
+
+`solve_empty_recovery_limit`、`checker_empty_recovery_limit`只允许0或1，默认1。`solve_minimum_s=120`让planner保留最小求解时间及工具额度，而非完整solve超时；剩余时间不足仍记录未发送。它不是所有阶段都能用满上限的保证。
+
 ## 3. 节点与最小 I/O
 
 | 节点 | 模型/工具 | 最小输入 | 最小输出 |
@@ -41,7 +45,7 @@ flowchart TD
 | `solve` | Qwen3.8-27B | 题面、system prompt、选中的 skill；显式 RAG 配置才包含卡片 | 完整 RTL |
 | `structure` | interface/lint/synth | 候选 | 结构检查结果 |
 | `repair_structure` | Qwen3.8-27B | 题面、当前候选、结构化 `repair_diagnostics` 与日志摘要 | 新候选 |
-| `build_checker` | Qwen3.8-27B | 题面、行为检查 skill、`focus`、实际执行契约；不读候选/实测 | 行式向量表 |
+| `build_checker` | Qwen3.8-27B | 题面、行为检查 skill、实际执行契约；不读候选/实测 | 行式向量表 |
 | `run_checker` | host | 候选 + 合法向量表 | 逐 case/step/output 结果 |
 | `adjudicate` | Qwen3.8-27B | 题面、checker、失败明细、当前候选、执行契约与展开后的输入时间线 | 扁平归因文本 |
 | `repair_behavior` | Qwen3.8-27B | 题面、当前候选、checker、失败明细、执行契约、展开时间线与已存归因 | 新候选 |
@@ -70,7 +74,7 @@ reason=single clock, reset and load are public
 - `method` 只能是 `structural` 或 `table`。
 - `skills` 来自每题自动扫描 `skill/` 形成的候选，最多 2 个；只向规划器提供允许自动选择的技能。宿主按生成/修复阶段和冲突组检查，实际发送与快照哈希记录在 material 产物中。新增技能无需改代码或清单，格式见[技能扩展指南](../skill/README.md)。
 - 默认 `retrieval_mode=off`，host 不检索卡片，`knowledge` 为空；显式研究 RAG 时只能从 host 候选中选择，最多 3 个，由 host 还原卡片原文。
-- `focus` 最多 4 段，用 `|` 分隔，只用于 checker 提示，不作为题面要求。
+- `focus` 最多4段，用 `|` 分隔，保留为规划记录；独立checker不接收这些可能包含答案公式的推导。
 - 技能和卡片中的未知或重复 ID 被移除，再按配置上限截取。格式错误、不支持的方法、超出限制的 `focus` / `reason` 或规划无响应时，回退 `structural`，记录原因，仍继续解题。
 
 ## 5. 检查器格式
@@ -120,7 +124,7 @@ step reset=0 load=0 data=00 q=01
   ```
 
 - `checker_error`：若 `checker_rebuilds_used < checker_rebuild_limit`，重建 checker。重建输入只允许
-  公开题面、固定检查方法、规划 focus、实际执行契约、旧 checker、失败 case ID 和决策类别（`checker_error`）；不得传入归因 reason 正文、
+  公开题面、固定检查方法、实际执行契约、旧 checker、失败 case ID 和决策类别（`checker_error`）；不得传入归因 reason 正文、
   候选 RTL、从失败报告摘出的期望/实测值或任何实测采样记录，并在重建记录中明确 `candidate_input=false`、
   `observed_outputs_input=false`。
 - 重建后再次运行 checker；仍不一致则再次归因，受 `adjudicate_limit` 限制。
@@ -134,10 +138,10 @@ step reset=0 load=0 data=00 q=01
 
 | 参数 | 当前默认配置 | 说明 |
 |---|---:|---|
-| `planner` | 300s / 4096 | 主模型规划路由 |
-| `solve` | 300s / 8192 | 首稿 |
-| `checker` | 300s / 16384 | 构造向量表 |
-| `adjudicate` | 120s / 1024 | 归因 |
+| `planner` | 90s / 4096 | 主模型规划路由 |
+| `solve` | 300s / 16384 | 首稿 |
+| `checker` | 180s / 8192 | 构造向量表 |
+| `adjudicate` | 120s / 8192 | 归因 |
 | `minimum_request_s` | 20s | 裁剪后模型请求的最小可用时间；阶段上限不足 20s 时取该阶段上限 |
 | `structure_repair_limit` | 1 | 结构修复次数 |
 | `behavior_repair_limit` | 1 | 行为修复次数 |

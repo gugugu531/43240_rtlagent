@@ -159,6 +159,8 @@ The reliable construction is mechanical:
    from explicit public module and port requirements when no header is supplied.
    Do not copy a declaration that the task explicitly identifies as faulty.
 2. Add `reg` to output ports that are driven from an `always` block.
+   With an ANSI header, put the variable type in that header; do not redeclare
+   the same port in the module body. Preserve the public direction and width.
 3. Write the body below it.
 
 Retyping a port list from memory is how widths and underscores get lost.

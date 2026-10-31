@@ -15,10 +15,13 @@ class StageLimit(BaseModel):
 
 class GuidedParameters(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
-    planner: StageLimit = StageLimit(timeout_s=60, max_tokens=512)
-    solve: StageLimit = StageLimit(timeout_s=240, max_tokens=4096)
-    checker: StageLimit = StageLimit(timeout_s=180, max_tokens=2048)
-    adjudicate: StageLimit = StageLimit(timeout_s=120, max_tokens=1024)
+    planner: StageLimit = StageLimit(timeout_s=90, max_tokens=4096)
+    solve: StageLimit = StageLimit(timeout_s=300, max_tokens=16384)
+    checker: StageLimit = StageLimit(timeout_s=180, max_tokens=8192)
+    adjudicate: StageLimit = StageLimit(timeout_s=120, max_tokens=8192)
+    solve_minimum_s: float = Field(default=120, gt=0)
+    solve_empty_recovery_limit: int = Field(default=1, ge=0, le=1)
+    checker_empty_recovery_limit: int = Field(default=1, ge=0, le=1)
     structure_repair_limit: int = Field(default=1, ge=0, le=5)
     behavior_repair_limit: int = Field(default=1, ge=0, le=5)
     checker_rebuild_limit: int = Field(default=1, ge=0, le=5)

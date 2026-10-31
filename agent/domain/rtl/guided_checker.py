@@ -19,8 +19,8 @@ CASE_ID = re.compile(r"^[A-Za-z0-9_-]{1,63}$")
 CLOCK_NAME = re.compile(r"(?i)(?:^|_)(?:clk|clock)$|^(?:clk|clock)")
 EDGE = re.compile(
     r"(?i)\b(?P<hdl>posedge|negedge)\b|"
-    r"\b(?P<english>rising|positive|falling|negative)[ -]+"
-    r"(?:(?:clock|clk)[ -]+)?edges?\b"
+    r"\b(?P<english>rising|positive|falling|negative)[\s-]+"
+    r"(?:(?:clock|clk)[\s-]+)?edges?\b"
 )
 
 
@@ -142,21 +142,24 @@ def _clock_edge(text, clock, inputs):
             if target:
                 subject = aliases.get(target.group(1).lower())
             else:
-                # e.g. "clk's rising edge" or "reset_n falling edge".
+                # Bind only a local input/clock name, optionally followed by a
+                # copula: "clk's rising edge", "areset is positive edge".
+                # Do not skip arbitrary words such as "not" or data names.
                 target = re.search(
-                    r"\b([A-Za-z_][A-Za-z0-9_$]*)(?:['’]s)?\s+$", before,
+                    r"\b([A-Za-z_][A-Za-z0-9_$]*)(?:['’]s)?"
+                    r"(?:\s+(?:is|are))?\s+$", before, re.I,
                 )
                 if target:
                     subject = aliases.get(target.group(1).lower())
                 if subject is None and re.search(r"\b(?:clock|clk)\b", match.group(), re.I):
                     subject = clock
                 # A generic edge-triggered declaration explicitly tied to clock.
-                if subject is None and re.match(r"[- ]triggered\s+(?:by\s+)?(?:the\s+)?(?:clock|clk)\b", after, re.I):
+                if subject is None and re.match(r"[\s-]+triggered\s+(?:by\s+)?(?:the\s+)?(?:clock|clk)\b", after, re.I):
                     subject = clock
         if subject is None:
             raise CheckerError("clock edge semantics are ambiguous or unsupported")
         if subject != clock:
-            if not re.search(r"(?i)(?:^|_)(?:reset|rst)(?:_|$)|^(?:reset|rst)", subject):
+            if not re.search(r"(?i)(?:^|_)(?:reset|rst)(?:_|$)|^a?(?:reset|rst)", subject):
                 raise CheckerError("non-reset edge-triggered inputs are not supported")
             continue
         polarity = (match.group("hdl") or match.group("english")).lower()
@@ -222,6 +225,7 @@ def checker_contract(task, *, max_cases=4, max_steps=8, init_cycles=2):
             "failure_step_index": "Zero-based index of the expanded event in that case, not the table line number. A first init of N repeats is checked at step N-1; the next step is N.",
             "failure_value_encoding": "Expanded sampling inputs, expected_bits, actual_bits and known masks are JSON integer bit patterns (decimal JSON numbers), unlike hexadecimal table tokens.",
             "unknown_outputs": "Unknown output bits remain unknown and cannot pass a comparison.",
+            "coverage": "A pass covers only the listed input/state sequences and sampled outputs. Output-port coverage alone does not establish input-space, transition, priority or full-period coverage; obey the event limits when selecting distinguishable cases.",
         },
     })
     return result

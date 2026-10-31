@@ -171,3 +171,64 @@ def test_public_port_limit_matches_sampling_schema(port_count):
         assert "port count" in contract["reason"]
         with pytest.raises(CheckerError, match="port count"):
             parse_checker(table, public)
+
+
+@pytest.mark.parametrize("semantics", [
+    "All sequential logic uses the positive\nedge of the clock. reset_n low clears q.",
+    "All sequential logic uses the positive\tclock\nedge. reset_n low clears q.",
+    "The clock is rising edge triggered. reset_n is falling edge triggered asynchronously.",
+])
+def test_whitespace_and_copula_clock_edges(semantics):
+    public = task(semantics)
+    assert checker_contract(public)["supported"] is True
+    assert parse_checker(TABLE, public).plan["clock"]["edge"] == "posedge"
+
+
+@pytest.mark.parametrize("reset_name", ["areset", "arst", "areset_n", "resetn"])
+def test_actual_reset_input_copula_does_not_mask_clock(reset_name):
+    public = TaskSpec.from_text(
+        "reset-edge",
+        "Implement a module named TopModule with the following interface.\n"
+        f" - input clk\n - input {reset_name}\n - input d\n - output q\n"
+        f"{reset_name} is positive edge triggered asynchronous reset. "
+        "All sequential logic uses the positive\nedge of the clock.",
+    )
+    assert checker_contract(public)["supported"] is True
+    checker = parse_checker(f"case c\ninit {reset_name}=1 d=0 q=0", public)
+    assert checker.plan["clock"]["port"] == "clk"
+    with pytest.raises(CheckerError):
+        parse_checker("case c\ninit missing_reset=1 d=0 q=0", public)
+
+
+@pytest.mark.parametrize("semantics", [
+    "d is positive edge triggered. clk is positive edge triggered.",
+    "missing_reset is positive edge triggered. clk is positive edge triggered.",
+    "areset is positive edge triggered. clk is positive edge triggered.",
+    "reset_n is positive edge triggered. q follows d when clocked.",
+    "reset_n is positive edge triggered. clk is negative\nedge triggered.",
+    "A positive\nedge detector observes d. clk is positive edge triggered.",
+])
+def test_new_edge_forms_do_not_accept_data_unknown_or_negative_clock(semantics):
+    public = task(semantics)
+    assert checker_contract(public)["supported"] is False
+    with pytest.raises(CheckerError):
+        parse_checker(TABLE, public)
+
+
+def test_multiple_clock_inputs_still_rejected():
+    public = TaskSpec.from_text(
+        "two-clocks",
+        "Implement a module named TopModule with the following interface.\n"
+        " - input clk\n - input clock_b\n - input areset\n - output q\n"
+        "clk is positive edge triggered. clock_b is positive edge triggered. "
+        "areset is positive edge triggered asynchronous reset.",
+    )
+    contract = checker_contract(public)
+    assert contract["supported"] is False
+    assert "multiple clock" in contract["reason"]
+
+
+def test_contract_describes_finite_coverage_without_changing_comparisons():
+    contract = checker_contract(task())
+    assert "Output-port coverage alone" in contract["execution"]["coverage"]
+    assert "Unknown output bits remain unknown" in contract["execution"]["unknown_outputs"]

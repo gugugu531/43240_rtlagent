@@ -82,13 +82,13 @@ def _behavior_for(data, candidate_id):
     return record.get("behavior") or {}
 
 
-def _request(ctx, stage, messages, limits, *, followup_s=0):
+def _request(ctx, stage, messages, limits, *, followup_s=0, optional=False):
     data = _g(ctx)
     if stage in data["attempted"]:
         raise ValueError(f"guided stage may only request once: {stage}")
     data["attempted"].add(stage)
     permit = data["ledger"].reserve(
-        stage, **limits, followup_s=followup_s, optional=False,
+        stage, **limits, followup_s=followup_s, optional=optional,
         min_timeout_s=min(limits["timeout_s"], data["settings"].get("minimum_request_s", 20)),
     )
     if permit is None:
@@ -117,6 +117,7 @@ def _request(ctx, stage, messages, limits, *, followup_s=0):
     except ModelError as error:
         data["request_outcomes"][stage] = {
             "status": "error", "kind": error.kind, "reason": str(error),
+            "call_id": error.call_id,
         }
         ctx.record.emit("guided", "request_failed", stage=stage, kind=error.kind,
                         reason=str(error))
@@ -124,6 +125,60 @@ def _request(ctx, stage, messages, limits, *, followup_s=0):
     finally:
         _save(ctx, "completion-ledger", data["ledger"].snapshot())
         _save(ctx, "request-outcomes", data["request_outcomes"])
+
+
+def _empty_failure(reply):
+    """Only a confirmed stop/length with no final body permits recovery."""
+    if reply is None or reply.content.strip():
+        return None
+    return {
+        "stop": "stop_no_final",
+        "length": "length_no_final",
+    }.get(reply.finish_reason, "empty_unknown_finish")
+
+
+def _response_failure(ctx, stage, reply, kind, **details):
+    failure = {
+        "kind": kind, "source_call_id": reply.call_id,
+        "finish_reason": reply.finish_reason, **details,
+    }
+    outcomes = _g(ctx).setdefault("request_outcomes", {})
+    outcomes.setdefault(stage, {}).update({"failure_kind": kind})
+    _save(ctx, f"{stage}-failure", failure)
+    _save(ctx, "request-outcomes", outcomes)
+    return failure
+
+
+def _recover_empty(ctx, stage, reply, make_messages, limits):
+    """One fresh request, charged to the same ledger; never replay reasoning."""
+    data = _g(ctx)
+    kind = _empty_failure(reply)
+    if kind not in ("stop_no_final", "length_no_final"):
+        return None
+    attempt_key = f"{stage}_recovery_attempts"
+    limit = data["settings"].get(f"{stage}_empty_recovery_limit", 1)
+    if data.get(attempt_key, 0) >= limit:
+        return None
+    data[attempt_key] = data.get(attempt_key, 0) + 1
+    messages = make_messages()
+    messages[-1]["content"] += (
+        "\n\nA previous independent request returned no final answer. "
+        f"Failure category: {kind}. "
+        "Produce the requested complete final artifact in this response. "
+        "Do not reproduce analysis, stimulus drafts, or an unfinished artifact."
+    )
+    recovery_stage = f"{stage}_recovery"
+    recovered = _request(
+        ctx, recovery_stage, messages, limits,
+        followup_s=data["settings"]["first_tools_s"], optional=True,
+    )
+    # ModelError.call_id can identify metadata (tokenize/apply-template),
+    # which does not mean a completion was sent. The permit is authoritative.
+    data[f"{stage}_recoveries_sent"] = sum(
+        permit["stage"] == recovery_stage and permit["call_id"] is not None
+        for permit in data["ledger"].snapshot()["permits"]
+    )
+    return recovered
 
 
 def _candidate(ctx, reply, *, parent=None, stage="solve", extraction=None):
@@ -137,12 +192,10 @@ def _candidate(ctx, reply, *, parent=None, stage="solve", extraction=None):
         or not extraction.target_module_found
         or extraction.suspected_truncation
     ):
-        _save(ctx, f"{stage}-failure", {
-            "source_call_id": reply.call_id,
-            "finish_reason": reply.finish_reason,
-            "required_top": ctx.task.top,
-            "extraction": extraction.trace_dict(),
-        })
+        _response_failure(
+            ctx, stage, reply, _empty_failure(reply) or "invalid_rtl",
+            required_top=ctx.task.top, extraction=extraction.trace_dict(),
+        )
         return None
     candidate = ctx.candidates.create(
         extraction.code,
@@ -263,6 +316,10 @@ def initialize(ctx: Ctx, state: State) -> State:
         "behavior_repairs": 0,
         "checker_rebuilds": 0,
         "adjudications": 0,
+        "solve_recovery_attempts": 0,
+        "solve_recoveries_sent": 0,
+        "checker_recovery_attempts": 0,
+        "checker_recoveries_sent": 0,
     }
     ctx.store["submission"] = SubmissionGateway(
         ctx, policy=settings.get("submission_policy", "last_written")
@@ -286,7 +343,8 @@ def plan(ctx: Ctx, state: State) -> State:
     )
     reply = _request(
         ctx, "plan", messages, settings["planner"],
-        followup_s=settings["solve"]["timeout_s"] + settings["first_tools_s"],
+        followup_s=min(settings["solve"]["timeout_s"], settings.get("solve_minimum_s", 120))
+        + settings["first_tools_s"],
     )
     chosen = None
     if reply is not None:
@@ -326,6 +384,16 @@ def solve(ctx: Ctx, state: State) -> State:
         followup_s=settings["first_tools_s"],
     )
     candidate = _candidate(ctx, reply)
+    if candidate is None:
+        def fresh_messages():
+            fresh = ctx.prompts.render(
+                "repair.md", task=ctx.task, feedback="", parent=None, plan=None
+            )
+            _append_material(ctx, fresh, "generate", "material-solve_recovery")
+            return fresh
+
+        recovered = _recover_empty(ctx, "solve", reply, fresh_messages, settings["solve"])
+        candidate = _candidate(ctx, recovered, stage="solve_recovery")
     return state.update(target_id=candidate.id if candidate else None)
 
 
@@ -451,7 +519,7 @@ def build_checker(ctx: Ctx, state: State) -> State:
         _save(ctx, "checker-error", {"status": "unsupported", "reason": rules["reason"]})
         return state.update(checker_status="invalid")
     messages = checker_request(
-        ctx.task, body, data["plan"].get("focus", ()), **_checker_limits(ctx)
+        ctx.task, body, (), **_checker_limits(ctx)
     )
     context = data.get("checker_rebuild_context")
     if context:
@@ -471,6 +539,23 @@ def build_checker(ctx: Ctx, state: State) -> State:
         ctx, stage, messages, settings["checker"],
         followup_s=settings["first_tools_s"],
     )
+    if reply is not None and _empty_failure(reply):
+        failure = _response_failure(ctx, stage, reply, _empty_failure(reply))
+        if (
+            stage == "checker"
+            and _empty_failure(reply) in ("stop_no_final", "length_no_final")
+            and data.get("checker_recovery_attempts", 0)
+            < settings.get("checker_empty_recovery_limit", 1)
+        ):
+            reply = _recover_empty(
+                ctx, "checker", reply,
+                lambda: checker_request(ctx.task, body, (), **_checker_limits(ctx)),
+                settings["checker"],
+            )
+            stage = "checker_recovery"
+            if reply is None:
+                _save(ctx, "checker-error", {"status": "invalid", **failure,
+                      "recovery": data["request_outcomes"].get(stage)})
     if reply is None:
         data["checker_status"] = "invalid"
         data["checker_hash"] = None
@@ -485,7 +570,11 @@ def build_checker(ctx: Ctx, state: State) -> State:
     except CheckerError as error:
         data["checker_status"] = "invalid"
         data["checker_hash"] = None
-        _save(ctx, "checker-error", {"status": "invalid", "reason": str(error)})
+        failure = _response_failure(
+            ctx, stage, reply, _empty_failure(reply) or "invalid_checker",
+            reason=str(error),
+        )
+        _save(ctx, "checker-error", {"status": "invalid", **failure})
         return state.update(checker_status="invalid")
     data["checker"] = checker
     data["checker_hash"] = _checker_fingerprint(checker)
@@ -675,6 +764,10 @@ def finish(ctx: Ctx, state: State) -> State:
         "behavior_repairs": data["behavior_repairs"],
         "checker_rebuilds": data["checker_rebuilds"],
         "adjudications": data["adjudications"],
+        **{key: data.get(key, 0) for key in (
+            "solve_recovery_attempts", "solve_recoveries_sent",
+            "checker_recovery_attempts", "checker_recoveries_sent",
+        )},
         "adjudication": data.get("adjudication"),
         "submission": submission,
         "request_outcomes": data["request_outcomes"],
