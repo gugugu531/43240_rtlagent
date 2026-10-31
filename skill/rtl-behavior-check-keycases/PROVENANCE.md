@@ -1,21 +1,13 @@
-# Provenance
+# 来源与许可
 
-This skill is original work by Team 43240 for this repository. It is not copied
-from the upstream MIT skill catalog and it is not presented as an upstream asset.
+本技能由本项目编写，不是从上游技能目录复制的文件。它采用公开验证实践中的常见做法：
 
-The text was informed only by general, public verification principles:
+- 明确时钟、复位或初始化过程、输入激励和采样时刻；
+- 自动比较实际输出与期望输出，并记录不一致，不只依赖人工查看波形；
+- 选择少量能够区分常见错误的场景，明确有限输入表未覆盖的行为。
 
-- the structural pattern of a clock, explicit reset/initial phase, deterministic
-  stimulus, and automatic checking;
-- the requirement that a self-checking testbench fail when the design violates an
-  invariant, rather than relying on waveform inspection;
-- the observation that key, discriminating cases are more useful than exhaustive
-  enumeration for a small model-generated table.
+这些做法属于通用验证方法，不据此主张原创验证理论，也不说明少量场景优于完整验证。相关研究的借鉴范围见[报告](../../REPORT.md)。本项目编写了本技能的行式输入与期望输出表规范，以及读取该表并生成自检测试台的程序；没有将其表述为复现某篇论文的完整系统。
 
-No VerilogEval testbench, reference module, official dataset answer, or other
-third-party source text was copied into this skill, its prompts, or the repository.
-The line-oriented table format and the host-generated testbench design are original
-to this team.
+本技能正文不包含 VerilogEval 测试台、参考模块、官方题库答案或其他第三方原文。此说明仅针对本技能；仓库中其他技能的开源来源与复用范围见[技能包说明](../README.md#现有技能与来源)。
 
-License: MIT. The copyright header in `skill.md` applies to this original text.
-Review status: candidate, not automatically admitted.
+本技能采用 MIT 许可证，版权声明保留在 `skill.md` 文件头，许可全文见[仓库许可证](../../LICENSE)。`review_status: frozen_candidate_not_default` 表示它不参与求解技能的自动选择；当前 `guided_verify` 的检查器构造节点仍固定读取该方法。这一使用方式不代表已经证明检查器正确或提高了模型成绩。

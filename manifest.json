@@ -6,14 +6,16 @@
     "source": "https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF",
     "revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
     "weights_file": "Qwen3.8-27B-Q4_K_M.gguf",
+    "weights_bytes": 18973870528,
     "weights_sha256": "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747",
     "quantization": "GGUF Q4_K_M",
+    "license": "apache-2.0",
     "measured_vram_gb": 23.67,
     "vram_measurement": {
       "unit": "GiB",
       "kind": "single_snapshot_not_peak",
       "date": "2026-10-30",
-      "scope": "instance SSH 32535 visible GPU 0000:03:00.0 including main model, MTP head and device overhead; no resident planner or embedding",
+      "scope": "2026-10-30 Radeon Pro W7900D 设备瞬时采样，包含主模型、MTP 和设备其他开销；无独立规划或文本向量常驻服务，非运行峰值",
       "method": "sysfs mem_info_vram_used",
       "device_total_bytes": 51522830336,
       "device_used_bytes": 25415020544,
@@ -57,7 +59,10 @@
     "model_alias": "qwen38-27b-q4-k-m",
     "start_command": "./serve/start.sh",
     "port": 8000,
-    "chat_template": "jinja"
+    "chat_template": "jinja",
+    "parallel": 1,
+    "reasoning_budget": -1,
+    "shared_with_baseline": true
   },
   "endpoints": {
     "solve": "./run.sh",
@@ -69,12 +74,25 @@
     "config": "config/guided_verify.yaml",
     "retrieval_mode": "off",
     "planner_model": "qwen38-27b-q4-k-m",
-    "context_policy": "independent messages per stage; no shared conversation history",
+    "context_policy": "各阶段独立构造请求消息（messages），不继承聊天历史或思考正文；按阶段明确传递规划、候选与检查证据",
     "max_calls": 8,
     "max_output_tokens": 65536,
     "minimum_request_s": 20,
-    "timeout_policy": "clip stage timeout after preserving followup tools; planner reserves min(solve timeout, solve_minimum_s) plus first tools; recovery shares existing global limits",
+    "timeout_policy": "保留后续工具时间后，按剩余预算缩短阶段请求时限；规划为生成保留 solve 时限与 solve_minimum_s 中的较小值及首次工具时间；恢复共用原有总额度",
     "temperature": 0.0,
+    "top_p": 1.0,
+    "deadline_s": 900,
+    "reserve_s": 60,
+    "submission_policy": "last_written",
+    "structure_repair_limit": 1,
+    "behavior_repair_limit": 1,
+    "checker_rebuild_limit": 1,
+    "adjudicate_limit": 2,
+    "max_cases": 4,
+    "max_steps_per_case": 8,
+    "init_cycles": 2,
+    "first_tools_s": 120,
+    "recheck_tools_s": 120,
     "stage_limits": {
       "planner": {
         "timeout_s": 90,
@@ -110,7 +128,9 @@
       "rtl-sequential-state-update",
       "rtl-stream-word-boundaries"
     ],
-    "skill_selection": "planner selects up to two eligible skills from the per-task discovered snapshot",
+    "skill_selection": "skills 列出允许规划器自动选择的求解技能；每题扫描一次目录并固定技能内容，最多选择两项，按阶段与冲突组校验后使用",
+    "checker_skill": "rtl-behavior-check-keycases",
+    "checker_context_policy": "固定检查方法直接用于检查器；不接收候选 RTL、实测输出、求解技能或规划公式；重建可接收旧检查表、失败案例 ID 和错误类别",
     "available_workflows": [
       "single_generate",
       "guided_verify"

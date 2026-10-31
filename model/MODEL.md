@@ -1,18 +1,18 @@
-# MODEL.md
+# 模型与推理服务声明
 
 本文件与 `manifest.json`、`REPORT.md` 第 3 节共同声明当前默认配置。
 规则按主办方固定版本 [`fc8e26a`](https://gitee.com/Vickyiii/rtlagent2026/tree/fc8e26a/)（2026-10-30 核对）。
-模型后端运行事实取自 **2026-10-30 SSH 端口 32535 的 Radeon Cloud 实例**，已重新实读两份权重与后端启动文件的 SHA256。
-正式路线为 **HIP + MTP3**，8000 推理端口、7860 投题端口。已完成真实单题投题；不代表正式成绩或持续负载测量。
+源码默认设置对应 `1615689`。权重与后端信息依据 **2026-10-30 的 Radeon Cloud 实例核查记录**，当时读取了两份实际权重及后端二进制并计算 SHA256 校验值。
+推理后端采用 **llama.cpp HIP**（AMD GPU 计算后端），启用 MTP（多 token 预测）头，每次最多预测 3 个 token，下文简称 MTP3。推理端口为 8000，投题端口为 7860。`1615689` 在 2026-10-31 完成了自编 AND/OR 两道小题的真实投题与独立判定，详见 [报告第 6 节](../REPORT.md#6-实测结果)；这不代表正式成绩或持续负载测量。
 
 ## 1. 模型
 
 | 项 | 内容 |
 | --- | --- |
 | 基座模型名称 | `Qwen/Qwen3.8-27B` |
-| 基座来源 | https://huggingface.co/Qwen/Qwen3.8-27B |
-| 实际量化权重来源 | https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF |
-| 固定 revision | `a316ea527fde32c12487be7574e2db5ac2ad2a7e` |
+| 基座来源 | [Qwen/Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) |
+| 实际量化权重来源 | [ggml-org/Qwen3.8-27B-GGUF](https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF) |
+| 固定版本（revision） | `a316ea527fde32c12487be7574e2db5ac2ad2a7e` |
 | 权重文件 | `Qwen3.8-27B-Q4_K_M.gguf` |
 | 文件大小 | 18,973,870,528 bytes |
 | 权重 SHA256 | `c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747` |
@@ -20,12 +20,10 @@
 | 许可证 | Apache-2.0（固定 revision 的公开模型卡声明 `apache-2.0`） |
 | 服务模型别名 | `qwen38-27b-q4-k-m` |
 
-固定版本的完整公开下载 URL：
+下载：[固定版本主权重](https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/resolve/a316ea527fde32c12487be7574e2db5ac2ad2a7e/Qwen3.8-27B-Q4_K_M.gguf)。GGUF 是 llama.cpp 使用的模型文件格式，Q4_K_M 是本文件采用的量化类型。
 
-https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/resolve/a316ea527fde32c12487be7574e2db5ac2ad2a7e/Qwen3.8-27B-Q4_K_M.gguf
-
-当前实例实际加载文件为 `/workspace/models/Qwen3.8-27B-Q4_K_M.gguf`；
-2026-10-30 对主权重及第 6 节 MTP 权重实读计算的 SHA256 均与固定 revision 的
+核查时实例实际加载文件为 `/workspace/models/Qwen3.8-27B-Q4_K_M.gguf`；
+2026-10-30 对主权重及第 6 节 MTP 权重计算的 SHA256 均与固定版本的
 [Hugging Face 文件 API](https://huggingface.co/api/models/ggml-org/Qwen3.8-27B-GGUF/tree/a316ea527fde32c12487be7574e2db5ac2ad2a7e) 一致。
 仅加载文本 GGUF，未加载多模态投影文件（mmproj）。权重须提前准备，正式断网运行时不下载，
 不调用商用模型 API。仓库通用默认路径为 `/models/Qwen3.8-27B-Q4_K_M.gguf`，可用 `MODEL` 覆盖；
@@ -47,7 +45,7 @@ https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/resolve/a316ea527fde32c12487be7
 GiB 按 2^30 bytes 计，KiB 按 2^10 bytes 计。上述数值不是稳态或全程峰值，
 也不保证进程采样与设备采样完全同步；不能扣除未参与求解的常驻进程。
 `manifest.json` 的 `measured_vram_gb` 为 23.67，`vram_measurement` 明确采用
-GiB 及上述瞬时边界。health 的运行时显存采样与本表历史采样分别记录；未取得有效采样不能用 0 代替。
+GiB，并注明这是单次采样。健康检查接口的运行时显存采样与本表历史采样分别记录；未取得有效采样不能用 0 代替。
 
 赛事上限为单卡 32 GB，包含辅助模型和运行开销；不能按 W7900 的物理容量放宽预算。
 当前采样不能代替正式负载下的峰值验收，也不是官方成绩。
@@ -57,23 +55,24 @@ GiB 及上述瞬时边界。health 的运行时显存采样与本表历史采样
 | 项 | 值 |
 | --- | --- |
 | 服务上下文 `--ctx-size` / 配置 `max_model_len` | 65536 |
-| guided 阶段输出上限 | 规划 4096、生成 16384、检查 8192、归因 8192 token；总输出预算 65536 token |
+| `guided_verify` 阶段输出上限 | 规划 4096、生成 16384、检查 8192、归因 8192 token；总输出预算 65536 token |
 | temperature / top_p | 0.0 / 1.0 |
-| 单题时限 / 阶段请求上限 | 单题 900 秒；规划90秒、生成300秒、检查180秒、归因120秒，受剩余预算裁剪 |
+| 单题时限 / 阶段请求上限 | 单题 900 秒；规划 90 秒、生成 300 秒、检查 180 秒、归因 120 秒，实际请求时限可按剩余预算缩短 |
 | 共享思考设置 | `manifest.json` 的 `generation.chat_template_kwargs` 中 `enable_thinking=true`、`reasoning_effort=medium`，baseline 与方案共用 |
 | 服务思考预算 | `--reasoning-budget -1` |
-| 额外 RoPE 覆盖 | 无 |
-| KV cache | FP16 |
+| RoPE（旋转位置编码）的额外设置 | 无 |
+| KV cache（注意力键值缓存） | FP16（16 位浮点数） |
 | MTP / draft 模型 | 同进程加载 Q4_0 MTP 预测头，`draft-mtp`，最多预测 3 token |
 
 `run.sh` 与 HTTP 服务默认使用 `config/guided_verify.yaml`，经过规划、生成、结构检查、
-独立关键案例检查及有界修复。规划路由与其余模型阶段均使用 8000 的 Qwen3.8-27B，
-`small` / `large` profile 关闭；不启动独立小模型或 embedding。`retrieval_mode: off` 关闭 RAG 卡片，
-规划仍可选择合格 Skill。每阶段重新构造 messages，不继承其他阶段的聊天历史或思考正文；
+独立关键案例检查及限定次数的修复。规划与其余模型阶段均使用端口 8000 的 Qwen3.8-27B，
+`small` / `large` 模型配置（profile）关闭；不启动独立小模型或文本向量服务（embedding）。`retrieval_mode: off` 关闭 RAG（检索增强生成）卡片，
+规划仍可选择符合条件的技能。每阶段重新构造请求消息（`messages`），不继承其他阶段的聊天历史或思考正文；
 流程需要的规划、候选和证据显式传递，不声称模型进程或 KV 内存隔离。
-规划读取完整公开题面和宿主检查器契约；检查器初建/重建接收实际初始化、数量限制和采样规则，归因与行为修复另接收展开后的输入时间线。行为修复接收已存归因作为假设，独立检查器重建不接收候选、实测或归因 reason。
-模型 timeout 可在保留后续检查时间后按剩余预算裁剪，`minimum_request_s` 默认 20 秒，阶段上限更短时以该上限为最小值；总时限、调用/token 预算及共享思考设置不变。这些提示与调度调整不代表已完成真实模型收益验证。
-2026-10-31源码增加首次生成/检查器空正文的各一次有界恢复，沿用8次调用、65536输出token和900秒总预算。恢复不继承思考正文，独立检查器不接收规划公式、候选或实测。规划只为后续求解保留最小120秒及工具时间，而非完整求解timeout。源码策略调整与旧云端部署分别验收，不以配置更新宣称真实收益。
+规划读取完整公开题面和程序实际支持的检查规则；检查器初建、重建请求包含初始化次数、数量限制和采样规则，归因与行为修复另接收展开后的输入时间线。行为修复将已存归因作为假设，独立检查器重建不接收候选、实测输出或归因原因正文。
+
+模型请求在保留后续检查时间后，可按剩余预算缩短时限。`minimum_request_s` 默认 20 秒，阶段上限更短时以该上限为最小值；总时限、调用次数、token 预算及共享思考设置不变。
+2026-10-31 的恢复改动允许首次生成、首次检查器请求在最终正文为空且终止原因为 `stop` 或 `length` 时，各恢复一次，仍共用 8 次调用、65536 输出 token 和 900 秒总预算。恢复不继承思考正文，独立检查器不接收规划公式、候选或实测输出。规划为后续求解至少保留 120 秒及工具时间，无需预留完整的生成阶段时限。三题恢复实验使用检查器 150 秒的候选配置；发布配置为 180 秒，已完成上述两道小题验证，尚无同配置全题集对照。两者结果不能合并为同一次验收。
 推理后端使用第 6 节声明的 MTP 预测头，不是独立求解模型。
 `baseline.py`、`run_baseline.sh` 保持不变；基线与默认方案使用同一服务、权重、量化、上下文及
 上述生成设置。此处声明配置一致，不代表已完成同批次正式基线与方案评测。
@@ -87,7 +86,7 @@ GiB 及上述瞬时边界。health 的运行时显存采样与本表历史采样
 2026-10-28 云端开发验证（非正式成绩）：远端 llama.cpp
 `Qwen3.8-27B-Q4_K_M` + MTP，`single_generate` 约 9.6 秒，但本次输出 `xvlog` 失败。
 当时本文件与 manifest 仍声明示例模型 Qwen3-8B，因此当时记录指出该 27B 与声明不同。
-该历史记录不证明当前权重、运行性能或正式能力；本轮声明以当前 SSH 32535 实例的实读核对为准，
+该历史记录不证明当前权重、运行性能或正式能力；本文件的权重声明以 2026-10-30 实例核查记录为准，
 不将旧实验耗时或失败结果归入当前部署。实例 31563 的 Abiray 无 MTP 路线和旧公网测试
 也仅属于旧验收历史，不作为所选 HIP + MTP3 路线的证明。
 
@@ -118,7 +117,7 @@ GiB 及上述瞬时边界。health 的运行时显存采样与本表历史采样
   --spec-draft-ngl all --spec-draft-n-max 3
 ```
 
-采样时 slots 为 idle、`speculative=true`；这不是吞吐、峰值或新版本发布验收。
+采样时推理槽位（slots）为空闲状态（`idle`），`speculative=true`；这不是吞吐、峰值或新版本发布验收。
 通用复现入口如下，工作目录为方案仓库 `43240_rtlagent/`；先准备两份权重与匹配的 HIP 二进制。
 `LLAMA_SERVER` 默认使用官方镜像 `/opt/llamacpp/llama-server`，需要选择其他固定二进制时显式设置绝对路径。
 实例授权、Python 环境与投题启动顺序见 [服务说明](../serve/README.md)。
@@ -165,12 +164,11 @@ export LLM_BACKEND=openai LLM_BASE_URL=http://127.0.0.1:8000/v1
 | 显存 | 已计入第 2 节主进程和设备采样；没有独立预测头显存测量 |
 | 通用路径 | `/models/mtp-Qwen3.8-27B-Q4_0.gguf`，由 `MTP_MODEL` 覆盖 |
 
-固定版本下载 URL：
-https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/resolve/a316ea527fde32c12487be7574e2db5ac2ad2a7e/mtp-Qwen3.8-27B-Q4_0.gguf
+下载：[固定版本 MTP 权重](https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/resolve/a316ea527fde32c12487be7574e2db5ac2ad2a7e/mtp-Qwen3.8-27B-Q4_0.gguf)。
 
-当前实例未加载独立 planner 或 embedding；主模型与 MTP 的显存均计入设备采样。
+2026-10-30 核查时，实例未加载独立规划或文本向量模型；主模型与 MTP 的显存均计入设备采样。
 
-默认 guided 仅使用主模型规划。仓库保留的小模型 profile 和 RAG 是显式研究配置，不是当前默认依赖：
+默认 `guided_verify` 仅使用主模型规划。仓库保留的小模型配置和 RAG 需显式选择，属于研究路线：
 
 - `small` 规划 profile 的研究候选为
   `Nellyw888/VeriReason-Qwen2.5-1.5b-RTLCoder-Verilog-GRPO-reasoning-tb`，
@@ -178,7 +176,7 @@ https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/resolve/a316ea527fde32c12487be7
   基座 `Qwen/Qwen2.5-Coder-1.5B-Instruct`，约 1.54B，规划用途；
   研究配置 `guided_verify_rag_bm25.yaml`、`guided_verify_rag_dense.yaml` 的独立服务端口为 8011；`serve/start.sh` 不启动该服务，研究需要时须显式运行 `VERI_GGUF=... ./serve/start_verireason.sh`。
   这些是既有研究记录，不是 2026-10-30 对该候选的重新验证或正式运行声明。
-- 该候选既有记录的许可证为空（`license: null`），flat plan 格式与运行显存未完成验证。
+- 该候选既有记录的许可证为空（`license: null`），合计运行显存未完成验证。2026-10-28 的 `3e1efcc` 单题与 `333f32e` 四题记录已有真实扁平规划输出，但会混淆技能与知识卡片标识；这些局部结果不能证明当前配置的规划可靠性或正式可用性。
   公开 safetensors 约 6.2 GB（F32）只是旧文件大小记录，不是运行显存。
   未补全许可、来源、权重和合计资源验证并更新正式 manifest 前，不得作为正式组件。
 - RAG 卡片与 `config/rag_embedding.yaml` 仅用于显式研究路线。当前不以常驻 embedding
@@ -189,7 +187,7 @@ https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/resolve/a316ea527fde32c12487be7
 
 ## 7. 声明与未完成验证
 
-- 当前两份权重的公开固定版本、文件字节数与实读 SHA256 已按 2026-10-30 SSH 32535 实例核对。
+- 两份权重的公开固定版本、文件字节数与 SHA256 已按 2026-10-30 实例记录核对。
 - 模型与服务声明对应 HIP + MTP3 正式路线；不把旧权重、研究配置或 mock 当作当前运行证据。
 - 尚未完成正式负载峰值、单卡 32 GB 限制、容器复现、完整题集基线对照与官方评分验收。
 - 真实单题验证与服务启动记录保留在开发区，瞬时采样不替代完整验收。
