@@ -4,7 +4,7 @@
 
 默认工作流为 `guided_verify`：同一 Qwen3.8-27B 模型分别负责规划、生成、检查表构造和错误归因；各阶段使用独立请求上下文。模型从公开题面提出输入与期望输出，程序生成测试台并执行比较。参考答案、官方测试台和官方判定反馈不进入求解过程。
 
-使用说明与声明依据 [主办方仓库固定版本 fc8e26a](https://gitee.com/Vickyiii/rtlagent2026/tree/fc8e26a/)，核对日期为 2026-10-31；本文对应方案实现 `1615689`。设计依据、实验条件和失败分析见 [REPORT.md](REPORT.md)，机器可读配置见 [manifest.json](manifest.json)。
+使用说明与声明依据 [主办方仓库固定版本 fc8e26a](https://gitee.com/Vickyiii/rtlagent2026/tree/fc8e26a/)，核对日期为 2026-10-31；本文对应方案实现 `1615689`。设计依据、实验条件和失败分析见 [REPORT.md](REPORT.md)，机器可读配置见 [manifest.json](manifest.json)。完整排版报告见 [设计报告 PDF](report/report.pdf)，源码与编译说明见 [report/readme.md](report/readme.md)。
 
 ## 默认配置
 

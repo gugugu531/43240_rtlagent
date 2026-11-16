@@ -1,0 +1,25 @@
+// 生成：dot -Tsvg dev/docs/report/figures/architecture.dot -o dev/docs/report/figures/architecture.svg
+digraph architecture {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.15", nodesep="0.32", ranksep="0.42", fontname="Noto Sans CJK SC", fontsize=12];
+  node [shape=box, style="rounded,filled", fillcolor="#f4f6f8", color="#586779", fontname="Noto Sans CJK SC", fontsize=14, margin="0.16,0.14"];
+  edge [color="#586779", arrowsize=0.7];
+  entry [label="入口与配置", fillcolor="#e8eff6"];
+  orchestration [label="工作流编排", fillcolor="#e8eff6"];
+  model [label="模型接口"];
+  context [label="提示与知识"];
+  rtl [label="RTL 与工具"];
+  runtime [label="运行管理\n预算 · 调用 · 进程", fillcolor="#e8eff6"];
+  records [label="运行记录", fillcolor="#edf2ec"];
+  output [label="答案交付", fillcolor="#edf2ec"];
+  entry -> orchestration;
+  orchestration -> model;
+  orchestration -> context;
+  orchestration -> rtl;
+  {rank=same; model; context; rtl;}
+  model -> runtime [style=dashed, dir=none];
+  context -> runtime [style=dashed, dir=none];
+  rtl -> runtime [style=dashed, dir=none];
+  runtime -> records [style=dashed, dir=none];
+  runtime -> output [style=dashed, dir=none];
+  {rank=same; records; output;}
+}
