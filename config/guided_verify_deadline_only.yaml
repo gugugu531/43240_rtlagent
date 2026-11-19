@@ -1,0 +1,39 @@
+# 研究配置：不限制生成调用、输出 token 总数及修复次数，共享 900 秒。
+# 单次输出仍受真实模型上下文剩余空间限制；未知用量阻止可选请求，未确认请求阻止后续生成。
+workflow: guided_verify
+params:
+  retrieval_mode: "off"
+  planner: {timeout_s: 900, max_tokens: null}
+  solve: {timeout_s: 900, max_tokens: null}
+  checker: {timeout_s: 900, max_tokens: null}
+  adjudicate: {timeout_s: 900, max_tokens: null}
+  max_calls: null
+  max_output_tokens: null
+  structure_repair_limit: null
+  behavior_repair_limit: null
+  checker_rebuild_limit: null
+  adjudicate_limit: null
+  solve_empty_recovery_limit: null
+  checker_empty_recovery_limit: null
+  minimum_request_s: 0
+  solve_minimum_s: 0
+  first_tools_s: 0
+  recheck_tools_s: 0
+  submission_policy: last_written
+runtime:
+  max_steps: null
+  deadline_s: 900
+  reserve_s: 0
+  recording: {level: full}
+services:
+  model:
+    backend: openai
+    base_url: http://127.0.0.1:8000/v1
+    model: qwen38-27b-q4-k-m
+    tokenizer_protocol: llama_cpp
+    max_model_len: 65536
+    timeout_s: 900
+    structured_outputs: false
+  profiles:
+    small: {enabled: false}
+    large: {enabled: false}

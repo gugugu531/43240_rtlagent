@@ -143,11 +143,12 @@ def _clock_edge(text, clock, inputs):
                 subject = aliases.get(target.group(1).lower())
             else:
                 # Bind only a local input/clock name, optionally followed by a
-                # copula: "clk's rising edge", "areset is positive edge".
+                # copula and article: "clk's rising edge",
+                # "areset is a positive edge".
                 # Do not skip arbitrary words such as "not" or data names.
                 target = re.search(
                     r"\b([A-Za-z_][A-Za-z0-9_$]*)(?:['’]s)?"
-                    r"(?:\s+(?:is|are))?\s+$", before, re.I,
+                    r"(?:\s+(?:is|are)(?:\s+(?:a|an|the))?)?\s+$", before, re.I,
                 )
                 if target:
                     subject = aliases.get(target.group(1).lower())

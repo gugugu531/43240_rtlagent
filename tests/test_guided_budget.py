@@ -88,7 +88,7 @@ class GuidedBudgetTests(unittest.TestCase):
         self.assertEqual(sent[0]["timeout_s"], 5)
 
     def test_invalid_minimum_is_rejected(self):
-        for minimum in (0, -1, 301, float("inf"), float("nan")):
+        for minimum in (-1, 301, float("inf"), float("nan")):
             with self.subTest(minimum=minimum):
                 _, ledger, _, _ = self.context(900)
                 with self.assertRaises(ValueError):
@@ -101,7 +101,7 @@ class GuidedRecoveryBudgetConfigurationTests(unittest.TestCase):
             for value in (-1, 2, True):
                 with self.subTest(name=name, value=value), self.assertRaises(ValidationError):
                     GuidedParameters(**{name: value})
-        for value in (0, -1):
+        for value in (-1,):
             with self.assertRaises(ValidationError):
                 GuidedParameters(solve_minimum_s=value)
 

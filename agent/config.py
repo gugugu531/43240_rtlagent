@@ -72,7 +72,7 @@ class AuxiliaryBudget(StrictModel):
 class Runtime(StrictModel):
     deadline_s: float = Field(default=900, gt=0)
     reserve_s: float = Field(default=20, ge=0)
-    max_steps: int = Field(default=1000, gt=0)
+    max_steps: int | None = Field(default=1000, gt=0)
     recording: Recording = Field(default_factory=Recording)
     auxiliary: AuxiliaryBudget = Field(default_factory=AuxiliaryBudget)
 

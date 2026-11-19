@@ -145,5 +145,22 @@
       "reasoning_effort": "medium"
     }
   },
-  "auxiliary_models": []
+  "auxiliary_models": [],
+  "research_profiles": {
+    "guided_verify_deadline_only": {
+      "config": "config/guided_verify_deadline_only.yaml",
+      "purpose": "用户授权的定向研究复测，非默认比赛预算",
+      "deadline_s": 900,
+      "reserve_s": 0,
+      "max_calls": null,
+      "max_output_tokens": null,
+      "repair_limits": null,
+      "stage_max_tokens": null,
+      "stage_timeout_s": 900,
+      "context_limit": 65536,
+      "generation": "与顶层 generation 相同",
+      "note": "调用、token 与修复无人工次数上限；单次输出受实际上下文剩余容量限制，未知用量及未确认请求仍阻止可选后续调用。检查表容量和 last_written 策略不变。",
+      "max_steps": null
+    }
+  }
 }

@@ -1,6 +1,7 @@
 """Bind registered functions into Burr and record every action through hooks."""
 
 import json
+from itertools import count
 import time
 from types import SimpleNamespace
 import uuid
@@ -150,7 +151,8 @@ def build_graph(ctx):
 
 def run_graph(ctx):
     app = build_graph(ctx)
-    for _ in range(ctx.config.runtime.max_steps):
+    steps = count() if ctx.config.runtime.max_steps is None else range(ctx.config.runtime.max_steps)
+    for _ in steps:
         ctx.budget.timeout(ctx.budget.deadline_s)
         outcome = app.step()
         if outcome is None:

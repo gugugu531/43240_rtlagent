@@ -10,7 +10,7 @@ from agent.kit import workflow, when, default
 class StageLimit(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
     timeout_s: float = Field(gt=0)
-    max_tokens: int = Field(gt=0)
+    max_tokens: int | None = Field(gt=0)
 
 
 class GuidedParameters(BaseModel):
@@ -19,23 +19,23 @@ class GuidedParameters(BaseModel):
     solve: StageLimit = StageLimit(timeout_s=300, max_tokens=16384)
     checker: StageLimit = StageLimit(timeout_s=180, max_tokens=8192)
     adjudicate: StageLimit = StageLimit(timeout_s=120, max_tokens=8192)
-    solve_minimum_s: float = Field(default=120, gt=0)
-    solve_empty_recovery_limit: int = Field(default=1, ge=0, le=1)
-    checker_empty_recovery_limit: int = Field(default=1, ge=0, le=1)
-    structure_repair_limit: int = Field(default=1, ge=0, le=5)
-    behavior_repair_limit: int = Field(default=1, ge=0, le=5)
-    checker_rebuild_limit: int = Field(default=1, ge=0, le=5)
-    adjudicate_limit: int = Field(default=2, ge=0, le=5)
+    solve_minimum_s: float = Field(default=120, ge=0)
+    solve_empty_recovery_limit: int | None = Field(default=1, ge=0, le=1)
+    checker_empty_recovery_limit: int | None = Field(default=1, ge=0, le=1)
+    structure_repair_limit: int | None = Field(default=1, ge=0, le=5)
+    behavior_repair_limit: int | None = Field(default=1, ge=0, le=5)
+    checker_rebuild_limit: int | None = Field(default=1, ge=0, le=5)
+    adjudicate_limit: int | None = Field(default=2, ge=0, le=5)
     max_cases: int = Field(default=4, ge=1, le=8)
     max_steps_per_case: int = Field(default=8, ge=1, le=16)
     init_cycles: int = Field(default=2, ge=1, le=8)
     knowledge_candidates: int = Field(default=5, ge=1, le=16)
     knowledge_select: int = Field(default=3, ge=0, le=5)
-    max_calls: int = Field(default=8, ge=1, le=12)
-    max_output_tokens: int = Field(default=65536, gt=0)
-    minimum_request_s: float = Field(default=20, gt=0)
-    first_tools_s: float = Field(default=120, gt=0)
-    recheck_tools_s: float = Field(default=120, gt=0)
+    max_calls: int | None = Field(default=8, ge=1, le=12)
+    max_output_tokens: int | None = Field(default=65536, gt=0)
+    minimum_request_s: float = Field(default=20, ge=0)
+    first_tools_s: float = Field(default=120, ge=0)
+    recheck_tools_s: float = Field(default=120, ge=0)
     submission_policy: Literal["last_written", "selected"] = "last_written"
     retrieval_mode: Literal["off", "legacy", "rag", "all"] = "off"
     retrieval_strategy: Literal["bm25", "dense"] = "bm25"

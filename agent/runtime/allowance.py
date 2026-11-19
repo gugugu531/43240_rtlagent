@@ -13,7 +13,7 @@ class AllowanceError(RuntimeError):
 class CompletionPermit:
     id: str
     stage: str
-    max_tokens: int
+    max_tokens: int | None
     timeout_s: float
     followup_s: float
     optional: bool
@@ -42,7 +42,8 @@ class CompletionPermit:
     def _check_send(self, max_tokens):
         if self not in self._ledger._permits or self.state != "active" or self.call_id is not None:
             raise AllowanceError("one permit allows exactly one completion request")
-        if type(max_tokens) is not int or not 0 < max_tokens <= self.max_tokens:
+        if (type(max_tokens) is not int or max_tokens <= 0
+                or (self.max_tokens is not None and max_tokens > self.max_tokens)):
             raise AllowanceError("completion output exceeds its permit")
         if self.remaining_s() <= 0:
             raise AllowanceError("completion permit deadline has expired")
@@ -87,8 +88,9 @@ class CompletionLedger:
     """Reserve worst-case costs before preparation, settle only observed usage."""
 
     def __init__(self, budget, record, max_calls=5, max_output_tokens=110592):
-        if any(type(value) is not int or value <= 0 for value in (max_calls, max_output_tokens)):
-            raise ValueError("completion limits must be positive integers")
+        if any(value is not None and (type(value) is not int or value <= 0)
+               for value in (max_calls, max_output_tokens)):
+            raise ValueError("completion limits must be positive integers or null")
         self.budget, self.record = budget, record
         self.max_calls, self.max_output_tokens = max_calls, max_output_tokens
         self._permits = []
@@ -108,16 +110,20 @@ class CompletionLedger:
         unknown_usage = sum(p.tokens_in is None or p.tokens_out is None for p in sent)
         unconfirmed = sum(not (p.response_received or p.terminal_confirmed) for p in sent)
         known_output = sum(p.tokens_out for p in sent if p.tokens_out is not None)
-        charged = sum(p.max_tokens for p in reserved) + sum(
-            p.max_tokens if p.tokens_out is None else p.tokens_out for p in sent
-        )
+        charges = [p.max_tokens for p in reserved] + [
+            (p.max_tokens if p.max_tokens is not None else p.sent_max_tokens)
+            if p.tokens_out is None else p.tokens_out for p in sent
+        ]
+        charged = None if any(cost is None for cost in charges) else sum(charges)
         return {
             "max_calls": self.max_calls, "max_output_tokens": self.max_output_tokens,
             "calls_sent": len(sent), "calls_reserved": len(reserved),
-            "calls_remaining": max(0, self.max_calls - len(sent) - len(reserved)),
+            "calls_remaining": (None if self.max_calls is None else
+                                max(0, self.max_calls - len(sent) - len(reserved))),
             "known_output_tokens": known_output,
             "output_tokens_charged": charged,
-            "output_tokens_remaining": max(0, self.max_output_tokens - charged),
+            "output_tokens_remaining": (None if self.max_output_tokens is None else
+                                        max(0, self.max_output_tokens - charged)),
             "unknown_output_calls": unknown_output, "unknown_usage_calls": unknown_usage,
             "unconfirmed_calls": unconfirmed,
             "optional_blocked": bool(unknown_usage or unconfirmed),
@@ -128,14 +134,15 @@ class CompletionLedger:
                 min_timeout_s=None):
         if not isinstance(stage, str) or not stage.strip():
             raise ValueError("completion stage must be a nonempty name")
-        if type(max_tokens) is not int or max_tokens <= 0 or type(optional) is not bool:
+        if (max_tokens is not None and (type(max_tokens) is not int or max_tokens <= 0)
+                or type(optional) is not bool):
             raise ValueError("invalid completion token limit or optional flag")
         if any(not math.isfinite(value) for value in (timeout_s, followup_s)) or timeout_s <= 0 or followup_s < 0:
             raise ValueError("completion time limits must be finite and nonnegative")
         if min_timeout_s is not None and (
-            not math.isfinite(min_timeout_s) or not 0 < min_timeout_s <= timeout_s
+            not math.isfinite(min_timeout_s) or not 0 <= min_timeout_s <= timeout_s
         ):
-            raise ValueError("minimum completion time must be positive and within the stage limit")
+            raise ValueError("minimum completion time must be nonnegative and within the stage limit")
         requested_timeout_s = timeout_s
         remaining_s = self.budget.remaining()
         if min_timeout_s is not None:
@@ -143,14 +150,18 @@ class CompletionLedger:
             # reserve or admit an unusably short request to make progress appear.
             timeout_s = min(timeout_s, max(0.0, remaining_s - followup_s))
         snapshot = self.snapshot()
+        if max_tokens is None and snapshot["output_tokens_remaining"] is not None:
+            max_tokens = snapshot["output_tokens_remaining"]
         reason = (
             "unfinished_permit" if any(p.state in ("reserved", "active") for p in self._permits)
             else "unconfirmed_completion" if snapshot["unconfirmed_calls"]
             else "unknown_usage" if optional and snapshot["unknown_usage_calls"]
-            else "call_limit" if not snapshot["calls_remaining"]
-            else "output_token_limit" if max_tokens > snapshot["output_tokens_remaining"]
+            else "call_limit" if snapshot["calls_remaining"] == 0
+            else "output_token_limit" if snapshot["output_tokens_remaining"] is not None and (
+                max_tokens == 0 or max_tokens > snapshot["output_tokens_remaining"]
+            )
             else "insufficient_followup_time" if (
-                (min_timeout_s is None and timeout_s + followup_s > remaining_s)
+                timeout_s <= 0 or (min_timeout_s is None and timeout_s + followup_s > remaining_s)
                 or (min_timeout_s is not None and timeout_s < min_timeout_s)
             )
             else None

@@ -55,9 +55,18 @@ def _checker_execution(ctx):
 
 
 def _save(ctx, name, value):
-    path = ctx.record.write_json(f"guided/{name}.json", value)
+    # Trace links must keep the value at this event, even when a checker is
+    # rebuilt for the same candidate. Keep the old location as a latest-value
+    # view for consumers that read the final run directory directly.
+    data = _g(ctx)
+    revision = data.get("artifact_revision", 0) + 1
+    data["artifact_revision"] = revision
+    path = ctx.record.write_json(
+        f"guided/history/{revision:06d}/{name}.json", value
+    )
+    ctx.record.write_json(f"guided/{name}.json", value)
     ctx.record.emit(
-        "guided", "artifact", name=name, path=path,
+        "guided", "artifact", name=name, path=path, revision=revision,
         status=value.get("status") if isinstance(value, dict) else None,
     )
 
@@ -68,6 +77,10 @@ def _checker_fingerprint(checker):
         checker.public_dict(), sort_keys=True, separators=(",", ":")
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _under_limit(count, limit):
+    return limit is None or count < limit
 
 
 def _attempt_stage(base, attempt):
@@ -150,34 +163,39 @@ def _response_failure(ctx, stage, reply, kind, **details):
 
 
 def _recover_empty(ctx, stage, reply, make_messages, limits):
-    """One fresh request, charged to the same ledger; never replay reasoning."""
+    """Fresh requests within the configured count and shared deadline/ledger."""
     data = _g(ctx)
-    kind = _empty_failure(reply)
-    if kind not in ("stop_no_final", "length_no_final"):
-        return None
     attempt_key = f"{stage}_recovery_attempts"
     limit = data["settings"].get(f"{stage}_empty_recovery_limit", 1)
-    if data.get(attempt_key, 0) >= limit:
-        return None
-    data[attempt_key] = data.get(attempt_key, 0) + 1
-    messages = make_messages()
-    messages[-1]["content"] += (
-        "\n\nA previous independent request returned no final answer. "
-        f"Failure category: {kind}. "
-        "Produce the requested complete final artifact in this response. "
-        "Do not reproduce analysis, stimulus drafts, or an unfinished artifact."
-    )
-    recovery_stage = f"{stage}_recovery"
-    recovered = _request(
-        ctx, recovery_stage, messages, limits,
-        followup_s=data["settings"]["first_tools_s"], optional=True,
-    )
-    # ModelError.call_id can identify metadata (tokenize/apply-template),
-    # which does not mean a completion was sent. The permit is authoritative.
-    data[f"{stage}_recoveries_sent"] = sum(
-        permit["stage"] == recovery_stage and permit["call_id"] is not None
-        for permit in data["ledger"].snapshot()["permits"]
-    )
+    recovered = None
+    while (_empty_failure(reply) in ("stop_no_final", "length_no_final")
+           and _under_limit(data.get(attempt_key, 0), limit)):
+        kind = _empty_failure(reply)
+        data[attempt_key] = data.get(attempt_key, 0) + 1
+        messages = make_messages()
+        messages[-1]["content"] += (
+            "\n\nA previous independent request returned no final answer. "
+            f"Failure category: {kind}. "
+            "Produce the requested complete final artifact in this response. "
+            "Do not reproduce analysis, stimulus drafts, or an unfinished artifact."
+        )
+        recovery_stage = _attempt_stage(f"{stage}_recovery", data[attempt_key])
+        recovered = _request(
+            ctx, recovery_stage, messages, limits,
+            followup_s=data["settings"]["first_tools_s"], optional=True,
+        )
+        # Count actual completion sends, excluding metadata preparation calls.
+        prefix = f"{stage}_recovery"
+        data[f"{stage}_recoveries_sent"] = sum(
+            (permit["stage"] == prefix or permit["stage"].startswith(prefix + "_"))
+            and permit["call_id"] is not None
+            for permit in data["ledger"].snapshot()["permits"]
+        )
+        if recovered is None:
+            break
+        if _empty_failure(recovered):
+            _response_failure(ctx, recovery_stage, recovered, _empty_failure(recovered))
+        reply = recovered
     return recovered
 
 
@@ -399,7 +417,7 @@ def solve(ctx: Ctx, state: State) -> State:
 
 def _check_structure(ctx, candidate, allowance_s):
     data = _g(ctx)
-    end = time.monotonic() + allowance_s
+    end = time.monotonic() + (allowance_s or ctx.budget.remaining())
     checks = {}
 
     def run(stage):
@@ -451,13 +469,27 @@ def structure(ctx: Ctx, state: State) -> State:
     data = _g(ctx)
     settings = data["settings"]
     candidate = ctx.candidates.get(state["target_id"])
-    if candidate is None:
+    if candidate is None or data.get("repair_request_stopped"):
         return state.update(action="finish")
     assessment, checks = _check_structure(
         ctx, candidate, settings["first_tools_s"]
     )
-    if assessment["code_failed"] and data["structure_repairs"] < settings["structure_repair_limit"]:
+    if assessment["code_failed"] and _under_limit(data["structure_repairs"], settings["structure_repair_limit"]):
         action = "repair_structure"
+    elif (
+        checks.get("lint") is not None
+        and checks["lint"].status == "failed"
+        and checks["lint"].failure_kind == "code"
+    ):
+        # Compilation/elaboration has already failed for this candidate.
+        # Synthesis failures and unavailable/unknown tool results are different:
+        # they do not establish that a behavior simulation cannot run.
+        _save(ctx, "checker-skipped", {
+            "status": "not_run", "reason": "compile_failed",
+            "candidate_id": candidate.id, "candidate_hash": candidate.code_hash,
+            "lint": checks["lint"].trace_dict(),
+        })
+        action = "finish"
     elif state["method"] == "table" and data["checker"] is None and data["checker_status"] == "not_built":
         action = "build_checker"
     elif state["method"] == "table" and data["checker"] is not None:
@@ -497,6 +529,8 @@ def repair_structure(ctx: Ctx, state: State) -> State:
         ctx, stage, messages, settings["solve"],
         followup_s=settings["first_tools_s"],
     )
+    if reply is None and settings.get("structure_repair_limit", 1) is None:
+        data["repair_request_stopped"] = True
     child = _candidate(ctx, reply, parent=parent, stage="repair_structure")
     return state.update(target_id=child.id if child else parent.id)
 
@@ -544,15 +578,15 @@ def build_checker(ctx: Ctx, state: State) -> State:
         if (
             stage == "checker"
             and _empty_failure(reply) in ("stop_no_final", "length_no_final")
-            and data.get("checker_recovery_attempts", 0)
-            < settings.get("checker_empty_recovery_limit", 1)
+            and _under_limit(data.get("checker_recovery_attempts", 0),
+                             settings.get("checker_empty_recovery_limit", 1))
         ):
             reply = _recover_empty(
                 ctx, "checker", reply,
                 lambda: checker_request(ctx.task, body, (), **_checker_limits(ctx)),
                 settings["checker"],
             )
-            stage = "checker_recovery"
+            stage = _attempt_stage("checker_recovery", data["checker_recovery_attempts"])
             if reply is None:
                 _save(ctx, "checker-error", {"status": "invalid", **failure,
                       "recovery": data["request_outcomes"].get(stage)})
@@ -594,7 +628,8 @@ def run_checker(ctx: Ctx, state: State) -> State:
     with ctx.record.span("guided_observe", candidate_id=candidate.id):
         trace = observe(
             ctx, candidate, checker.plan,
-            timeout_s=min(settings["recheck_tools_s"], ctx.budget.remaining()),
+            timeout_s=min(settings["recheck_tools_s"] or ctx.budget.remaining(),
+                          ctx.budget.remaining()),
         )
     data["observations"][candidate.id] = trace
     _save(ctx, f"assessments/{candidate.id}/observations", trace.public_dict())
@@ -618,7 +653,7 @@ def run_checker(ctx: Ctx, state: State) -> State:
     )
     if (
         behavior["status"] in ("failed", "unknown")
-        and data["adjudications"] < settings["adjudicate_limit"]
+        and _under_limit(data["adjudications"], settings["adjudicate_limit"])
     ):
         action = "adjudicate"
     else:
@@ -657,12 +692,12 @@ def adjudicate(ctx: Ctx, state: State) -> State:
     _save(ctx, "adjudication", data["adjudication"])
     if (
         decision.decision == "solution_error"
-        and data["behavior_repairs"] < settings["behavior_repair_limit"]
+        and _under_limit(data["behavior_repairs"], settings["behavior_repair_limit"])
     ):
         action = "repair_behavior"
     elif (
         decision.decision == "checker_error"
-        and data["checker_rebuilds"] < settings["checker_rebuild_limit"]
+        and _under_limit(data["checker_rebuilds"], settings["checker_rebuild_limit"])
     ):
         data["checker_rebuilds"] += 1
         data["checker_rebuild_context"] = {
@@ -705,6 +740,8 @@ def repair_behavior(ctx: Ctx, state: State) -> State:
         ctx, stage, messages, settings["solve"],
         followup_s=settings["first_tools_s"],
     )
+    if reply is None and settings.get("behavior_repair_limit", 1) is None:
+        data["repair_request_stopped"] = True
     child = _candidate(ctx, reply, parent=parent, stage="repair_behavior")
     return state.update(target_id=child.id if child else parent.id)
 

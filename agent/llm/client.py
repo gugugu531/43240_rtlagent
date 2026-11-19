@@ -529,7 +529,7 @@ class Client:
             count = self.tokenize(
                 messages, model=model, tools=tools, base_url=base_url
             )
-            max_tokens = min(max_tokens, limit - count)
+            max_tokens = limit - count if max_tokens is None else min(max_tokens, limit - count)
             if max_tokens <= 0:
                 self.record.emit(
                     "budget",
@@ -539,6 +539,8 @@ class Client:
                     max_model_len=limit,
                 )
                 raise ModelError("prompt exhausts model context", kind="context")
+        if max_tokens is None:
+            raise ModelError("unbounded output requires max_model_len", kind="context")
         payload = {
             "model": model,
             "messages": copy.deepcopy(messages),
@@ -550,7 +552,9 @@ class Client:
         if self._permit is not None:
             # Generation metadata is merged first so it cannot expand a permit
             # or bypass the context-space calculation above.
-            caps = [max_tokens, self._permit.max_tokens, payload.get("max_tokens")]
+            caps = [max_tokens, payload.get("max_tokens")]
+            if self._permit.max_tokens is not None:
+                caps.append(self._permit.max_tokens)
             for name in ("max_completion_tokens", "max_output_tokens"):
                 if name in payload:
                     caps.append(payload[name])
