@@ -4,7 +4,7 @@
 
 默认工作流 `guided_verify` 让同一 Qwen3.8-27B 模型承担三个角色。策略角色先读题，决定是否做行为检查，并为解题角色选技能。解题角色读取原题、接口与所选技能，生成 RTL。独立检查角色根据公开题面编写带简短说明的测试点，程序生成测试台并用 Vivado xsim 采样。解题角色可以采纳或拒绝检查建议，提交当前稿、修改 RTL，或请检查角色复核一个测试点。三个角色分别构造请求上下文。参考答案和官方测试台只用于求解结束后的独立判定。
 
-主办方使用说明按 2026-10-31 核对的固定版本编写。本文与 Markdown 报告描述当前三角色工作树。实验数据注明其运行版本，排版报告保留 11 月 3 日的历史版本。[主办方版本 fc8e26a](https://gitee.com/Vickyiii/rtlagent2026/tree/fc8e26a/) · [设计与实验报告](REPORT.md) · [机器可读配置](manifest.json) · [历史排版报告](report/report.pdf) · [排版源码](report/readme.md)
+主办方使用说明按 2026-10-31 核对的固定版本编写。本文与 Markdown 报告描述本仓库默认的三角色工作流。实验数据注明其运行版本，排版报告保留 11 月 3 日的历史版本。[主办方版本 fc8e26a](https://gitee.com/Vickyiii/rtlagent2026/tree/fc8e26a/) · [设计与实验报告](REPORT.md) · [机器可读配置](manifest.json) · [历史排版报告](report/report.pdf) · [排版源码](report/readme.md)
 
 ## 默认配置
 
