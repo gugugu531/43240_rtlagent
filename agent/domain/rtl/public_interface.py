@@ -24,6 +24,23 @@ _EXAMPLE_SECTION = re.compile(
     r"(?:(?:buggy|worked|incorrect|illustrative) )?examples?(?: \d+)?[:.]?"
     r"|(?:buggy|previous|sample) (?:code|implementation):?"
 )
+_INTERFACE_INTRO = re.compile(
+    r"(?:^|[.!?]\s+)(?:implement|use)\s+(?:exactly\s+)?(?:this|the\s+following)\s+"
+    r"(?:(?:verilog|systemverilog|sv|module)\s+)?(?:interface|signature|module\s+header)\s*[.:]?$",
+    re.I,
+)
+
+
+def _next_starts_with_module(lines: list[str], start: int) -> bool:
+    index = start
+    while index < len(lines) and (
+        not lines[index].strip()
+        or lines[index].strip() in ("```", "```verilog", "```systemverilog", "```sv")
+    ):
+        index += 1
+    if index >= len(lines):
+        return False
+    return bool(re.match(rf"module\s+{_NAME}\b", lines[index].lstrip()))
 
 
 def _integer(expression: str, parameters: dict[str, int]) -> int:
@@ -161,8 +178,11 @@ def _signature(prompt: str, top: str | None) -> InterfaceSpec | None:
                 plain_example = True
         elif title in ("requirements:", "required interface:", "required module interface:"):
             plain_example = False
-        if example_level is None and not plain_example and title in ("design signature:", "module signature:"):
-            sections.append(index + 1)
+        if example_level is None and not plain_example:
+            if title in ("design signature:", "module signature:"):
+                sections.append(index + 1)
+            elif _INTERFACE_INTRO.search(line.strip()) and _next_starts_with_module(lines, index + 1):
+                sections.append(index + 1)
     if not sections:
         return None
     if len(sections) != 1:

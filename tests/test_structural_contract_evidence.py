@@ -111,3 +111,36 @@ def test_synthesis_hints_keep_only_bounded_source_warnings(tmp_path):
     assert classify_tool_failure(log, candidate_path=candidate) == "unknown"
     repeated = "\n".join(unreachable.replace(":8:", f":{i}:") for i in range(1, 21))
     assert len(synthesis_hints(repeated, candidate)) == 8
+
+
+def test_explicit_interface_intro_sentence_is_authoritative_outside_examples():
+    counter_prompt = (
+        "Design a 3-bit saturating up-counter with parallel load. "
+        "Implement exactly this interface.\n\n"
+        "module TopModule(input wire clk, input wire reset, input wire load, "
+        "input wire step, input wire [2:0] d, output reg [2:0] q);"
+    )
+    xor_prompt = (
+        "Design a two-input XOR gate. Implement this Verilog interface.\n\n"
+        "module TopModule(input wire a, input wire b, output wire q);"
+    )
+    for prompt, expected_names in (
+        (counter_prompt, ["clk", "reset", "load", "step", "d", "q"]),
+        (xor_prompt, ["a", "b", "q"]),
+    ):
+        task = TaskSpec.from_text("t", prompt)
+        assert task.expected_interface.complete
+        assert task.expected_interface.authoritative
+        assert task.expected_interface.source == "prompt_signature"
+        assert [p.name for p in task.expected_interface.ports] == expected_names
+
+    # Negative case: example / buggy section must still be rejected.
+    buggy = (
+        "Fix the counter.\n\nBuggy example:\nImplement exactly this interface.\n\n"
+        "module TopModule(input clk, output q);"
+    )
+    assert not TaskSpec.from_text("buggy", buggy).expected_interface.authoritative
+
+    # Negative case: embedded module without explicit interface intro remains non-authoritative.
+    unintroduced = "Consider the helper below.\n\nmodule TopModule(input a, output y);"
+    assert not TaskSpec.from_text("plain", unintroduced).expected_interface.authoritative
