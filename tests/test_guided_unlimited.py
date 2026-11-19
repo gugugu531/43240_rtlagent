@@ -1,7 +1,7 @@
 """Explicit null research allowances retain real deadline and evidence checks."""
 
 import json
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -110,6 +110,53 @@ class UnlimitedTests(unittest.TestCase):
             client.chat([{"role": "user", "content": "self-authored"}], max_tokens=None)
         self.assertEqual(requests[0]["max_tokens"], config.services.model.max_model_len - 3)
         self.assertEqual(ledger.snapshot()["known_output_tokens"], 1)
+
+    def test_metadata_timeouts_share_the_remaining_call_window(self):
+        responses = {
+            "/v1/models": {"data": [{"id": "self-authored"}]},
+            "/apply-template": {"prompt": "self-authored"},
+            "/tokenize": {"tokens": [1, 2, 3]},
+            "/v1/chat/completions": {
+                "choices": [{"message": {"content": "done"}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 1},
+            },
+        }
+
+        def timeouts(max_tokens, *, permit_s=None, deadline_s=900, service_s=180):
+            calls = []
+            with patch("time.monotonic", return_value=100.0) as clock:
+                def transport(request):
+                    path = request.url.path
+                    calls.append((path, request.extensions["timeout"]["read"]))
+                    clock.return_value += 1  # Each response consumes one second.
+                    return httpx.Response(200, json=responses[path])
+
+                record = self.record()
+                budget = Budget(deadline_s, 0)
+                config = {"tokenizer_protocol": "llama_cpp", "max_model_len": 64,
+                          "timeout_s": service_s}
+                client = Client(config, budget, record, {}, transport=httpx.MockTransport(transport))
+                self.addCleanup(client.close)
+                window = nullcontext()
+                if permit_s is not None:
+                    ledger = CompletionLedger(budget, record, max_calls=None, max_output_tokens=None)
+                    permit = ledger.reserve("solve", max_tokens, permit_s, min_timeout_s=0)
+                    window = client.permitted(permit)
+                with window:
+                    reply = client.chat([{"role": "user", "content": "self-authored"}],
+                                        max_tokens=max_tokens)
+                self.assertEqual(reply.content, "done")
+                self.assertEqual(client.usage_summary()["calls"], 1)
+                self.assertEqual([path for path, _ in calls], list(responses))
+                return [timeout for _, timeout in calls]
+
+        self.assertEqual(timeouts(None, permit_s=120, service_s=12), [120, 119, 118, 117])
+        self.assertEqual(timeouts(None, permit_s=8), [8, 7, 6, 5])
+        self.assertEqual(timeouts(None, permit_s=120, deadline_s=45), [45, 44, 43, 42])
+        self.assertEqual(timeouts(16, permit_s=120), [30, 30, 30, 117])
+        self.assertEqual(timeouts(16, permit_s=120, deadline_s=10), [10, 9, 8, 7])
+        self.assertEqual(timeouts(16), [30, 30, 30, 177])
+        self.assertEqual(timeouts(16, service_s=12), [12, 11, 10, 9])
 
     def test_repeated_empty_recovery_uses_distinct_stages(self):
         ctx = SimpleNamespace(record=self.record(), store={"guided": {

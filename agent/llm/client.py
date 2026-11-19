@@ -118,6 +118,13 @@ class Client:
         self.http = httpx.Client(transport=transport, trust_env=False, event_hooks=hooks)
         self.replay = getattr(transport, "replay", None)
 
+    def _metadata_timeout_s(self):
+        # Deadline-only generation shares its remaining window with preparation.
+        # _request clips this limit to the active permit and the task deadline.
+        if self._permit is not None and self._permit.max_tokens is None:
+            return self.budget.deadline_s
+        return 30
+
     def optional_preparation_budget_s(self):
         """Optional knowledge may use at most 10% of the remaining call window."""
         available = self.budget.remaining_s()
@@ -376,7 +383,7 @@ class Client:
             "GET",
             self.base_url + "/models",
             purpose="models",
-            timeout_s=30,
+            timeout_s=self._metadata_timeout_s(),
             authenticated=authenticated,
         )
         data = body.get("data") if isinstance(body, dict) else None
@@ -444,7 +451,7 @@ class Client:
                 base_url.removesuffix("/v1") + "/apply-template",
                 payload=payload,
                 purpose="apply_template",
-                timeout_s=30,
+                timeout_s=self._metadata_timeout_s(),
             )
             prompt = template.get("prompt") if isinstance(template, dict) else None
             if not isinstance(prompt, str) or not prompt:
@@ -469,7 +476,7 @@ class Client:
             url,
             payload=payload,
             purpose="tokenize",
-            timeout_s=30 if self._permit is not None else min(30, _get(self.config, "timeout_s", 180)),
+            timeout_s=self._metadata_timeout_s(),
         )
         count = _count(body.get("count")) if isinstance(body, dict) else None
         if llama_cpp:

@@ -162,4 +162,4 @@ AGENT_CONFIG=config/guided_verify_rag_dense.yaml ./run.sh /path/to/input /path/t
 
 ## 仅按总时长约束的研究配置
 
-通过 `AGENT_CONFIG=config/guided_verify_deadline_only.yaml` 可显式选用研究配置。单题仍为 900 秒，收尾、求解与工具预留均为 0，各角色请求时限为 900 秒并受整题剩余时间约束，工具使用当前剩余时间。模型调用数、输出 token 数、单次输出上限和图步数配置为 `null`。单次输出仍受实际分词后的上下文余量限制。该配置与比赛默认设置分开报告。[研究配置](../config/guided_verify_deadline_only.yaml)
+通过 `AGENT_CONFIG=config/guided_verify_deadline_only.yaml` 可显式选用研究配置。单题仍为 900 秒，收尾、求解与工具预留均为 0，各角色请求时限为 900 秒并受整题剩余时间约束，工具使用当前剩余时间。模型调用数、输出 token 数、单次输出上限和图步数配置为 `null`。当本次生成没有输出 token 上限时，模型发现、模板展开、分词和生成共用本次请求的剩余时间。单次输出仍受实际分词后的上下文余量限制。该配置与比赛默认设置分开报告。[研究配置](../config/guided_verify_deadline_only.yaml)
