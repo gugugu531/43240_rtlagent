@@ -620,8 +620,8 @@
     }
   }
 
-  /* ================= 多角色独立泳道与交互画布 ================= */
-  const NODE_W = 204, NODE_H = 92, GAP_X = 76, LANE_H = 128, LANE_HEAD_W = 136, RULER_H = 32, PAD = 28;
+  /* ================= 多角色纵向泳道与交互画布 ================= */
+  const NODE_W = 186, NODE_H = 84, GAP_Y = 58, LANE_W = 216, LANE_HEAD_H = 58, RULER_W = 54, PAD = 24;
   const ROLE_LANES = [
     {key: "planner", label: "策略分析员", color: "#22d3ee"},
     {key: "author", label: "RTL 作者", color: "#34d399"},
@@ -649,7 +649,7 @@
         color: spec.color,
         count: counts.get(spec.key),
         index: lanes.length,
-        y: RULER_H + lanes.length * LANE_H,
+        x: RULER_W + lanes.length * LANE_W,
       });
     }
     for (const [rk, count] of counts) {
@@ -660,7 +660,7 @@
         color: ROLE_COLOR.get(rk) || "#94a3b8",
         count,
         index: lanes.length,
-        y: RULER_H + lanes.length * LANE_H,
+        x: RULER_W + lanes.length * LANE_W,
       });
     }
     return lanes;
@@ -697,18 +697,18 @@
   }
 
   function traceLayout() {
-    const width = $("graph-scroll").clientWidth || 640;
+    const height = $("graph-scroll").clientHeight || 480;
     const lanes = buildLanes(model.steps);
     const laneByKey = new Map(lanes.map((l) => [l.key, l]));
     const points = new Map();
-    const columns = [];
+    const rows = [];
     for (const [index, step] of model.steps.entries()) {
       const rk = roleKey(step.role);
       const lane = laneByKey.get(rk) || lanes[0];
-      const x = LANE_HEAD_W + PAD + index * (NODE_W + GAP_X);
-      const y = lane.y + Math.round((LANE_H - NODE_H) / 2);
-      points.set(step.id, {x, y, col: index, laneKey: rk, step});
-      columns.push({index, x, step});
+      const x = lane.x + Math.round((LANE_W - NODE_W) / 2);
+      const y = LANE_HEAD_H + PAD + index * (NODE_H + GAP_Y);
+      points.set(step.id, {x, y, row: index, laneKey: rk, step});
+      rows.push({index, y, step});
     }
     const links = model.steps
       .filter((step) => step.previous != null && points.has(step.previous))
@@ -725,8 +725,8 @@
           handoff: crossRole ? handoffMeta(fromPt.step, toPt.step) : null,
         };
       });
-    const scene = extent(points, links, lanes, columns);
-    if (points.size) scene.w = Math.max(scene.w, width);
+    const scene = extent(points, links, lanes, rows);
+    if (points.size) scene.h = Math.max(scene.h, height);
     return scene;
   }
 
@@ -750,11 +750,11 @@
       const queue = [root];
       level.set(root, lastLevel + 1);
       for (let i = 0; i < queue.length; i++) {
-        const id = queue[i], column = level.get(id);
-        lastLevel = Math.max(lastLevel, column);
+        const id = queue[i], depth = level.get(id);
+        lastLevel = Math.max(lastLevel, depth);
         for (const next of children.get(id)) {
           if (level.has(next)) continue;
-          level.set(next, column + 1);
+          level.set(next, depth + 1);
           queue.push(next);
         }
       }
@@ -765,12 +765,12 @@
     for (const [id, node] of nodes) {
       const rk = roleKey(node.role);
       const lane = laneByKey.get(rk) || lanes[0];
-      let col = level.get(id) || 0;
-      while (occupied.has(rk + ":" + col)) col++;
-      occupied.add(rk + ":" + col);
-      const x = LANE_HEAD_W + PAD + col * (NODE_W + GAP_X);
-      const y = lane.y + Math.round((LANE_H - NODE_H) / 2);
-      points.set(id, {x, y, col, laneKey: rk, node});
+      let row = level.get(id) || 0;
+      while (occupied.has(rk + ":" + row)) row++;
+      occupied.add(rk + ":" + row);
+      const x = lane.x + Math.round((LANE_W - NODE_W) / 2);
+      const y = LANE_HEAD_H + PAD + row * (NODE_H + GAP_Y);
+      points.set(id, {x, y, row, laneKey: rk, node});
     }
     const links = rawLinks.map((link) => {
       const fromPt = points.get(link.from), toPt = points.get(link.to);
@@ -778,58 +778,62 @@
       return {...link, crossRole, fromRole: fromPt.laneKey, toRole: toPt.laneKey};
     });
     const scene = extent(points, links, lanes, []);
-    const width = $("graph-scroll").clientWidth || 640;
-    if (points.size) scene.w = Math.max(scene.w, width);
+    const height = $("graph-scroll").clientHeight || 480;
+    if (points.size) scene.h = Math.max(scene.h, height);
     return scene;
   }
 
-  function extent(points, links, lanes = [], columns = []) {
-    let w = 0, h = RULER_H + lanes.length * LANE_H + PAD;
+  function extent(points, links, lanes = [], rows = []) {
+    let w = RULER_W + lanes.length * LANE_W + PAD;
+    let h = LANE_HEAD_H + PAD * 2;
     for (const {x, y} of points.values()) {
-      w = Math.max(w, x + NODE_W + PAD * 1.5);
-      h = Math.max(h, y + NODE_H + PAD);
+      w = Math.max(w, x + NODE_W + PAD);
+      h = Math.max(h, y + NODE_H + PAD * 1.5);
     }
-    return {points, links, lanes, columns, w: Math.ceil(w), h: Math.ceil(h)};
+    return {points, links, lanes, rows, w: Math.ceil(w), h: Math.ceil(h)};
   }
 
   function linkGeometry(s, t, index, link) {
-    const sy = s.y + NODE_H / 2;
-    const ty = t.y + NODE_H / 2;
+    const sx = s.x + NODE_W / 2;
+    const tx = t.x + NODE_W / 2;
     if (s === t) {
       return {
-        d: `M ${s.x + NODE_W - 22} ${s.y} v -18 h 38 v 38 H ${s.x + NODE_W + 2}`,
-        sx: s.x + NODE_W - 22, sy: s.y,
-        mx: s.x + NODE_W + 16, my: s.y - 12,
+        d: `M ${s.x + NODE_W} ${s.y + 22} h 18 v 38 H ${s.x + NODE_W + 2}`,
+        sx: s.x + NODE_W, sy: s.y + 22,
+        mx: s.x + NODE_W + 18, my: s.y + 41,
       };
     }
-    const forward = t.x > s.x;
-    if (!link.crossRole && forward) {
-      const x1 = s.x + NODE_W, x2 = t.x - 2;
-      if (t.col === s.col + 1) {
-        return {d: `M ${x1} ${sy} H ${x2}`, sx: x1, sy, mx: (x1 + x2) / 2, my: sy};
+    const down = t.y > s.y;
+    if (!link.crossRole && down) {
+      const y1 = s.y + NODE_H, y2 = t.y - 2;
+      if (t.row === s.row + 1) {
+        return {d: `M ${sx} ${y1} V ${y2}`, sx, sy: y1, mx: sx, my: (y1 + y2) / 2};
       }
-      const arc = s.y - 14 - (index % 3) * 7;
+      const arcX = s.x + NODE_W + 14 + (index % 3) * 6;
       return {
-        d: `M ${x1} ${sy - 10} C ${x1 + 26} ${arc}, ${x2 - 26} ${arc}, ${x2} ${ty - 10}`,
-        sx: x1, sy: sy - 10, mx: (x1 + x2) / 2, my: arc,
+        d: `M ${sx + 18} ${y1} C ${arcX} ${y1 + 24}, ${arcX} ${y2 - 24}, ${tx + 18} ${y2}`,
+        sx: sx + 18, sy: y1, mx: arcX, my: (y1 + y2) / 2,
       };
     }
-    if (forward) {
-      const x1 = s.x + NODE_W;
-      const x2 = t.x - 2;
-      const dx = Math.max(36, (x2 - x1) * 0.52);
-      const d = `M ${x1} ${sy} C ${x1 + dx} ${sy}, ${x2 - dx} ${ty}, ${x2} ${ty}`;
-      return {d, sx: x1, sy, mx: (x1 + x2) / 2, my: (sy + ty) / 2};
+    if (down) {
+      // 正交圆角 PCB/时序路由：从源节点底边中点进入水平通道，横穿至目标泳道后垂直进入目标节点顶边
+      const y1 = s.y + NODE_H;
+      const y2 = t.y - 2;
+      const midY = y1 + (y2 - y1) * 0.5;
+      const dir = tx > sx ? 1 : -1;
+      const r = Math.min(12, Math.abs(tx - sx) / 2, Math.abs(midY - y1) / 2, Math.abs(y2 - midY) / 2);
+      const d = `M ${sx} ${y1} V ${midY - r} Q ${sx} ${midY} ${sx + dir * r} ${midY} H ${tx - dir * r} Q ${tx} ${midY} ${tx} ${midY + r} V ${y2}`;
+      return {d, sx, sy: y1, mx: (sx + tx) / 2, my: midY};
     }
-    // Backward / loop transition (mainly in Plan View)
-    const x1 = s.x + NODE_W / 2;
-    const x2 = t.x + NODE_W / 2;
-    const down = ty >= sy;
-    const y1 = down ? s.y + NODE_H : s.y;
-    const y2 = down ? t.y - 2 : t.y + NODE_H + 2;
-    const bend = (down ? 22 : -22) + ((index % 3) - 1) * 8;
-    const d = `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`;
-    return {d, sx: x1, sy: y1, mx: (x1 + x2) / 2, my: (y1 + y2) / 2};
+    // 向上回环或同层转移（主要用于流程定义视图）
+    const sy = s.y + NODE_H / 2;
+    const ty = t.y + NODE_H / 2;
+    const right = tx >= sx;
+    const x1 = right ? s.x + NODE_W : s.x;
+    const x2 = right ? t.x - 2 : t.x + NODE_W + 2;
+    const bend = (right ? 28 : -28) + ((index % 3) - 1) * 10;
+    const d = `M ${x1} ${sy} C ${x1 + bend} ${sy}, ${x2 - bend} ${ty}, ${x2} ${ty}`;
+    return {d, sx: x1, sy, mx: (x1 + x2) / 2, my: (sy + ty) / 2};
   }
 
   function makeMarker(id, fill) {
@@ -853,51 +857,46 @@
     wrap.style.width = scene.w + "px";
     wrap.style.height = scene.h + "px";
 
-    // 顶部时间刻度条与纵轴参考线
-    if (scene.columns.length) {
-      const ruler = make("div", "step-ruler");
-      ruler.style.width = scene.w + "px";
-      ruler.append(make("span", "ruler-corner", "角色泳道 \\ 时序"));
-      for (const col of scene.columns) {
-        const tick = make("span", "step-tick", seqName(col.step));
-        tick.style.left = (col.x + NODE_W / 2) + "px";
-        if (selectedStep()?.id === col.step.id) tick.classList.add("selected");
-        ruler.append(tick);
+    // 左侧纵向时序标尺与横向参考线
+    const ruler = make("div", "step-ruler-v");
+    ruler.style.height = scene.h + "px";
+    ruler.append(make("span", "ruler-corner-v", view === "trace" ? "时序" : "层级"));
+    for (const row of scene.rows) {
+      const cy = row.y + NODE_H / 2;
+      const tick = make("span", "step-tick-v", seqName(row.step));
+      tick.style.top = cy + "px";
+      if (selectedStep()?.id === row.step.id) tick.classList.add("selected");
+      ruler.append(tick);
 
-        const guide = make("div", "step-guide");
-        guide.style.left = (col.x + NODE_W / 2) + "px";
-        guide.style.top = RULER_H + "px";
-        guide.style.height = (scene.h - RULER_H) + "px";
-        wrap.append(guide);
-      }
-      wrap.append(ruler);
-    } else if (scene.lanes.length) {
-      const ruler = make("div", "step-ruler");
-      ruler.style.width = scene.w + "px";
-      ruler.append(make("span", "ruler-corner", "角色泳道 \\ 拓扑"));
-      wrap.append(ruler);
+      const guide = make("div", "step-guide-h");
+      guide.style.top = cy + "px";
+      guide.style.left = RULER_W + "px";
+      guide.style.width = Math.max(0, scene.w - RULER_W) + "px";
+      wrap.append(guide);
     }
+    wrap.append(ruler);
 
+    // 纵向角色泳道列 + 顶部角色头 + 垂直生命线
     for (const lane of scene.lanes) {
-      const row = make("div", "swimlane" + (lane.index % 2 ? " alt" : ""));
-      row.dataset.role = lane.key;
-      row.style.top = lane.y + "px";
-      row.style.height = LANE_H + "px";
-      row.style.width = scene.w + "px";
+      const col = make("div", "swimlane-v" + (lane.index % 2 ? " alt" : ""));
+      col.dataset.role = lane.key;
+      col.style.left = lane.x + "px";
+      col.style.width = LANE_W + "px";
+      col.style.height = scene.h + "px";
 
-      const head = make("div", "lane-head");
+      const head = make("div", "lane-head-v");
       const title = make("span", "lane-title");
       const dot = make("i", "lane-dot");
       title.append(dot, make("span", "", lane.label));
       const countLabel = view === "trace" ? lane.count + " 步" : lane.count + " 节点";
-      head.append(title, make("span", "lane-count", countLabel));
+      head.append(title, make("span", "lane-count-v", countLabel));
 
-      const lifeline = make("div", "lane-lifeline");
-      lifeline.style.left = LANE_HEAD_W + "px";
-      lifeline.style.width = Math.max(0, scene.w - LANE_HEAD_W - 14) + "px";
+      const lifeline = make("div", "lane-lifeline-v");
+      lifeline.style.top = LANE_HEAD_H + "px";
+      lifeline.style.height = Math.max(0, scene.h - LANE_HEAD_H - 14) + "px";
 
-      row.append(head, lifeline);
-      wrap.append(row);
+      col.append(head, lifeline);
+      wrap.append(col);
     }
     return wrap;
   }
