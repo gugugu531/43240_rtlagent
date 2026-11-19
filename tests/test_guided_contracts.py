@@ -1,10 +1,14 @@
-"""guided_verify flat plan, checker table, and adjudication contracts."""
+"""Guided role contracts and replay of archived plan, table and attribution formats."""
 
+from contextlib import contextmanager
+import copy
 import json
+import tempfile
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from agent.domain.rtl.candidate import CandidateStore
 from agent.domain.rtl.guided_adjudicate import AdjudicationError, parse_adjudication
 from agent.domain.rtl.guided_checker import (
     CheckerError,
@@ -13,11 +17,13 @@ from agent.domain.rtl.guided_checker import (
 )
 from agent.domain.rtl.guided_plan import PlanError, parse_plan
 from agent.domain.rtl.observation import TraceRun, sampling_hash
+from agent.domain.rtl.result import CheckResult
 from agent.domain.rtl.task import TaskSpec
 from agent.kit import State
 from agent.context.prompts import TemplateRenderer
 from agent.domain.knowledge import guided as knowledge
 from agent.orchestration.nodes import guided
+from agent.orchestration.workflows.guided_verify import GuidedParameters
 
 
 PROMPT = """Implement a module named TopModule with the following interface.
@@ -46,14 +52,20 @@ def task():
 
 
 def rows_for(checker):
+    """Simulate our public register (reset to one, load data, otherwise hold)."""
     plan = checker.plan
     rows = []
     for ci, case in enumerate(plan["cases"]):
         tick = 0
+        stored = None
         for si, step in enumerate(case["steps"]):
             for phase in ("pre", "post"):
                 if phase == "post":
                     tick += 1
+                    if step["inputs"]["reset"]:
+                        stored = 1
+                    elif step["inputs"]["load"]:
+                        stored = step["inputs"]["data"]
                 values = {}
                 for name, port in plan["ports"].items():
                     width = port["width"]
@@ -65,8 +77,8 @@ def rows_for(checker):
                             number = step["inputs"][name] & full
                         values[name] = {"bits": number, "known": full, "width": width}
                     else:
-                        expected = checker.cases[ci].expected.get(si, {}).get(name, 0)
-                        values[name] = {"bits": expected, "known": full, "width": width}
+                        values[name] = {"bits": (stored or 0) & full,
+                                        "known": full if stored is not None else 0, "width": width}
                 rows.append({
                     "case_id": case["id"], "case_index": ci, "step": si,
                     "clock_tick": tick, "phase": phase, "sample": True,
@@ -76,6 +88,34 @@ def rows_for(checker):
 
 
 class GuidedContractTests(unittest.TestCase):
+    def node_context(self, *, max_calls=8):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        artifacts = {}
+        record = SimpleNamespace(
+            write_json=lambda name, value: artifacts.update({name: copy.deepcopy(value)}),
+            write_text=lambda name, value: artifacts.update({name: value}),
+            emit=lambda *args, **kwargs: None,
+        )
+        ctx = SimpleNamespace(
+            task=task(), store={}, record=record, artifacts=artifacts, prompts=TemplateRenderer(),
+            candidates=CandidateStore(record, directory.name), budget=SimpleNamespace(remaining=lambda: 1000.0),
+        )
+        guided.initialize(ctx, State({"settings": GuidedParameters(max_calls=max_calls).model_dump()}))
+        ctx.store["guided"].update(method="table", plan_source="planner", plan={"skills": [], "knowledge": []})
+        return ctx
+
+    def draft(self, ctx, constant, parent=None):
+        code = f"module TopModule(input clk, reset, load, input [7:0] data, output [7:0] q); assign q={constant}; endmodule"
+        candidate = ctx.candidates.create(code, parent_id=parent.id if parent else None,
+                                          round=parent.round + 1 if parent else 1, source_stage="synthetic")
+        ctx.store["submission"].register(candidate, reason="synthetic draft")
+        return candidate
+
+    def assess(self, ctx, candidate, **checks):
+        ctx.call = lambda stage, **kwargs: checks.get(stage, CheckResult("passed", f"synthetic {stage}", rc=0))
+        return guided.structure(ctx, State({"target_id": candidate.id, "method": "table"}))
+
     def test_plan_is_flat_and_ids_are_checked(self):
         plan = parse_plan(
             "method=table\nskills=rtl-sequential-state-update\n"
@@ -155,36 +195,23 @@ class GuidedContractTests(unittest.TestCase):
         self.assertEqual(result["unchecked_outputs"], ["z"])
 
     def test_empty_case_is_reported_as_invalid_checker(self):
-        data = {
-            "settings": {
-                "checker": {"timeout_s": 1, "max_tokens": 1},
-                "first_tools_s": 1,
-                "max_cases": 4,
-                "max_steps_per_case": 8,
-                "init_cycles": 2,
-            },
-            "plan": {"focus": []},
-            "checker_rebuild_context": None,
-            "checker_rebuilds": 0,
-        }
-        artifacts = {}
-        ctx = SimpleNamespace(
-            task=task(),
-            store={"guided": data},
-            record=SimpleNamespace(
-                write_json=lambda name, value: artifacts.update({name: value}),
-                emit=lambda *args, **kwargs: None,
-            ),
-        )
+        ctx = self.node_context(max_calls=2)
         reply = SimpleNamespace(
-            content="case empty\n", finish_reason="stop", call_id="m1"
+            content="case empty # Reset check.\n", finish_reason="stop", call_id="m1"
         )
-        with patch.object(guided, "_request", return_value=reply):
+        def send(ctx, stage, messages, limits, **kwargs):
+            permit = ctx.store["guided"]["ledger"].reserve(stage, **limits)
+            permit._begin()
+            permit._sent(reply.call_id, limits["max_tokens"])
+            permit._response({"usage": {"prompt_tokens": 3, "completion_tokens": 6}})
+            permit._finish()
+            return reply
+        with patch.object(guided, "_request", side_effect=send) as request:
             state = guided.build_checker(ctx, State())
+        self.assertEqual(request.call_count, 1)
         self.assertEqual(state["checker_status"], "invalid")
-        self.assertEqual(
-            artifacts["guided/checker-error.json"]["status"], "invalid"
-        )
+        self.assertEqual(ctx.artifacts["guided/checker-error.json"]["status"], "invalid")
+        self.assertIn("case has no lines", ctx.artifacts["guided/checker-error.json"]["reason"])
 
     def test_partial_outputs_in_any_case_are_not_a_full_pass(self):
         checker = parse_checker(
@@ -201,18 +228,18 @@ class GuidedContractTests(unittest.TestCase):
         self.assertEqual(result["unchecked_outputs"], ["q", "z"])
 
 
-    def test_repeated_repairs_use_distinct_stage_names(self):
-        from contextlib import contextmanager
-        from agent.runtime.allowance import CompletionLedger
-
-        artifacts = {}
-        record = SimpleNamespace(
-            write_json=lambda name, value: artifacts.update({name: value}),
-            emit=lambda *args, **kwargs: None,
-        )
-        ledger = CompletionLedger(
-            SimpleNamespace(remaining=lambda: 60), record, max_calls=4
-        )
+    def test_repeated_structure_repairs_and_author_decisions_use_distinct_permits(self):
+        ctx = self.node_context(max_calls=4)
+        data = ctx.store["guided"]
+        parent = self.draft(ctx, 0)
+        rtl = parent.code
+        replies = iter([
+            rtl.replace("assign q=0", "assign q=1"),
+            rtl.replace("assign q=0", "assign q=2"),
+            "action=revise\nreason=Drive the requested bit.\n```verilog\n"
+            + rtl.replace("assign q=0", "assign q=3") + "\n```",
+            "action=submit\nreason=Submit the revised implementation.",
+        ])
 
         class Model:
             @contextmanager
@@ -228,150 +255,88 @@ class GuidedContractTests(unittest.TestCase):
                 permit = self.permit
                 permit._sent(permit.id, kwargs["max_tokens"])
                 permit._response({"usage": {"prompt_tokens": 1, "completion_tokens": 1}})
-                return SimpleNamespace(
-                    call_id=permit.id, content="", finish_reason="stop"
-                )
+                return SimpleNamespace(call_id=permit.id, content=next(replies), finish_reason="stop")
 
-        parent = SimpleNamespace(id="c1", code_hash="h")
-        data = {
-            "settings": {
-                "solve": {"timeout_s": 1, "max_tokens": 1},
-                "first_tools_s": 1, "temperature": 0.0, "top_p": 1.0,
-            },
-            "plan": {"skills": [], "knowledge": []},
-            "skill_assets": {"skills": {}, "cards": [], "resources": {}},
-            "assessments": {"c1": {"checks": {}}},
-            "structure_repairs": 0, "behavior_repairs": 0,
-            "behavior": {"failed": [], "unknown": []},
-            "checker_text": "", "attempted": set(), "request_outcomes": {},
-            "checker": parse_checker("case reset\ninit reset=1 load=0 data=00 q=01", task()),
-            "ledger": ledger,
-        }
-        ctx = SimpleNamespace(
-            store={"guided": data}, record=record, llm=Model(),
-            candidates=SimpleNamespace(get=lambda candidate_id: parent),
-            prompts=SimpleNamespace(
-                render=lambda *args, **kwargs: [{"role": "user", "content": "repair"}]
-            ),
-            task=task(),
-        )
-        with patch.object(guided, "_candidate", return_value=None):
-            for repair in (guided.repair_structure, guided.repair_behavior):
-                repair(ctx, State({"target_id": "c1"}))
-                repair(ctx, State({"target_id": "c1"}))
-        stages = {
-            "repair_structure", "repair_structure_2",
-            "repair_behavior", "repair_behavior_2",
-        }
+        ctx.llm = Model()
+        candidate = parent
+        for _ in range(2):
+            state = self.assess(ctx, candidate, lint=CheckResult("failed", "syntax", rc=1, failure_kind="code"))
+            self.assertEqual(state["action"], "repair_structure")
+            child_state = guided.repair_structure(ctx, state)
+            child = ctx.candidates.get(child_state["target_id"])
+            self.assertEqual(child.parent_id, candidate.id)
+            self.assertNotEqual(child.code_hash, candidate.code_hash)
+            candidate = child
+
+        data.update(checker_status="unavailable", checker_notice="Synthetic checker unavailable.")
+        state = self.assess(ctx, candidate)
+        self.assertEqual(state["action"], "author_decision")
+        revision = guided.author_decision(ctx, state)
+        self.assertEqual(revision["action"], "revise")
+        child = ctx.candidates.get(revision["target_id"])
+        self.assertEqual(child.parent_id, candidate.id)
+        state = self.assess(ctx, child)
+        self.assertEqual(state["action"], "author_decision")
+        submitted = guided.author_decision(ctx, state)
+        self.assertEqual(submitted["action"], "submit")
+        self.assertEqual(ctx.candidates.selected_id, child.id)
+        self.assertEqual(guided.finish(ctx, submitted)["status"], "completed")
+
+        stages = {"repair_structure", "repair_structure_2", "author_decision", "author_decision_2"}
         self.assertEqual(data["attempted"], stages)
-        self.assertEqual(ledger.snapshot()["calls_sent"], 4)
-        self.assertEqual(
-            {stage for stage, value in data["request_outcomes"].items()
-             if value["status"] == "returned"},
-            stages,
-        )
-        self.assertEqual(
-            {name for name in artifacts if name.startswith("guided/material-")},
-            {f"guided/material-{stage}.json" for stage in stages},
-        )
+        self.assertEqual(data["ledger"].snapshot()["calls_sent"], 4)
+        self.assertEqual({row["stage"] for row in data["history"]}, stages)
+        self.assertTrue(all(data["request_outcomes"][stage]["status"] == "returned" for stage in stages))
+        self.assertTrue(all(f"guided/material-{stage}.json" in ctx.artifacts for stage in stages))
         with self.assertRaisesRegex(ValueError, "may only request once"):
-            guided._request(ctx, "repair_structure", [], data["settings"]["solve"])
+            guided._request(ctx, "author_decision", [], data["settings"]["solve"])
 
-    def test_finish_does_not_mix_child_behavior_with_parent_structure(self):
-        data = {
-            "method": "table",
-            "assessments": {
-                "parent": {"structural_passed": True},
-                "child": {"structural_passed": False},
-            },
-            "behaviors": {
-                "parent": {
-                    "checker_hash": "checker",
-                    "behavior": {"status": "failed"},
-                },
-                "child": {
-                    "checker_hash": "checker",
-                    "behavior": {"status": "passed", "compared_bits": 2},
-                },
-            },
-            "checker_hash": "checker",
-            "checker_status": "valid",
-            "structure_repairs": 1,
-            "behavior_repairs": 1,
-            "checker_rebuilds": 0,
-            "adjudications": 1,
-            "request_outcomes": {},
-            "ledger": SimpleNamespace(snapshot=lambda: {}),
-        }
-        artifacts = {}
-        ctx = SimpleNamespace(
-            store={
-                "guided": data,
-                "submission": SimpleNamespace(
-                    finalize=lambda reason: {
-                        "final": {"published": True, "target_id": "parent"}
-                    }
-                ),
-            },
-            candidates=SimpleNamespace(
-                selected_id="parent",
-                select=lambda candidate_id, reason: setattr(
-                    ctx.candidates, "selected_id", candidate_id
-                ),
-            ),
-            record=SimpleNamespace(
-                write_json=lambda name, value: artifacts.update({name: value}),
-                emit=lambda *args, **kwargs: None,
-            ),
-        )
-        state = guided.finish(ctx, State({"target_id": "child"}))
-        result = artifacts["guided/result.json"]
+    def test_fallback_uses_only_the_published_parents_current_behavior(self):
+        ctx = self.node_context()
+        data = ctx.store["guided"]
+        table = "case reset # Reset sets q to one.\ninit reset=1 load=0 data=00 q=01"
+        guided._set_checker(ctx, parse_checker(table, ctx.task, require_explanations=True), table)
+        parent = self.draft(ctx, 1)
+        self.assertEqual(self.assess(ctx, parent)["action"], "run_checker")
+        child = self.draft(ctx, 0, parent)
+        self.assertEqual(self.assess(ctx, child, lint=CheckResult("failed", "syntax", rc=1,
+                                                                failure_kind="code"))["action"], "repair_structure")
+        for candidate, verdict in ((parent, "failed"), (child, "passed")):
+            data["behaviors"][candidate.id] = {
+                "candidate_hash": candidate.code_hash, "checker_hash": data["checker_hash"],
+                "checker_version": data["checker_version"],
+                "behavior": {"status": verdict, "compared_bits": 2},
+            }
+        state = guided.finish(ctx, State({"target_id": child.id}))
+        result = ctx.artifacts["guided/result.json"]
         self.assertEqual(state["status"], "stopped")
-        self.assertEqual(result["selected_id"], "parent")
-        self.assertEqual(result["evidence_candidate_id"], "parent")
-        self.assertFalse(result["functional_passed"])
+        self.assertEqual(result["submission_mode"], "fallback")
+        self.assertEqual(result["fallback_basis"], "latest_toolchain_passed")
+        self.assertEqual(result["published_id"], parent.id)
+        self.assertEqual(result["behavior_candidate_id"], parent.id)
+        self.assertEqual(result["evidence_candidate_id"], parent.id)
         self.assertEqual(result["behavior"]["status"], "failed")
+        self.assertFalse(result["functional_passed"])
+        self.assertEqual((ctx.candidates.output_dir / "solution.v").read_text(), parent.code)
 
-    def test_finish_reports_the_published_child_not_the_selected_parent(self):
-        data = {
-            "method": "structural",
-            "assessments": {
-                "parent": {"structural_passed": True},
-                "child": {"structural_passed": False},
-            },
-            "behaviors": {},
-            "checker_hash": None,
-            "checker_status": "not_requested",
-            "structure_repairs": 1,
-            "behavior_repairs": 0,
-            "checker_rebuilds": 0,
-            "adjudications": 0,
-            "request_outcomes": {},
-            "ledger": SimpleNamespace(snapshot=lambda: {}),
-        }
-        artifacts = {}
-        ctx = SimpleNamespace(
-            store={
-                "guided": data,
-                "submission": SimpleNamespace(
-                    finalize=lambda reason: {
-                        "final": {"published": True, "target_id": "child"}
-                    }
-                ),
-            },
-            candidates=SimpleNamespace(selected_id="parent"),
-            record=SimpleNamespace(
-                write_json=lambda name, value: artifacts.update({name: value}),
-                emit=lambda *args, **kwargs: None,
-            ),
-        )
-        state = guided.finish(ctx, State({"target_id": "child"}))
-        result = artifacts["guided/result.json"]
+    def test_fallback_publishes_latest_complete_child_without_inheriting_parent_evidence(self):
+        ctx = self.node_context()
+        parent = self.draft(ctx, 0)
+        state = self.assess(ctx, parent, lint=CheckResult("unavailable", "tool unavailable", failure_kind="environment"))
+        self.assertEqual(state["action"], "author_decision")
+        child = self.draft(ctx, 1, parent)
+        state = guided.finish(ctx, State({"target_id": child.id}))
+        result = ctx.artifacts["guided/result.json"]
         self.assertEqual(state["status"], "stopped")
-        self.assertEqual(result["selected_id"], "parent")
-        self.assertEqual(result["evidence_candidate_id"], "child")
-        self.assertEqual(result["published_id"], "child")
+        self.assertEqual(result["submission_mode"], "fallback")
+        self.assertEqual(result["fallback_basis"], "latest_complete")
+        self.assertIsNone(result["selected_id"])
+        self.assertEqual(result["evidence_candidate_id"], child.id)
+        self.assertEqual(result["published_id"], child.id)
+        self.assertIsNone(result["behavior_candidate_id"])
         self.assertFalse(result["structural_passed"])
+        self.assertFalse(result["functional_passed"])
+        self.assertEqual((ctx.candidates.output_dir / "solution.v").read_text(), child.code)
 
     def test_dense_guided_shortlist_uses_embedding(self):
         from agent.domain.knowledge.embedding import settings
@@ -446,7 +411,6 @@ class GuidedContractTests(unittest.TestCase):
                 "retrieval_mode": "rag",
                 "retrieval_strategy": "bm25",
             },
-            "plan": None,
             "method": "structural",
             "attempted": set(),
             "request_outcomes": {},
@@ -521,13 +485,12 @@ class GuidedContractTests(unittest.TestCase):
             "complete", sampling_hash(checker.plan), "c" * 64, "exec3",
             rows_for(checker), "ok",
         )
-        # Force one actual value to differ from the expected 0x02.
-        trace.rows[1]["values"]["q"]["bits"] = 1
+        # The public reset produces 0x01 while this checker incorrectly expects 0x02.
         result = evaluate_checker(checker, trace)
         self.assertEqual(result["status"], "failed")
         self.assertEqual(result["failed"][0]["signal"], "q")
 
-    def test_adjudication_is_flat_and_bounded(self):
+    def test_archived_adjudication_is_flat_and_bounded(self):
         value = parse_adjudication(
             "decision=solution_error\nreason=reset mismatch\nfailed_cases=reset",
             case_ids=["reset"],
@@ -535,6 +498,15 @@ class GuidedContractTests(unittest.TestCase):
         self.assertEqual(value.decision, "solution_error")
         with self.assertRaises(AdjudicationError):
             parse_adjudication("decision=maybe\nreason=x", case_ids=[])
+
+    def test_archived_attribution_accounts_for_all_actual_failed_and_unknown_cases(self):
+        for names in ("", "reset", "reset,reset", "reset,other", "reset,unknown,clean"):
+            with self.subTest(names=names), self.assertRaises(AdjudicationError):
+                parse_adjudication(f"decision=solution_error\nreason=guess\nfailed_cases={names}",
+                                   case_ids={"reset", "unknown"})
+        result = parse_adjudication("decision=mixed\nreason=two issues\nfailed_cases=unknown,reset",
+                                    case_ids={"reset", "unknown"})
+        self.assertEqual(result.decision, "mixed")
 
 
 if __name__ == "__main__":

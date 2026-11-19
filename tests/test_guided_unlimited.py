@@ -29,9 +29,7 @@ class UnlimitedTests(unittest.TestCase):
         return record
 
     def test_null_settings_and_zero_reserves_preserve_defaults(self):
-        names = ("max_calls", "max_output_tokens", "structure_repair_limit",
-                 "behavior_repair_limit", "checker_rebuild_limit", "adjudicate_limit",
-                 "solve_empty_recovery_limit", "checker_empty_recovery_limit")
+        names = ("max_calls", "max_output_tokens")
         config = GuidedParameters(**dict.fromkeys(names),
                                   solve={"timeout_s": 900, "max_tokens": None},
                                   first_tools_s=0, recheck_tools_s=0,
@@ -39,9 +37,7 @@ class UnlimitedTests(unittest.TestCase):
         self.assertTrue(all(getattr(config, name) is None for name in names))
         self.assertIsNone(config.solve.max_tokens)
         self.assertEqual(GuidedParameters().max_calls, 8)
-        self.assertEqual(GuidedParameters().structure_repair_limit, 1)
-        self.assertTrue(guided._under_limit(100, None))
-        self.assertFalse(guided._under_limit(1, 1))
+        self.assertNotIn("structure_repair_limit", config.model_dump())
 
     def test_unlimited_calls_and_tokens_still_stop_at_deadline(self):
         remaining = [900.0]
@@ -117,7 +113,7 @@ class UnlimitedTests(unittest.TestCase):
 
     def test_repeated_empty_recovery_uses_distinct_stages(self):
         ctx = SimpleNamespace(record=self.record(), store={"guided": {
-            "settings": {"solve_empty_recovery_limit": None, "first_tools_s": 0},
+            "settings": {"first_tools_s": 0},
             "request_outcomes": {},
             "ledger": SimpleNamespace(snapshot=lambda: {"permits": []}),
         }})
@@ -139,10 +135,10 @@ class UnlimitedTests(unittest.TestCase):
         def call(stage, **kwargs):
             calls.append((stage, kwargs))
             return CheckResult("passed", "self-authored stub")
-        data = {"settings": {"recheck_tools_s": 0, "adjudicate_limit": None},
+        data = {"settings": {"recheck_tools_s": 0, },
                 "assessments": {}, "observations": {}, "behaviors": {},
                 "checker": SimpleNamespace(plan={}, checked_outputs=["y"], unchecked_outputs=[])}
-        ctx = SimpleNamespace(store={"guided": data}, record=record, call=call,
+        ctx = SimpleNamespace(store={"guided": data, "submission": unittest.mock.Mock()}, record=record, call=call,
                               budget=SimpleNamespace(remaining=lambda: 30),
                               candidates=SimpleNamespace(get=lambda _: candidate))
         assessment, _ = guided._check_structure(ctx, candidate, 0)
@@ -200,7 +196,7 @@ class UnlimitedTests(unittest.TestCase):
                 remaining[0] = 0
                 return SimpleNamespace(content="", finish_reason="stop", call_id="recovery-completion")
 
-        data = {"settings": {"solve_empty_recovery_limit": None, "first_tools_s": 0,
+        data = {"settings": {"first_tools_s": 0,
                              "minimum_request_s": 0, "temperature": 0, "top_p": 1},
                 "ledger": ledger, "attempted": set(), "request_outcomes": {}}
         ctx = SimpleNamespace(store={"guided": data}, record=record, llm=Model())
@@ -217,7 +213,7 @@ class UnlimitedTests(unittest.TestCase):
 
     def test_recovery_denied_by_ledger_does_not_spin(self):
         ctx = SimpleNamespace(record=self.record(), store={"guided": {
-            "settings": {"solve_empty_recovery_limit": None, "first_tools_s": 0},
+            "settings": {"first_tools_s": 0},
             "ledger": SimpleNamespace(snapshot=lambda: {"permits": []}),
         }})
         empty = SimpleNamespace(content="", finish_reason="length", call_id="empty")

@@ -7,7 +7,7 @@ import re
 from typing import Iterable, Literal
 
 
-InterfaceSource = Literal["interface_file", "prompt_list", "generated_code", "unknown"]
+InterfaceSource = Literal["interface_file", "prompt_signature", "prompt_list", "generated_code", "unknown"]
 Confidence = Literal["high", "medium", "low", "none"]
 CheckStatus = Literal["ok", "mismatch", "advisory", "skipped", "parse_error"]
 
@@ -40,6 +40,10 @@ class InterfaceSpec:
     @property
     def parsed(self) -> bool:
         return self.module_name is not None and self.confidence in ("high", "medium")
+
+    @property
+    def authoritative(self) -> bool:
+        return self.source in ("interface_file", "prompt_signature") and self.parsed and self.complete
 
     def public_dict(self) -> dict[str, object]:
         return {
@@ -106,6 +110,7 @@ class InterfaceCheckResult:
             "expected_source": self.expected.source,
             "expected_confidence": self.expected.confidence,
             "expected_complete": self.expected.complete,
+            "expected_authoritative": self.expected.authoritative,
             "actual_confidence": self.actual.confidence,
             "actual_complete": self.actual.complete,
             "expected_module": self.expected.module_name,
@@ -223,6 +228,8 @@ def parse_module_interface(
     text: str, *, source: InterfaceSource = "generated_code", top: str | None = None
 ) -> InterfaceSpec:
     """Parse ANSI or classic non-ANSI Verilog module declarations."""
+    from agent.domain.rtl.public_interface import declared_ports, parameter_defaults
+
     raw = text or ""
     cleaned = _mask_comments(raw)
     module_match = next(
@@ -239,6 +246,7 @@ def parse_module_interface(
 
     module_name = module_match.group(1)
     warnings: list[str] = []
+    parameters = {}
     cursor = _skip_space(cleaned, module_match.end())
     if cursor < len(cleaned) and cleaned[cursor] == "#":
         cursor = _skip_space(cleaned, cursor + 1)
@@ -261,11 +269,15 @@ def parse_module_interface(
                 ("unterminated parameter list in module declaration",),
                 False,
             )
+        try:
+            parameters = parameter_defaults(cleaned[cursor + 1:parameter_end])
+        except ValueError:
+            # Unsupported defaults only affect ports that refer to them.
+            pass
         cursor = _skip_space(cleaned, parameter_end + 1)
 
     if cursor >= len(cleaned) or cleaned[cursor] != "(":
-        semicolon = cleaned.find(";", cursor)
-        if semicolon < 0:
+        if cleaned[cursor:cursor + 1] != ";":
             return InterfaceSpec(
                 module_name,
                 (),
@@ -294,9 +306,14 @@ def parse_module_interface(
     items = _split_commas(header)
     ansi = any(_DIRECTION_RE.search(item) for item in items)
     if ansi:
-        ports, parse_warnings = _parse_ansi_ports(items)
+        try:
+            ports = declared_ports(header, parameters, allow_unknown_width=True)
+            parse_warnings = [f"could not resolve packed width [{p.range_text}]" for p in ports if p.width is None]
+        except ValueError:
+            ports, parse_warnings = _parse_ansi_ports(items)
+            parse_warnings.append("could not verify all ANSI port declarations")
     else:
-        ports, parse_warnings = _parse_non_ansi_ports(items, body)
+        ports, parse_warnings = _parse_non_ansi_ports(items, body, parameters)
     warnings.extend(parse_warnings)
     warnings.extend(_duplicate_port_warnings(ports))
     confidence: Confidence = "high" if not warnings else "medium"
@@ -305,6 +322,7 @@ def parse_module_interface(
             (
                 "port declaration has no direction",
                 "could not parse port name",
+                "could not verify",
                 "port '",
                 "duplicate port",
             )
@@ -354,6 +372,10 @@ def check_interface_result(
             "mismatch", True, expected, actual, missing_directions, summary
         )
 
+    if expected.source == "prompt_signature" and not expected.authoritative:
+        summary = "unresolved public signature: " + "; ".join(expected.warnings)
+        return InterfaceCheckResult("advisory", False, expected, actual, (), summary)
+
     if not expected.parsed:
         if interface and interface.strip():
             summary = "interface.txt is present but its module declaration could not be parsed"
@@ -378,6 +400,9 @@ def check_interface_result(
         )
 
     differences = _compare_interfaces(expected, actual)
+    if not expected.complete or not actual.complete:
+        summary = "port declarations could not be compared completely"
+        return InterfaceCheckResult("advisory", False, expected, actual, differences, summary)
     if not differences:
         summary = (
             "interface matches the port list read from the prompt"
@@ -387,8 +412,8 @@ def check_interface_result(
         return InterfaceCheckResult("ok", False, expected, actual, (), summary)
 
     detail = "; ".join(item.message for item in differences)
-    if expected.source == "prompt_list":
-        summary = "Port list differs from the task (prose-derived interface; advisory only, not blocking): " + detail
+    if not expected.authoritative or all(item.kind == "unresolved_width" for item in differences):
+        summary = "Advisory interface comparison: " + detail
         return InterfaceCheckResult(
             "advisory", False, expected, actual, differences, summary
         )
@@ -414,6 +439,11 @@ def _compare_interfaces(
 
     want = {port.name: port for port in expected.ports}
     got = {port.name: port for port in actual.ports}
+    if expected.authoritative and actual.complete and want.keys() == got.keys() and tuple(want) != tuple(got):
+        differences.append(InterfaceDifference(
+            "port_order", "port order differs from the declared module header",
+            expected=list(want), actual=list(got),
+        ))
     for name, port in want.items():
         if name not in got:
             differences.append(
@@ -434,8 +464,9 @@ def _compare_interfaces(
                     actual=port.public_dict(),
                 )
             )
-    for name in want.keys() & got.keys():
-        expected_port = want[name]
+    for name, expected_port in want.items():
+        if name not in got:
+            continue
         actual_port = got[name]
         if actual_port.direction != expected_port.direction:
             differences.append(
@@ -448,10 +479,12 @@ def _compare_interfaces(
                     actual_port.direction,
                 )
             )
-        width_differs = (
-            expected_port.width is not None and actual_port.width != expected_port.width
-        )
-        if width_differs:
+        if expected_port.width is None or actual_port.width is None:
+            differences.append(InterfaceDifference(
+                "unresolved_width", f"port {name!r} width could not be verified",
+                name, expected_port.width, actual_port.width,
+            ))
+        elif actual_port.width != expected_port.width:
             differences.append(
                 InterfaceDifference(
                     "width",
@@ -494,8 +527,10 @@ def _parse_ansi_ports(items: Iterable[str]) -> tuple[list[PortSpec], list[str]]:
 
 
 def _parse_non_ansi_ports(
-    header_items: Iterable[str], body: str
+    header_items: Iterable[str], body: str, parameters: dict[str, int]
 ) -> tuple[list[PortSpec], list[str]]:
+    from agent.domain.rtl.public_interface import declared_ports
+
     warnings: list[str] = []
     header_names: list[str] = []
     ordinary_names: set[str] = set()
@@ -507,10 +542,23 @@ def _parse_non_ansi_ports(
             header_names.append(name)
             if _ordinary_port_name(item) is not None:
                 ordinary_names.add(name)
+            else:
+                warnings.append(f"could not verify non-ANSI header item {item.strip()!r}")
     declarations: dict[str, PortSpec] = {}
+    body = re.sub(r"\b(function|task)\b.*?\bend\1\b", " ", body, flags=re.S)
     for match in _DECLARATION_RE.finditer(body):
         direction = match.group(1)
         declaration = match.group(2)
+        try:
+            for port in declared_ports(direction + " " + declaration, parameters, allow_unknown_width=True):
+                if port.width is None:
+                    warnings.append(f"could not resolve packed width [{port.range_text}]")
+                if port.name in declarations:
+                    warnings.append(f"duplicate port declaration {port.name!r}")
+                declarations[port.name] = port
+            continue
+        except ValueError:
+            warnings.append("could not verify a non-ANSI port declaration")
         width, range_text, width_warning = _parse_width(declaration)
         if width_warning:
             warnings.append(width_warning)

@@ -74,7 +74,8 @@
     "config": "config/guided_verify.yaml",
     "retrieval_mode": "off",
     "planner_model": "qwen38-27b-q4-k-m",
-    "context_policy": "各阶段独立构造请求消息（messages），不继承聊天历史或思考正文；按阶段明确传递规划、候选与检查证据",
+    "roles": ["analyst", "author", "builder"],
+    "context_policy": "三个角色分别构造请求。策略角色读取公开题面、能力与技能描述。解题角色接收当前稿、选中资料、本稿检查证据及历轮决策与复核短记。检查角色仅依据公开信息编写和复核测试点。",
     "max_calls": 8,
     "max_output_tokens": 65536,
     "minimum_request_s": 20,
@@ -83,11 +84,10 @@
     "top_p": 1.0,
     "deadline_s": 900,
     "reserve_s": 60,
-    "submission_policy": "last_written",
-    "structure_repair_limit": 1,
-    "behavior_repair_limit": 1,
-    "checker_rebuild_limit": 1,
-    "adjudicate_limit": 2,
+    "submission_policy": "author_decides",
+    "author_actions": ["submit", "revise", "review"],
+    "checker_review_actions": ["keep", "correct", "withdraw"],
+    "delivery": "结构检查发现代码错误时先修复。纯结构路线在 lint 和 synth 均通过时自动提交。其余没有已知结构代码错误的稿件，由解题角色决定是否提交。中断或共享预算不足时优先交付最近一份 lint 与 synth 均通过的候选，其次为最近完整稿，尚无完整稿则交付空文件。",
     "max_cases": 4,
     "max_steps_per_case": 8,
     "init_cycles": 2,
@@ -104,10 +104,6 @@
       },
       "checker": {
         "timeout_s": 180,
-        "max_tokens": 8192
-      },
-      "adjudicate": {
-        "timeout_s": 120,
         "max_tokens": 8192
       }
     },
@@ -128,16 +124,14 @@
       "rtl-sequential-state-update",
       "rtl-stream-word-boundaries"
     ],
-    "skill_selection": "skills 列出允许规划器自动选择的求解技能；每题扫描一次目录并固定技能内容，最多选择两项，按阶段与冲突组校验后使用",
+    "skill_selection": "每题先规划，行为表受限时仍可选择最多两项求解技能。程序校验阶段与冲突组后，将实际技能正文交给解题角色。",
     "checker_skill": "rtl-behavior-check-keycases",
-    "checker_context_policy": "固定检查方法直接用于检查器；不接收候选 RTL、实测输出、求解技能或规划公式；重建可接收旧检查表、失败案例 ID 和错误类别",
+    "checker_context_policy": "检查角色依据带段落编号的公开题面、接口、固定方法与采样规则构造检查表。每个测试点附一句激励及期望说明。复核时额外读取当前表和指定测试点编号，给出保留、修正或撤回及简短理由。候选 RTL、实测输出和质疑理由仅进入解题角色。",
     "available_workflows": [
       "single_generate",
       "guided_verify"
     ],
-    "solve_minimum_s": 120,
-    "solve_empty_recovery_limit": 1,
-    "checker_empty_recovery_limit": 1
+    "solve_minimum_s": 120
   },
   "generation": {
     "chat_template_kwargs": {
@@ -154,12 +148,11 @@
       "reserve_s": 0,
       "max_calls": null,
       "max_output_tokens": null,
-      "repair_limits": null,
       "stage_max_tokens": null,
       "stage_timeout_s": 900,
       "context_limit": 65536,
       "generation": "与顶层 generation 相同",
-      "note": "调用、token 与修复无人工次数上限；单次输出受实际上下文剩余容量限制，未知用量及未确认请求仍阻止可选后续调用。检查表容量和 last_written 策略不变。",
+      "note": "调用与输出 token 不设额外数量上限，仍受单题时间和实际上下文容量约束。用量未知时阻止可选请求，上一次请求尚未确认结束时阻止后续生成。采用与默认配置相同的检查表和交付规则。",
       "max_steps": null
     }
   }

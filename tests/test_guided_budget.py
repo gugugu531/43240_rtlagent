@@ -96,9 +96,10 @@ class GuidedBudgetTests(unittest.TestCase):
 
 
 class GuidedRecoveryBudgetConfigurationTests(unittest.TestCase):
-    def test_recovery_limit_cannot_be_more_than_one(self):
-        for name in ("solve_empty_recovery_limit", "checker_empty_recovery_limit"):
-            for value in (-1, 2, True):
+    def test_obsolete_category_budgets_are_rejected(self):
+        for name in ("solve_empty_recovery_limit", "checker_empty_recovery_limit", "adjudicate_limit",
+                     "structure_repair_limit", "behavior_repair_limit", "checker_rebuild_limit"):
+            for value in (None, 1):
                 with self.subTest(name=name, value=value), self.assertRaises(ValidationError):
                     GuidedParameters(**{name: value})
         for value in (-1,):

@@ -29,7 +29,7 @@ class InterfaceSkillPromptTests(unittest.TestCase):
             "settings": {"solve": {"timeout_s": 1, "max_tokens": 100}, "first_tools_s": 1},
             "plan": {"skills": [identity], "knowledge": []},
             "skill_assets": assets,
-            "structure_repairs": 0,
+            "structure_repairs": 0, "history": [], "request_outcomes": {},
             "assessments": {parent.id: {"checks": {"lint": {
                 "status": "failed", "failure_kind": "code",
                 "excerpt": "Module <MissingHelper> not found while processing module instance <u>",

@@ -55,7 +55,7 @@ candidate_id
 kind
 ```
 
-检查结果通过 `bind_result()` 绑定候选代码哈希、检查器实现哈希和可选的检查套件（`suite`）哈希。`status` 为 `skipped`、`unavailable` 或未知值时，不能记为检查通过。
+检查结果通过 `bind_result()` 绑定候选代码哈希、检查器实现哈希和可选的检查套件（`suite`）哈希。结构检查日志把 `summary` 的前 2000 个字符记为 `excerpt`。通过条件为 `status=passed` 且 `rc` 是整数 0。行为比较另按检查表内容和实测结果判定，见[检查表与采样](guided-verify.md#5-检查表与采样)。
 
 ## 3. 阶段状态
 
@@ -68,12 +68,12 @@ round, target_id, reply_id, has_candidate, stop_reason, status
 `guided_verify` 使用：
 
 ```text
-settings, method, target_id, parent_id, action,
+settings, method, target_id, action,
 checker_status, stop_reason, status
 ```
 
 内部运行数据放在 `ctx.store["guided"]`，包括规划（`plan`）、结构检查（`assessments`）、仿真观测（`observations`）、
-行为检查结果（`behaviors`）、检查器（`checker`）和请求额度账本（`ledger`）。这些对象只在本次进程中保留。
+行为检查结果（`behaviors`）、当前检查表（`checker`）、本题历轮决定与复核短记（`history`）和共享请求账本（`ledger`）。这些对象只在本次进程中保留。
 Burr 状态必须能序列化为 JSON；完整正文交给记录器保存，不能据此认为 `ctx.store` 支持断点恢复。
 
 ## 4. 提示词
@@ -87,13 +87,13 @@ repair_analysis_system.md
 repair_analysis.md
 ```
 
-`repair.md` 同时用于 `guided_verify` 首稿和修复；题面、公开接口、计划、反馈和父候选由调用节点传入。
+`guided_verify` 的首稿和结构代码修复使用 `repair.md`，节点传入原题、接口与所选技能。结构修复另附父候选、诊断和决策短记。后续行为决策由 `guided_author.py` 构造，模型回复一个带短理由的动作，只有 `revise` 需要附带完整 RTL。检查表的生成、格式纠正与逐点复核分别构造独立请求。[格式与示例](guided-verify.md)
 模板不读取参考答案、官方测试台或判定反馈。
 缺少必需变量会报错；自定义模板目录也须使用新的 `.md` 名称，不保留旧扩展名兼容入口。
 
 ## 5. 知识检索
 
-Skill（技能文件）的启用不依赖卡片检索模式。运行时从 `skill/` 的直接子目录自动发现技能，并为每题保存正文快照；
+Skill（技能文件）的启用不依赖卡片检索模式。运行时从 `skill/` 的直接子目录自动发现技能，每题首次读取时把技能正文保存在内存中。`full` 日志提供所选标识、资源校验值和实际请求正文。
 `guided_verify` 的规划阶段最多选择两个技能，实际使用前还会检查阶段、准入状态和冲突组约束。
 新增文件的最小格式及默认行为见[技能扩展指南](../skill/README.md)。
 `guided_verify` 的 RAG（检索增强生成）默认关闭。卡片检索范围和排序方式可分别配置：
@@ -135,12 +135,9 @@ code_hash
 published
 ```
 
-`SubmissionGateway` 用于 `guided_verify`。默认 `last_written` 策略在登记候选时立即写入 `<output>/solution.v`，
-`finalize()` 再确认并写入最后登记的候选；`selected` 策略在 `finalize()` 中写入 `CandidateStore.selected_id` 指定的候选。
-`CandidateStore.select()` 本身也会立即写入答案。`single_generate` 直接使用此方法，不经过 `SubmissionGateway`。
+`guided_verify` 使用 `author_decides` 策略。`register()` 登记完整候选，`record_structure()` 只接受与该候选 ID 和源码哈希匹配的工具结果。二者重新确定兜底目标，优先选择最近一份 lint 和 synth 均通过的候选，其次是最新完整稿。只有目标候选发生变化才改写磁盘兜底文件。`submit_candidate()` 可提交已做结构评估且没有已知代码错误的当前稿，纯结构路线自动提交还要求 lint 和 synth 均已通过。`single_generate` 直接使用 `CandidateStore.select()` 写入答案。
 
-`finalize()` 返回的 `final` 字段记录 `target_id`、`selected_id`、`overrode_selected` 和 `published` 等信息；
-`guided_verify` 的结果另外记录 `published_id` 与 `evidence_candidate_id`。应按实际交付候选及当前检查器查找检查结果，不能把“文件已写入”当成“检查通过”。
+`finalize()` 保留已完成的正式提交，尚无提交则使用兜底。`final` 的 `mode` 记录 `author_submit`、`structural_auto` 或 `fallback`。兜底另有 `fallback_basis` 说明依据。交付记录包括 `target_id`、`selected_id` 与代码哈希。实际交付文件应与其候选和检查器版本的工具证据一起核对。
 
 ## 7. 事件
 
@@ -152,7 +149,8 @@ node/started, node/finished, node/failed
 llm/started, llm/finished, llm/failed
 tool/started, tool/finished, tool/failed
 interface/result, lint/result, synth/result
-knowledge/retrieval, submission/published, submission/finalized
+knowledge/retrieval, extract/result, guided/verification
+submission/checkpoint, submission/published, submission/decision, submission/finalized
 ```
 
 工具结果以实际调用别名为 `tool`，所以上面的 `interface/result` 等事件适用于默认 `guided_verify` 别名；

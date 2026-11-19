@@ -7,11 +7,6 @@ params:
   planner: {timeout_s: 90, max_tokens: 4096}
   solve: {timeout_s: 300, max_tokens: 16384}
   checker: {timeout_s: 180, max_tokens: 8192}
-  adjudicate: {timeout_s: 120, max_tokens: 8192}
-  structure_repair_limit: 1
-  behavior_repair_limit: 1
-  checker_rebuild_limit: 1
-  adjudicate_limit: 2
   max_cases: 4
   max_steps_per_case: 8
   init_cycles: 2
@@ -21,11 +16,8 @@ params:
   max_output_tokens: 65536
   minimum_request_s: 20
   solve_minimum_s: 120
-  solve_empty_recovery_limit: 1
-  checker_empty_recovery_limit: 1
   first_tools_s: 120
   recheck_tools_s: 120
-  submission_policy: last_written
 runtime:
   deadline_s: 900
   reserve_s: 60

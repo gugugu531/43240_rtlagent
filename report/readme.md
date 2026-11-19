@@ -1,8 +1,8 @@
-# 设计报告
+# 2026-11-03 排版报告（历史版本）
 
-[阅读 PDF](report.pdf)，[查看 Typst 主文件](main.typ)。正文按章节保存在 `sections/`，图示及 Graphviz 源文件保存在 `figures/`。
+当前三角色的设计、模型与验收结果见方案根目录的设计报告。角色输入、复核条件和提交规则见工作流指南。[当前设计报告](../REPORT.md) · [三角色工作流指南](../docs/guided-verify.md)
 
-本目录迁自匿名方案中的报告材料，保留原报告正文和 PDF。根目录 `REPORT.md` 是此前按赛事模板维护的 Markdown 报告，两份材料分别保留，不视为自动同步。
+本目录保留迁自匿名方案的历史材料，包括 2026-11-03 生成的 18 页 PDF 及其 Typst 源稿。正文按章节保存在 `sections/`，图示及 Graphviz 源文件保存在 `figures/`。[历史 PDF](report.pdf) · [Typst 主文件](main.typ)
 
 在方案仓库根目录编译，需要 Typst（原 PDF 由 0.15.1 生成）以及 Noto Serif CJK SC、Noto Sans CJK SC 字体：
 

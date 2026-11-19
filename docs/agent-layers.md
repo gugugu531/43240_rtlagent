@@ -5,8 +5,7 @@
 当前仓库内置两条工作流，用于根据公开题面生成 RTL（寄存器传输级）代码：
 
 - `single_generate`：按官方基线（baseline）生成 → 提取 → 选择候选 → 写入答案。
-- `guided_verify`（默认）：独立规划 → 生成 → 结构检查 → 独立关键用例检查 → 归因 →
-  有次数上限的修复 → 收尾；可选使用知识库检索。
+- 默认 `guided_verify` 由策略角色选检查方式和技能，解题角色生成 RTL，经结构检查后按需运行独立行为表。解题角色可提交、改稿或请检查角色复核一个测试点。
 
 `adaptive_verify`、`design_verify_loop` 和 `repair_loop` 已从当前仓库移除，历史实现保留在
 工作区归档中。
@@ -39,26 +38,27 @@ generate -> extract -> select -> finish
 
 ```text
 initialize -> plan -> solve -> structure
-structure -> repair_structure | build_checker | run_checker | finish
-repair_structure -> structure
-build_checker -> run_checker | finish
-run_checker -> adjudicate | finish
-adjudicate -> repair_behavior | build_checker | finish
-repair_behavior -> structure
+structure -> repair_structure | build_checker | run_checker | author_decision | finish
+repair_structure -> repair_structure | structure | finish
+build_checker -> run_checker | author_decision
+run_checker -> author_decision
+author_decision -> structure | checker_review | author_decision | finish
+checker_review -> run_checker | author_decision
 ```
 
 - `plan` 默认使用主模型 Qwen3.8-27B 生成逐行键值格式的计划，不接入小模型。
 - `solve` 生成候选，可将规划阶段选中的技能和知识卡片加入提示词；默认关闭知识卡片检索。
 - `structure` 通过 `interface`、`lint`、`synth` 三个工具别名执行接口检查、语法编译和综合检查。
-- `build_checker` 生成行式关键用例表，由本地检查程序据此生成 Verilog 测试台；检查器构造不接收候选 RTL 或实测输出。
-- `run_checker` 使用 Vivado Simulator（`xsim`）执行仿真和比较；`adjudicate` 处理失败或未知结果，修复次数有配置上限。
+- 有明确代码错误时，`repair_structure` 让解题角色返回完整修订稿。无完整新稿时，可在预算内带上格式诊断重问。无法继续修复时按兜底规则交付。当前稿的 lint 和 synth 均通过，才会构造或执行行为表。
+- `build_checker` 让检查角色独立生成测试点，每点用一条说明描述激励和期望，程序生成 Verilog 测试台。格式错误可按解析诊断纠正。
+- `run_checker` 用 Vivado Simulator（`xsim`）运行采样测试台，再由 Python 按点比较实际值和期望值。修订 RTL 要重新检查结构，修正或撤回测试点后，只要仍有活动点且当前稿的 lint 和 synth 均通过，就再次运行当前表。`author_decision` 把当前 RTL、结构与行为结果和历轮短记交给解题角色。它可提交、返回完整改稿或指定一个点复核。`checker_review` 只依据公开资料对该点作出保留、修正或撤回决定。
 - 收尾按当前检查器的内容哈希和实际写入答案文件的候选查找证据，不把其他候选或旧检查器的结果当作当前答案通过的依据。
 
 ## 3. 模型配置组与请求上下文
 
 - 模型配置组只按代码中的角色映射选择，模型不能自行切换配置组。
 - `small` 与 `large` 是保留的配置组名称，不表示模型实际大小。默认均关闭，所有阶段使用主模型。
-  显式研究配置仍可启用规划阶段对应的 `small`，以及生成、检查器构造、归因和修复阶段对应的 `large`。
+  显式研究配置可启用策略角色对应的 `small` 以及解题、检查角色对应的 `large`。
 - 默认入口 `run.sh` 使用 `config/guided_verify.yaml`，关闭知识卡片检索；技能仍可由规划选择。
 - 每阶段重新构造消息列表 `messages`，不拼接其他阶段的聊天历史；各阶段仍共用推理服务。
 - 模型思考开关沿用 `manifest.json` 的 `generation` 声明，不按请求类型另设一套。
@@ -76,10 +76,9 @@ vivado_synth
 `CandidateStore` 负责将候选代码原子写入 `solution.v`。`single_generate` 直接调用其 `select()`；
 `guided_verify` 还使用 `SubmissionGateway` 管理提交策略：
 
-- 候选通过 `CandidateStore` 分配 ID、保存源码和父候选关系；
-- `last_written` 策略在登记候选时立即写入，收尾保留最后登记的候选；`selected` 策略在收尾写入 `selected_id` 指定的候选；
-- 写入使用同目录临时文件和 `os.replace` 原子替换，避免留下只写了一部分的答案；
-- `guided_verify` 的结果分别记录 `selected_id`、实际交付候选和证据候选；默认 `last_written` 可能交付尚未通过检查的候选，必须据实际交付候选判断检查状态。
+- `CandidateStore` 分配 ID，保存源码、父候选关系与内容哈希，使用同目录临时文件和 `os.replace` 原子写入。
+- `guided_verify` 使用 `author_decides`。仅做结构检查且 lint、synth 均通过时自动提交。行为路线由解题角色显式提交当前稿。
+- 中断文件优先保留最近一份 lint、synth 均通过的候选，否则保留最近完整稿。最终以实际交付候选及其检查器版本查找证据。
 
 ## 5. 知识库
 

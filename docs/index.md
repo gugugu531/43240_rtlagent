@@ -7,15 +7,14 @@
 | --- | --- |
 | 系统分层与执行边界 | [架构与设计原则](architecture.md) |
 | 新节点、工具、工作流和检查器如何接入 | [模块扩展与开发规范](development.md) |
-| 主模型规划、结构检查、关键场景行为检查、失配归因与修复 | [guided_verify 工作流](guided-verify.md) |
+| 策略选技能、RTL 生成与修改、逐点行为检查与复核、交付与兜底 | [guided_verify 工作流](guided-verify.md) |
 | Agent 分层、角色、工具路径和提交策略 | [Agent 分层与编排设计](agent-layers.md) |
 | 大语言模型、工具、状态、知识检索和答案提交的接口 | [Agent 接口契约](agent-interfaces.md) |
 | 129 张知识卡片、词项检索、向量检索和文本嵌入配置 | [技能与知识检索](knowledge.md) |
-| 已实现的工作流注册 | [工作流源码](../agent/orchestration/workflows/__init__.py) |
+| 工作流节点与分支连线 | [默认三角色流程](../agent/orchestration/workflows/guided_verify.py)、[单次生成流程](../agent/orchestration/workflows/single_generate.py) |
 | 配置结构、环境覆盖与默认值 | [配置实现](../agent/config.py)、[默认配置](../config/guided_verify.yaml) |
 | 模型声明与服务运行方式 | [模型声明](../model/MODEL.md)、[服务说明](../serve/README.md) |
 
 默认入口为 `guided_verify`，规划与后续阶段使用同一 Qwen3.8-27B 服务，每个阶段分别构造请求上下文。默认关闭 RAG（检索增强生成）的知识卡片检索，技能选择仍启用。单次生成工作流 `single_generate` 和可选 RAG 配置通过 `AGENT_CONFIG` 选择，具体前提见对应文档。
 
-本仓库不依赖 `dev/` 目录运行。Dockerfile 只复制运行所需的源码、配置、知识资产、服务和
-声明文件；开发归档不进入镜像。模型权重、推理服务和 EDA（电子设计自动化）工具需要另行准备。
+本仓库不依赖 `dev/` 目录运行。Dockerfile 按清单复制源码、配置、知识资产、服务、声明、报告和许可文件。模型权重、推理服务和 EDA（电子设计自动化）工具需要另行准备。

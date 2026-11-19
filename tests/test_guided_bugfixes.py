@@ -1,6 +1,5 @@
 """Self-authored routing and immutable-evidence regressions; no model or EDA."""
 
-import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -8,6 +7,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
+from agent.context.prompts import TemplateRenderer
+from agent.domain.rtl.candidate import CandidateStore
 from agent.domain.rtl.guided_checker import parse_checker
 from agent.domain.rtl.observation import TraceRun, sampling_hash
 from agent.domain.rtl.result import CheckResult
@@ -25,34 +26,28 @@ The output y equals input a."""
 
 
 class GuidedBugfixTests(unittest.TestCase):
-    def context(self, *, level="full"):
+    def context(self, *, level="full", max_calls=8):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         recorder = Recorder(directory.name, level=level)
         self.addCleanup(recorder.close)
         code = "module TopModule(input a, output y); assign y = a; endmodule\n"
-        candidate = SimpleNamespace(
-            id="c001", code=code,
-            code_hash=hashlib.sha256(code.encode()).hexdigest(),
-        )
-        data = {
-            "settings": GuidedParameters().model_dump(),
-            "assessments": {}, "structure_repairs": 0,
-            "checker": None, "checker_status": "not_built",
-            "observations": {}, "behaviors": {}, "adjudications": 0,
-        }
-        return SimpleNamespace(
+        ctx = SimpleNamespace(
             task=TaskSpec.from_text("self-authored-evidence", PROMPT),
-            store={"guided": data}, record=recorder,
+            store={}, record=recorder, prompts=TemplateRenderer(),
             budget=SimpleNamespace(remaining=lambda: 1000.0),
-            candidates=SimpleNamespace(get=lambda _: candidate),
+            candidates=CandidateStore(recorder, directory.name),
         )
+        guided.initialize(ctx, State({"settings": GuidedParameters(max_calls=max_calls).model_dump()}))
+        ctx.store["guided"].update(method="table", plan={"skills": [], "knowledge": []}, plan_source="planner")
+        candidate = ctx.candidates.create(code, source_stage="self_authored")
+        ctx.store["submission"].register(candidate, reason="initial sample")
+        return ctx
 
-    def structure(self, ctx, *, lint, synth=None, repairs=1, built=False):
-        data = ctx.store["guided"]
-        data["structure_repairs"] = repairs
-        data["checker"] = object() if built else None
-        data["checker_status"] = "valid" if built else "not_built"
+    def structure(self, ctx, *, lint, synth=None, built=False):
+        if built:
+            table = "case probe # y follows an input of zero.\nstep a=0 y=0"
+            guided._set_checker(ctx, parse_checker(table, ctx.task, require_explanations=True), table)
         calls = []
 
         def call(stage, **kwargs):
@@ -72,7 +67,7 @@ class GuidedBugfixTests(unittest.TestCase):
     def test_compile_failure_still_repairs_when_budget_remains(self):
         ctx = self.context()
         action, calls = self.structure(
-            ctx, lint=CheckResult("failed", "syntax", failure_kind="code"), repairs=0,
+            ctx, lint=CheckResult("failed", "syntax", failure_kind="code"),
         )
         self.assertEqual(action, "repair_structure")
         self.assertEqual(calls, ["interface", "lint"])
@@ -80,16 +75,25 @@ class GuidedBugfixTests(unittest.TestCase):
     def test_exhausted_compile_failure_neither_builds_nor_runs_checker(self):
         for built in (False, True):
             with self.subTest(existing_checker=built):
-                ctx = self.context()
+                ctx = self.context(max_calls=1)
+                data = ctx.store["guided"]
+                permit = data["ledger"].reserve("previous", max_tokens=1, timeout_s=1)
+                permit._begin()
+                permit._sent("m1", 1)
+                permit._response({"usage": {"prompt_tokens": 1, "completion_tokens": 1}})
+                permit._finish()
                 action, calls = self.structure(
                     ctx, lint=CheckResult("failed", "syntax", failure_kind="code"),
                     built=built,
                 )
-                self.assertEqual(action, "finish")
+                self.assertEqual(action, "repair_structure")
+                state = guided.repair_structure(ctx, State({"target_id": "c001"}))
+                self.assertEqual(guided.structure(ctx, state)["action"], "finish")
+                self.assertEqual(data["request_outcomes"]["repair_structure"]["reason"], "call_limit")
                 self.assertEqual(calls, ["interface", "lint"])
                 self.assertFalse(ctx.store["guided"]["assessments"]["c001"]["structural_passed"])
 
-    def test_synthesis_failure_does_not_prove_compile_failure(self):
+    def test_synthesis_code_failure_repairs_before_behavior_can_run(self):
         for built in (False, True):
             with self.subTest(existing_checker=built):
                 ctx = self.context()
@@ -98,8 +102,9 @@ class GuidedBugfixTests(unittest.TestCase):
                     synth=CheckResult("failed", "not synthesizable", failure_kind="code"),
                     built=built,
                 )
-                self.assertEqual(action, "run_checker" if built else "build_checker")
+                self.assertEqual(action, "repair_structure")
                 self.assertEqual(calls, ["interface", "lint", "synth"])
+                self.assertEqual(ctx.store["guided"]["assessments"]["c001"]["checks"]["lint"]["status"], "passed")
 
     def test_unknown_compile_outcome_is_not_treated_as_code_failure(self):
         for status, kind in (("timeout", "timeout"), ("unavailable", "environment"),
@@ -111,7 +116,19 @@ class GuidedBugfixTests(unittest.TestCase):
                         ctx, lint=CheckResult(status, "unconfirmed", failure_kind=kind),
                         built=built,
                     )
-                    self.assertEqual(action, "run_checker" if built else "build_checker")
+                    self.assertEqual(action, "author_decision")
+
+    def test_conflicting_pass_status_and_return_code_leave_the_gate_unverified(self):
+        for stage in ("lint", "synth"):
+            with self.subTest(stage=stage):
+                ctx = self.context()
+                checks = {"lint": CheckResult("passed", "compiled", rc=0)}
+                checks[stage] = CheckResult("passed", "contradictory tool exit", rc=1)
+                action, calls = self.structure(ctx, **checks)
+                self.assertEqual(action, "author_decision")
+                self.assertFalse(ctx.store["guided"]["assessments"]["c001"]["toolchain_passed"])
+                if stage == "lint":
+                    self.assertNotIn("synth", calls)
 
     def artifacts(self, ctx, name):
         events = [json.loads(line) for line in
@@ -150,20 +167,18 @@ class GuidedBugfixTests(unittest.TestCase):
     def test_behavior_events_and_checker_versions_remain_reconstructible(self):
         ctx = self.context()
         data = ctx.store["guided"]
-        checker = parse_checker("case probe\nstep a=0 y=0", ctx.task)
-        data["checker"] = checker
-        data["checker_hash"] = guided._checker_fingerprint(checker)
+        table = "case probe # y follows an input of zero.\nstep a=0 y=0"
+        checker = parse_checker(table, ctx.task, require_explanations=True)
+        guided._set_checker(ctx, checker, table)
         original_hash = data["checker_hash"]
-        guided._save(ctx, "checker", checker.public_dict())
         candidate = ctx.candidates.get("c001")
         for value, execution in ((1, "first-observation"), (0, "second-observation")):
             trace = self.trace(checker, candidate, value, execution)
             with patch.object(guided, "observe", return_value=trace):
                 guided.run_checker(ctx, State({"target_id": "c001"}))
-        rebuilt = parse_checker("case probe\nstep a=1 y=1", ctx.task)
-        guided._save(ctx, "checker", rebuilt.public_dict())
-        data["checker"] = rebuilt
-        data["checker_hash"] = guided._checker_fingerprint(rebuilt)
+        new_table = "case probe # y follows an input of one.\nstep a=1 y=1"
+        rebuilt = parse_checker(new_table, ctx.task, require_explanations=True)
+        guided._set_checker(ctx, rebuilt, new_table)
         rebuilt_hash = data["checker_hash"]
         self.assertNotEqual(original_hash, rebuilt_hash)
         trace = self.trace(rebuilt, candidate, 1, "rebuilt-observation", input_value=1)
@@ -179,9 +194,11 @@ class GuidedBugfixTests(unittest.TestCase):
                          ["first-observation", "second-observation", "rebuilt-observation"])
         self.assertEqual(observations[-1]["plan_hash"], sampling_hash(rebuilt.plan))
         checkers = self.load_artifacts(ctx, "checker")
-        self.assertEqual(checkers, [checker.public_dict(), rebuilt.public_dict()])
+        self.assertEqual([entry["checker_hash"] for entry in checkers], [original_hash, rebuilt_hash])
+        self.assertEqual([entry["cases"] for entry in checkers],
+                         [checker.public_dict()["cases"], rebuilt.public_dict()["cases"]])
         latest = json.loads((ctx.record.record_dir / "guided/checker.json").read_text())
-        self.assertEqual(latest, rebuilt.public_dict())
+        self.assertEqual(latest, checkers[-1])
         latest_behavior = json.loads(
             (ctx.record.record_dir / "guided/assessments/c001/behavior.json").read_text())
         self.assertEqual(latest_behavior, behaviors[-1])

@@ -1,4 +1,4 @@
-"""Independent planning and key-case checking, with bounded repair."""
+"""Isolated strategy, RTL author and checker sharing one completion budget."""
 
 from typing import Literal
 
@@ -18,25 +18,17 @@ class GuidedParameters(BaseModel):
     planner: StageLimit = StageLimit(timeout_s=90, max_tokens=4096)
     solve: StageLimit = StageLimit(timeout_s=300, max_tokens=16384)
     checker: StageLimit = StageLimit(timeout_s=180, max_tokens=8192)
-    adjudicate: StageLimit = StageLimit(timeout_s=120, max_tokens=8192)
     solve_minimum_s: float = Field(default=120, ge=0)
-    solve_empty_recovery_limit: int | None = Field(default=1, ge=0, le=1)
-    checker_empty_recovery_limit: int | None = Field(default=1, ge=0, le=1)
-    structure_repair_limit: int | None = Field(default=1, ge=0, le=5)
-    behavior_repair_limit: int | None = Field(default=1, ge=0, le=5)
-    checker_rebuild_limit: int | None = Field(default=1, ge=0, le=5)
-    adjudicate_limit: int | None = Field(default=2, ge=0, le=5)
     max_cases: int = Field(default=4, ge=1, le=8)
     max_steps_per_case: int = Field(default=8, ge=1, le=16)
     init_cycles: int = Field(default=2, ge=1, le=8)
     knowledge_candidates: int = Field(default=5, ge=1, le=16)
     knowledge_select: int = Field(default=3, ge=0, le=5)
-    max_calls: int | None = Field(default=8, ge=1, le=12)
+    max_calls: int | None = Field(default=8, ge=1)
     max_output_tokens: int | None = Field(default=65536, gt=0)
     minimum_request_s: float = Field(default=20, ge=0)
     first_tools_s: float = Field(default=120, ge=0)
     recheck_tools_s: float = Field(default=120, ge=0)
-    submission_policy: Literal["last_written", "selected"] = "last_written"
     retrieval_mode: Literal["off", "legacy", "rag", "all"] = "off"
     retrieval_strategy: Literal["bm25", "dense"] = "bm25"
     embedding_url: str = ""
@@ -67,15 +59,14 @@ class GuidedParameters(BaseModel):
         "repair_structure": "guided_repair_structure",
         "build_checker": "guided_build_checker",
         "run_checker": "guided_run_checker",
-        "adjudicate": "guided_adjudicate",
-        "repair_behavior": "guided_repair_behavior",
+        "author_decision": "guided_author_decision",
+        "checker_review": "guided_checker_review",
         "finish": "guided_finish",
     },
     state={
         "settings": {},
         "method": "structural",
         "target_id": None,
-        "parent_id": None,
         "action": "",
         "checker_status": "not_built",
         "stop_reason": "",
@@ -90,14 +81,18 @@ def build(g, p):
         ("structure", "repair_structure", when(action="repair_structure")),
         ("structure", "build_checker", when(action="build_checker")),
         ("structure", "run_checker", when(action="run_checker")),
+        ("structure", "author_decision", when(action="author_decision")),
         ("structure", "finish", default),
-        ("repair_structure", "structure"),
+        ("repair_structure", "repair_structure", when(action="retry")),
+        ("repair_structure", "finish", when(action="finish")),
+        ("repair_structure", "structure", default),
         ("build_checker", "run_checker", when(checker_status="valid")),
-        ("build_checker", "finish", default),
-        ("run_checker", "adjudicate", when(action="adjudicate")),
-        ("run_checker", "finish", default),
-        ("adjudicate", "repair_behavior", when(action="repair_behavior")),
-        ("adjudicate", "build_checker", when(action="rebuild_checker")),
-        ("adjudicate", "finish", default),
-        ("repair_behavior", "structure"),
+        ("build_checker", "author_decision", default),
+        ("run_checker", "author_decision"),
+        ("author_decision", "structure", when(action="revise")),
+        ("author_decision", "checker_review", when(action="review")),
+        ("author_decision", "author_decision", when(action="retry")),
+        ("author_decision", "finish", default),
+        ("checker_review", "run_checker", when(action="run_checker")),
+        ("checker_review", "author_decision", default),
     ).with_entrypoint("initialize")

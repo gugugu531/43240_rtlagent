@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
+from tempfile import TemporaryDirectory
+from agent.domain.rtl.candidate import CandidateStore
 import unittest
 from unittest.mock import patch
 
@@ -19,7 +21,6 @@ from agent.kit import State
 from agent.llm.client import Client
 from agent.orchestration.nodes import guided
 from agent.orchestration.workflows.guided_verify import GuidedParameters
-from agent.runtime.allowance import CompletionLedger
 from agent.runtime.budget import Budget
 from serve import serve_api
 
@@ -85,7 +86,7 @@ class GuidedDefaultTests(unittest.TestCase):
                 "always @(posedge clk) if (reset) q <= 0; else q <= ~q;\n"
                 "endmodule"
             ),
-            "guided_checker": "case reset\ninit reset=1 q=0\nstep reset=0 q=1\n",
+            "guided_checker": "case reset # Reset clears q and the next edge toggles it.\ninit reset=1 q=0\nstep reset=0 q=1\n",
         }
 
         def transport(request):
@@ -118,15 +119,12 @@ On each positive clock edge, reset sets q to 0; otherwise q toggles.""")
         ctx = SimpleNamespace(
             task=task, llm=llm, record=record, budget=budget,
             prompts=TemplateRenderer(),
-            candidates=SimpleNamespace(
-                create=lambda *args, **kwargs: SimpleNamespace(id="candidate-1"),
-                select=lambda *args, **kwargs: None,
-            ),
-            store={"guided": {
-                "settings": settings, "attempted": set(), "request_outcomes": {},
-                "ledger": CompletionLedger(budget, record, max_calls=8),
-            }},
+            store={},
         )
+        output = TemporaryDirectory()
+        self.addCleanup(output.cleanup)
+        ctx.candidates = CandidateStore(record, output.name)
+        guided.initialize(ctx, State({"settings": settings}))
         with patch.object(knowledge, "load_cards", side_effect=AssertionError("RAG read")), \
              patch.object(knowledge, "card_map", side_effect=AssertionError("RAG map")), \
              patch.object(knowledge, "dense_rank", side_effect=AssertionError("embedding call")):
@@ -134,7 +132,7 @@ On each positive clock edge, reset sets q to 0; otherwise q toggles.""")
             state = guided.solve(ctx, state)
             state = guided.build_checker(ctx, state)
 
-        self.assertEqual(state["target_id"], "candidate-1")
+        self.assertEqual(state["target_id"], ctx.candidates.values()[0].id)
         self.assertEqual(state["checker_status"], "valid")
         self.assertEqual(ctx.store["guided"]["plan"]["knowledge"], [])
         completions = [(url, body) for url, body in requests if url.endswith("/chat/completions")]

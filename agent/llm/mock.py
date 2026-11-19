@@ -100,6 +100,10 @@ def make_transport(*, replay_path=None, responses=None):
                 content = queues[purpose].pop(0)
                 if isinstance(content, dict):
                     return httpx.Response(200, json=content)
+            elif purpose == "guided_plan":
+                content = "method=structural\nskills=\nknowledge=\nfocus=\nreason=Mock structural smoke test."
+            elif re.fullmatch(r"guided_author_decision(?:_[0-9]+)?", purpose):
+                content = "action=submit\nreason=Submit the mock draft for this workflow smoke test."
             else:
                 content = (
                     "{}"

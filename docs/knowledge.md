@@ -21,15 +21,15 @@ config/rag_embedding.yaml   文本嵌入模型与查询格式
 
 现有专项技能覆盖计数终点、反馈移位、流式分组、单时钟存储、流水线对齐、打包向量索引和卡诺图坐标。它们只描述通用方法，不含题目身份与答案的对应关系。新增专项方法允许自动选择，已有技能的候选或禁用状态保持不变；这些设置不代表已验证真实模型收益。
 
-- `guided_verify` 每题建立技能快照，规划器从允许自动选择的名称和描述中最多选择两个。程序在生成和修复阶段分别检查 `phases`，再将允许的技能正文加入请求。求解技能不进入独立行为检查器。
+- `guided_verify` 每题先建立技能快照，策略角色从允许自动选择的名称和描述中最多选两个。即使行为表无法处理本题的接口或时钟，仍可选技能。首稿按 `generate` 筛选正文，结构修复和解题决策按 `repair` 筛选正文。独立行为检查角色建表、修正自身回复格式和复核指定点时使用固定的 `rtl-behavior-check-keycases`。
 - 通用生成节点 `rtl_generate` 默认使用 BM25（基于词项匹配的相关性排序算法）检索技能描述，至少匹配两个不同词项才会入选，同样最多选择两个。也可通过 `skill_ids` 显式选择，或设置 `skill_mode=off/shadow/on`；三个值分别表示关闭、只记录选择、实际加入请求。
 - `single_generate` 的默认基线节点不加载技能。显式 RAG 配置可将其节点替换为 `rtl_generate`，详见第 4 节。
 
-`guided/material.json` 和 `guided/material-repair_*.json` 记录实际发送的技能、拒绝原因、阶段和快照校验值；`rtl_generate` 使用 `knowledge/skills` 事件记录选择。同一题处理期间不重新加载技能，文件修改在下一题生效。候选或禁用状态保存在 YAML 文件头元数据（frontmatter）中；文件格式非法时明确报错。
+完整记录中的 `guided/material*.json` 保存构造请求时加入的技能、知识卡、拒绝原因、阶段和技能快照校验值。核对实际发送情况时，查看 `guided/request-outcomes.json` 和 `guided/completion-ledger.json` 中已分配 `call_id` 的生成调用，再查 `calls/<call_id>/request.json`。`rtl_generate` 使用 `knowledge/skills` 事件记录技能选择。同一题处理期间沿用技能快照，文件修改自下一题生效。候选或禁用状态保存在 YAML 文件头元数据（frontmatter）中，文件格式非法时明确报错。
 
 ## 2. 知识卡片检索模式
 
-实现位于 `agent/domain/knowledge/guided.py`：
+当前工作流通过 `agent/domain/knowledge/guided.py` 读取随包卡片与向量。扩展代码也可直接使用下列接口。技能扫描使用 `assets.load_assets(skills=True)`。同一函数的 `rag=True` 分支要求顶层 `schema_version`，直接用它打开随包的 `cards.json` 会出现格式校验错误。
 
 ```python
 load_cards()
@@ -47,7 +47,7 @@ card_text(card)
 | `all` | 将 `shadow` 和 `mechanical_only` 也列入状态筛选范围，仍检查阶段和使用许可，不代表所有卡片都可加入请求。该模式用于开发检查。 |
 | `off` | 不检索。 |
 
-`guided_verify` 默认 `retrieval_mode=off`、`retrieval_strategy=bm25`，不发送知识卡片。启用时可选择 BM25，或 `dense`（稠密向量检索）。向量检索失败会返回空候选，在 `knowledge/retrieval` 中记录 `embedding_unavailable`，不会自动改用 BM25。
+`guided_verify` 默认 `retrieval_mode=off`、`retrieval_strategy=bm25`，不发送知识卡片。启用时可选择 BM25，或 `dense`（稠密向量检索）。策略角色看到检索候选并选卡，程序只在首稿生成及其空正文恢复时加入允许的知识卡正文。向量检索失败会返回空候选，在 `knowledge/retrieval` 中记录 `embedding_unavailable`，不会自动改用 BM25。
 
 可选配置 `guided_verify_rag_bm25.yaml` 和 `guided_verify_rag_dense.yaml` 仍保留早期小模型规划服务，需要先核对[历史小模型说明](guided-verify.md#8-历史小模型研究与当前技能)，不能直接视为默认主模型配置。准备对应服务后，在方案仓库根目录运行，例如：
 
@@ -88,12 +88,12 @@ query_template: ...
 generate -> extract -> select -> finish
 ```
 
-这些是需要显式选择的研究配置，不是当前默认工作流。名称中的 `shadow` 表示只记录检索选择，不将知识正文加入模型请求。
+三个研究预设都显式关闭技能，知识卡另受 `rag_mode` 控制。`rag97_pregen_bm25.yaml` 使用 `mock` 后端和 `on` 模式，符合条件的卡可进入生成请求。`rag97_pregen_dense.yaml` 使用 `mock`，`rag_catalog_v3_shadow.yaml` 使用 `openai`，二者均以 `shadow` 模式只记录稠密检索结果。`on` 模式下，`rtl_generate` 按 Python 字符串长度计算 `knowledge_max_tokens` 的卡片文本上限。
 
 ## 5. 来源与验证边界
 
 - 技能来源、实际复用范围和许可见[技能扩展指南](../skill/README.md#现有技能与来源)。相关研究的思想借鉴见[报告](../REPORT.md)，不能把方法相似或配置存在写成复现了论文系统。
 - 卡片只包含公开方法，不包含参考实现、官方测试台或判定反馈。
-- 检索失败、结果为空或文本嵌入服务不可用时，求解请求继续使用原题面和接口。这种降级行为不构成知识检索收益。
+- 检索关闭、没有命中或向量服务不可用时，解题可沿用公开题面和接口继续。技能文件和知识卡文件仍须满足各自加载器的格式要求。
 - 当前没有卡片发布版本锁定、版本比较或文件校验机制；修改卡片、向量或查询模板后需要重新验证检索结果。
 - 当前默认关闭 RAG，保留可选配置不能证明其在当前模型、预算和完整题集上有效。

@@ -152,7 +152,7 @@ class CandidateStore:
     def values(self):
         return tuple(self._items.values())
 
-    def _write_solution(self, candidate):
+    def _write_solution(self, code):
         """Atomically replace solution.v; never leave a partial answer."""
         import os
         import tempfile
@@ -162,7 +162,7 @@ class CandidateStore:
         )
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
-                stream.write(candidate.code)
+                stream.write(code)
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(path, self.output_dir / "solution.v")
@@ -175,7 +175,7 @@ class CandidateStore:
         candidate = self.get(candidate_id)
         if candidate is None:
             raise ValueError("publication requires a candidate")
-        self._write_solution(candidate)
+        self._write_solution(candidate.code)
         self.record.emit(
             "publish",
             "result",
@@ -185,11 +185,15 @@ class CandidateStore:
         )
         return candidate
 
+    def publish_empty(self, reason):
+        self._write_solution("")
+        self.record.emit("publish", "result", candidate_id=None, reason=reason, code_hash=None)
+
     def select(self, candidate_id, reason):
         candidate = self.get(candidate_id)
         if candidate is None:
             raise ValueError("selection requires a candidate")
-        self._write_solution(candidate)
+        self._write_solution(candidate.code)
         self.selected_id = candidate_id
         self.record.emit(
             "select",

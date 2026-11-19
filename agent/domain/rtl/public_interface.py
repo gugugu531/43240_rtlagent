@@ -17,8 +17,12 @@ _PORT_TEXT = re.compile(
 )
 _PORT_DECL = re.compile(
     rf"(?:(input|output|inout)\s+)?"
-    r"(?:(?:wire|reg|logic|bit|signed|unsigned)\s+)*"
+    r"(?:(?:wire|reg|logic|bit|signed|unsigned|var|tri|supply0|supply1)\s+)*"
     rf"(?:\[([^\]]+)\]\s*)?({_NAME})"
+)
+_EXAMPLE_SECTION = re.compile(
+    r"(?:(?:buggy|worked|incorrect|illustrative) )?examples?(?: \d+)?[:.]?"
+    r"|(?:buggy|previous|sample) (?:code|implementation):?"
 )
 
 
@@ -86,71 +90,108 @@ def _group(text: str, cursor: int) -> tuple[str, int]:
     raise ValueError("incomplete declaration")
 
 
+def parameter_defaults(declarations: str) -> dict[str, int]:
+    if declarations.rstrip().endswith(","):
+        raise ValueError("incomplete parameter declaration")
+    parameters = {}
+    for declaration in _split_commas(declarations):
+        parameter = re.fullmatch(
+            rf"\s*(?:parameter\s+)?(?:(?:int|integer|signed|unsigned)\s+)*({_NAME})\s*=\s*(.+?)\s*",
+            declaration, re.S,
+        )
+        if not parameter or parameter.group(1) in parameters:
+            raise ValueError("unsupported or duplicate parameter declaration")
+        parameters[parameter.group(1)] = _integer(parameter.group(2), parameters)
+    return parameters
+
+
+def declared_ports(declaration: str, parameters: dict[str, int], *, allow_unknown_width=False) -> tuple[PortSpec, ...]:
+    """Read a simple ANSI header, including port order and default parameter widths."""
+    if declaration.rstrip().endswith(","):
+        raise ValueError("incomplete port declaration")
+    ports, direction, width, raw_range = [], None, None, None
+    names = set()
+    for item in _split_commas(declaration):
+        port = _PORT_DECL.fullmatch(item.strip())
+        if not port:
+            raise ValueError("unsupported port declaration")
+        new_direction, new_range, port_name = port.groups()
+        if new_direction:
+            direction, raw_range = new_direction, new_range
+            try:
+                width = _width(raw_range, parameters) if raw_range else 1
+            except ValueError:
+                if not allow_unknown_width:
+                    raise
+                width = None
+        elif item.strip() != port_name:
+            raise ValueError("type or range without an explicit direction")
+        if direction is None or port_name in names or port_name in (
+            "input", "output", "inout", "wire", "reg", "logic", "bit", "signed", "unsigned", "var", "tri",
+        ):
+            raise ValueError("missing direction or duplicate port")
+        names.add(port_name)
+        ports.append(PortSpec(port_name, direction, width, raw_range))
+    return tuple(ports)
+
+
 def _signature(prompt: str, top: str | None) -> InterfaceSpec | None:
     lines = prompt.splitlines()
     sections = []
     in_fence = False
+    example_level = None
+    plain_example = False
     for index, line in enumerate(lines):
         if line.strip().startswith("```"):
             in_fence = not in_fence
-        if not in_fence and _title(line) in ("design signature:", "module signature:"):
+            continue
+        if in_fence:
+            continue
+        title = _title(line)
+        heading = re.match(r"^\s*(#{1,6})\s", line)
+        if heading:
+            level = len(heading.group(1))
+            if example_level is not None and level <= example_level:
+                example_level = None
+            plain_example = False
+        if _EXAMPLE_SECTION.fullmatch(title):
+            if heading and example_level is None:
+                example_level = level
+            elif not heading:
+                plain_example = True
+        elif title in ("requirements:", "required interface:", "required module interface:"):
+            plain_example = False
+        if example_level is None and not plain_example and title in ("design signature:", "module signature:"):
             sections.append(index + 1)
     if not sections:
         return None
     if len(sections) != 1:
-        return InterfaceSpec(top, (), "prompt_list", "none", ("multiple public signature sections",), False)
+        return InterfaceSpec(top, (), "prompt_signature", "none", ("multiple public signature sections",), False)
     index = sections[0]
     while index < len(lines) and (not lines[index].strip() or lines[index].strip() in ("```", "```verilog", "```systemverilog", "```sv")):
         index += 1
     text = _mask_comments("\n".join(lines[index:])).lstrip()
     match = re.match(rf"module\s+({_NAME})\s*", text)
     if not match or (top and match.group(1) != top):
-        return InterfaceSpec(top, (), "prompt_list", "none", ("public signature does not declare the requested top",), False)
+        return InterfaceSpec(top, (), "prompt_signature", "none", ("public signature does not declare the requested top",), False)
     name, cursor = match.group(1), match.end()
     try:
         parameters = {}
         if text[cursor:cursor + 1] == "#":
             declarations, cursor = _group(text, cursor + 1)
-            if declarations.rstrip().endswith(","):
-                raise ValueError("incomplete parameter declaration")
-            for declaration in _split_commas(declarations):
-                parameter = re.fullmatch(
-                    rf"\s*(?:parameter\s+)?(?:(?:int|integer|signed|unsigned)\s+)*({_NAME})\s*=\s*(.+?)\s*",
-                    declaration,
-                    re.S,
-                )
-                if not parameter or parameter.group(1) in parameters:
-                    raise ValueError("unsupported or duplicate parameter declaration")
-                parameters[parameter.group(1)] = _integer(parameter.group(2), parameters)
+            parameters = parameter_defaults(declarations)
         declaration, cursor = _group(text, cursor)
-        if declaration.rstrip().endswith(","):
-            raise ValueError("incomplete port declaration")
         if not text[cursor:].lstrip().startswith(";"):
             raise ValueError("module header is missing its semicolon")
-        ports, direction, width, raw_range = [], None, None, None
-        for item in _split_commas(declaration):
-            port = _PORT_DECL.fullmatch(item.strip())
-            if not port:
-                raise ValueError("unsupported public port declaration")
-            new_direction, new_range, port_name = port.groups()
-            if new_direction:
-                direction, raw_range = new_direction, new_range
-                width = _width(raw_range, parameters) if raw_range else 1
-            elif item.strip() != port_name:
-                raise ValueError("type or range without an explicit direction")
-            if direction is None or any(p.name == port_name for p in ports):
-                raise ValueError("missing direction or duplicate public port")
-            ports.append(PortSpec(port_name, direction, width, raw_range))
-        if not ports:
-            raise ValueError("empty public signature")
+        ports = declared_ports(declaration, parameters)
         # Do not silently prefer the first of two declarations in the signature section.
         trailing = text[cursor:].lstrip()[1:]
         trailing = re.split(r"(?m)^\s*(?:#+\s*)?[A-Za-z][A-Za-z ]+:\s*$", trailing, maxsplit=1)[0]
         if re.search(r"\bmodule\s+", trailing):
             raise ValueError("multiple modules in public signature section")
-        return InterfaceSpec(name, tuple(ports), "prompt_list", "medium", (f"public signature at line {index + 1}; widths use its declared parameter defaults",), True)
+        return InterfaceSpec(name, ports, "prompt_signature", "high", (f"public signature at line {index + 1}; widths use its declared parameter defaults",), True)
     except ValueError as exc:
-        return InterfaceSpec(name, (), "prompt_list", "none", (f"unresolved public signature: {exc}",), False)
+        return InterfaceSpec(name, (), "prompt_signature", "none", (f"unresolved public signature: {exc}",), False)
 
 
 def _description_width(description: str, raw_range: str | None) -> int | None:
@@ -282,6 +323,10 @@ def supplement_public_interface(prompt: str, original: InterfaceSpec, *, top: st
                 for name, (direction, width) in expected.items() if name in declared
             ):
                 errors.append("public signature conflicts with the explicit port list")
+            elif original.complete:
+                # A prose list may group inputs and outputs differently. The
+                # declared header supplies the positional interface contract.
+                return _merge_descriptions(signature, described, errors)
         return _merge_descriptions(original, described, errors)
 
     # A malformed explicit list must not be replaced by another interpretation.

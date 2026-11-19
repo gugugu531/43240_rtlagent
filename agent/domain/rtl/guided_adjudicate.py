@@ -40,8 +40,11 @@ def adjudicate_request(task, candidate, checker, failures, *, execution=None):
         + json.dumps(failures, ensure_ascii=False, separators=(",", ":"))
         + "\n\nDecide whether the candidate or the checker is wrong. "
         "Return only flat key=value lines: decision, reason, failed_cases. "
-        "decision is checker_error, solution_error or spec_unclear. "
-        "Failed cases are comma-separated case ids. Do not add prose."
+        "decision is checker_error, solution_error, mixed or spec_unclear. "
+        "Use mixed when both the candidate and the checker need changes. "
+        "Use spec_unclear when the public specification does not decide the issue. "
+        "List every observed failed or unknown case id exactly once in failed_cases. "
+        "Use comma-separated case ids. Do not add prose."
     )
     return [
         {
@@ -80,15 +83,12 @@ def parse_adjudication(text, *, case_ids, max_reason=1000):
         seen.add(key)
         values[key] = value
     decision = values.get("decision")
-    if decision not in ("checker_error", "solution_error", "spec_unclear"):
+    if decision not in ("checker_error", "solution_error", "mixed", "spec_unclear"):
         raise AdjudicationError("invalid adjudication decision")
     reason = values.get("reason", "")
     if not reason or len(reason) > max_reason:
         raise AdjudicationError("adjudication reason missing or too long")
-    failed = tuple(
-        item.strip() for item in values.get("failed_cases", "").split(",")
-        if item.strip()
-    )
-    if set(failed) - set(case_ids):
-        raise AdjudicationError("unknown failed case id")
+    failed = tuple(item.strip() for item in values.get("failed_cases", "").split(","))
+    if not all(failed) or len(failed) != len(set(failed)) or set(failed) != set(case_ids):
+        raise AdjudicationError("failed_cases must name each observed failed or unknown case exactly once")
     return Adjudication(decision, reason, failed)

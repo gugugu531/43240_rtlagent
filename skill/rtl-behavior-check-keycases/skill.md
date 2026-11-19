@@ -52,15 +52,17 @@ as the expected value.
 - The host execution contract, including effective case/line/event limits, initialization
   repetition, sampling times and expanded event indexing. Use these mechanics to compute
   table values; they do not override the public functional specification.
-- The list of outputs the user or workflow permits checking. If the list is omitted,
-  all public outputs are checked.
+- The public output ports. Choose outputs whose expected values follow from the
+  specification. The host records which ones the table actually checks.
 
 ## Mandatory Workflow
 
 ### 1. Identify the observation boundary
 
-List every public input and output. Identify the single clock input, if any, and the
-sampling phase: after the active clock edge and after nonblocking assignments settle.
+List every public input and output. Identify the top module's single clock input
+and active edge, if any. Use post samples for values specified after the active
+edge and nonblocking updates. Select a pre sample explicitly when the public
+specification determines the output after input settling and before that edge.
 For a combinational block, sample after inputs have been stable for the host-defined
 settle interval. Do not reference internal signals or hierarchical paths.
 
@@ -89,17 +91,19 @@ order; omit ambiguous expectations instead of guessing a scheduling convention.
 For a sequential case, the first line MUST be an `init` line. Drive the public reset
 or initialization inputs exactly as the task specifies, including polarity and
 synchronous versus asynchronous behavior. The host applies this initialization phase
-for its configured number of clock edges. After the final init edge and settling, it
-samples and compares the `init` line's checked outputs; only then does it execute the
-`step` lines.
+for its configured number of clock edges. Each `init` compares any explicit pre
+expectation after its first input drive and before its first edge. It compares
+unqualified outputs after its final edge and settling. The same timing applies to
+a later `init` line.
 
 Never assume that an uninitialized register is zero. If the public task does not
 establish a known state, omit the sequential case and leave that behavior unchecked.
 
 ### 4. Compute expected values from the public specification
 
-For every checked output on every line, compute the value from the public rules using
-old-state semantics at the clock edge. State the exact bit pattern in hexadecimal.
+For every selected output and phase, compute the value from the public rules.
+Consider the previous state, the current inputs, and whether the active edge has
+occurred. State the exact bit pattern in hexadecimal.
 The host expands it to the declared width. A value that is unknown, X, or dependent
 on an unspecified behavior must not be written as an expected value.
 
@@ -115,67 +119,103 @@ If the workflow permits checking only key outputs, use the same output set on ev
 line of one case. The host records every public output not in that set as unchecked;
 unchecked outputs are never counted as passing.
 
-### 5. Emit only the flat vector table
+### 5. Emit an explained vector table
 
 Do not write Verilog, SystemVerilog, tasks, delays, loops, classes, assertions,
 hierarchical references, or a clock generator. The host owns the testbench, clock,
 reset application interval, sampling, and comparison.
 
-Use this exact line format:
+The following example describes a one-bit register which captures `d` at the
+rising edge and clears asynchronously while `reset` is high. The last line
+reasserts reset after loading one.
 
 ```text
-case reset
-init reset=1 load=0 data=00 q=01
-step reset=0 load=1 data=a5 q=a5
-step reset=0 load=0 data=00 q=4a
-case shift_boundary
-init reset=0 load=1 data=80 q=80
-step reset=0 load=0 data=00 q=01
+case reassert_reset # Reasserting asynchronous reset clears the loaded one before the next edge.
+init reset=1 d=0 q=0
+step reset=0 d=1 pre.q=0 q=1
+init reset=1 d=1 pre.q=0 q=0
 ```
 
-Rules:
+For a synchronous clear, the last line would contain `pre.q=1 q=0`. Only the
+first pre sample of that repeated init can distinguish the two behaviors. When
+the public task leaves a pre value unspecified, omit that expectation.
 
-- `case <id>` starts one case; ids are unique and at most 63 characters.
-- Each following line begins with `init` or `step`.
-- Every non-clock public input MUST appear exactly once on every line of that case.
-- Every key=value token that names a public output is an expected value.
-- The output names on the first line define the checked outputs for that case; every
-  later line of the case MUST use the same output names.
-- The host records `checked_outputs` and `unchecked_outputs` for every case and
-  line. If any public output is unchecked, the verdict is `partial_outputs`; it
-  MUST NOT be reported as a full functional pass.
+- `case <id> # <one short explanation>` starts one independent test point.
+  Give each point a unique ID of up to 63 letters, digits, hyphens or underscores.
+  In one sentence, say which stimulus exercises which observable behavior.
+  The explanation is required on every header and limited to 240 printable characters.
+- Each stimulus line begins with `init` or `step`.
+- Every non-clock public input MUST appear exactly once on every stimulus line of that case.
+- Use `q=value` for a post expectation and `pre.q=value` for a clocked pre
+  expectation. Select either or both for a given output. Each output and phase
+  may appear once per line. A table with only unqualified outputs compares
+  only post samples.
+- The output names on the first line define the checked outputs for that case.
+  Every later line must check the same names in at least one phase.
+- The host records `checked_outputs` and `unchecked_outputs` for every case.
+  If otherwise passing comparisons leave a public output unchecked, the verdict
+  is `partial_passed`.
 - Values are hexadecimal without a width prefix. The host validates width and rejects
   unknown or out-of-range values.
 - Obey the effective case, table-line and expanded-event limits in the host execution
   contract. Defaults are four cases and eight lines per case. Repeated init events count
   toward the expanded-event limits even though they occupy one table line.
 - A sequential case without an `init` first line is invalid.
-- The `init` line's expected outputs are compared after the final init edge; they are
-  not ignored.
-- A combinational case may use `step` first; `init` is then treated as a settle step.
-- No prose, Markdown, comments, or trailing explanation is allowed in the table.
+- The `step` line's pre and post expectations refer to the same expanded event.
+- A combinational case may use `step` first and treats `init` as a settle step.
+  Only unqualified output names are valid for combinational cases.
+- Write explanations only on case headers. Each remaining line contains stimulus and expectations.
 
 ### 6. Self-check the table before returning it
 
-1. Every line drives every non-clock input.
-2. Every line of a case checks the same output set.
+1. Every stimulus line drives every non-clock input.
+2. Every stimulus line of a case checks the same output set.
 3. The first sequential line is `init`, and its reset or initialization action is
    explicitly required by the public task.
 4. Every expected value is a known hexadecimal pattern within the port width.
-5. The cases are few, distinct, and target stated behavior rather than guessed cases.
+5. Each case has its own brief explanation and exercises the behavior it describes.
 6. No expected value was copied from the candidate RTL or a simulation result.
+
+### 7. Review a requested test point
+
+When the host names a point for review, independently derive its stimulus and
+expectations from the public specification and the supplied execution rules.
+The host retains the stimuli, expectations and explanations of the other cases.
+
+Start the reply with `review <id> <action> # <reason>`. Give one public reason of
+up to 240 printable characters. Choose one action:
+
+- `keep` when the current stimulus, expectations and explanation are justified.
+  Return only the review line.
+- `correct` when the point can be repaired. Follow the review line with one complete
+  replacement case with the same ID and its own brief explanation. Its inputs,
+  expectations, selected outputs and sample phases can change.
+- `withdraw` when the public task cannot support this point. Return only the review
+  line. The host can remove the last point too.
+
+For example, when the public specification says that reset is synchronous:
+
+```text
+review reassert_reset correct # Synchronous reset clears the register on the rising edge.
+case reassert_reset # A loaded one remains visible until the reset edge clears it.
+init reset=1 d=0 q=0
+step reset=0 d=1 pre.q=0 q=1
+init reset=1 d=1 pre.q=1 q=0
+```
 
 ## Output Contract
 
-Return only the table lines. The host parses them strictly and generates the
-testbench. A malformed table must be rejected, not repaired by guessing.
+For initial construction, return the explained table. For a review, return the
+decision line and the replacement case only when correcting the point.
 
 ## Verification Boundary
 
 A matching table means only that the checked outputs matched the checked cases under
 the host sampling plan. If any public output is unchecked, the result is a partial
 behavior check and `functional_passed` MUST remain false or unknown. It does not
-prove that all public behavior is correct. A
-mismatch is evidence for adjudication, not proof that the RTL is wrong; the checker
-may itself have an incorrect expected value. Report unchecked outputs and unknown
-values separately.
+prove that all public behavior is correct. The RTL author evaluates a mismatch
+against the public specification and can request independent review of the point.
+Report unchecked outputs and unknown
+values separately. For mixed known and unknown bits, a mismatch on any known bit
+is a failure. A comparison with unknown bits and all known bits matching remains
+unresolved.

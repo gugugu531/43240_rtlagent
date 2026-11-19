@@ -1,6 +1,6 @@
 # 推理服务与投题接口
 
-推理服务和投题接口运行在同一实例的不同进程中，共用设备资源。本文依据方案实现 `1615689` 和[主办方接口契约固定版本 fc8e26a](https://gitee.com/Vickyiii/rtlagent2026/blob/fc8e26a/docs/API_CONTRACT.md)，于 2026-10-31 核对。
+推理服务和投题接口运行在同一实例的不同进程中，共用设备资源。下文的默认配置对应当前三角色实现。Radeon Cloud 部署和实测记录对应 2026-10-31 的方案 `1615689`。投题字段依据[主办方接口契约固定版本 fc8e26a](https://gitee.com/Vickyiii/rtlagent2026/blob/fc8e26a/docs/API_CONTRACT.md)。
 
 ```
   8000   llamacpp.sh    推理服务   监听 127.0.0.1，仅供本机调用
@@ -20,10 +20,8 @@ AGENT_CONFIG=config/single_generate.yaml LLM_BACKEND=mock \
 
 输入目录应包含公开题面 `prompt.txt`，输出目录每次使用新路径。此命令用假模型（mock）检查生成入口和日志，无需 Vivado；它不验证默认 `guided_verify` 的行为检查。假模型只返回占位 RTL（寄存器传输级代码），不代表功能正确。默认 `run.sh`、`agent/config.py` 和 HTTP 服务均使用 `config/guided_verify.yaml`，RAG（检索增强生成）关闭。
 `single_generate` 与 RAG 研究路线通过显式 `AGENT_CONFIG` 选择。
-模型请求统一经过 `agent/llm/client.py`；`guided_verify` 及其 RAG 配置使用服务端 `/tokenize`
-计算上下文余量，`single_generate` 走 baseline 请求，不做该计算。框架可使用
-`response_format: json_schema`；当前 `guided_verify` 预设显式设置
-`services.model.structured_outputs: false`，关闭服务端 JSON Schema（JSON 格式约束），客户端仍会严格校验输出，并按流程规定限制重试次数。
+方案内的模型请求经过 `agent/llm/client.py`。默认 `guided_verify` 通过 llama.cpp 的 `/apply-template` 和 `/tokenize` 核算上下文余量。`single_generate` 的默认基线节点跳过这一步，改用 `rtl_generate` 的研究预设则按配置分词。HTTP 的 `mode=baseline` 另行调用主办方的 `run_baseline.sh`。
+当前 `guided_verify` 预设设置 `services.model.structured_outputs: false`。规划、检查表、逐点复核和解题决策的行式回复由框架按各自语法解析。
 
 ## 对外运行记录（trace）字段
 
@@ -103,13 +101,11 @@ LLAMA_SERVER=/local/bin/llama-server ./serve/start.sh
 覆盖端口时也要同步 `LLM_BASE_URL`；覆盖 `MODEL_NAME` 时同步 `LLM_MODEL`；
 改变模型或服务参数须同步模型声明。
 默认 `guided_verify` 与 baseline 共用此服务和 manifest 思考设置（`enable_thinking=true`、`reasoning_effort=medium`）。
-规划、生成、检查、归因与修复均使用 Qwen3.8-27B，默认不启用小模型配置（profile）或文本向量服务。
-规划仍可选择技能；`retrieval_mode: off` 关闭 RAG 卡片。每阶段重新构造请求消息（`messages`），不共享聊天历史或思考正文，
-只传递该阶段所需的规划和证据；各阶段使用同一模型进程，没有键值缓存隔离保证。MTP 预测头随主模型加载并计入设备总显存。
-规划上限为 90 秒 / 4096 token，生成为 300 秒 / 16384 token、检查为 180 秒 / 8192 token，归因为 120 秒 / 8192 token；
-所有请求共用单题 900 秒、8 次调用和 65536 输出 token 额度，实际请求还受剩余时间和上下文空间限制。
-首次生成或首次检查的最终正文为空且终止原因为 `stop` 或 `length` 时，各最多独立恢复一次；恢复共享上述总额度，
-不复制思考正文，未知用量或未确认请求时不继续恢复。完整流程见 [guided-verify.md](../docs/guided-verify.md)。
+策略、解题和独立检查三个角色共用端口 8000 的 Qwen3.8-27B。每次调用重建消息。策略角色选路线和技能。解题角色会在决策时看到当前 RTL、该稿的检查结果和此前决定的摘要。检查角色依据公开规格建表、解释测试点，并按请求复核指定点。角色隔离发生在消息上下文，服务进程和设备显存共享。MTP 预测头计入设备总显存。
+
+默认单次请求上限为策略规划 90 秒 / 4096 token，首稿、结构修复和解题决策 300 秒 / 16384 token，检查表构造、格式修正和逐点复核 180 秒 / 8192 token。各角色共用单题 900 秒（含 60 秒收尾预留）、8 次实际生成调用和 65536 个输出 token。剩余时间、输出额度和上下文空间还会限制具体请求。
+
+首稿或首次建表只返回空正文且终止原因为 `stop` 或 `length` 时，框架可在共享预算内恢复。用量未知会阻止可选恢复，尚未确认结束的生成调用会阻止后续生成。对重复且无进展的恢复，程序记录原因并退出恢复循环。[完整流程](../docs/guided-verify.md)
 
 Dockerfile 不复制权重或开发区；使用固定官方镜像内 `/opt/llamacpp` 的 HIP 后端和配套 rocBLAS 库，
 构建时检查这两项存在，再挂载提前准备的两份本地权重。自定义后端须在构建阶段准备并同步版本声明。
@@ -189,7 +185,7 @@ curl --noproxy '*' -H "Authorization: Bearer $FPGACHINA_TOKEN" "http://127.0.0.1
 agent 与 baseline 子进程；仅接受本机回环地址的 HTTP 服务。命令行开发仍可显式使用假模型或其他后端。
 两种 HTTP 模式均显式传入 `TRACK=rtl`，不继承运行环境中残留的其他赛道设置；官方 baseline 文件保持原样。
 健康检查不运行解题；模型、入口、配置或实测显存不可用时返回 503。`mode` 仅接受 `agent`、`baseline`，
-`deadline_s` 必须为正整数，排队时间计入两模式共同的时限；同一服务进程内相同 `nonce`（请求去重标识）不重复求解。
+`deadline_s` 必须为正整数，排队时间计入两模式共同的时限；同一服务进程内使用相同的非空 `nonce`（请求去重标识）会返回同一任务。
 API 守护脚本启动前检查依赖，并确认子进程在启动观察期内存活；随后仍须验证携带令牌的健康检查。任务状态 `done` 表示运行结束，不代表答案正确。
 
 ---
@@ -197,7 +193,7 @@ API 守护脚本启动前检查依赖，并确认子进程在启动观察期内�
 ## 运行注意事项
 
 **显存按单卡 32 GB 限制核对，包含 MTP 等辅助模型。** llama.cpp 的实际占用受权重、
-上下文与运行参数影响，不能套用其他后端的预分配比例。当前实例的显存快照见 [MODEL.md](../model/MODEL.md)；包含主模型、MTP 和设备其他开销，
+上下文与运行参数影响，不能套用其他后端的预分配比例。2026-10-30 部署的显存快照见 [MODEL.md](../model/MODEL.md)；包含主模型、MTP 和设备其他开销，
 不能将历史实例的常驻小模型视为当前依赖。瞬时读数不证明正式负载峰值符合限制。
 投题健康接口读取可见 AMD 设备的 sysfs 字节数，按 GiB 报告；测量未知、模型未就绪、
 别名与声明不一致或图无法装配时返回 503，不伪报零显存或 ready。这仍不替代峰值与权重核验。
@@ -218,7 +214,7 @@ API 守护脚本启动前检查依赖，并确认子进程在启动观察期内�
 **投题是异步的。** `POST /v1/solve` 立即返回任务编号，题在后台解，赛事方每 2 秒查询一次。
 平台入口会切断 60 秒内没有响应的请求，所以自己改写投题服务时，不能让请求挂着等解题完成。
 
-**预留超时收尾时间。** `serve_api.py` 从总时限中扣除排队时间后，提前 10 秒向单题整个进程组发送 SIGTERM（终止信号），再给 5 秒收尾时间；仍未结束时发送 SIGKILL（强制结束信号），最后读取已保存答案。按进程组结束可避免智能体或 Vivado 子进程继续占用下一题的资源。超时后交付的是已保存答案，没有候选时为空；不保证该答案已经通过检查。
+**预留超时收尾时间。** `serve_api.py` 从总时限中扣除排队时间后，提前 10 秒向单题整个进程组发送 SIGTERM（终止信号），再给 5 秒收尾时间；仍未结束时发送 SIGKILL（强制结束信号），最后读取已保存答案。按进程组结束可避免智能体或 Vivado 子进程继续占用下一题的资源。若排队已用尽时限，接口直接返回空答案。默认三角色流程中，未显式提交就中断时，优先交付最近同时通过 lint 和 synth 的完整稿，其次是最近的完整稿，没有完整稿则为空。行为检查覆盖情况另查该稿记录。
 
 **常驻进程统一由 `start.sh` 启动。** 推理服务与队伍自己的常驻引擎都在 `start.sh` 中使用
 `setsid` 创建独立会话。采用备用的容器重建方式时，赛事方先运行 `start.sh`，再逐题调用 `run.sh`，不启动
@@ -248,7 +244,7 @@ API 守护脚本启动前检查依赖，并确认子进程在启动观察期内�
 VERI_GGUF=/models/verireason-1.5b-f16.gguf ./serve/start_verireason.sh
 ```
 
-服务健康时重复执行启动脚本不会重复加载模型；缺少 `llama-server` 或 GGUF 时明确失败。启动小模型不自动改变求解配置，研究时还需显式选择对应配置。
+该脚本通过端口上的 `/v1/models` 是否响应判断是否需要启动。已有响应时直接返回，模型别名需另行核对。需要新启动时，缺少可执行的 `llama-server` 或 GGUF 会报错。启动小模型不自动改变求解配置，研究时还需显式选择对应配置。
 `guided_verify_large_v3.yaml` 保留主模型规划的研究预设。小模型仍未完成正式辅助模型声明及资源验收。
 稠密向量 RAG 路线使用 `serve/embedding_service.py`，模型别名和维度来自
 `config/rag_embedding.yaml`。

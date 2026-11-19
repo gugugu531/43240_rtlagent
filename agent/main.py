@@ -37,7 +37,8 @@ def main(argv=None):
     from agent.runtime.budget import Budget, BudgetExhausted, Deadline
 
     record = Recorder(args.output, level="basic")
-    processes = llm = ctx = None
+    processes = llm = ctx = config = None
+    summary = {}
     model_error_type = ()
     status, reason = "error", "initialization_error"
     old_handlers = {}
@@ -198,19 +199,24 @@ def main(argv=None):
                 processes.close()
             if llm:
                 llm.close()
-            if ctx:
-                # Deadline and cancellation paths also publish the selected or
-                # last-written candidate before the record is closed.
-                gateway = ctx.store.get("submission")
-                if gateway is not None:
-                    try:
-                        gateway.finalize("run_end")
-                    except Exception as error:
-                        record.emit(
-                            "submission", "finalize_failed", rc=1,
-                            error_type=type(error).__name__, error=str(error),
-                            excerpt="submission finalize failed",
-                        )
+            gateway = ctx.store.get("submission") if ctx else None
+            if gateway is not None:
+                try:
+                    gateway.finalize(reason if gateway.state.policy == "author_decides" else "run_end")
+                except Exception as error:
+                    record.emit(
+                        "submission", "finalize_failed", rc=1,
+                        error_type=type(error).__name__, error=str(error),
+                        excerpt="submission finalize failed",
+                    )
+            elif (config and config.workflow == "guided_verify"
+                  and not (args.output / "solution.v").stat().st_size):
+                # A deadline can interrupt entry setup before the first graph step.
+                record.emit("submission", "finalized", policy="author_decides", mode="fallback",
+                            target_id=None, code_hash=None, selected_id=None, overrode_selected=False,
+                            published=False, delivery="empty", reason=reason,
+                            fallback_basis="no_complete_candidate", structure_status="not_checked")
+            if ctx or (config and config.workflow == "guided_verify"):
                 from agent.domain.knowledge.outcome import summarize
                 summary = summarize(args.output / 'trace.jsonl', args.output / 'solution.v')
                 record.write_json('framework-outcome.json', summary)
@@ -220,7 +226,16 @@ def main(argv=None):
                 "end",
                 status=status,
                 stop_reason=reason,
-                candidate_id=ctx.candidates.selected_id if ctx else None,
+                candidate_id=summary.get("published_candidate_id"),
+                published_id=summary.get("published_candidate_id"),
+                published_sha256=summary.get("published_candidate_sha256"),
+                submission_mode=summary.get("submission_mode"),
+                submission_reason=summary.get("submission_reason"),
+                submission_finalized=summary.get("submission_finalized"),
+                fallback_basis=summary.get("fallback_basis"),
+                submission_structure_status=summary.get("submission_structure_status"),
+                selected_id=summary.get("selected_candidate_id"),
+                selected_sha256=summary.get("selected_candidate_sha256"),
                 elapsed_s=time.monotonic() - started,
                 **(
                     llm.usage_summary()

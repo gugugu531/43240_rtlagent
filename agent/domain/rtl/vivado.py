@@ -228,7 +228,47 @@ def summarize_log(log: str, budget: int = 2000) -> str:
     return text
 
 
-def classify_tool_failure(output: str) -> str:
+_SOURCE_NOTICE = re.compile(
+    r"^[ \t]*(ERROR|WARNING|CRITICAL WARNING):[ \t]*"
+    r"\[(VRFC 10-3380|Synth 8-10929|Synth 8-151)\][ \t]+"
+    r"([^\r\n]+?)[ \t]+\[([^\[\]\r\n]+?):([1-9]\d*)(?::\d+)?\][ \t]*$",
+    re.I | re.M,
+)
+
+
+def _candidate_notices(output, candidate_path):
+    """Only attribute a source location inside the current tool's candidate file."""
+    if candidate_path is None:
+        return
+    candidate_path = Path(candidate_path).resolve()
+    for match in _SOURCE_NOTICE.finditer(output):
+        severity, code, message, path, line = match.groups()
+        if (candidate_path.parent / path).resolve() == candidate_path:
+            yield severity.upper(), code.upper(), message, int(line)
+
+
+_SYNTH_HINTS = {
+    "SYNTH 8-10929": re.compile(r"literal value .+ truncated to fit in \d+ bits?", re.I),
+    "SYNTH 8-151": re.compile(r"case item .+ is unreachable", re.I),
+}
+
+
+def synthesis_hints(output, candidate_path):
+    """Return bounded source warnings, independently of the synthesis verdict."""
+    hints = []
+    for severity, code, message, line in _candidate_notices(output, candidate_path):
+        pattern = _SYNTH_HINTS.get(code)
+        if severity not in ("WARNING", "CRITICAL WARNING") or not pattern or not pattern.fullmatch(message):
+            continue
+        hint = {"code": code, "source_line": line, "message": message[:240]}
+        if hint not in hints:
+            hints.append(hint)
+            if len(hints) == 8:
+                break
+    return hints
+
+
+def classify_tool_failure(output: str, *, candidate_path=None) -> str:
     """Only well identified compiler errors are treated as source defects."""
     low = output.lower()
     if any(
@@ -246,6 +286,12 @@ def classify_tool_failure(output: str) -> str:
         return "environment"
     # Match primary source diagnostics, not generic follow-on errors such as
     # "module ignored". Environment errors above always take precedence.
+    if any(
+        severity == "ERROR" and code == "VRFC 10-3380"
+        and re.fullmatch(r"""identifier ['"][^'"\r\n]+['"] is used before its declaration""", message, re.I)
+        for severity, code, message, _ in _candidate_notices(output, candidate_path)
+    ):
+        return "code"
     if re.search(
         r"^\s*ERROR:\s*\[VRFC 10-3365\]\s+generate loop index ['\"][^'\"\r\n]+['\"] "
         r"is not defined as a genvar(?:\s*\[[^\r\n]+\])?\s*$",
@@ -456,7 +502,8 @@ def _check(ctx, candidate, kind, timeout_s):
         with tempfile.TemporaryDirectory(
             prefix=f"rtla_{kind}_", dir=scratch_directory()
         ) as work:
-            Path(work, "solution.sv").write_text(candidate.code, encoding="utf-8")
+            candidate_path = Path(work, "solution.sv").resolve()
+            candidate_path.write_text(candidate.code, encoding="utf-8")
             if kind == "lint":
                 planned = [
                     (tools["xvlog"], "--sv", "solution.sv"),
@@ -512,20 +559,21 @@ def _check(ctx, candidate, kind, timeout_s):
             )
     output = "\n".join(outcomes)
     status = process_status(result)
+    classification = classify_tool_failure(output, candidate_path=candidate_path)
     failure = (
         "timeout"
         if status == "timeout"
         else "environment"
         if status == "unavailable"
-        else classify_tool_failure(output)
+        else classification
         if status == "failed"
         else "unknown"
     )
     # A successful process with a license failure is still unavailable evidence.
-    if classify_tool_failure(output) == "environment":
+    if classification == "environment":
         failure, status = "environment", "unavailable"
     elif status == "ok" and re.search(r"(?im)^\s*(?:ERROR|FATAL):", output):
-        failure = classify_tool_failure(output)
+        failure = classification
         status = "failed" if failure == "code" else "error"
     if kind == "synth" and status == "ok" and "Synthesis finished" not in output:
         status = "failed"
@@ -543,10 +591,11 @@ def _check(ctx, candidate, kind, timeout_s):
         failure_kind=failure,
         details={
             "repair_diagnostics": extract_diagnostics(output),
+            **({"synthesis_hints": synthesis_hints(output, candidate_path)} if kind == "synth" else {}),
             **knowledge_details(executions, version_probes=probes),
             "candidate_hash": candidate.code_hash,
             "source_binding": {"candidate_sha256": candidate.code_hash,
-                               "paths": ["solution.sv", str(Path(work, "solution.sv").resolve())]},
+                               "paths": ["solution.sv", str(candidate_path)]},
             "tool_version": version.group(1) if version else None,
         },
     )

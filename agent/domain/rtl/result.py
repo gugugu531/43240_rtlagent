@@ -37,6 +37,11 @@ class CheckResult:
         )
 
 
+def tool_succeeded(status, rc):
+    """A reported pass needs a successful process result."""
+    return status == "passed" and type(rc) is int and rc == 0
+
+
 def checker_hash():
     """Identity covers validation, evaluation, trace parsing and tool adapters."""
     import hashlib

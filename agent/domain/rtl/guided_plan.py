@@ -93,7 +93,7 @@ def plan_request(task, skills, cards, *, checker_rules=None, max_skills=2,
         "Allowed keys: method, skills, knowledge, focus, reason. "
         "method must be structural or table. Use table only when the public task "
         "defines observable behavior supported by the supplied host checker rules. "
-        "If supported is false, choose structural. Do not infer support from the "
+        "If supported is false, choose structural and still select skills for the author. Do not infer support from the "
         "supplementary feature summary or invent expected values. "
         "skills must come from the supplied ids; knowledge must come from the supplied card ids. "
         f"Select at most {max_skills} skills, {max_cards} knowledge cards, and "

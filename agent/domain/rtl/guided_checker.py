@@ -16,12 +16,16 @@ MAX_PORTS = next(
     if hasattr(bound, "max_length")
 )
 CASE_ID = re.compile(r"^[A-Za-z0-9_-]{1,63}$")
+MAX_NOTE_CHARACTERS = 240
+MAX_TABLE_CHARACTERS = 16384
 CLOCK_NAME = re.compile(r"(?i)(?:^|_)(?:clk|clock)$|^(?:clk|clock)")
 EDGE = re.compile(
     r"(?i)\b(?P<hdl>posedge|negedge)\b|"
     r"\b(?P<english>rising|positive|falling|negative)[\s-]+"
     r"(?:(?:clock|clk)[\s-]+)?edges?\b"
 )
+PUBLIC_DOCUMENT = re.compile(r"<!--[ \t]+Public specification:[ \t]+[^<>]+?[ \t]+-->")
+ADAPTATION_HEADING = "## Single-file Vivado evaluation adaptation"
 
 
 class CheckerError(ValueError):
@@ -35,15 +39,29 @@ class CheckerCase:
     checked_outputs: tuple[str, ...]
     unchecked_outputs: tuple[str, ...]
     expected: dict[int, dict[str, int]] = field(default_factory=dict)
+    pre_expected: dict[int, dict[str, int]] = field(default_factory=dict)
+    explanation: str | None = None
+
+    def expectations(self):
+        """Yield (expanded step, phase, outputs) for each explicit comparison."""
+        for step in sorted(self.expected.keys() | self.pre_expected.keys()):
+            if step in self.pre_expected:
+                yield step, "pre", self.pre_expected[step]
+            if step in self.expected:
+                yield step, "post", self.expected[step]
 
     def public_dict(self):
-        return {
+        result = {
             "id": self.id,
             "init_count": self.init_count,
             "checked_outputs": list(self.checked_outputs),
             "unchecked_outputs": list(self.unchecked_outputs),
             "expected": {str(k): v for k, v in self.expected.items()},
+            "pre_expected": {str(k): v for k, v in self.pre_expected.items()},
         }
+        if self.explanation is not None:
+            result["explanation"] = self.explanation
+        return result
 
 
 @dataclass(frozen=True)
@@ -55,7 +73,8 @@ class TableChecker:
 
     def public_dict(self):
         return {
-            "schema_version": 1,
+            # Retain the exact content identity of previously saved tables.
+            "schema_version": 3 if any(case.explanation is not None for case in self.cases) else 2,
             "plan": self.plan,
             "cases": [case.public_dict() for case in self.cases],
             "checked_outputs": list(self.checked_outputs),
@@ -63,26 +82,60 @@ class TableChecker:
         }
 
 
-def checker_request(task, skill_body, focus=(), *, max_cases=4, max_steps=8, init_cycles=2):
-    user = (
+def checker_public_prompt(task, *, max_cases, max_steps, init_cycles):
+    return (
         "Public task and resolved interface:\n"
         + json.dumps(public_context(task), ensure_ascii=False, separators=(",", ":"))
         + "\n\nHost execution contract (authoritative mechanics, not functional requirements):\n"
         + json.dumps(checker_contract(task, max_cases=max_cases, max_steps=max_steps,
                                       init_cycles=init_cycles), ensure_ascii=False,
                      separators=(",", ":"))
-        + "\n\nSelected focus (untrusted hints, not requirements):\n"
-        + "\n".join("- " + item for item in focus)
-        + "\n\nReturn only the line table described by the skill. "
-        "For a sequential case the first line must be init. "
-        "Every non-clock input must appear on every line. "
+    )
+
+
+def checker_request(task, skill_body, focus=(), *, max_cases=4, max_steps=8, init_cycles=2):
+    if focus:
+        raise CheckerError("independent checker construction accepts no external focus text")
+    user = (
+        checker_public_prompt(task, max_cases=max_cases, max_steps=max_steps, init_cycles=init_cycles)
+        + "\n\nReturn the line table described by the skill. "
+        "Start each test point with case <id> # <one short explanation of the stimulus and expected behavior>. "
+        "For a sequential case the first stimulus line must be init. "
+        "Every non-clock input must appear on every stimulus line. "
         "Use hexadecimal values without width prefixes. "
-        "Do not write Verilog, comments, Markdown or prose."
+        "Return only the explained case headers and their stimulus lines."
     )
     return [
         {"role": "system", "content": skill_body},
         {"role": "user", "content": user},
     ]
+
+
+def _top_clock_text(text):
+    """Keep the preamble, first marked public document, and final adaptation."""
+    lines = text.splitlines(keepends=True)
+    kept = []
+    seen_document = in_dependency = False
+    fence = ""
+    for index, line in enumerate(lines):
+        # Four leading spaces or a tab can be a Markdown code block.
+        label = line.rstrip()
+        if not label.startswith("    "):
+            label = label.lstrip(" ")
+        if fence:
+            if label.startswith(fence) and not label.strip(fence[0]):
+                fence = ""
+        elif opening := re.match(r"^(`{3,}|~{3,})", label):
+            fence = opening[1]
+        elif seen_document and label == ADAPTATION_HEADING:
+            return "".join(kept + lines[index:])
+        elif PUBLIC_DOCUMENT.fullmatch(label):
+            in_dependency = seen_document
+            seen_document = True
+            continue
+        if not in_dependency:
+            kept.append(line)
+    return "".join(kept)
 
 
 def _ports(task):
@@ -109,7 +162,7 @@ def _ports(task):
     if len(clocks) > 1:
         raise CheckerError("multiple clock candidates are not supported")
     clock = clocks[0] if clocks else None
-    public_text = task.prompt + "\n" + task.interface
+    public_text = _top_clock_text(task.prompt) + "\n" + _top_clock_text(task.interface)
     if clock:
         _clock_edge(public_text, clock, inputs)
     elif EDGE.search(public_text):
@@ -184,7 +237,7 @@ def _limits(max_cases, max_steps, init_cycles, clock):
 def checker_contract(task, *, max_cases=4, max_steps=8, init_cycles=2):
     """Return JSON-only mechanics from public input; never inspect a candidate."""
     result = {
-        "schema_version": 1,
+        "schema_version": 3,
         "supported": False,
         "reason": "",
         "configured_limits": {"max_cases": max_cases, "max_steps": max_steps,
@@ -202,11 +255,14 @@ def checker_contract(task, *, max_cases=4, max_steps=8, init_cycles=2):
         "clock": {"port": clock, "edge": "posedge"} if clock else None,
         "limits": {"max_ports": MAX_PORTS, "max_cases": cases, "max_table_lines_per_case": lines,
                    "max_expanded_events_per_case": events, "max_total_expanded_events": 256,
-                   "max_table_characters": 16384},
+                   "max_table_characters": MAX_TABLE_CHARACTERS,
+                   "max_explanation_characters": MAX_NOTE_CHARACTERS},
         "table": {
+            "case_header": "case <unique_id> # <one short explanation of the stimulus and expected behavior>",
             "all_non_clock_inputs_required": [name for name in inputs if name != clock],
             "outputs": outputs,
-            "checked_outputs": "At least one output on each line; the same output set throughout a case. Omitted outputs remain unchecked.",
+            "checked_outputs": "At least one output expectation per line. Use the same output names throughout a case, counting either phase. For each output, write name=value to compare its post sample and omit unspecified phases.",
+            "pre_outputs": "On a clocked line use pre.<output>=value when the output is specified after input drive but before the active edge. A line may select pre, post or both for each output. Combinational lines accept only unqualified outputs.",
             "value_encoding": "Unsigned hexadecimal bit patterns, no width prefix or 0x; fit the declared width. Signed values use their exact width's two's-complement bits. X/Z, negative literals and overflow are rejected.",
             "first_line": "init" if clock else "init or step",
             "line_count": "Both init and step lines count toward max_table_lines_per_case.",
@@ -215,17 +271,17 @@ def checker_contract(task, *, max_cases=4, max_steps=8, init_cycles=2):
             "case_isolation": "Each case uses a separate DUT instance; no state is shared. No automatic reset or internal state initialization is performed.",
             "initial_clock": 0 if clock else None,
             "init_repeats": init_cycles if clock else 1,
-            "init_semantics": "Every init line repeats its input values for init_repeats events; compare its expected outputs only after its final repetition. Init is not an automatic reset: drive reset explicitly if required by the public specification.",
-            "step_semantics": "Each step line produces one event and one expected-output comparison.",
+            "init_semantics": "Each init repeats its inputs for init_repeats events. Compare explicit pre outputs before the first edge of the first repetition, and unqualified outputs after the last repetition. Drive any public reset explicitly.",
+            "step_semantics": "Each step produces one event. Compare any explicit pre outputs before its edge and unqualified outputs at its post sample.",
             "event_timing_ns": {"drive_inputs": 5, "record_pre": 9,
                                 "active_clock_edge": 10 if clock else None,
-                                "record_post_and_compare": 11,
+                                "record_post": 11,
                                 "return_clock_inactive": 15 if clock else None,
                                 "event_period": 15},
-            "sampling": "Compare post samples only, after input settling and (for sequential cases) the positive clock edge and nonblocking updates. Pre samples are diagnostic only.",
-            "failure_step_index": "Zero-based index of the expanded event in that case, not the table line number. A first init of N repeats is checked at step N-1; the next step is N.",
+            "sampling": "Pre is recorded after inputs settle at 9 ns and compared only for explicit pre.<output> expectations. Post is recorded at 11 ns, after settling and any positive clock edge and nonblocking updates. Count known compared bits separately for each phase.",
+            "failure_step_index": "Zero-based index of the expanded event in the case, with phase pre or post. A first init of N repeats compares explicit pre values at step 0 and post values at step N-1. The next step is N.",
             "failure_value_encoding": "Expanded sampling inputs, expected_bits, actual_bits and known masks are JSON integer bit patterns (decimal JSON numbers), unlike hexadecimal table tokens.",
-            "unknown_outputs": "Unknown output bits remain unknown and cannot pass a comparison.",
+            "unknown_outputs": "Unknown output bits remain unknown. Compare the known bits of each output and report any mismatch even if other bits are unknown. Any unresolved bits without a known mismatch yield an unknown verdict.",
             "coverage": "A pass covers only the listed input/state sequences and sampled outputs. Output-port coverage alone does not establish input-space, transition, priority or full-period coverage; obey the event limits when selecting distinguishable cases.",
         },
     })
@@ -241,109 +297,130 @@ def _value(token, width, *, name):
     return value
 
 
-def parse_checker(text, task, *, max_cases=4, max_steps=8, init_cycles=2):
-    text = text.strip()
-    if text.startswith("```") and text.endswith("```"):
-        text = "\n".join(text.splitlines()[1:-1]).strip()
-    if not text or len(text) > 16384:
-        raise CheckerError("checker output missing or too large")
-    ports, inputs, outputs, clock = _ports(task)
-    max_cases, max_steps, _ = _limits(max_cases, max_steps, init_cycles, clock)
-    non_clock = [name for name in inputs if name != clock]
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if not lines:
+def case_blocks(text):
+    """Split a table at case headers, retaining each block's text and line number."""
+    if not isinstance(text, str) or not text.strip():
         raise CheckerError("checker table is empty")
-    cases = []
-    plan_cases = []
-    current = None
-    for line in lines:
-        if line.startswith("case "):
-            if current is not None:
-                cases.append(current)
-                plan_cases.append(current.pop("_plan"))
-            case_id = line[5:].strip()
-            if not CASE_ID.fullmatch(case_id):
-                raise CheckerError("invalid case id")
-            if any(case["id"] == case_id for case in cases):
-                raise CheckerError("duplicate case id")
-            current = {
-                "id": case_id, "lines": [], "checked": None,
-                "_plan": {"id": case_id, "steps": []},
-            }
-            continue
-        if current is None:
-            raise CheckerError("checker line outside a case")
-        kind, _, rest = line.partition(" ")
-        if kind not in ("init", "step"):
-            raise CheckerError("checker line must start with init or step")
-        tokens = rest.split()
-        values = {}
-        for token in tokens:
-            if "=" not in token:
-                raise CheckerError("checker token must be name=value")
-            name, value = token.split("=", 1)
-            if name in values:
-                raise CheckerError("duplicate checker token")
-            if name in ports:
-                if ports[name]["direction"] == "output":
-                    values[name] = _value(value, ports[name]["width"], name=name)
-                else:
-                    values[name] = _value(value, ports[name]["width"], name=name)
-            else:
-                raise CheckerError("unknown checker port: " + name)
-        driven = {name for name in values if ports[name]["direction"] == "input"}
-        if driven != set(non_clock):
-            raise CheckerError("every non-clock input must be driven on every line")
-        checked = tuple(sorted(name for name in values if ports[name]["direction"] == "output"))
-        if not checked:
-            raise CheckerError("each line must check at least one output")
-        if current["checked"] is None:
-            current["checked"] = checked
-        elif current["checked"] != checked:
-            raise CheckerError("checked output set changed inside a case")
-        current["lines"].append((kind, values))
-    if current is not None:
-        cases.append(current)
-        plan_cases.append(current.pop("_plan"))
-    if not cases or len(cases) > max_cases:
-        raise CheckerError("case count outside configured limit")
-    result_cases = []
-    for raw, plan_case in zip(cases, plan_cases):
-        if not raw["lines"]:
-            raise CheckerError("case has no lines: " + raw["id"])
-        kinds = [kind for kind, _ in raw["lines"]]
-        if clock and kinds[0] != "init":
-            raise CheckerError("sequential case must start with init")
-        if len(kinds) > max_steps:
-            raise CheckerError("case exceeds configured step limit")
-        expected = {}
-        init_count = init_cycles if clock else 1
-        step_index = 0
-        for kind, values in raw["lines"]:
-            inputs_only = {
-                name: value for name, value in values.items()
-                if ports[name]["direction"] == "input"
-            }
-            expected_values = {
-                name: value for name, value in values.items()
-                if ports[name]["direction"] == "output"
-            }
+    text = text.strip()
+    lines = text.splitlines()
+    if lines[0].startswith("```"):
+        if len(lines) < 2 or lines[-1].strip() != "```" or not re.fullmatch(r"```[\w-]*", lines[0].strip()):
+            raise CheckerError("malformed enclosing code fence")
+        text = "\n".join(lines[1:-1]).strip()
+    if len(text) > MAX_TABLE_CHARACTERS:
+        raise CheckerError(f"checker table exceeds {MAX_TABLE_CHARACTERS} characters")
+    blocks = []
+    for number, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if line.split(maxsplit=1)[:1] == ["case"]:
+            blocks.append((number, []))
+        elif not blocks:
+            raise CheckerError(f"line {number}: expected a case header")
+        blocks[-1][1].append(raw)
+    if not blocks:
+        raise CheckerError("checker table is empty")
+    return [(number, "\n".join(lines)) for number, lines in blocks]
+
+
+def short_note(raw, label):
+    note = raw.strip()
+    if not note or len(note) > MAX_NOTE_CHARACTERS or not note.isprintable():
+        raise CheckerError(f"{label} must contain 1..{MAX_NOTE_CHARACTERS} printable characters on one line")
+    return note
+
+
+def _stimulus(line, ports, clock, non_clock):
+    kind, *tokens = line.split()
+    if kind not in ("init", "step"):
+        raise CheckerError(f"expected init or step, found {kind!r}")
+    driven, post, pre = {}, {}, {}
+    for token in tokens:
+        if "=" not in token:
+            raise CheckerError(f"expected name=value, found {token!r}")
+        key, value = token.split("=", 1)
+        is_pre = key.startswith("pre.")
+        name = key.removeprefix("pre.")
+        if name not in ports:
+            raise CheckerError("unknown checker port: " + key)
+        if is_pre:
+            if not clock or ports[name]["direction"] != "output":
+                raise CheckerError("pre expectations require a clocked public output: " + key)
+            target = pre
+        else:
+            target = post if ports[name]["direction"] == "output" else driven
+        if name in target:
+            raise CheckerError("duplicate checker token: " + key)
+        target[name] = _value(value, ports[name]["width"], name=key)
+    if driven.keys() != non_clock:
+        raise CheckerError("every non-clock input must be driven on every line; "
+                           f"missing={sorted(non_clock - driven.keys())}, extra={sorted(driven.keys() - non_clock)}")
+    if not post and not pre:
+        raise CheckerError("each line must check at least one output")
+    return kind, driven, post, pre
+
+
+def parse_checker(text, task, *, max_cases=4, max_steps=8, init_cycles=2, require_explanations=False):
+    """Pass require_explanations=True for every live construction or correction."""
+    blocks = case_blocks(text)
+    ports, inputs, outputs, clock = _ports(task)
+    max_cases, max_steps, max_events = _limits(max_cases, max_steps, init_cycles, clock)
+    if len(blocks) > max_cases:
+        raise CheckerError(f"line {blocks[max_cases][0]}: case count exceeds limit of {max_cases}")
+    non_clock = set(inputs) - {clock}
+    init_count = init_cycles if clock else 1
+    result_cases, plan_cases, ids = [], [], set()
+    total_events = 0
+    for number, block in blocks:
+        first, *rows = block.splitlines()
+        header, separator, note = first.strip().partition("#")
+        fields = header.split()
+        if len(fields) != 2 or not CASE_ID.fullmatch(fields[1]):
+            raise CheckerError(f"line {number}: invalid case id in {header.strip()!r}")
+        case_id = fields[1]
+        if case_id in ids:
+            raise CheckerError(f"line {number}: duplicate case id {case_id}")
+        ids.add(case_id)
+        explanation = None
+        if separator or require_explanations:
+            explanation = short_note(note, f"line {number}, case {case_id}: explanation after #")
+        checked, steps = (), []
+        expected, pre_expected = {}, {}
+        line_count = 0
+        for line_number, line in enumerate(rows, number + 1):
+            if not line.strip():
+                continue
+            line_count += 1
+            where = f"line {line_number}, case {case_id}"
+            if line_count > max_steps:
+                raise CheckerError(f"{where}: case exceeds configured step limit of {max_steps}")
+            try:
+                kind, driven, post, pre = _stimulus(line, ports, clock, non_clock)
+            except CheckerError as error:
+                raise CheckerError(f"{where}: {error}") from error
+            if not steps and clock and kind != "init":
+                raise CheckerError(f"{where}: sequential case must start with init")
+            names = tuple(sorted(post.keys() | pre.keys()))
+            if checked and checked != names:
+                raise CheckerError(f"{where}: checked output set changed from {list(checked)} to {list(names)}")
+            checked = names
+            if pre:
+                pre_expected[len(steps)] = pre
             repeats = init_count if kind == "init" else 1
+            total_events += repeats
+            if len(steps) + repeats > max_events or total_events > 256:
+                raise CheckerError(f"{where}: expanded event limit exceeded ({max_events} per case, 256 total)")
             for _ in range(repeats):
-                plan_case["steps"].append({
-                    "inputs": inputs_only, "sample": True,
-                    "edge": bool(clock),
-                })
-                step_index += 1
-            # Compare the init outputs after the final init edge even when
-            # step lines follow; otherwise the init line would be decorative.
-            expected[step_index - 1] = expected_values
-        checked = tuple(raw["checked"] or ())
+                steps.append({"inputs": driven, "sample": True, "edge": bool(clock)})
+            if post:
+                expected[len(steps) - 1] = post
+        if not steps:
+            raise CheckerError(f"line {number}: case has no lines: {case_id}")
+        plan_cases.append({"id": case_id, "steps": steps})
         result_cases.append(CheckerCase(
-            id=raw["id"], init_count=init_count,
+            id=case_id, init_count=init_count, explanation=explanation,
             checked_outputs=checked,
             unchecked_outputs=tuple(name for name in outputs if name not in checked),
-            expected=expected,
+            expected=expected, pre_expected=pre_expected,
         ))
     checked_union = tuple(sorted({name for case in result_cases for name in case.checked_outputs}))
     # A single case that omits a public output is enough to make the checker
@@ -365,7 +442,17 @@ def parse_checker(text, task, *, max_cases=4, max_steps=8, init_cycles=2):
     return TableChecker(plan, tuple(result_cases), checked_union, unchecked_union)
 
 
+def _comparison_status(failed, unknown, compared, unchecked_outputs):
+    if failed:
+        return "failed"
+    if unknown or not compared:
+        return "unknown"
+    return "partial_passed" if unchecked_outputs else "passed"
+
+
 def evaluate_checker(checker, trace):
+    compared_by_phase = {"pre": 0, "post": 0}
+    unknown_by_phase = {"pre": 0, "post": 0}
     try:
         validate_trace(trace, checker.plan)
     except SuiteError as error:
@@ -375,52 +462,66 @@ def evaluate_checker(checker, trace):
             "summary": str(error),
             "checked_outputs": list(checker.checked_outputs),
             "unchecked_outputs": list(checker.unchecked_outputs),
-            "failed": [], "compared_bits": 0,
+            "case_results": [], "failed": [], "unknown": [], "compared_bits": 0, "unknown_bits": 0,
+            "compared_bits_by_phase": compared_by_phase,
+            "unknown_bits_by_phase": unknown_by_phase,
         }
     rows = {
-        (row["case_index"], row["step"]): row
-        for row in trace.rows if row["phase"] == "post"
+        (row["case_index"], row["step"], row["phase"]): row for row in trace.rows
     }
-    failed, unknown, compared = [], [], 0
+    failed, unknown, case_results = [], [], []
     for ci, case in enumerate(checker.cases):
-        for step, expected in sorted(case.expected.items()):
-            row = rows.get((ci, step))
+        case_compared = {"pre": 0, "post": 0}
+        case_unknown = {"pre": 0, "post": 0}
+        failed_before, unknown_before = len(failed), len(unknown)
+        for step, phase, expected in case.expectations():
+            row = rows.get((ci, step, phase))
             if row is None:
-                unknown.append({"case_id": case.id, "step": step, "reason": "missing_row"})
+                unknown.append({"case_id": case.id, "step": step, "phase": phase, "reason": "missing_row"})
                 continue
             for name, expected_bits in sorted(expected.items()):
                 value = row["values"][name]
-                width = checker.plan["ports"][name]["width"]
-                full = (1 << width) - 1
-                if value["known"] != full:
-                    unknown.append({
-                        "case_id": case.id, "step": step, "signal": name,
+                known = value["known"]
+                unknown_mask = ((1 << value["width"]) - 1) ^ known
+                mismatch = (value["bits"] ^ expected_bits) & known
+                case_compared[phase] += known.bit_count()
+                case_unknown[phase] += unknown_mask.bit_count()
+                if mismatch or unknown_mask:
+                    detail = {
+                        "case_id": case.id, "step": step, "phase": phase, "signal": name,
                         "expected_bits": expected_bits, "actual_bits": value["bits"],
-                        "known": value["known"], "width": width,
-                    })
-                    continue
-                compared += width
-                if value["bits"] != expected_bits:
-                    failed.append({
-                        "case_id": case.id, "step": step, "signal": name,
-                        "expected_bits": expected_bits, "actual_bits": value["bits"],
-                        "known": full, "width": width,
-                    })
-    if failed:
-        status = "failed"
-    elif unknown:
-        status = "unknown"
-    elif checker.unchecked_outputs:
-        status = "partial_passed"
-    else:
-        status = "passed"
+                        "known": known, "width": value["width"],
+                    }
+                    if mismatch:
+                        failed.append({**detail, "mismatch_mask": mismatch})
+                    if unknown_mask:
+                        unknown.append({**detail, "unknown_mask": unknown_mask})
+        mismatches = len(failed) - failed_before
+        case_results.append({
+            "case_id": case.id, "explanation": case.explanation,
+            "status": _comparison_status(mismatches, len(unknown) - unknown_before,
+                                         sum(case_compared.values()), case.unchecked_outputs),
+            "checked_outputs": list(case.checked_outputs), "unchecked_outputs": list(case.unchecked_outputs),
+            "compared_bits": sum(case_compared.values()), "unknown_bits": sum(case_unknown.values()),
+            "compared_bits_by_phase": case_compared, "unknown_bits_by_phase": case_unknown,
+            "mismatches": mismatches,
+        })
+        for phase in compared_by_phase:
+            compared_by_phase[phase] += case_compared[phase]
+            unknown_by_phase[phase] += case_unknown[phase]
+    compared = sum(compared_by_phase.values())
+    unknown_bits = sum(unknown_by_phase.values())
     return {
-        "status": status,
+        "status": _comparison_status(failed, unknown, compared, checker.unchecked_outputs),
         "failure_kind": "unknown",
-        "summary": f"{len(failed)} mismatches, {len(unknown)} unknown, {compared} compared bits",
+        "summary": f"{len(failed)} mismatches, {unknown_bits} unknown bits, {compared} compared bits",
         "checked_outputs": list(checker.checked_outputs),
         "unchecked_outputs": list(checker.unchecked_outputs),
+        "case_results": case_results,
         "failed": failed,
         "unknown": unknown,
         "compared_bits": compared,
+        "unknown_bits": unknown_bits,
+        "compared_bits_by_phase": compared_by_phase,
+        "unknown_bits_by_phase": unknown_by_phase,
     }

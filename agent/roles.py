@@ -44,29 +44,29 @@ _STAGE_ROLES = {
     # guided_verify request labels
     "plan": "analyst",
     "solve": "author",
+    "solve_recovery": "author",
     "checker": "builder",
+    "checker_recovery": "builder",
+    "checker_format_repair": "builder",
+    "checker_review": "builder",
+    "author_decision": "author",
     "adjudicate": "attributor",
     "repair_structure": "author",
     "repair_behavior": "author",
-    "guided_plan": "analyst",
-    "guided_solve": "author",
-    "guided_build_checker": "builder",
-    "guided_adjudicate": "attributor",
-    "guided_repair_structure": "author",
-    "guided_repair_behavior": "author",
     "checker_rebuild": "builder",
 }
 
 
 def role_for_stage(stage):
-    """Resolve `draft_tool_2` back to the authoring role."""
+    """Resolve a node, request, or numbered attempt to its configured role."""
     if not isinstance(stage, str) or not stage:
         return ""
     base = stage.split("_tool_", 1)[0]
-    role = _STAGE_ROLES.get(base, "")
-    if not role and "_" in base:
-        role = _STAGE_ROLES.get(base.rsplit("_", 1)[0], "")
-    return role
+    base = base.removeprefix("guided_")
+    label, separator, attempt = base.rpartition("_")
+    if separator and attempt.isascii() and attempt.isdecimal():
+        base = label
+    return _STAGE_ROLES.get(base, "")
 
 
 def profile_for_stage(stage):

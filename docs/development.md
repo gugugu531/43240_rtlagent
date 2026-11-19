@@ -15,7 +15,7 @@
 | 新模型协议或后端 | `agent/llm/` 与 `agent/config.py` | 请求、分词、生成声明、错误、用量、重放与真实服务验证 |
 | 新 RTL（寄存器传输级）检查语义或仿真能力 | `agent/domain/rtl/` 与检查工具适配层 | 输入范围、未知值、采样、比较、候选／检查器身份 |
 | 固定方法或诊断卡 | `skill/`、`knowledge/`、`agent/domain/knowledge/` | 适用边界、使用阶段、完整正文、实际使用内容的记录方式；见 [知识契约](knowledge.md) |
-| 新提示模板 | `agent/context/prompts/`；独立检查请求见 `agent/domain/rtl/guided_checker.py` | 模板变量、公开信息边界、响应数据结构（schema）、语义校验 |
+| 新提示模板 | `agent/context/prompts/`；检查表、逐点复核和解题决策的请求分别见 `agent/domain/rtl/` 的 `guided_checker.py`、`guided_revision.py` 和 `guided_author.py` | 模板变量、公开信息边界、响应数据结构（schema）、语义校验 |
 | 预算、进程或记录机制 | `agent/runtime/`、`agent/observability/` | 跨工作流兼容、取消、资源回收、日志字段与迁移行为 |
 
 先复用已有能力，再新增接口。相同检查逻辑不应分别复制到节点、工具调用和新工作流中。仅更换参数不必新建实现；改变输入／输出或失败语义时，不能假装只是一个预设。
@@ -66,9 +66,9 @@ def stage(ctx: Ctx, state: State, *, limit: int = 2) -> State:
 
 `@workflow(...)` 声明节点、工具、工作流默认参数和初始状态。构造函数接收 `(builder, p)`，返回配置了状态、条件连线和入口的 `builder`；不要在构造函数发出模型或工具请求。
 
-新节点通过 `workflow.nodes` 注册映射装配，不能只用 `builder` 添加动作：记录钩子与图元数据会查阅该映射。条件连线引用图中别名，按所需优先级列出，将兜底 `default` 放在相关条件之后。每条循环应有预算之外的显式次数上限，并有失败、证据不足和正常结束路线。
+新节点通过 `workflow.nodes` 注册映射装配，不能只用 `builder` 添加动作：记录钩子与图元数据会查阅该映射。条件连线引用图中别名，按所需优先级列出，将兜底 `default` 放在相关条件之后。为循环定义正常结束、失败与证据不足时的去向。`guided_verify` 的结构修复、解题改稿、检查表格式修正和逐点复核共用单题预算，重复无进展的格式错误也有相应的退出条件。
 
-运行器把别名 **`finish`** 视为终止动作；不要用它命名中途阶段。仅设置 `state.status="completed"` 不会自动停止其他连线。图无下一步也可结束，超过 `runtime.max_steps` 则停止并记录 `max_steps`。
+运行器把别名 **`finish`** 视为终止动作；不要用它命名中途阶段。仅设置 `state.status="completed"` 不会自动停止其他连线。图无下一步也可结束。设置 `runtime.max_steps` 后，走完指定步数仍未结束就记录 `max_steps`。值为 `null` 时取消步数上限，每步仍检查运行时限。
 
 配置规则以 [config.py](../agent/config.py) 和 [graph.py](../agent/orchestration/graph.py) 为准：
 
@@ -102,17 +102,17 @@ def stage(ctx: Ctx, state: State, *, limit: int = 2) -> State:
 
 新增检查器能力时，先定义支持的类型、位宽、时钟／复位、采样时机与未知值处理规则，再扩展数据结构、语义校验、求值及测试台。独立构造期望结果时不得读取候选 RTL 或实测输出，诊断反馈仍须有公开题面依据。检查结果应绑定新候选及检查器版本；零比较、未触发性质、未知值、工具不可用都不是通过。验证必须包含正确例和错误反例，并保存实际比较证据。
 
-检查器与修复边界见 [Guided Verify](guided-verify.md)：后续检查所需预算不足时，不应继续请求模型修改；修改后的候选必须经过原有全部检查，并将结果绑定到新版本。
+解题角色在一次 `revise` 回复中给出完整新稿。新稿回到结构检查，lint 和 synth 均通过且有有效检查表时才执行行为采样。复核修正或撤回测试点后，若仍有活动点且当前稿的 lint 和 synth 均通过，框架用新表重新仿真。预算或工具不足时保留已有交付记录，注明哪版实际完成了哪些检查。[工作流与交付规则](guided-verify.md)
 
 ## 8. 完整最小示例：计数工作流
 
 这个示例只演示注册、参数、工具调用、状态和记录，不调用模型／Vivado，不生成 RTL 候选。即使 `status=completed`，也仅表示演示流程完成。
 
-先切换到方案仓库根目录，并确认 `HEAD` 是准备验证的提交。下面的 `git archive HEAD` 只复制已提交文件，不包含未提交修改；验证本地改动时应另行保存包含这些改动的副本。后续示例文件只写到隔离副本：
+在要验证的方案目录确认源码版本和未提交改动。下面的命令将当前目录中的入口、模块、配置和资源复制到临时目录，后续示例文件也写在这份副本中。
 
 ```bash
 demo_dir="$(mktemp -d /tmp/rtlagent-extension.XXXXXX)"
-git archive HEAD | tar -x -C "$demo_dir"
+cp -a agent config knowledge skill baseline.py manifest.json requirements.txt run.sh "$demo_dir/"
 mkdir -p "$demo_dir/plugins" "$demo_dir/input"
 ```
 
@@ -238,7 +238,7 @@ PY
 
 会创建临时模块、修改配置或注入测试组件的验证在隔离副本中执行，检查前后源文件差异。运行日志放本地开发区或临时目录，不提交方案；不依赖已移除的 `dev/tools/`、`dev/tests/`。已有工作区的主办方判定只消费已保存答案，判定反馈不得回到求解过程。
 
-在方案仓库根目录执行 `LLM_BACKEND=mock ./run.sh <公开题目目录> <独立输出目录>` 可检查最小目录流程；mock 输出是占位代码，不是参考实现。修改结构化规划／检查器流程时还需提供对应的自编响应测试数据，不能期待默认 mock 自动生成有效规划或完整检查器。
+在方案仓库根目录执行 `LLM_BACKEND=mock ./run.sh <公开题目目录> <独立输出目录>` 可检查默认入口。假模型会选择 `structural`、不选技能，生成占位 RTL，收到解题决策请求时回复 `submit`。要测试选用 `table`、改稿或逐点复核，需要为相应阶段提供自编响应。
 
 ## 10. 文件、文档和提交约定
 
