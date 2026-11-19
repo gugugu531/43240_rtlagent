@@ -142,6 +142,19 @@ class SkillDiscoveryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.load()
 
+    def test_html_comments_are_stripped_from_skill_body_sent_to_model(self):
+        self.add_skill(
+            "clean-method",
+            body="<!--\nCopyright (C) 2026\nSource SHA-256: deadbeef\n-->\n\n# Real Guidance\n\nKeep me.\n<!-- inline note -->",
+        )
+        assets = self.load()
+        _, body = assets["skills"]["clean-method"]
+        self.assertNotIn("<!--", body)
+        self.assertNotIn("Copyright", body)
+        self.assertNotIn("deadbeef", body)
+        self.assertIn("# Real Guidance", body)
+        self.assertIn("Keep me.", body)
+
     def test_symlinked_skill_root_is_rejected(self):
         elsewhere = self.root / "elsewhere"
         elsewhere.mkdir()

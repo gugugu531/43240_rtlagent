@@ -7,7 +7,16 @@ wyc888-crypto/amd-rtlagent-prompt-engineering, fb1c2803e5db0f32b59b9ba9100877f2a
 import hashlib
 import json
 from pathlib import Path
+import re
 from typing import Annotated, Literal
+
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+_EXCESS_BLANKS = re.compile(r"\n{3,}")
+
+
+def _clean_skill_body(body: str) -> str:
+    cleaned = _HTML_COMMENT.sub("", body)
+    return _EXCESS_BLANKS.sub("\n\n", cleaned).strip()
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -162,11 +171,12 @@ def _load_skills(root, result):
         skill = Skill.model_validate(meta)
         if skill.id != folder.name:
             raise ValueError("skill name must match its directory: " + relative)
-        if not body.strip():
+        cleaned_body = _clean_skill_body(body)
+        if not cleaned_body:
             raise ValueError("skill body must not be empty: " + relative)
         if skill.id in result["skills"]:
             raise ValueError("duplicate skill name: " + skill.id)
-        result["skills"][skill.id] = (skill, body.strip())
+        result["skills"][skill.id] = (skill, cleaned_body)
         result["resources"][relative] = sha256(raw)
 
 

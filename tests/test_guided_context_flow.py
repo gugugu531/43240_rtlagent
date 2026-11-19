@@ -85,8 +85,8 @@ class GuidedContextFlowTests(unittest.TestCase):
         self.assertNotIn(root_error, warnings[:2000])
         self.assertIn(root_error, body)
         self.assertIn(json.dumps(diagnostics), body)
-        self.assertIn('"candidate_hash": "CURRENT_CANDIDATE_HASH"', body)
-        self.assertIn('"candidate_id": "candidate-current"', body)
+        self.assertNotIn("CURRENT_CANDIDATE_HASH", body)
+        self.assertIn("Candidate: candidate-current", body)
         self.assertIn("PRIVATE_CANDIDATE", body)
 
     def test_build_checker_sends_effective_limits_and_uses_same_init_count(self):
@@ -493,8 +493,9 @@ class GuidedEmptyRecoveryTests(unittest.TestCase):
                 self.assertIn("Host parser diagnostic", str(ctx.sent[2][0]))
                 last = str(ctx.sent[-1][0])
                 for marker in ("PRIVATE_RTL", "PRIVATE_AUTHOR_OBJECTION", "PUBLIC_REVIEW_REASON",
-                               "Skill rtl-module-interface-contract", old_hash):
+                               "Skill rtl-module-interface-contract"):
                     self.assertIn(marker, last)
+                self.assertNotIn(old_hash, last)
                 self.assertNotIn("PRIVATE_REASONING", last)
                 self.assertEqual(len(ctx.candidates.values()), 1)
 
@@ -663,7 +664,8 @@ class GuidedEmptyRecoveryTests(unittest.TestCase):
         guided.finish(ctx, state)
         result = ctx.record.artifacts["guided/result.json"]
         self.assertEqual(list(result["unresolved_reviews"]), ["polarity"])
-        self.assertIn('"unresolved_reviews":{"polarity"', ctx.sent[-1][0][-1]["content"])
+        self.assertIn("unresolved_reviews:", ctx.sent[-1][0][-1]["content"])
+        self.assertIn("- polarity:", ctx.sent[-1][0][-1]["content"])
         self.assertTrue(result["checker_disputed"])
         self.assertTrue(result["current_table_passed"])
         self.assertFalse(result["functional_passed"])

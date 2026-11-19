@@ -119,7 +119,8 @@ def test_public_only_request_and_adjudication_receive_distinct_contexts():
     assert "candidate_private_marker" not in json.dumps(before)
     assert "observed_private_marker" not in json.dumps(before)
     assert "candidate_private_marker" not in json.dumps(contract)
-    assert json.dumps(execution, ensure_ascii=False, separators=(",", ":")) in diagnostic[1]["content"]
+    assert "sampling_plan" in diagnostic[1]["content"]
+    assert "init_repeats: 3" in diagnostic[1]["content"]
     assert "candidate_private_marker" in diagnostic[1]["content"]
     assert "observed_private_marker" in diagnostic[1]["content"]
 

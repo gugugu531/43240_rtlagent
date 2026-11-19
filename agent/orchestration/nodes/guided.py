@@ -531,23 +531,43 @@ def repair_structure(ctx: Ctx, state: State) -> State:
     settings = data["settings"]
     parent = ctx.candidates.get(state["target_id"])
     assessment = data["assessments"].get(parent.id, {})
-    feedback = json.dumps({
-        "candidate_id": parent.id,
-        "candidate_hash": getattr(parent, "code_hash", None),
-        "synthesis_hints": assessment.get("synthesis_hints", []),
-        "decision_history": author_history(data["history"]),
-        "previous_repair_error": data.get("repair_format_error"),
-        "checks": [
-            {
-                "tool": name, "status": check.get("status"),
-                "failure_kind": check.get("failure_kind"), "rc": check.get("rc"),
-                "repair_diagnostics": (check.get("details") or {}).get("repair_diagnostics"),
-                "excerpt": check.get("excerpt", ""),
-            }
-            for name, check in assessment.get("checks", {}).items()
-            if check.get("status") in ("failed", "timeout")
-        ],
-    }, ensure_ascii=False)
+    failed_checks = [
+        {
+            "tool": name, "status": check.get("status"),
+            "failure_kind": check.get("failure_kind"), "rc": check.get("rc"),
+            "repair_diagnostics": (check.get("details") or {}).get("repair_diagnostics"),
+            "excerpt": check.get("excerpt", ""),
+        }
+        for name, check in assessment.get("checks", {}).items()
+        if check.get("status") in ("failed", "timeout")
+    ]
+    feedback_parts = [f"Candidate: {parent.id}"]
+    if data.get("repair_format_error"):
+        feedback_parts.append(f"Previous repair format error: {data['repair_format_error']}")
+    hints = assessment.get("synthesis_hints") or []
+    if hints:
+        feedback_parts.append("Synthesis hints:\n" + "\n".join(f"- {hint}" for hint in hints))
+    history_entries = author_history(data["history"])
+    if history_entries:
+        hist_lines = [
+            f"- round {note.get('round', '?')} ({note.get('role', '?')}): "
+            f"{note.get('action') or note.get('review_action') or note.get('status') or 'note'}"
+            + (f" — {note.get('review_reason') or note.get('reason')}"
+               if (note.get("review_reason") or note.get("reason")) else "")
+            for note in history_entries
+        ]
+        feedback_parts.append("Decision history:\n" + "\n".join(hist_lines))
+    for item in failed_checks:
+        block = [
+            f"Check `{item['tool']}`: status={item['status']}, "
+            f"failure_kind={item['failure_kind']}, rc={item['rc']}"
+        ]
+        if item["repair_diagnostics"]:
+            block.append("Repair diagnostics:\n" + json.dumps(item["repair_diagnostics"], ensure_ascii=False))
+        if item["excerpt"]:
+            block.append("Tool excerpt:\n" + item["excerpt"])
+        feedback_parts.append("\n".join(block))
+    feedback = "\n\n".join(feedback_parts)
     messages = ctx.prompts.render(
         "repair.md", task=ctx.task, parent=parent, feedback=feedback, plan=None
     )

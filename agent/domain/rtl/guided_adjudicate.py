@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
+
+from .guided_author import _format_interface, _format_kv_summary, _strip_internal_hashes
 
 
 class AdjudicationError(ValueError):
@@ -24,20 +25,38 @@ class Adjudication:
         }
 
 
+def _format_failures(failures):
+    clean = _strip_internal_hashes(failures)
+    if isinstance(clean, list) and clean:
+        lines = []
+        for idx, item in enumerate(clean, 1):
+            if isinstance(item, dict):
+                summary = ", ".join(f"{k}={v}" for k, v in item.items() if v is not None)
+                lines.append(f"  {idx}. {summary}")
+            else:
+                lines.append(f"  {idx}. {item}")
+        return "\n".join(lines)
+    if isinstance(clean, dict):
+        return _format_kv_summary(clean)
+    return str(clean) if clean else "  (none)"
+
+
 def adjudicate_request(task, candidate, checker, failures, *, execution=None):
+    clean_exec = _strip_internal_hashes(execution)
+    exec_text = _format_kv_summary(clean_exec) if isinstance(clean_exec, dict) else str(clean_exec or "(none)")
     user = (
         "Public task:\n"
         + task.prompt
         + "\n\nResolved interface:\n"
-        + json.dumps(task.expected_interface.public_dict(), ensure_ascii=False)
+        + _format_interface(task.expected_interface.public_dict())
         + "\n\nCandidate implementation:\n```verilog\n"
         + candidate.code
         + "\n```\n\nChecker table:\n"
         + checker
         + "\n\nHost execution contract and expanded sampling plan:\n"
-        + json.dumps(execution, ensure_ascii=False, separators=(",", ":"))
+        + exec_text
         + "\n\nObserved failures:\n"
-        + json.dumps(failures, ensure_ascii=False, separators=(",", ":"))
+        + _format_failures(failures)
         + "\n\nDecide whether the candidate or the checker is wrong. "
         "Return only flat key=value lines: decision, reason, failed_cases. "
         "decision is checker_error, solution_error, mixed or spec_unclear. "

@@ -30,9 +30,142 @@ class AuthorDecision:
 
 _HISTORY_FIELDS = {
     "round", "stage", "role", "action", "reason", "case_id", "candidate_id",
-    "candidate_hash", "child_id", "child_hash", "checker_hash", "reviewed_checker_hash",
-    "source_call_id", "review_action", "review_reason", "status", "outcome", "changed", "checked",
+    "child_id", "source_call_id", "review_action", "review_reason",
+    "status", "outcome", "changed", "checked",
 }
+
+_INTERNAL_ID_KEYS = {
+    "candidate_hash", "code_hash", "child_hash", "checker_hash",
+    "reviewed_checker_hash", "sampling_plan_hash", "plan_hash",
+    "checker_version", "execution_id",
+}
+
+
+def _strip_internal_hashes(value):
+    """Drop internal host-binding hashes from prompt-facing views without mutating inputs."""
+    if isinstance(value, dict):
+        return {
+            key: _strip_internal_hashes(item)
+            for key, item in value.items()
+            if key not in _INTERNAL_ID_KEYS and not key.endswith("_hash")
+        }
+    if isinstance(value, list):
+        return [_strip_internal_hashes(item) for item in value]
+    return value
+
+
+def _format_interface(interface_dict):
+    if not isinstance(interface_dict, dict):
+        return str(interface_dict)
+    lines = []
+    if interface_dict.get("top"):
+        lines.append(f"- Top module: {interface_dict['top']}")
+    ports = interface_dict.get("ports")
+    if isinstance(ports, list) and ports:
+        port_parts = []
+        for port in ports:
+            if not isinstance(port, dict):
+                port_parts.append(str(port))
+                continue
+            direction = port.get("direction", "")
+            width = port.get("width")
+            signed = " signed" if port.get("signed") else ""
+            width_str = f"[{width - 1}:0]" if isinstance(width, int) and width > 1 else ""
+            name = port.get("name", "?")
+            port_parts.append(" ".join(part for part in (direction + signed, width_str, name) if part))
+        lines.append("- Ports: " + ", ".join(port_parts))
+    return "\n".join(lines) if lines else "(none)"
+
+
+def _format_kv_summary(data, indent="  "):
+    if not isinstance(data, dict) or not data:
+        return indent + "(none)"
+    lines = []
+    for key, value in data.items():
+        if value is None or value == [] or value == {}:
+            continue
+        if isinstance(value, dict):
+            lines.append(f"{indent}- {key}:")
+            lines.append(_format_kv_summary(value, indent + "  "))
+        elif isinstance(value, list):
+            if all(not isinstance(item, (dict, list)) for item in value):
+                lines.append(f"{indent}- {key}: {', '.join(str(item) for item in value)}")
+            else:
+                lines.append(f"{indent}- {key}:")
+                for item in value:
+                    if isinstance(item, dict):
+                        summary = ", ".join(f"{k}={v}" for k, v in item.items() if v is not None)
+                        lines.append(f"{indent}  * {summary}")
+                    else:
+                        lines.append(f"{indent}  * {item}")
+        else:
+            lines.append(f"{indent}- {key}: {value}")
+    return "\n".join(lines) if lines else indent + "(none)"
+
+
+def _format_history(entries):
+    if not entries:
+        return "  (no prior decisions)"
+    lines = []
+    for idx, note in enumerate(entries, 1):
+        parts = []
+        if "round" in note:
+            parts.append(f"round {note['round']}")
+        if note.get("role"):
+            parts.append(str(note["role"]))
+        if note.get("stage"):
+            parts.append(f"[{note['stage']}]")
+        if note.get("action"):
+            parts.append(f"action: {note['action']}")
+        if note.get("review_action"):
+            parts.append(f"review_action: {note['review_action']}")
+        if note.get("case_id"):
+            parts.append(f"case: {note['case_id']}")
+        if note.get("candidate_id"):
+            cand = str(note["candidate_id"])
+            if note.get("child_id"):
+                cand += f" -> {note['child_id']}"
+            parts.append(f"candidate: {cand}")
+        if "changed" in note:
+            parts.append("changed: yes" if note["changed"] else "changed: no")
+        if "checked" in note:
+            parts.append("checked: yes" if note["checked"] else "checked: no")
+        if note.get("status"):
+            parts.append(f"status: {note['status']}")
+        if note.get("outcome"):
+            parts.append(f"outcome: {note['outcome']}")
+        reason = note.get("review_reason") or note.get("reason")
+        line = f"  {idx}. " + ", ".join(parts)
+        if reason:
+            line += f" — {reason}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_author_evidence(task, candidate, *, structure, behavior, checker_status,
+                            active, history, budget, execution):
+    clean_structure = _strip_internal_hashes(structure)
+    clean_behavior = _strip_internal_hashes(behavior)
+    clean_execution = _strip_internal_hashes(execution)
+    clean_budget = _strip_internal_hashes(budget)
+    clean_checker_status = _strip_internal_hashes(checker_status)
+    if isinstance(clean_checker_status, dict):
+        checker_block = "Checker status:\n" + _format_kv_summary(clean_checker_status)
+    else:
+        checker_block = f"Checker status: {clean_checker_status}"
+    checker_block += "\nActive case IDs: " + (", ".join(active) if active else "(none)")
+    sections = [
+        f"Candidate: {candidate.id} (top module: {task.top})",
+        "Resolved interface:\n" + _format_interface(task.expected_interface.public_dict()),
+        "Structural checks:\n" + _format_kv_summary(clean_structure),
+        checker_block,
+        "Behavior verification:\n" + _format_kv_summary(clean_behavior),
+    ]
+    if clean_execution:
+        sections.append("Execution contract:\n" + _format_kv_summary(clean_execution))
+    sections.append("Decision history:\n" + _format_history(author_history(history)))
+    sections.append("Shared budget:\n" + _format_kv_summary(clean_budget))
+    return "\n\n".join(sections)
 
 # A reason can discuss both 'module' and 'endmodule' in ordinary prose. Look
 # for a declaration with a terminated header before treating it as embedded RTL.
@@ -62,13 +195,11 @@ def author_decision_request(task, candidate, *, structure, behavior, checker_tex
             raise ValueError("author decision evidence belongs to a different candidate")
 
     active = list(case_ids)
-    evidence = {
-        "candidate_id": candidate.id, "candidate_hash": candidate.code_hash,
-        "top": task.top, "resolved_interface": task.expected_interface.public_dict(),
-        "structure": structure, "checker_status": checker_status, "active_case_ids": active,
-        "behavior": behavior, "execution": execution,
-        "decision_history": author_history(history), "shared_budget": budget,
-    }
+    report_text = _format_author_evidence(
+        task, candidate, structure=structure, behavior=behavior,
+        checker_status=checker_status, active=active, history=history,
+        budget=budget, execution=execution,
+    )
     system = (
         "You are the RTL author. Decide whether to submit this exact candidate, revise its "
         "complete implementation, or ask the independent checker to review one active test "
@@ -84,7 +215,7 @@ def author_decision_request(task, candidate, *, structure, behavior, checker_tex
         + "\n\nCurrent candidate RTL:\n```verilog\n" + candidate.code.rstrip() + "\n```"
         + "\n\nActive checker table with test-point explanations:\n" + (checker_text or "(none)")
         + "\n\nHost report and decision history:\n"
-        + json.dumps(evidence, ensure_ascii=False, separators=(",", ":"))
+        + report_text
         + "\n\nReturn exactly one action using plain key=value header lines. "
           "Keep reason to one line of at most 400 characters.\n"
           "Submit the current candidate:\naction=submit\nreason=<brief reason>\n\n"

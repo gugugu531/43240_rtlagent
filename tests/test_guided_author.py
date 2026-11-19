@@ -119,21 +119,21 @@ def test_request_rebuilds_an_author_context_with_all_decisions_and_only_this_can
     assert [m["role"] for m in messages] == ["system","user"]
     body = messages[1]["content"]
     assert task.prompt in body and task.interface in body and candidate.code in body
-    assert args["checker_text"] in body and candidate.code_hash in body
+    assert args["checker_text"] in body
+    assert candidate.id in body and candidate.code_hash not in body
+    assert "reviewed_checker_hash" not in body
     assert "SECRET_" not in body
     assert body.index("note 0") < body.index("note 15") < body.index("Polarity is explicit.")
-    report = json.loads(body.split("Host report and decision history:\n",1)[1].split("\n\n",1)[0])
-    assert report["active_case_ids"] == [CASE] and report["behavior"] == args["behavior"]
-    assert report["structure"] == args["structure"] and report["shared_budget"] == args["budget"]
-    assert report["decision_history"] == author_history(args["history"])
-    assert report["decision_history"][-1]["reviewed_checker_hash"] == "before"
+    assert f"Active case IDs: {CASE}" in body
+    assert "lint: passed" in body and "calls_remaining: 1" in body
+    assert "review_action: keep" in body
 
 
 def test_no_checker_remains_unverified_and_cannot_be_reviewed():
     task, candidate, args = request(case_ids=())
     args["behavior"] = {"status":"not_run","reason":"simulation unavailable","compared_bits":0}
     body = author_decision_request(task,candidate,**args)[-1]["content"]
-    assert '"active_case_ids":[]' in body and '"status":"not_run"' in body and "action=review" not in body
+    assert "Active case IDs: (none)" in body and "status: not_run" in body and "action=review" not in body
     with pytest.raises(AuthorDecisionError):
         decide("action=review\nreason=please review\ncase_id=polarity", ids=())
 
