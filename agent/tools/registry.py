@@ -21,6 +21,8 @@ class Definition:
     params: dict = field(default_factory=dict)
     state: dict = field(default_factory=dict)
     param_model: object = None
+    label: str | None = None
+    role: str | None = None
 
 
 NODES, TOOLS, WORKFLOWS = {}, {}, {}
@@ -36,8 +38,8 @@ def _register(registry, name, **metadata):
     return decorate
 
 
-def node(name, *, reads=(), writes=()):
-    return _register(NODES, name, reads=list(reads), writes=list(writes))
+def node(name, *, reads=(), writes=(), label=None, role=None):
+    return _register(NODES, name, reads=list(reads), writes=list(writes), label=label, role=role)
 
 
 def tool(name):

@@ -10,19 +10,41 @@ import sys
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 from agent.domain.rtl.vivado import executable
 from agent.observability.recorder import Recorder
 from agent.runtime.budget import Budget
+from agent.runtime.context import Ctx
 from agent.runtime.process import ProcessManager
+from agent.tools.registry import Definition, TOOLS
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class RuntimeContractTests(unittest.TestCase):
+    def test_live_tool_origin_distinguishes_two_calls_to_the_same_tool(self):
+        def echo(ctx, origin: str):
+            return origin
+
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"RTLAGENT_LIVE_EVENTS": "1"}), \
+                patch.dict(TOOLS, {"echo": Definition("echo", echo)}):
+            record = Recorder(directory, level="basic")
+            try:
+                ctx = Ctx(task=None, budget=Budget(), llm=None, record=record, processes=None,
+                          candidates=None, prompts=None, config=SimpleNamespace(tools={}))
+                self.assertEqual(ctx.call("echo", origin="left"), "left")
+                self.assertIn("right", ctx.dispatch("echo", {"origin": "right"})["excerpt"])
+            finally:
+                record.close()
+            events = [json.loads(line) for line in (Path(directory) / "live.jsonl").read_text().splitlines()]
+            self.assertEqual([(e["value"]["origin"], e["status"]) for e in events if e.get("label") == "工具调用"],
+                             [("framework", "started"), ("framework", "finished"),
+                              ("model", "started"), ("model", "finished")])
+
     def test_default_start_ignores_leftover_small_model_setting(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

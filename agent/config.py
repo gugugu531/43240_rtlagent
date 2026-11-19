@@ -159,7 +159,8 @@ def load_config(path=None, overrides=None):
     environment = {
         k: v
         for k, v in os.environ.items()
-        if k in ENV_FIELDS or k.startswith("RTLAGENT_")
+        if (k in ENV_FIELDS or k.startswith("RTLAGENT_"))
+        and not k.startswith("RTLAGENT_UI_") and k != "RTLAGENT_LIVE_EVENTS"
     }
     for key, dotted in ENV_FIELDS.items():
         if key in environment:

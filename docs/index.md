@@ -12,6 +12,7 @@
 | 大语言模型、工具、状态、知识检索和答案提交的接口 | [Agent 接口契约](agent-interfaces.md) |
 | 129 张知识卡片、词项检索、向量检索和文本嵌入配置 | [技能与知识检索](knowledge.md) |
 | 工作流节点与分支连线 | [默认三角色流程](../agent/orchestration/workflows/guided_verify.py)、[单次生成流程](../agent/orchestration/workflows/single_generate.py) |
+| 实时展示与新工作流接入 | [工作台操作](../serve/README.md#实时工作台)、[v1 事件格式与扩展示例](live-events.md) |
 | 配置结构、环境覆盖与默认值 | [配置实现](../agent/config.py)、[默认配置](../config/guided_verify.yaml) |
 | 模型声明与服务运行方式 | [模型声明](../model/MODEL.md)、[服务说明](../serve/README.md) |
 

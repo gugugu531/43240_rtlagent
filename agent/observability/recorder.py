@@ -5,6 +5,7 @@ from contextvars import ContextVar
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import time
 import uuid
@@ -43,6 +44,20 @@ class Recorder:
         self._stream = (self.output_dir / "trace.jsonl").open(
             "w", encoding="utf-8", errors="backslashreplace"
         )
+        self._live = None
+        if os.environ.get("RTLAGENT_LIVE_EVENTS") == "1":
+            from agent.observability.live import LiveEvents
+            self._live = LiveEvents.open(self.output_dir, self.redactor.secrets)
+
+    @property
+    def live_events(self):
+        """Optional sink for public events produced at the model transport."""
+        return self._live
+
+    def live_detail(self, label, value, *, kind=None, status=None):
+        """Show a public value on the current node visit in an enabled live view."""
+        if self._live is not None:
+            self._live.detail(label, value, kind=kind, status=status)
 
     def emit(self, tool, event, **fields):
         self.seq += 1
@@ -71,6 +86,8 @@ class Recorder:
             json.dumps(clean, ensure_ascii=False, allow_nan=False) + "\n"
         )
         self._stream.flush()
+        if self._live is not None:
+            self._live.event(row)
 
     @contextmanager
     def scope(self):
@@ -107,6 +124,8 @@ class Recorder:
 
     def write_text(self, relative, text):
         text = str(text)
+        if self._live is not None:
+            self._live.artifact(relative, text)
         # HTTP JSON is redacted as structured data before serialization. Running
         # credential patterns over serialized escapes can corrupt the JSON.
         try:
@@ -138,6 +157,8 @@ class Recorder:
     def write_json(self, relative, data):
         # Redact values before serialization; text redaction after json.dumps
         # can consume escape characters and corrupt the JSON document.
+        if self._live is not None:
+            self._live.artifact(relative, data)
         return self._write_record(
             relative,
             json.dumps(
@@ -149,3 +170,5 @@ class Recorder:
 
     def close(self):
         self._stream.close()
+        if self._live is not None:
+            self._live.close()

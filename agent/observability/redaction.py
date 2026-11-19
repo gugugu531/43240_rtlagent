@@ -18,10 +18,12 @@ SENSITIVE = {
     "rc_cookie",
     "rc_api_key",
     "fpgachina_token",
+    "rtlagent_ui_operator_token",
 }
 ENV_SECRETS = (
     "LLM_API_KEY",
     "FPGACHINA_TOKEN",
+    "RTLAGENT_UI_OPERATOR_TOKEN",
     "RC_COOKIE",
     "RC_API_KEY",
     "GH_TOKEN",

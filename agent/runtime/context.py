@@ -36,6 +36,9 @@ class Ctx:
         self.output_dir = record.output_dir
 
     def call(self, tool_name, *args, **kwargs):
+        return self._call(tool_name, args, kwargs, origin="framework")
+
+    def _call(self, tool_name, args, kwargs, *, origin):
         selected = self.tools.get(tool_name)
         implementation = selected.use if selected else tool_name
         if implementation not in TOOLS:
@@ -50,6 +53,7 @@ class Ctx:
             "tool",
             name=tool_name,
             implementation=implementation,
+            origin=origin,
             input=summarize(values),
         ):
             result = definition.fn(self, **values)
@@ -66,7 +70,7 @@ class Ctx:
 
     def dispatch(self, name, arguments):
         """Model-facing tool entry: bounded envelope, JSON-normalized for transport."""
-        result = self.call(name, **arguments)
+        result = self._call(name, (), arguments, origin="model")
         if isinstance(result, ToolResult):
             envelope = result
         elif hasattr(result, "status") and hasattr(result, "summary"):

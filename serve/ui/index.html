@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>RTL 工作流观测台 · 队伍 43240</title>
+  <link rel="stylesheet" href="/ui/assets/style.css">
+  <script defer src="/ui/assets/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">跳到当前题目</a>
+  <header class="masthead">
+    <div class="mast-inner">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 42 42" aria-hidden="true">
+          <rect width="42" height="42" rx="11" fill="#13382f"/>
+          <g fill="none" stroke="#92f4c6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 25h7l5-13h5l-5 18h5l4-11h5"/>
+          </g>
+        </svg>
+        <div><div class="team">队伍 43240</div><h1>RTL 工作流观测台</h1></div>
+      </div>
+      <div class="header-tools">
+        <span id="mode" class="mode" hidden></span>
+        <span id="connection" class="connection" data-state="waiting" role="status"><i></i><span>正在连接</span></span>
+        <button id="present" class="present" type="button" hidden>演示者选题</button>
+      </div>
+    </div>
+  </header>
+  <noscript><p class="notice">请启用 JavaScript 查看实时工作流。</p></noscript>
+  <main class="shell">
+    <aside class="queue panel" aria-labelledby="queue-heading">
+      <div class="queue-head"><h2 id="queue-heading">题目队列</h2><span id="queue-count" class="count">0</span></div>
+      <button id="follow" type="button" class="follow" aria-pressed="true"><span class="switch" aria-hidden="true"></span>跟随当前题</button>
+      <ul id="runs" class="run-list" aria-label="最近收到的题目"></ul>
+      <p id="queue-empty" class="muted queue-empty">正在读取队列…</p>
+      <div id="synced" class="synced"></div>
+    </aside>
+    <div id="workspace" class="workspace" tabindex="-1">
+      <section class="overview" aria-labelledby="task-name">
+        <div class="task-top"><span class="section-label">当前查看</span><span id="job-status" class="badge" hidden></span></div>
+        <h2 id="task-name">正在读取题目…</h2>
+        <div id="task-meta" class="task-meta"></div>
+      </section>
+      <p id="issue" class="notice" role="status" hidden></p>
+      <section class="graph-panel" aria-labelledby="graph-heading">
+        <div class="graph-heading">
+          <div class="graph-title"><span class="graph-icon" aria-hidden="true">⌁</span><h2 id="graph-heading">工作流</h2></div>
+          <div class="view-switch" role="group" aria-label="工作流视图">
+            <button id="view-trace" type="button" aria-pressed="true">执行轨迹</button>
+            <button id="view-plan" type="button" aria-pressed="false">流程定义</button>
+          </div>
+        </div>
+        <div id="graph-scroll" class="graph-scroll" tabindex="0" aria-label="工作流画布，可滚动查看">
+          <div id="graph-space" class="graph-space"><div id="drawing" class="drawing"></div></div>
+          <div id="graph-empty" class="graph-empty"><span class="empty-mark" aria-hidden="true">⌁</span><strong>等待工作流事件</strong><span>收到节点记录后会显示执行轨迹。</span></div>
+        </div>
+        <div class="graph-foot">
+          <div class="legend"><span id="edge-key" class="edge-key"></span><span id="edge-caption">实际前序</span><span id="graph-count"></span></div>
+          <div class="canvas-actions">
+            <button id="locate" type="button" title="跟随并定位最新执行步骤">定位最新</button>
+            <span class="zoom">
+              <button id="zoom-out" type="button" aria-label="缩小画布">−</button>
+              <button id="zoom-reset" type="button" title="恢复原始大小">100%</button>
+              <button id="zoom-in" type="button" aria-label="放大画布">+</button>
+            </span>
+            <button id="fit" type="button" title="缩放以显示整张图">全图</button>
+          </div>
+        </div>
+        <div id="plan-info" class="plan-info" hidden></div>
+      </section>
+      <section class="inspector panel" aria-label="运行详情">
+        <div class="tabs" role="tablist" aria-label="运行详情">
+          <button type="button" role="tab" id="tab-records" aria-selected="true" aria-controls="panel-records">执行记录</button>
+          <button type="button" role="tab" id="tab-prompt" aria-selected="false" aria-controls="panel-prompt" tabindex="-1">公开题面</button>
+          <button type="button" role="tab" id="tab-solution" aria-selected="false" aria-controls="panel-solution" tabindex="-1">交付源码</button>
+          <button type="button" role="tab" id="tab-summary" aria-selected="false" aria-controls="panel-summary" tabindex="-1">运行摘要</button>
+        </div>
+        <div id="panel-records" class="tab-panel" role="tabpanel" aria-labelledby="tab-records">
+          <div class="record-tools">
+            <label>查看范围<select id="scope"><option value="latest">跟随最新步骤</option></select></label>
+            <label>查找记录<input id="record-search" type="search" placeholder="按名称筛选" autocomplete="off"></label>
+          </div>
+          <div id="step-info" class="step-info"></div>
+          <div id="record-list" class="record-list"></div>
+          <p id="records-empty" class="empty-text">暂无公开执行记录。</p>
+        </div>
+        <div id="panel-prompt" class="tab-panel" role="tabpanel" aria-labelledby="tab-prompt" hidden></div>
+        <div id="panel-solution" class="tab-panel" role="tabpanel" aria-labelledby="tab-solution" hidden></div>
+        <div id="panel-summary" class="tab-panel" role="tabpanel" aria-labelledby="tab-summary" hidden></div>
+      </section>
+    </div>
+  </main>
+  <dialog id="presenter" aria-labelledby="dialog-title">
+    <div class="dialog-head"><h2 id="dialog-title">演示者选题</h2><button type="button" id="close-dialog" class="close" aria-label="关闭演示者选题">×</button></div>
+    <div class="dialog-body">
+      <label>搜索题库<input id="task-search" type="search" placeholder="输入题目标识" autocomplete="off"></label>
+      <label>选择题目<select id="task-options" size="5"></select></label>
+      <p id="task-count" class="muted" role="status"></p>
+      <div class="preview"><h3>题面预览</h3><pre id="preview" tabindex="0">请选择题目。</pre></div>
+      <label>演示口令<input id="presenter-key" type="password" placeholder="输入独立演示口令" autocomplete="off" spellcheck="false"></label>
+      <p id="launch-note" class="form-note" role="status">口令仅用于本次启动，关闭窗口即清除。</p>
+    </div>
+    <div class="dialog-foot"><button id="launch" class="launch" type="button" disabled>启动演示</button></div>
+  </dialog>
+</body>
+</html>

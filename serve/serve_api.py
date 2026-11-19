@@ -31,6 +31,8 @@ See README.md in this directory for the submission lifecycle, process-group clea
 from __future__ import annotations
 
 import ctypes
+from contextlib import asynccontextmanager
+import hmac
 import ipaddress
 import json
 import os
@@ -47,10 +49,22 @@ from typing import Literal
 import urllib.request
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="rtlagent2026 submission endpoint")
+from agent.observability.redaction import ENV_SECRETS
+from serve.live_runs import RunFeed
+from serve.ui_control import TaskCatalog, local_control, persist_mode
+
+
+@asynccontextmanager
+async def _lifespan(app):
+    with local_control(_control):
+        yield
+
+
+app = FastAPI(title="rtlagent2026 submission endpoint", lifespan=_lifespan)
 
 TOKEN = os.environ.get("FPGACHINA_TOKEN", "")
 TRACK = "rtl"
@@ -58,6 +72,50 @@ TRACK = "rtl"
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SCRATCH = os.environ.get("AGENT_TMP", "/var/tmp")
+_ASSETS = Path(HERE) / "ui"
+_UI_ON = False
+_MODE = "submission"
+_ACTIVE_ID = None
+_RECENT = []
+_PENDING = set()
+
+
+class _DisplayJSON(JSONResponse):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.headers["Cache-Control"] = "no-store"
+
+    def render(self, content):
+        # Keep unpaired surrogates from external task text valid on the wire.
+        # The solver doesn't receive the presentation and submission credentials.
+        # Scrub their literal values here too, including any echoed in a message.
+        secrets = {TOKEN, *(os.environ.get(key) for key in ENV_SECRETS)}
+        secrets = tuple(sorted(filter(None, secrets), key=len, reverse=True))
+        if secrets:
+            content = _display_copy(content, secrets)
+        return json.dumps(content, allow_nan=False, ensure_ascii=True, separators=(",", ":")).encode("ascii")
+
+
+def _display_copy(value, secrets):
+    if isinstance(value, str):
+        for secret in secrets:
+            value = value.replace(secret, "[凭据已隐藏]")
+        return value
+    if isinstance(value, dict):
+        return {_display_copy(k, secrets): _display_copy(v, secrets) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_display_copy(item, secrets) for item in value]
+    return value
+
+
+_PAGE_HEADERS = {
+    "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "default-src 'self'; connect-src 'self'; script-src 'self'; "
+                               "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                               "object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+}
 
 
 def _become_subreaper() -> bool:
@@ -101,6 +159,9 @@ def _check_token(authorization: str | None) -> None:
 @app.get("/v1/health")
 def health(authorization: str | None = Header(default=None)):
     _check_token(authorization)
+    with _LOCK:
+        if _MODE != "submission":
+            raise HTTPException(status_code=503, detail="当前只接受本地选题")
     try:
         config, _ = _service_config()
         manifest = json.loads((Path(ROOT) / "manifest.json").read_text())
@@ -131,18 +192,18 @@ def health(authorization: str | None = Header(default=None)):
 
 @app.post("/v1/solve", status_code=202)
 def solve(req: SolveRequest, authorization: str | None = Header(default=None)):
+    if not TOKEN:
+        with _LOCK:
+            if _MODE == "local":
+                raise HTTPException(status_code=503, detail="当前只接受本地选题")
     _check_token(authorization)
     with _LOCK:
-        # The same nonce twice is a client retry, not a new task.
+        # A retry, including after a mode switch, still identifies the original job.
         if req.nonce and req.nonce in _BY_NONCE:
             return _public(_JOBS[_BY_NONCE[req.nonce]])
-        job = {"job_id": uuid.uuid4().hex, "task_id": req.task_id, "status": "queued",
-               "req": req, "submitted": time.time()}
-        _JOBS[job["job_id"]] = job
-        if req.nonce:
-            _BY_NONCE[req.nonce] = job["job_id"]
-    _QUEUE.put(job["job_id"])
-    return _public(job)
+        if _MODE != "submission":
+            raise HTTPException(status_code=503, detail="当前只接受本地选题")
+        return _enqueue(req, "submission")
 
 
 @app.get("/v1/jobs/{job_id}")
@@ -150,7 +211,7 @@ def job_status(job_id: str, authorization: str | None = Header(default=None)):
     _check_token(authorization)
     with _LOCK:
         job = _JOBS.get(job_id)
-        if job is None:
+        if job is None or job.get("source") == "local":
             raise HTTPException(status_code=404, detail="unknown job_id")
         return _public(job)
 
@@ -159,6 +220,155 @@ _JOBS: dict[str, dict] = {}
 _BY_NONCE: dict[str, str] = {}
 _LOCK = threading.Lock()
 _QUEUE: queue.Queue[str] = queue.Queue()
+
+
+def _enqueue(req, source):
+    """Caller holds _LOCK so mode changes and admission have one ordering."""
+    job_id = uuid.uuid4().hex
+    job = dict(job_id=job_id, task_id=req.task_id, status="queued", source=source,
+               req=req, submitted=time.time(), started=None, finished=None, feed=RunFeed())
+    _JOBS[job_id] = job
+    _PENDING.add(job_id)
+    if source == "submission" and req.nonce:
+        _BY_NONCE[req.nonce] = job_id
+    _QUEUE.put(job_id)
+    return _public(job)
+
+
+def _operator_token():
+    value = os.environ.get("RTLAGENT_UI_OPERATOR_TOKEN", "")
+    return value if value and value != TOKEN else None
+
+
+def _control(command, value):
+    global _MODE, _UI_ON
+    with _LOCK:
+        if command == "restore":
+            _UI_ON = False
+            _MODE = "local" if not TOKEN and _operator_token() and os.environ.get("RTLAGENT_UI_TASKS") else value
+        elif command == "ui":
+            if value in ("on", "off"):
+                _UI_ON = value == "on"
+        elif command == "mode" and value != _MODE:
+            if _PENDING:
+                return {"error": "仍有排队或运行中的题目，结束后可切换题源。"}
+            if value == "submission" and not TOKEN:
+                return {"error": "投题模式需要赛事令牌。"}
+            if value == "local" and not (_operator_token() and os.environ.get("RTLAGENT_UI_TASKS")):
+                return {"error": "选题模式需要题库目录和独立的演示者口令。"}
+            persist_mode(value)
+            _MODE = value
+        return {"ui": _UI_ON, "mode": _MODE, "busy": bool(_PENDING)}
+
+
+def _presentation(*, local=False):
+    if not _UI_ON:
+        raise HTTPException(status_code=404, detail="展示页已关闭")
+    if local and _MODE != "local":
+        raise HTTPException(status_code=409, detail="当前只接受赛事投题")
+
+
+def _display_info(job):
+    fields = ("job_id", "task_id", "source", "status", "submitted", "started", "finished")
+    return {key: job[key] for key in fields}
+
+
+@app.get("/ui", include_in_schema=False)
+@app.get("/ui/", include_in_schema=False)
+def display():
+    with _LOCK:
+        _presentation()
+    return FileResponse(_ASSETS / "index.html", media_type="text/html", headers=_PAGE_HEADERS)
+
+
+@app.get("/ui/assets/{name}", include_in_schema=False)
+def display_asset(name: str):
+    with _LOCK:
+        _presentation()
+    types = {"style.css": "text/css", "app.js": "text/javascript"}
+    if name not in types:
+        raise HTTPException(status_code=404)
+    return FileResponse(_ASSETS / name, media_type=types[name], headers=_PAGE_HEADERS)
+
+
+@app.get("/ui/api/state", response_class=_DisplayJSON, include_in_schema=False)
+def display_state():
+    with _LOCK:
+        _presentation()
+        waiting = sorted((_JOBS[i] for i in _PENDING if i != _ACTIVE_ID),
+                         key=lambda j: j["submitted"])
+        shown = ([_JOBS[_ACTIVE_ID]] if _ACTIVE_ID else []) + waiting + [_JOBS[i] for i in _RECENT]
+        return {"mode": _MODE, "active_id": _ACTIVE_ID, "runs": [_display_info(j) for j in shown]}
+
+
+@app.get("/ui/api/runs/{job_id}", response_class=_DisplayJSON, include_in_schema=False)
+def display_run(job_id: str, after: int = Query(default=0, ge=0)):
+    with _LOCK:
+        _presentation()
+        if job_id not in _PENDING and job_id not in _RECENT:
+            raise HTTPException(status_code=404, detail="该题已离开展示记录")
+        job = _JOBS[job_id]
+        info = dict(**_display_info(job), prompt=job["req"].prompt, solution=job.get("solution"))
+        feed = job["feed"]
+        error = job.get("display_error")
+    page = feed.page(after)
+    if error:
+        page["error"] = error
+    elif info["status"] == "done" and not page["events"] and after == 0 and job["req"].mode == "agent":
+        page["error"] = page["error"] or "本题未产生可展示的流程记录。"
+    return {**info, **page}
+
+
+def _catalog():
+    try:
+        return TaskCatalog(os.environ.get("RTLAGENT_UI_TASKS"))
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail="题库配置无效") from exc
+
+
+@app.get("/ui/api/tasks", response_class=_DisplayJSON, include_in_schema=False)
+def display_tasks():
+    with _LOCK:
+        _presentation(local=True)
+    try:
+        return {"tasks": _catalog().list()}
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail="题库暂不可用") from exc
+
+
+def _task_prompt(task_id):
+    try:
+        return _catalog().prompt(task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="找不到这道题") from exc
+
+
+@app.get("/ui/api/task", response_class=_DisplayJSON, include_in_schema=False)
+def display_task(task_id: str):
+    with _LOCK:
+        _presentation(local=True)
+    return {"task_id": task_id, "prompt": _task_prompt(task_id)}
+
+
+class LocalSelection(BaseModel):
+    task_id: str
+
+
+@app.post("/ui/api/runs", status_code=202, response_class=_DisplayJSON, include_in_schema=False)
+def start_local(selection: LocalSelection, authorization: str | None = Header(default=None)):
+    with _LOCK:
+        _presentation(local=True)
+    secret = _operator_token()
+    if secret is None:
+        raise HTTPException(status_code=503, detail="服务尚未配置独立的演示者口令")
+    if not hmac.compare_digest((authorization or "").encode(), f"Bearer {secret}".encode()):
+        raise HTTPException(status_code=401, detail="请输入正确的演示者口令")
+    req = SolveRequest(task_id=selection.task_id, prompt=_task_prompt(selection.task_id))
+    with _LOCK:
+        _presentation(local=True)
+        if _PENDING:
+            raise HTTPException(status_code=409, detail="当前有题目正在处理")
+        return _enqueue(req, "local")
 
 
 def _public(job: dict) -> dict:
@@ -170,28 +380,44 @@ def _public(job: dict) -> dict:
 
 
 def _worker() -> None:
+    global _ACTIVE_ID
     while True:
         job_id = _QUEUE.get()
         with _LOCK:
             job = _JOBS[job_id]
-            job["status"] = "running"
+            job.update(status="running", started=time.time())
+            _ACTIVE_ID = job_id
+        error = None
         try:
-            solution, trace = _solve(job["req"], job["submitted"])
+            solution, trace = _solve(job["req"], job["submitted"], feed=job["feed"],
+                                     local=job["source"] == "local")
         except Exception:                      # never leave a job stuck in "running"
             solution, trace = "", ""
+            error = "求解服务未能完成此题。"
         with _LOCK:
+            ended = time.time()
             job.update(status="done", solution=solution, trace=trace,
-                       elapsed_s=round(time.time() - job["submitted"], 1))
+                       finished=ended, elapsed_s=round(ended - job["submitted"], 1),
+                       display_error=error)
+            _ACTIVE_ID = None
+            _PENDING.discard(job_id)
+            _RECENT.insert(0, job_id)
+            if len(_RECENT) > 2:
+                stale = _JOBS[_RECENT.pop()]
+                stale.pop("feed").discard()
+                if stale["source"] == "local":
+                    del _JOBS[stale["job_id"]]
+            _QUEUE.task_done()
 
 
-def _solve(req: SolveRequest, submitted: float) -> tuple[str, str]:
+def _solve(req: SolveRequest, submitted: float, *, feed=None, local=False) -> tuple[str, str]:
     script = "run.sh" if req.mode != "baseline" else "run_baseline.sh"
     # The organisers' clock starts at submission, so time spent queued counts.
     left = req.deadline_s - (time.time() - submitted)
     if left <= 0:
         return "", ""
 
-    config, config_path = _service_config()
+    config, config_path = _service_config(local=local)
 
     with tempfile.TemporaryDirectory(dir=SCRATCH) as work:
         in_dir = os.path.join(work, "in")
@@ -213,6 +439,11 @@ def _solve(req: SolveRequest, submitted: float) -> tuple[str, str]:
         env = dict(os.environ, TRACK=TRACK, AGENT_CONFIG=str(config_path),
                    LLM_BACKEND=model.backend, LLM_BASE_URL=model.base_url,
                    LLM_MODEL=model.model, MODEL_NAME=model.model)
+        # Inference and EDA do not need HTTP or operator credentials.
+        for key in ("FPGACHINA_TOKEN", "RTLAGENT_UI_OPERATOR_TOKEN", "RTLAGENT_UI_TASKS"):
+            env.pop(key, None)
+        if feed is not None and req.mode == "agent":
+            env["RTLAGENT_LIVE_EVENTS"] = "1"
         left = req.deadline_s - (time.time() - submitted)
         if left <= 0:
             return "", ""
@@ -220,11 +451,13 @@ def _solve(req: SolveRequest, submitted: float) -> tuple[str, str]:
         if req.mode == "agent":
             cmd += ["--hard-deadline-s", str(left)]
         # 在赛事方超时之前自行停止并返回已有结果。
-        _run_task(
-            cmd,
-            env=env,
-            timeout_s=max(left - 10, 0.001),
-        )
+        if feed is not None and req.mode == "agent":
+            feed.attach(out_dir)
+        try:
+            _run_task(cmd, env=env, timeout_s=max(left - 10, 0.001))
+        finally:
+            if feed is not None:
+                feed.finish(baseline=req.mode == "baseline")
 
         solution = _read(os.path.join(out_dir, "solution.v"))
         return (solution if solution.strip() else "",
@@ -350,7 +583,7 @@ def _read(path: str) -> str:
         return ""
 
 
-def _service_config():
+def _service_config(*, local=False):
     """Resolve the same YAML/environment settings that run.sh will use."""
     from agent.config import load_config
 
@@ -358,7 +591,8 @@ def _service_config():
     if not path.is_absolute():
         path = Path(ROOT) / path
     config, _ = load_config(path)
-    if config.services.model.backend != "openai" or not config.services.model.model:
+    allowed = ("openai", "mock") if local else ("openai",)
+    if config.services.model.backend not in allowed or not config.services.model.model:
         raise ValueError("submission requires a configured local model service")
     _require_loopback(config.services.model.base_url)
     for profile in config.services.profiles.values():

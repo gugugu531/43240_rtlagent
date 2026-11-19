@@ -670,6 +670,9 @@ def _set_checker(ctx, checker, text):
     data["checker_notice"] = "" if checker is not None else "All test points have been withdrawn."
     _save(ctx, "checker", {"status": data["checker_status"], "checker_hash": data["checker_hash"],
                            **(checker.public_dict() if checker is not None else {"cases": []})})
+    live_detail = getattr(ctx.record, "live_detail", None)
+    if live_detail:
+        live_detail("检查表版本", {"checker_hash": data["checker_hash"], "checker_version": data["checker_version"]})
 
 
 @node("guided_build_checker", reads=[], writes=["checker_status"])

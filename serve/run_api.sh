@@ -4,6 +4,8 @@
 #   ./serve/run_api.sh start     # start in the background, detached from this terminal
 #   ./serve/run_api.sh stop      # stop the watchdog and the API
 #   ./serve/run_api.sh status
+#   ./serve/run_api.sh ui on|off|status
+#   ./serve/run_api.sh mode submission|local
 #
 # Why it exists: Radeon Cloud's rc-tunnel probes 127.0.0.1:7860 every 10 s and
 # revokes the tunnel after about a minute of failed probes. The public URL is
@@ -15,12 +17,29 @@
 # Start serve/start.sh (the inference service) first, then this, then
 # rc-tunnel expose. FPGACHINA_TOKEN and MODEL_NAME must be set in the
 # environment, e.g. by `source /workspace/env.sh`.
+# A local demo can use RTLAGENT_UI_TASKS and RTLAGENT_UI_OPERATOR_TOKEN.
 #
 # Do not use `set -u` here, see docs/API_CONTRACT.md section 10.
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${AGENT_TMP:-}" && "$AGENT_TMP" != /* ]]; then
+    export AGENT_TMP="$PWD/$AGENT_TMP"
+fi
+case "${1:-}" in
+ui|mode)
+    exec python3 "$HERE/ui_control.py" "$@"
+    ;;
+esac
 PORT="${API_PORT:-7860}"
+if ! [[ "$PORT" =~ ^0*([1-9][0-9]{0,4})$ ]] || (( BASH_REMATCH[1] > 65535 )); then
+    echo "run_api.sh: invalid API_PORT" >&2
+    exit 2
+fi
+PORT="${BASH_REMATCH[1]}"
 STATE="${AGENT_TMP:-/var/tmp}/run_api"
+if [ "$PORT" != "7860" ]; then
+    STATE="$STATE-$PORT"
+fi
 PIDFILE="$STATE/run_api.pid"
 CHILD_PIDFILE="$STATE/serve_api.pid"
 LOG="$STATE/serve_api.log"
@@ -39,7 +58,10 @@ start)
         echo "run_api.sh: watchdog running but API is recovering; see $LOG" >&2
         exit 1
     fi
-    [ -n "$FPGACHINA_TOKEN" ] || { echo "run_api.sh: FPGACHINA_TOKEN is not set" >&2; exit 1; }
+    if [ -z "$FPGACHINA_TOKEN" ] && { [ -z "$RTLAGENT_UI_TASKS" ] || [ -z "$RTLAGENT_UI_OPERATOR_TOKEN" ]; }; then
+        echo "run_api.sh: FPGACHINA_TOKEN is not set" >&2
+        exit 1
+    fi
     for dependency in setsid uvicorn; do
         command -v "$dependency" >/dev/null 2>&1 || {
             echo "run_api.sh: required executable not found: $dependency" >&2
@@ -71,7 +93,7 @@ _loop)
     cd "$HERE/.."
     while :; do
         echo "$(date '+%F %T') run_api.sh: starting serve_api on 127.0.0.1:$PORT"
-        uvicorn serve.serve_api:app --host 127.0.0.1 --port "$PORT" &
+        uvicorn serve.serve_api:app --host 127.0.0.1 --port "$PORT" --workers 1 &
         child=$!
         echo "$child" > "$CHILD_PIDFILE"
         wait "$child"
@@ -95,7 +117,7 @@ status)
     else echo "run_api.sh: not running"; exit 1; fi
     ;;
 *)
-    echo "usage: $0 start|stop|status" >&2
+    echo "usage: $0 start|stop|status | ui on|off|status | mode submission|local" >&2
     exit 2
     ;;
 esac

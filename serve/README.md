@@ -23,6 +23,43 @@ AGENT_CONFIG=config/single_generate.yaml LLM_BACKEND=mock \
 方案内的模型请求经过 `agent/llm/client.py`。默认 `guided_verify` 通过 llama.cpp 的 `/apply-template` 和 `/tokenize` 核算上下文余量。`single_generate` 的默认基线节点跳过这一步，改用 `rtl_generate` 的研究预设则按配置分词。HTTP 的 `mode=baseline` 另行调用主办方的 `run_baseline.sh`。
 当前 `guided_verify` 预设设置 `services.model.structured_outputs: false`。规划、检查表、逐点复核和解题决策的行式回复由框架按各自语法解析。
 
+## 实时工作台
+
+在本方案目录运行以下命令。已启动的 API 可直接使用 `ui on`。观众用浏览器打开同一个监听地址上的 `/ui`，例如本机的 [实时工作台](http://127.0.0.1:7860/ui)。
+
+```bash
+./serve/run_api.sh start
+./serve/run_api.sh ui on
+./serve/run_api.sh ui status
+./serve/run_api.sh ui off
+```
+
+页面开启后，能访问该地址的人均可免登录查看两种题源的题面全文、各版 RTL、检查点说明、实测结果、决策理由和最终交付。赛事投题与本地选题使用同一套展示规则。角色正在生成时显示当前步骤和耗时，回复返回后展示新内容。实际执行图为每次重访单独绘制节点；工作流定义视图显示可能发生的转移。选中节点可展开这一次执行的记录。[事件接口与新工作流示例](../docs/live-events.md)
+
+首次启动、已配置赛事令牌时，默认关闭页面并接受赛事投题。需要现场选题时，在**启动 API 前**设置题库和独立演示口令。口令用 Bash 隐藏输入，两个变量都要导出。下面的目录改为存放公开题面的绝对路径，各题目录下有 `prompt.txt`。
+
+```bash
+export RTLAGENT_UI_TASKS=/absolute/path/to/public-tasks
+read -rs -p '请输入独立的演示者口令 ' RTLAGENT_UI_OPERATOR_TOKEN
+export RTLAGENT_UI_OPERATOR_TOKEN
+./serve/run_api.sh start
+./serve/run_api.sh mode local
+./serve/run_api.sh ui on
+```
+
+观众可以预览题目。演示者输入独立口令后才能开始求解。口令必须与赛事令牌不同。只做本地演示时，上述两个变量即可启动；首次未配置赛事令牌则进入选题模式。本机模拟可以在启动前另设 `LLM_BACKEND=mock`。正式投题入口只使用符合赛事要求的本机模型服务。
+
+| 命令 | 运行效果 |
+| --- | --- |
+| `mode local` | 接受页面选题。带有效赛事令牌的新投题和就绪探测返回 HTTP 503。已有赛事作业仍可按编号查询。 |
+| `mode submission` | 接受赛事投题，关闭页面选题入口。进入该模式需要赛事令牌。 |
+| `ui on`、`ui off` | 立即开关页面及其数据接口。当前求解和投题 API 继续运行。 |
+| `ui status` | 显示页面、题源和队列忙闲状态。 |
+
+队列空闲时可切换题源。命令须在 API 所在主机以运行服务的用户执行，使用相同的 `AGENT_TMP` 和 `API_PORT`。监听地址为 `127.0.0.1`，`API_PORT` 默认 7860。页面与投题接口共用这个端口，开启页面后仍需单独建立隧道才能从公网访问。
+
+页面自动跟随当前题，结束后停留在结果。刷新会重新读取该题事件，手动查看最近的题目可暂停跟随。内存保留正在处理的题目和最近两道已结束题的展示记录。API 重启后清空运行记录并关闭页面，同一临时目录和端口会恢复上一次选择的题源。基线入口沿用主办方脚本，可以查看题面、作业状态与交付源码。基线和未产生结束事件的中断任务只显示已有证据。
+
 ## 对外运行记录（trace）字段
 
 投题 API 在返回结果时为 agent 与 baseline 的每条 trace 对象补齐 `ts`、`tool`、
@@ -158,8 +195,7 @@ env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
 `env -u` 让隧道客户端直接连接平台隧道服务器，避免使用实例的出网代理。
 
 查看状态用 `./serve/run_api.sh status`，停止用 `./serve/run_api.sh stop`。
-日志在 `${AGENT_TMP:-/var/tmp}/run_api/serve_api.log`；云端应设置 `AGENT_TMP=/var/tmp`。
-`API_PORT` 默认 7860；同一实例只运行一个守护服务。
+默认端口的日志在 `${AGENT_TMP:-/var/tmp}/run_api/serve_api.log`，其他端口使用 `run_api-<端口>/serve_api.log`。云端使用本地磁盘上的 `AGENT_TMP`。
 先确认无令牌访问 `curl --noproxy '*' http://127.0.0.1:7860/v1/health` 返回 401，再建立隧道。
 平台约 1 分钟探测不到服务就会收回隧道，恢复服务不能恢复旧网址，须重新 expose 并报送。
 实例重启后须恢复环境与依赖、启动推理和投题服务、重新安装 rc-tunnel 并建立隧道。

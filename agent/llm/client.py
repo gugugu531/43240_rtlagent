@@ -113,7 +113,9 @@ class Client:
                 raise ValueError("replay backend requires replay_path")
             transport = make_transport(replay_path=_get(config, "replay_path"))
         # 不从代理环境继承请求头；baseline 请求也不包含认证。
-        self.http = httpx.Client(transport=transport, trust_env=False)
+        self._live = getattr(record, "live_events", None)
+        hooks = {"request": [self._live.call_context]} if self._live is not None else None
+        self.http = httpx.Client(transport=transport, trust_env=False, event_hooks=hooks)
         self.replay = getattr(transport, "replay", None)
 
     def optional_preparation_budget_s(self):
@@ -258,14 +260,23 @@ class Client:
                     permit._sent(call_id, payload["max_tokens"])
                 except AllowanceError as error:
                     self._usage.pop(call_id, None)
+                    self.record.emit(
+                        event_tool, "failed", call_id=call_id, purpose=purpose, rc=1,
+                        error_kind="allowance", elapsed_s=time.monotonic() - start,
+                        excerpt="completion denied before HTTP dispatch",
+                    )
+                    self._active.pop(call_id, None)
                     raise ModelError(str(error), kind="allowance") from error
+            extensions = {"purpose": purpose}
+            if completion and self._live is not None:
+                extensions["live_call_id"] = call_id
             response = self.http.request(
                 method,
                 url,
                 json=payload,
                 headers=headers,
                 timeout=timeout,
-                extensions={"purpose": purpose},
+                extensions=extensions,
             )
         except httpx.RequestError as exc:
             kind = (
@@ -620,6 +631,8 @@ class Client:
             body.get("model"),
         )
         self.replies[call_id] = reply
+        if self._live is not None:
+            self._live.call_response(call_id, purpose, choice)
         self.record.emit(
             "llm",
             "finished",
