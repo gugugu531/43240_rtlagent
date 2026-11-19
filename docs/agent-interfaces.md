@@ -29,7 +29,16 @@ model
 reasoning（可选）
 ```
 
-模型错误按 `ModelError.kind` 分类；HTTP 200 不代表内容有效。
+模型调用失败时可读取 `ModelError.kind`。`Client.ask()` 用于请求符合给定模式的 JSON。校验失败时，`structured/invalid` 事件通过 `call_id` 关联原回复，保留 `finish_reason` 和具体原因。重试用尽时，`StructuredError.kind` 给出最后一次失败的原因。
+
+| 原因 | 含义 |
+| --- | --- |
+| `refusal` | 服务返回 `content_filter`，即使附带可解析的正文也按拒绝处理 |
+| `empty_content` | 最终正文为空或只有空白，终止原因另见 `finish_reason` |
+| `length` | 最终正文非空，服务标记达到输出长度上限 |
+| `invalid_json` | 正文无法按严格 JSON 解析，包括重复键或非有限数值 |
+| `schema` | JSON 的字段或类型未通过给定模式的校验 |
+| `semantic` | 调用方提供的语义检查拒绝了结果 |
 
 ## 2. 工具接口
 

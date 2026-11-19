@@ -6,8 +6,10 @@ import json
 
 import httpx
 import pytest
+from pydantic import BaseModel
 
 from agent.llm.client import Client, ModelError
+from agent.llm.structured import StructuredError
 from agent.observability.recorder import Recorder
 from agent.runtime.allowance import AllowanceError, CompletionLedger
 from agent.runtime.budget import Budget
@@ -153,6 +155,77 @@ def test_failed_dispatch_has_context_without_a_fabricated_reply(tmp_path, monkey
     assert context["type"] == "call_context" and context["id"] is None
     assert events[-1]["status"] == "failed" and events[-1]["value"]["error_kind"] == kind
     assert "private-debug" not in (tmp_path / "live.jsonl").read_text()
+
+
+class CountReply(BaseModel):
+    count: int
+
+
+@pytest.mark.parametrize(("content", "finish", "kind"), [
+    ('{"count":2}', "content_filter", "refusal"),
+    (None, "content_filter", "refusal"),
+    ("  ", "stop", "empty_content"),
+    (None, "length", "empty_content"),
+    ('{"count":2}', "length", "length"),
+    ("{", "stop", "invalid_json"),
+    ('{"count":1,"count":2}', "stop", "invalid_json"),
+    ('{"count":"2"}', "stop", "schema"),
+    ('{"count":-1}', "stop", "semantic"),
+])
+def test_structured_rejection_preserves_kind_and_call_id(tmp_path, content, finish, kind):
+    def check_count(reply):
+        if reply.count < 0:
+            raise ValueError("negative count")
+
+    choice = {"message": {"content": content}, "finish_reason": finish}
+    with run_client(tmp_path, lambda req: httpx.Response(200, json={"choices": [choice]})) as (client, _):
+        with pytest.raises(StructuredError) as error:
+            client.ask([], CountReply, max_attempts=1, semantic_check=check_count)
+        assert client.usage_summary()["calls"] == 1
+    trace = [json.loads(line) for line in (tmp_path / "trace.jsonl").read_text().splitlines()]
+    invalid, = [row for row in trace if row["tool"] == "structured"]
+    assert error.value.kind == invalid["error_kind"] == kind
+    assert error.value.call_id == invalid["call_id"]
+    assert (invalid["event"], invalid["attempt"], invalid["finish_reason"]) == ("invalid", 1, finish)
+
+
+@pytest.mark.parametrize("constrained", [True, False])
+def test_structured_retry_keeps_request_format_and_context(tmp_path, monkeypatch, constrained):
+    monkeypatch.setenv("RTLAGENT_LIVE_EVENTS", "1")
+    messages = [{"role": "user", "content": "Return a count."}]
+    requests = []
+    replies = iter([('{"count":1}', "content_filter"), ('{"count":2}', "stop")])
+
+    def transport(request):
+        requests.append(json.loads(request.content))
+        content, finish = next(replies)
+        choice = {"message": {"content": content}, "finish_reason": finish}
+        return httpx.Response(200, json={"choices": [choice]})
+
+    with run_client(tmp_path, transport, config={"structured_outputs": constrained}) as (client, record):
+        with record.span("node", name="count"):
+            result = client.ask(messages, CountReply, purpose="count", max_attempts=2)
+        assert result == CountReply(count=2)
+    first, second = requests
+    assert messages == [{"role": "user", "content": "Return a count."}]
+    schema = CountReply.model_json_schema()
+    if constrained:
+        assert first["response_format"] == second["response_format"] == {
+            "type": "json_schema", "json_schema": {"name": "CountReply", "schema": schema, "strict": True},
+        }
+        assert first["messages"] == messages
+    else:
+        assert "response_format" not in first and "response_format" not in second
+        prompt, instruction = first["messages"]
+        assert [prompt] == messages
+        assert json.loads(instruction["content"].split("\n", 1)[1]) == schema
+    assert second["messages"][:-2] == first["messages"]
+    assert second["messages"][-2] == {"role": "assistant", "content": '{"count":1}'}
+    assert "content filter" in second["messages"][-1]["content"]
+    contexts = [row for row in rows(tmp_path) if row["type"] == "call_context"]
+    assert [row["messages"] for row in contexts] == [first["messages"], second["messages"]]
+    assert contexts[0]["id"] == contexts[1]["id"] and contexts[0]["id"] is not None
+    assert contexts[0]["call_id"] != contexts[1]["call_id"]
 
 
 @pytest.mark.parametrize(("message", "finish"), [

@@ -62,14 +62,22 @@ def ask(
     last_error = ""
     for attempt in range(max_attempts):
         reply = client.chat(conversation, purpose=purpose, **chat_kwargs)
+        error_kind = "invalid_json"
         try:
-            # 不剥离 markdown、不补全或截取 JSON；缺少最终正文单独保留。
+            if reply.finish_reason == "content_filter":
+                error_kind = "refusal"
+                raise ValueError("output refused by content filter")
             if not reply.content.strip():
+                error_kind = "empty_content"
                 raise ValueError("empty final content")
             if reply.finish_reason == "length":
+                error_kind = "length"
                 raise ValueError("output truncated by length limit")
-            result = schema.model_validate(strict_json(reply.content), strict=True)
+            data = strict_json(reply.content)
+            error_kind = "schema"
+            result = schema.model_validate(data, strict=True)
             if semantic_check is not None:
+                error_kind = "semantic"
                 semantic_check(result)
         except (ValidationError, ValueError) as exc:
             last_error = str(exc)
@@ -79,6 +87,8 @@ def ask(
                 call_id=reply.call_id,
                 purpose=purpose,
                 attempt=attempt + 1,
+                error_kind=error_kind,
+                finish_reason=reply.finish_reason,
                 rc=1,
                 excerpt=last_error[:2000],
             )
@@ -106,6 +116,6 @@ def ask(
             return result
     raise StructuredError(
         "structured response invalid: " + last_error,
-        kind="validation",
+        kind=error_kind,
         call_id=reply.call_id,
     )
