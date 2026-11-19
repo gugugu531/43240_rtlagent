@@ -620,29 +620,119 @@
     }
   }
 
-  /* ================= 多角色工作流画布 ================= */
-  const NODE_W = 204, NODE_H = 92, GAP_X = 54, GAP_Y = 46, PAD = 34;
+  /* ================= 多角色独立泳道与交互画布 ================= */
+  const NODE_W = 204, NODE_H = 92, GAP_X = 76, LANE_H = 128, LANE_HEAD_W = 136, RULER_H = 32, PAD = 28;
+  const ROLE_LANES = [
+    {key: "planner", label: "策略分析员", color: "#22d3ee"},
+    {key: "author", label: "RTL 作者", color: "#34d399"},
+    {key: "tool", label: "验证工具", color: "#a78bfa"},
+    {key: "checker", label: "检查员", color: "#f59e0b"},
+    {key: "runtime", label: "运行框架", color: "#94a3b8"},
+  ];
+  const ROLE_COLOR = new Map(ROLE_LANES.map((r) => [r.key, r.color]));
+  const ROLE_LABEL = new Map(ROLE_LANES.map((r) => [r.key, r.label]));
+
+  function buildLanes(items) {
+    const counts = new Map();
+    const rawLabel = new Map();
+    for (const item of items) {
+      const rk = roleKey(item.role);
+      counts.set(rk, (counts.get(rk) || 0) + 1);
+      if (item.role && !rawLabel.has(rk)) rawLabel.set(rk, item.role);
+    }
+    const lanes = [];
+    for (const spec of ROLE_LANES) {
+      if (!counts.has(spec.key)) continue;
+      lanes.push({
+        key: spec.key,
+        label: ROLE_LABEL.get(spec.key) || rawLabel.get(spec.key) || spec.key,
+        color: spec.color,
+        count: counts.get(spec.key),
+        index: lanes.length,
+        y: RULER_H + lanes.length * LANE_H,
+      });
+    }
+    for (const [rk, count] of counts) {
+      if (lanes.some((l) => l.key === rk)) continue;
+      lanes.push({
+        key: rk,
+        label: rawLabel.get(rk) || rk,
+        color: ROLE_COLOR.get(rk) || "#94a3b8",
+        count,
+        index: lanes.length,
+        y: RULER_H + lanes.length * LANE_H,
+      });
+    }
+    return lanes;
+  }
+
+  function handoffMeta(fromStep, toStep) {
+    const fn = fromStep?.node || "";
+    const tn = toStep?.node || "";
+    const sm = fromStep ? model.stepMeta.get(fromStep.id) : null;
+    const verdict = sm?.verdict;
+    if (fn === "guided_initialize" && tn === "guided_plan") return {text: "启动策略规划", tone: "info"};
+    if (fn === "guided_plan" && tn === "guided_solve") return {text: "下发策略与技能", tone: "info"};
+    if ((fn === "guided_solve" || fn === "guided_repair_structure") && tn === "guided_structure") {
+      return {text: fn === "guided_repair_structure" ? "提交修复稿审查" : "提交 RTL 审查", tone: "info"};
+    }
+    if (fn === "guided_structure" && tn === "guided_repair_structure") return {text: "结构异常 · 退回修复", tone: "bad"};
+    if (fn === "guided_structure" && tn === "guided_build_checker") return {text: "结构通过 · 建表", tone: "good"};
+    if (fn === "guided_structure" && tn === "guided_run_checker") return {text: "结构通过 · 复测", tone: "good"};
+    if (fn === "guided_structure" && tn === "guided_finish") return {text: "进入汇总交付", tone: verdict === "bad" ? "warn" : "good"};
+    if (fn === "guided_build_checker" && tn === "guided_run_checker") return {text: "下发独立检查表", tone: "info"};
+    if (fn === "guided_run_checker" && tn === "guided_author_decision") {
+      if (verdict === "good") return {text: "行为比对通过", tone: "good"};
+      if (verdict === "bad") return {text: "检出行为差异", tone: "bad"};
+      return {text: "反馈仿真比对", tone: "warn"};
+    }
+    if (fn === "guided_author_decision" && tn === "guided_checker_review") return {text: "请求复核测试点", tone: "warn"};
+    if (fn === "guided_author_decision" && (tn === "guided_solve" || tn === "guided_structure")) return {text: "提交新稿重验", tone: "info"};
+    if (fn === "guided_author_decision" && tn === "guided_finish") return {text: "确认提交交付", tone: "good"};
+    if (fn === "guided_checker_review" && tn === "guided_run_checker") return {text: "修订检查表复测", tone: "warn"};
+    if (fn === "guided_checker_review" && tn === "guided_author_decision") return {text: "返回复核结论", tone: "info"};
+    if (tn === "guided_finish" || tn === "finish") return {text: "汇总结论", tone: "good"};
+    const toRole = toStep?.role || ROLE_LABEL.get(roleKey(toStep?.role)) || "下一步";
+    return {text: "交接 → " + toRole, tone: "info"};
+  }
 
   function traceLayout() {
-    const width = $("graph-scroll").clientWidth || 500;
-    const cols = Math.max(1, Math.min(model.steps.length, Math.floor((width - PAD * 2 + GAP_X) / (NODE_W + GAP_X))));
-    const inset = Math.max(PAD, (width - cols * NODE_W - (cols - 1) * GAP_X) / 2);
+    const width = $("graph-scroll").clientWidth || 640;
+    const lanes = buildLanes(model.steps);
+    const laneByKey = new Map(lanes.map((l) => [l.key, l]));
     const points = new Map();
+    const columns = [];
     for (const [index, step] of model.steps.entries()) {
-      const row = Math.floor(index / cols), slot = index % cols;
-      const col = row % 2 ? cols - 1 - slot : slot;
-      points.set(step.id, {x: inset + col * (NODE_W + GAP_X), y: PAD + row * (NODE_H + GAP_Y), step});
+      const rk = roleKey(step.role);
+      const lane = laneByKey.get(rk) || lanes[0];
+      const x = LANE_HEAD_W + PAD + index * (NODE_W + GAP_X);
+      const y = lane.y + Math.round((LANE_H - NODE_H) / 2);
+      points.set(step.id, {x, y, col: index, laneKey: rk, step});
+      columns.push({index, x, step});
     }
-    const links = model.steps.filter((step) => step.previous != null && points.has(step.previous))
-      .map((step) => ({from: step.previous, to: step.id}));
-    const scene = extent(points, links);
+    const links = model.steps
+      .filter((step) => step.previous != null && points.has(step.previous))
+      .map((step) => {
+        const fromPt = points.get(step.previous);
+        const toPt = points.get(step.id);
+        const crossRole = fromPt.laneKey !== toPt.laneKey;
+        return {
+          from: step.previous,
+          to: step.id,
+          crossRole,
+          fromRole: fromPt.laneKey,
+          toRole: toPt.laneKey,
+          handoff: crossRole ? handoffMeta(fromPt.step, toPt.step) : null,
+        };
+      });
+    const scene = extent(points, links, lanes, columns);
     if (points.size) scene.w = Math.max(scene.w, width);
     return scene;
   }
 
   function planLayout() {
     const plan = model.plan || {};
-    const nodes = new Map(), children = new Map(), links = [];
+    const nodes = new Map(), children = new Map(), rawLinks = [];
     for (const node of Array.isArray(plan.nodes) ? plan.nodes : []) {
       const id = key(node?.id);
       if (id != null) { nodes.set(id, node); children.set(id, []); }
@@ -650,10 +740,10 @@
     for (const edge of Array.isArray(plan.edges) ? plan.edges : []) {
       const from = key(edge?.from), to = key(edge?.to);
       if (!nodes.has(from) || !nodes.has(to)) continue;
-      links.push({from, to, condition: edge.condition});
+      rawLinks.push({from, to, condition: edge.condition});
       children.get(from).push(to);
     }
-    const level = new Map(), rows = new Map(), points = new Map();
+    const level = new Map(), points = new Map();
     let lastLevel = -1;
     for (const root of [key(plan.entrypoint), ...nodes.keys()]) {
       if (!nodes.has(root) || level.has(root)) continue;
@@ -669,52 +759,77 @@
         }
       }
     }
+    const lanes = buildLanes([...nodes.values()]);
+    const laneByKey = new Map(lanes.map((l) => [l.key, l]));
+    const occupied = new Set();
     for (const [id, node] of nodes) {
-      const column = level.get(id), row = rows.get(column) || 0;
-      points.set(id, {x: PAD + column * (NODE_W + GAP_X), y: PAD + 14 + row * (NODE_H + GAP_Y), node});
-      rows.set(column, row + 1);
+      const rk = roleKey(node.role);
+      const lane = laneByKey.get(rk) || lanes[0];
+      let col = level.get(id) || 0;
+      while (occupied.has(rk + ":" + col)) col++;
+      occupied.add(rk + ":" + col);
+      const x = LANE_HEAD_W + PAD + col * (NODE_W + GAP_X);
+      const y = lane.y + Math.round((LANE_H - NODE_H) / 2);
+      points.set(id, {x, y, col, laneKey: rk, node});
     }
-    return extent(points, links);
+    const links = rawLinks.map((link) => {
+      const fromPt = points.get(link.from), toPt = points.get(link.to);
+      const crossRole = fromPt.laneKey !== toPt.laneKey;
+      return {...link, crossRole, fromRole: fromPt.laneKey, toRole: toPt.laneKey};
+    });
+    const scene = extent(points, links, lanes, []);
+    const width = $("graph-scroll").clientWidth || 640;
+    if (points.size) scene.w = Math.max(scene.w, width);
+    return scene;
   }
 
-  function extent(points, links) {
-    let w = 0, h = 0;
+  function extent(points, links, lanes = [], columns = []) {
+    let w = 0, h = RULER_H + lanes.length * LANE_H + PAD;
     for (const {x, y} of points.values()) {
-      w = Math.max(w, x + NODE_W + PAD);
+      w = Math.max(w, x + NODE_W + PAD * 1.5);
       h = Math.max(h, y + NODE_H + PAD);
     }
-    return {points, links, w, h};
+    return {points, links, lanes, columns, w: Math.ceil(w), h: Math.ceil(h)};
   }
 
-  function pathFor(s, t, index, scene) {
-    const sx = s.x + NODE_W / 2, tx = t.x + NODE_W / 2, sy = s.y + NODE_H / 2, ty = t.y + NODE_H / 2;
-    const gap = 12 + (index % 4) * 3;
-    if (s === t) return `M ${s.x + NODE_W - 22} ${s.y} v -18 h 38 v 38 H ${s.x + NODE_W + 2}`;
-    if (view === "plan") {
-      if (t.x === s.x + NODE_W + GAP_X) {
-        const mid = s.x + NODE_W + gap;
-        return `M ${s.x + NODE_W} ${sy} H ${mid} V ${ty} H ${t.x - 2}`;
+  function linkGeometry(s, t, index, link) {
+    const sy = s.y + NODE_H / 2;
+    const ty = t.y + NODE_H / 2;
+    if (s === t) {
+      return {
+        d: `M ${s.x + NODE_W - 22} ${s.y} v -18 h 38 v 38 H ${s.x + NODE_W + 2}`,
+        sx: s.x + NODE_W - 22, sy: s.y,
+        mx: s.x + NODE_W + 16, my: s.y - 12,
+      };
+    }
+    const forward = t.x > s.x;
+    if (!link.crossRole && forward) {
+      const x1 = s.x + NODE_W, x2 = t.x - 2;
+      if (t.col === s.col + 1) {
+        return {d: `M ${x1} ${sy} H ${x2}`, sx: x1, sy, mx: (x1 + x2) / 2, my: sy};
       }
-      if (s.x === t.x) {
-        const side = s.x + NODE_W + gap;
-        return `M ${s.x + NODE_W} ${sy} H ${side} V ${ty} H ${t.x + NODE_W + 2}`;
-      }
-      const top = 6 + (index % 7) * 4;
-      const out = s.x - gap, into = t.x + NODE_W + gap;
-      return `M ${s.x} ${sy} H ${out} V ${top} H ${into} V ${ty} H ${t.x + NODE_W + 2}`;
+      const arc = s.y - 14 - (index % 3) * 7;
+      return {
+        d: `M ${x1} ${sy - 10} C ${x1 + 26} ${arc}, ${x2 - 26} ${arc}, ${x2} ${ty - 10}`,
+        sx: x1, sy: sy - 10, mx: (x1 + x2) / 2, my: arc,
+      };
     }
-    if (sy === ty && Math.abs(s.x - t.x) === NODE_W + GAP_X) {
-      const forward = t.x > s.x;
-      return `M ${forward ? s.x + NODE_W : s.x} ${sy} H ${forward ? t.x - 2 : t.x + NODE_W + 2}`;
+    if (forward) {
+      const x1 = s.x + NODE_W;
+      const x2 = t.x - 2;
+      const dx = Math.max(36, (x2 - x1) * 0.52);
+      const d = `M ${x1} ${sy} C ${x1 + dx} ${sy}, ${x2 - dx} ${ty}, ${x2} ${ty}`;
+      return {d, sx: x1, sy, mx: (x1 + x2) / 2, my: (sy + ty) / 2};
     }
-    if (sx === tx && t.y === s.y + NODE_H + GAP_Y) {
-      return `M ${sx} ${s.y + NODE_H} V ${t.y - 2}`;
-    }
-    const bottom = s.y + NODE_H + gap;
-    const port = s.x <= t.x ? 34 : -34;
-    if (sy === ty) return `M ${sx + port} ${s.y + NODE_H} V ${bottom} H ${tx - port} V ${t.y + NODE_H + 2}`;
-    const side = s.x <= t.x ? gap : scene.w - gap;
-    return `M ${sx + port} ${s.y + NODE_H} V ${bottom} H ${side} V ${t.y - gap} H ${tx - port} V ${t.y - 2}`;
+    // Backward / loop transition (mainly in Plan View)
+    const x1 = s.x + NODE_W / 2;
+    const x2 = t.x + NODE_W / 2;
+    const down = ty >= sy;
+    const y1 = down ? s.y + NODE_H : s.y;
+    const y2 = down ? t.y - 2 : t.y + NODE_H + 2;
+    const bend = (down ? 22 : -22) + ((index % 3) - 1) * 8;
+    const d = `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`;
+    return {d, sx: x1, sy: y1, mx: (x1 + x2) / 2, my: (y1 + y2) / 2};
   }
 
   function makeMarker(id, fill) {
@@ -732,6 +847,61 @@
     return marker;
   }
 
+  function drawSwimlanes(scene) {
+    const wrap = make("div", "swimlanes");
+    wrap.setAttribute("aria-hidden", "true");
+    wrap.style.width = scene.w + "px";
+    wrap.style.height = scene.h + "px";
+
+    // 顶部时间刻度条与纵轴参考线
+    if (scene.columns.length) {
+      const ruler = make("div", "step-ruler");
+      ruler.style.width = scene.w + "px";
+      ruler.append(make("span", "ruler-corner", "角色泳道 \\ 时序"));
+      for (const col of scene.columns) {
+        const tick = make("span", "step-tick", seqName(col.step));
+        tick.style.left = (col.x + NODE_W / 2) + "px";
+        if (selectedStep()?.id === col.step.id) tick.classList.add("selected");
+        ruler.append(tick);
+
+        const guide = make("div", "step-guide");
+        guide.style.left = (col.x + NODE_W / 2) + "px";
+        guide.style.top = RULER_H + "px";
+        guide.style.height = (scene.h - RULER_H) + "px";
+        wrap.append(guide);
+      }
+      wrap.append(ruler);
+    } else if (scene.lanes.length) {
+      const ruler = make("div", "step-ruler");
+      ruler.style.width = scene.w + "px";
+      ruler.append(make("span", "ruler-corner", "角色泳道 \\ 拓扑"));
+      wrap.append(ruler);
+    }
+
+    for (const lane of scene.lanes) {
+      const row = make("div", "swimlane" + (lane.index % 2 ? " alt" : ""));
+      row.dataset.role = lane.key;
+      row.style.top = lane.y + "px";
+      row.style.height = LANE_H + "px";
+      row.style.width = scene.w + "px";
+
+      const head = make("div", "lane-head");
+      const title = make("span", "lane-title");
+      const dot = make("i", "lane-dot");
+      title.append(dot, make("span", "", lane.label));
+      const countLabel = view === "trace" ? lane.count + " 步" : lane.count + " 节点";
+      head.append(title, make("span", "lane-count", countLabel));
+
+      const lifeline = make("div", "lane-lifeline");
+      lifeline.style.left = LANE_HEAD_W + "px";
+      lifeline.style.width = Math.max(0, scene.w - LANE_HEAD_W - 14) + "px";
+
+      row.append(head, lifeline);
+      wrap.append(row);
+    }
+    return wrap;
+  }
+
   function drawWires(scene) {
     const layer = svg("svg");
     layer.classList.add("wires");
@@ -740,21 +910,80 @@
     layer.setAttribute("height", scene.h);
     const defs = svg("defs");
     defs.append(
-      makeMarker("wire-arrow", view === "trace" ? "#34d399" : "#64748b"),
+      makeMarker("wire-arrow-info", "#38bdf8"),
+      makeMarker("wire-arrow-good", "#34d399"),
+      makeMarker("wire-arrow-warn", "#fbbf24"),
+      makeMarker("wire-arrow-bad", "#f87171"),
+      makeMarker("wire-arrow-plan", "#64748b"),
       makeMarker("wire-arrow-active", "#22d3ee"),
     );
+    for (const spec of ROLE_LANES) {
+      defs.append(makeMarker("wire-arrow-role-" + spec.key, spec.color));
+    }
     layer.append(defs);
 
+    const badges = [];
+    const selectedId = view === "plan" ? planSelection : selectedStep()?.id;
+
     for (const [index, link] of scene.links.entries()) {
-      const targetStep = view === "trace" ? scene.points.get(link.to)?.step : null;
+      const fromPt = scene.points.get(link.from);
+      const toPt = scene.points.get(link.to);
+      if (!fromPt || !toPt) continue;
+      const geom = linkGeometry(fromPt, toPt, index, link);
+      const targetStep = view === "trace" ? toPt.step : null;
       const isActive = Boolean(targetStep && executionState(targetStep)[0] === "current");
+      const isRelated = Boolean(selectedId && (link.from === selectedId || link.to === selectedId));
+
       const line = svg("path");
-      line.setAttribute("class", view === "plan" ? "wire planned" : isActive ? "wire active-wire" : "wire");
-      line.setAttribute("d", pathFor(scene.points.get(link.from), scene.points.get(link.to), index, scene));
-      line.setAttribute("marker-end", isActive ? "url(#wire-arrow-active)" : "url(#wire-arrow)");
+      const classes = ["wire"];
+      let markerId = "wire-arrow-info";
+      if (view === "plan") {
+        classes.push("planned");
+        if (link.crossRole) classes.push("cross-role");
+        if (isRelated) classes.push("related");
+        markerId = isRelated ? "wire-arrow-active" : "wire-arrow-plan";
+      } else if (isActive) {
+        classes.push("active-wire");
+        if (link.crossRole) classes.push("cross-role");
+        markerId = "wire-arrow-active";
+      } else if (link.crossRole) {
+        const tone = link.handoff?.tone || "info";
+        classes.push("cross-role", "handoff-" + tone);
+        if (isRelated) classes.push("related");
+        markerId = "wire-arrow-" + tone;
+      } else {
+        classes.push("same-role");
+        if (isRelated) classes.push("related");
+        line.style.stroke = ROLE_COLOR.get(link.fromRole) || "#34d399";
+        markerId = ROLE_COLOR.has(link.fromRole) ? "wire-arrow-role-" + link.fromRole : "wire-arrow-good";
+      }
+
+      line.setAttribute("class", classes.join(" "));
+      line.setAttribute("d", geom.d);
+      line.setAttribute("marker-end", "url(#" + markerId + ")");
       layer.append(line);
+
+      // 跨角色交接起点圆点与可点击交接标签
+      if (link.crossRole && view === "trace") {
+        const dot = svg("circle");
+        dot.setAttribute("class", "wire-origin handoff-" + (link.handoff?.tone || "info"));
+        dot.setAttribute("cx", geom.sx);
+        dot.setAttribute("cy", geom.sy);
+        dot.setAttribute("r", isActive || isRelated ? "4" : "3");
+        layer.append(dot);
+
+        if (link.handoff?.text) {
+          const pill = make("button", "handoff-badge handoff-" + (link.handoff.tone || "info") + (isActive ? " active" : "") + (isRelated ? " related" : ""), link.handoff.text);
+          pill.type = "button";
+          pill.style.left = geom.mx + "px";
+          pill.style.top = geom.my + "px";
+          pill.title = (fromPt.step?.label || link.from) + " → " + (toPt.step?.label || link.to) + "：" + link.handoff.text;
+          pill.addEventListener("click", () => chooseScope("step:" + link.to, true));
+          badges.push(pill);
+        }
+      }
     }
-    return layer;
+    return {layer, badges};
   }
 
   function graphButton(id, point) {
@@ -823,24 +1052,34 @@
     empty.hidden = Boolean(count);
     if (!count) {
       empty.querySelector("strong").textContent = view === "plan" ? "暂无流程定义" : "等待工作流事件";
-      empty.lastElementChild.textContent = !jobId ? "收到题目后会实时渲染多角色执行轨迹。"
+      empty.lastElementChild.textContent = !jobId ? "收到题目后会实时渲染多角色泳道轨迹。"
         : selectedRun()?.status === "queued" ? "这道题正在队列中等待开始。"
         : selectedRun()?.status === "done" ? "该次运行未提供此视图所需事件（如 baseline 模式）。"
         : "正在等待这道题的工作流节点事件…";
     }
     $("edge-key").className = view === "trace" ? "edge-key" : "edge-key planned";
-    updateText($("edge-caption"), view === "trace" ? "实际前序" : "定义转移");
-    updateText($("graph-count"), count ? count + (view === "trace" ? " 步" : " 节点") : "");
+    updateText($("edge-caption"), view === "trace" ? "角色交接与流转" : "定义转移");
+    const crossCount = scene.links.filter((l) => l.crossRole).length;
+    updateText($("graph-count"), count
+      ? (view === "trace"
+        ? `${scene.lanes.length} 角色 · ${count} 步 · ${crossCount} 次跨角色交互`
+        : `${scene.lanes.length} 角色 · ${count} 节点`)
+      : "");
     $("locate").disabled = !model.steps.length;
     for (const id of ["fit", "zoom-in", "zoom-out", "zoom-reset"]) $(id).disabled = !count;
 
     const fragment = document.createDocumentFragment();
-    if (count) fragment.append(drawWires(scene));
     let focusTarget = null;
-    for (const [id, point] of scene.points) {
-      const button = graphButton(id, point);
-      if (id === focused) focusTarget = button;
-      fragment.append(button);
+    if (count) {
+      fragment.append(drawSwimlanes(scene));
+      const {layer, badges} = drawWires(scene);
+      fragment.append(layer);
+      for (const [id, point] of scene.points) {
+        const button = graphButton(id, point);
+        if (id === focused) focusTarget = button;
+        fragment.append(button);
+      }
+      for (const badge of badges) fragment.append(badge);
     }
     drawing.replaceChildren(fragment);
     sizeScene();

@@ -650,40 +650,235 @@ body.queue-collapsed .queue-drawer {
 .graph-empty strong { color: var(--text-bright); font-size: 15px; }
 .graph-empty span:last-child { font-size: 13px; color: var(--text-dim); }
 
-/* SVG 连线 */
+/* 多角色独立泳道与时序刻度 */
+.swimlanes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.step-ruler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 32px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(11, 18, 32, 0.88);
+  z-index: 2;
+}
+.ruler-corner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 136px;
+  height: 32px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+  border-right: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.95);
+}
+.step-tick {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-dim);
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid transparent;
+}
+.step-tick.selected {
+  color: var(--cyan);
+  background: rgba(34, 211, 238, 0.14);
+  border-color: rgba(34, 211, 238, 0.45);
+}
+.step-guide {
+  position: absolute;
+  width: 1px;
+  border-left: 1px dashed rgba(148, 163, 184, 0.11);
+}
+
+.swimlane {
+  position: absolute;
+  left: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(15, 23, 42, 0.28);
+}
+.swimlane.alt {
+  background: rgba(30, 41, 59, 0.18);
+}
+.swimlane[data-role="planner"] { --lane-color: var(--role-planner); }
+.swimlane[data-role="author"] { --lane-color: var(--role-author); }
+.swimlane[data-role="checker"] { --lane-color: var(--role-checker); }
+.swimlane[data-role="tool"] { --lane-color: var(--role-tool); }
+.swimlane[data-role="runtime"] { --lane-color: var(--role-runtime); }
+
+.lane-head {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 136px;
+  padding: 12px 12px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  border-right: 1px solid var(--border);
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.78));
+}
+.lane-head::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--lane-color, var(--role-runtime));
+}
+.lane-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+.lane-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lane-color, var(--role-runtime));
+  box-shadow: 0 0 8px var(--lane-color, transparent);
+  flex: 0 0 auto;
+}
+.lane-count {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  padding-left: 15px;
+}
+.lane-lifeline {
+  position: absolute;
+  top: 50%;
+  height: 0;
+  border-top: 1.5px dashed var(--lane-color, rgba(148, 163, 184, 0.3));
+  opacity: 0.24;
+}
+
+/* SVG 连线与跨角色交互 */
 .wires {
   position: absolute;
   top: 0;
   left: 0;
   pointer-events: none;
   overflow: visible;
+  z-index: 1;
 }
 .wire {
   fill: none;
-  stroke: rgba(52, 211, 153, 0.45);
+  stroke: rgba(52, 211, 153, 0.52);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition: opacity 0.15s, stroke-width 0.15s;
+}
+.wire.same-role {
+  stroke-width: 2.2;
+  opacity: 0.72;
+}
+.wire.cross-role {
+  stroke-width: 2.1;
+  opacity: 0.82;
+}
+.wire.handoff-info { stroke: rgba(56, 189, 248, 0.78); }
+.wire.handoff-good { stroke: rgba(52, 211, 153, 0.82); }
+.wire.handoff-warn { stroke: rgba(251, 191, 36, 0.85); }
+.wire.handoff-bad  { stroke: rgba(248, 113, 113, 0.88); }
+.wire.related {
+  stroke-width: 2.8;
+  opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.45));
 }
 .wire.planned {
-  stroke: rgba(148, 163, 184, 0.35);
+  stroke: rgba(148, 163, 184, 0.32);
   stroke-dasharray: 5 4;
+}
+.wire.planned.related {
+  stroke: rgba(34, 211, 238, 0.85);
 }
 .wire.active-wire {
   stroke: var(--cyan);
-  stroke-width: 2.5;
+  stroke-width: 2.6;
   stroke-dasharray: 8 5;
   animation: wireFlow 0.9s linear infinite;
-  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.55));
+  filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.6));
 }
 @keyframes wireFlow {
   from { stroke-dashoffset: 26; }
   to { stroke-dashoffset: 0; }
 }
+.wire-origin.handoff-info { fill: #38bdf8; }
+.wire-origin.handoff-good { fill: #34d399; }
+.wire-origin.handoff-warn { fill: #fbbf24; }
+.wire-origin.handoff-bad  { fill: #f87171; }
+
+/* 跨角色交互交接标签 */
+.handoff-badge {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  background: rgba(10, 17, 30, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.48);
+  color: #bae6fd;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.handoff-badge.handoff-good {
+  border-color: rgba(52, 211, 153, 0.55);
+  color: #a7f3d0;
+}
+.handoff-badge.handoff-warn {
+  border-color: rgba(251, 191, 36, 0.6);
+  color: #fde68a;
+}
+.handoff-badge.handoff-bad {
+  border-color: rgba(248, 113, 113, 0.65);
+  color: #fecaca;
+}
+.handoff-badge:hover,
+.handoff-badge.related {
+  transform: translate(-50%, -50%) scale(1.05);
+  background: #132238;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.25), 0 4px 12px rgba(0, 0, 0, 0.55);
+}
+.handoff-badge.active {
+  border-color: var(--cyan);
+  color: #e0f2fe;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
+}
 
 /* 工作流节点卡片 */
 .graph-node {
   position: absolute;
+  z-index: 2;
   width: 204px;
   min-height: 92px;
   padding: 9px 11px 9px 14px;
