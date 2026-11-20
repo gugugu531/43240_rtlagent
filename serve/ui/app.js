@@ -178,13 +178,13 @@
     const val = event.value && typeof event.value === "object" ? event.value : null;
     const sm = ensureStepMeta(model, stepId);
 
-    if (label.startsWith("接口检查 · ")) {
+    if (label.startsWith("接口检查 · ") || label === "工具结果 · interface") {
       model.struct.interface = lampStateFromStatus(event.status || val?.status);
       if (sm && model.struct.interface === "failed") sm.verdict = "bad";
-    } else if (label.startsWith("编译与展开 · ")) {
+    } else if (label.startsWith("编译与展开 · ") || label === "工具结果 · lint") {
       model.struct.lint = lampStateFromStatus(event.status || val?.status);
       if (sm && model.struct.lint === "failed") sm.verdict = "bad";
-    } else if (label.startsWith("综合 · ")) {
+    } else if (label.startsWith("综合 · ") || label === "工具结果 · synth") {
       model.struct.synth = lampStateFromStatus(event.status || val?.status);
       if (sm && model.struct.synth === "failed") sm.verdict = "bad";
     } else if (label === "结构检查汇总" && val) {
@@ -1859,8 +1859,12 @@
       return details;
     }
 
-    if (label.startsWith("接口检查 · ") || label.startsWith("编译与展开 · ") || label.startsWith("综合 · ")) {
-      return renderStructureCheckCard(label, event);
+    if (label.startsWith("接口检查 · ") || label.startsWith("编译与展开 · ") || label.startsWith("综合 · ") ||
+        label === "工具结果 · interface" || label === "工具结果 · lint" || label === "工具结果 · synth") {
+      const displayLabel = label === "工具结果 · interface" ? "接口检查"
+        : label === "工具结果 · lint" ? "编译与展开"
+        : label === "工具结果 · synth" ? "综合" : label;
+      return renderStructureCheckCard(displayLabel, event);
     }
     if (label === "结构检查汇总") return renderStructureSummaryCard(event);
     if (label === "验证策略与所选技能") return renderPlanCard(event);
