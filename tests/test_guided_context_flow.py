@@ -89,6 +89,25 @@ class GuidedContextFlowTests(unittest.TestCase):
         self.assertIn("Candidate: candidate-current", body)
         self.assertIn("PRIVATE_CANDIDATE", body)
 
+    def test_structure_repair_skips_advisory_interface_and_marks_error_line(self):
+        ctx = self.context()
+        data = ctx.store["guided"]
+        code = "module TopModule(input clk, input d, output reg q);\n  always @(posedge clk)\n    q <= {8{d}}, d};\nendmodule\n"
+        cand = SimpleNamespace(id="candidate-line", code=code, code_hash="HASH_LINE")
+        ctx.candidates = SimpleNamespace(get=lambda _: cand)
+        data["assessments"]["candidate-line"] = {"checks": {
+            "interface": {"status": "failed", "failure_kind": "unknown", "rc": 1,
+                          "excerpt": "Advisory interface comparison: port 'q' is output, must be input"},
+            "lint": {"status": "failed", "failure_kind": "code", "rc": 1,
+                     "excerpt": "ERROR: [VRFC 10-4982] syntax error near ',' [solution.sv:3]",
+                     "details": {"repair_diagnostics": {"root_errors": [{"message": "syntax error near ','", "line": 3}]}}},
+        }}
+        with patch.object(guided, "_request", return_value=None) as request:
+            guided.repair_structure(ctx, State({"target_id": "candidate-line"}))
+        body = request.call_args.args[2][-1]["content"]
+        self.assertNotIn("must be input", body)
+        self.assertIn(">>    3 |     q <= {8{d}}, d};", body)
+
     def test_build_checker_sends_effective_limits_and_uses_same_init_count(self):
         ctx = self.context()
         reply = SimpleNamespace(content=TABLE, call_id="checker-call", finish_reason="stop")

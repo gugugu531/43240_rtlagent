@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 import hashlib
 import json
+import re
 import time
 
 from agent.kit import Ctx, State, node
@@ -177,12 +178,22 @@ def _recover_empty(ctx, stage, reply, make_messages, limits):
         kind = _empty_failure(reply)
         data[attempt_key] = data.get(attempt_key, 0) + 1
         messages = make_messages()
-        messages[-1]["content"] += (
-            "\n\nA previous independent request returned no final answer. "
-            f"Failure category: {kind}. "
-            "Produce the requested complete final artifact in this response. "
-            "Do not reproduce analysis, stimulus drafts, or an unfinished artifact."
-        )
+        if kind == "length_no_final":
+            messages[-1]["content"] += (
+                "\n\nA previous independent request returned no final answer. "
+                f"Failure category: {kind}. "
+                "The previous attempt exhausted the entire output token limit during reasoning "
+                "before producing a final answer. Keep your internal reasoning very brief "
+                "(at most 3-5 short bullet points) and output the complete final artifact immediately. "
+                "Do not repeat lengthy step-by-step derivations, stimulus drafts, or an unfinished artifact."
+            )
+        else:
+            messages[-1]["content"] += (
+                "\n\nA previous independent request returned no final answer. "
+                f"Failure category: {kind}. "
+                "Produce the requested complete final artifact in this response. "
+                "Do not reproduce analysis, stimulus drafts, or an unfinished artifact."
+            )
         recovery_stage = _attempt_stage(f"{stage}_recovery", data[attempt_key])
         recovered = _request(
             ctx, recovery_stage, messages, limits,
@@ -525,6 +536,53 @@ def structure(ctx: Ctx, state: State) -> State:
     return state.update(action=action)
 
 
+def _numbered_error_snippets(code: str, diagnostics, excerpt: str = "", radius: int = 4) -> str:
+    """Return line-numbered source excerpts around reported diagnostic line numbers."""
+    if not code:
+        return ""
+    lines = code.splitlines()
+    target_lines: set[int] = set()
+    if isinstance(diagnostics, dict):
+        for bucket in ("root_errors", "errors", "warnings"):
+            for item in diagnostics.get(bucket) or []:
+                if isinstance(item, dict) and isinstance(item.get("line"), int):
+                    target_lines.add(item["line"])
+    if not target_lines and excerpt:
+        for match in re.finditer(r"solution\.(?:s?v):(\d+)", excerpt):
+            target_lines.add(int(match.group(1)))
+    valid = sorted(ln for ln in target_lines if 1 <= ln <= len(lines))[:4]
+    if not valid:
+        return ""
+    ranges: list[list[int]] = []
+    for ln in valid:
+        lo, hi = max(1, ln - radius), min(len(lines), ln + radius)
+        if ranges and lo <= ranges[-1][1] + 1:
+            ranges[-1][1] = max(ranges[-1][1], hi)
+        else:
+            ranges.append([lo, hi])
+    out = []
+    for lo, hi in ranges:
+        block = []
+        for idx in range(lo, hi + 1):
+            marker = ">>" if idx in target_lines else "  "
+            block.append(f"{marker} {idx:4d} | {lines[idx - 1]}")
+        out.append("\n".join(block))
+    return "\n...\n".join(out)
+
+
+def _structural_error_signature(failed_checks: list[dict]) -> tuple:
+    sig = []
+    for item in failed_checks:
+        diag = item.get("repair_diagnostics")
+        roots = []
+        if isinstance(diag, dict):
+            for err in (diag.get("root_errors") or [])[:3]:
+                if isinstance(err, dict):
+                    roots.append((err.get("line"), err.get("message")))
+        sig.append((item.get("tool"), item.get("failure_kind"), tuple(roots) or (item.get("excerpt") or "")[:160]))
+    return tuple(sig)
+
+
 @node("guided_repair_structure", reads=["target_id"], writes=["target_id", "action"])
 def repair_structure(ctx: Ctx, state: State) -> State:
     data = _g(ctx)
@@ -540,8 +598,23 @@ def repair_structure(ctx: Ctx, state: State) -> State:
         }
         for name, check in assessment.get("checks", {}).items()
         if check.get("status") in ("failed", "timeout")
+        and not (name == "interface" and check.get("failure_kind") != "code")
     ]
+    err_sig = _structural_error_signature(failed_checks)
+    repeat_count = (data.get("structural_repeat_count", 0) + 1) if err_sig and err_sig == data.get("structural_error_signature") else 0
+    data["structural_error_signature"] = err_sig
+    data["structural_repeat_count"] = repeat_count
+    if repeat_count >= 3:
+        data["repair_request_stopped"] = True
+        return state.update(target_id=parent.id, action="finish")
+
     feedback_parts = [f"Candidate: {parent.id}"]
+    if repeat_count >= 1:
+        feedback_parts.append(
+            f"IMPORTANT: The previous repair attempt did NOT resolve the exact same structural error "
+            f"(repeated {repeat_count} time(s)). Inspect every `>>` marked line character by character "
+            "(matching braces `{{}}`, commas, semicolons, and ANSI port declarations) and rewrite the offending statement."
+        )
     if data.get("repair_format_error"):
         feedback_parts.append(f"Previous repair format error: {data['repair_format_error']}")
     hints = assessment.get("synthesis_hints") or []
@@ -564,6 +637,9 @@ def repair_structure(ctx: Ctx, state: State) -> State:
         ]
         if item["repair_diagnostics"]:
             block.append("Repair diagnostics:\n" + json.dumps(item["repair_diagnostics"], ensure_ascii=False))
+        snippet = _numbered_error_snippets(parent.code, item["repair_diagnostics"], item["excerpt"])
+        if snippet:
+            block.append("Relevant lines in current RTL (marked with `>>`):\n```verilog\n" + snippet + "\n```")
         if item["excerpt"]:
             block.append("Tool excerpt:\n" + item["excerpt"])
         feedback_parts.append("\n".join(block))

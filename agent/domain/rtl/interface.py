@@ -413,7 +413,17 @@ def check_interface_result(
 
     detail = "; ".join(item.message for item in differences)
     if not expected.authoritative or all(item.kind == "unresolved_width" for item in differences):
-        summary = "Advisory interface comparison: " + detail
+        if (
+            not expected.authoritative
+            and expected.ports
+            and not any(port.direction in ("output", "inout") for port in expected.ports)
+        ):
+            summary = (
+                "Advisory interface comparison: prompt port list declares no outputs; "
+                "verify port directions against the functional specification"
+            )
+        else:
+            summary = "Advisory interface comparison: " + detail
         return InterfaceCheckResult(
             "advisory", False, expected, actual, differences, summary
         )

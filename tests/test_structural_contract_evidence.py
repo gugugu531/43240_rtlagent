@@ -144,3 +144,16 @@ def test_explicit_interface_intro_sentence_is_authoritative_outside_examples():
     # Negative case: embedded module without explicit interface intro remains non-authoritative.
     unintroduced = "Consider the helper below.\n\nmodule TopModule(input a, output y);"
     assert not TaskSpec.from_text("plain", unintroduced).expected_interface.authoritative
+
+
+def test_non_authoritative_zero_output_port_list_does_not_force_output_to_input():
+    typo_prompt = (
+        "Implement a module named TopModule with the following interface.\n\n"
+        " - input clk\n - input d\n - input q\n\n"
+        "The module should implement a single D flip-flop."
+    )
+    candidate = "module TopModule(input clk, input d, output reg q); always @(posedge clk) q <= d; endmodule"
+    result = check_interface_result(candidate, "", typo_prompt, top="TopModule")
+    assert result.status == "advisory" and not result.blocking
+    assert "must be input" not in result.summary
+    assert "declares no outputs" in result.summary
