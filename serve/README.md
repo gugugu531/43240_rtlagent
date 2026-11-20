@@ -129,7 +129,7 @@ LLAMA_SERVER=/local/bin/llama-server ./serve/start.sh
 
 `llamacpp.sh` 默认参数：`PORT=8000`、`MAX_LEN=65536`、`PARALLEL=1`、
 `N_GPU_LAYERS=all`、`THREADS=16`、`THREADS_BATCH=16`、`FLASH_ATTN=on`、
-`REASONING_BUDGET=-1`，固定绑定 `127.0.0.1` 并启用 `--jinja --no-webui --metrics`。
+`REASONING_BUDGET=6144`，固定绑定 `127.0.0.1` 并启用 `--jinja --no-webui --metrics`。
 官方 FAQ Q7 要求 `--jinja`，否则请求中的思考设置可能不生效；若未显式设置
 `ROCBLAS_TENSILE_LIBPATH`，脚本使用所选二进制旁的 `rocblas/library`（存在时）。
 固定使用 `--cpu-strict 1`、FP16（16 位浮点）KV cache（注意力键值缓存，`--cache-type-k f16 --cache-type-v f16`），

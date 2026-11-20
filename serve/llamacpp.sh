@@ -15,7 +15,7 @@ N_GPU_LAYERS="${N_GPU_LAYERS:-all}"
 THREADS="${THREADS:-16}"
 THREADS_BATCH="${THREADS_BATCH:-16}"
 FLASH_ATTN="${FLASH_ATTN:-on}"
-REASONING_BUDGET="${REASONING_BUDGET:--1}"
+REASONING_BUDGET="${REASONING_BUDGET:-6144}"
 
 if [ ! -f "$MODEL" ] || [ ! -r "$MODEL" ]; then
     echo "llamacpp.sh: readable local GGUF not found: $MODEL" >&2

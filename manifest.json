@@ -61,7 +61,7 @@
     "port": 8000,
     "chat_template": "jinja",
     "parallel": 1,
-    "reasoning_budget": -1,
+    "reasoning_budget": 6144,
     "shared_with_baseline": true
   },
   "endpoints": {

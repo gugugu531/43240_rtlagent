@@ -59,7 +59,7 @@ GiB，并注明这是单次采样。健康检查接口的运行时显存采样�
 | temperature / top_p | 0.0 / 1.0 |
 | 单题时限 / 单次请求上限 | 900 秒含 60 秒收尾。策略选择 90 秒、解题 300 秒、检查器 180 秒。实际时限还受剩余预算约束 |
 | 共享思考设置 | `manifest.json` 的 `generation.chat_template_kwargs` 中 `enable_thinking=true`、`reasoning_effort=medium`，baseline 与方案共用 |
-| 服务思考预算 | `--reasoning-budget -1` |
+| 服务思考预算 | `--reasoning-budget 6144` |
 | RoPE（旋转位置编码）的额外设置 | 无 |
 | KV cache（注意力键值缓存） | FP16（16 位浮点数） |
 | MTP / draft 模型 | 同进程加载 Q4_0 MTP 预测头，`draft-mtp`，最多预测 3 token |
@@ -105,7 +105,7 @@ GiB，并注明这是单次采样。健康检查接口的运行时显存采样�
   --ctx-size 65536 --parallel 1 --n-gpu-layers all \
   --threads 16 --threads-batch 16 --cpu-strict 1 --flash-attn on \
   --cache-type-k f16 --cache-type-v f16 --jinja \
-  --no-webui --metrics --reasoning-budget -1 \
+  --no-webui --metrics --reasoning-budget 6144 \
   --spec-type draft-mtp \
   --model-draft /workspace/models/mtp-Qwen3.8-27B-Q4_0.gguf \
   --spec-draft-ngl all --spec-draft-n-max 3
